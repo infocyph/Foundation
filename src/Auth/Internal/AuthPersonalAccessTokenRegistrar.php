@@ -15,7 +15,7 @@ use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptClockAdapter;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
-use Infocyph\Foundation\Database\DBLayerFactory;
+use Psr\Container\ContainerInterface;
 
 final readonly class AuthPersonalAccessTokenRegistrar extends AbstractAuthRegistrar
 {
@@ -36,7 +36,7 @@ final readonly class AuthPersonalAccessTokenRegistrar extends AbstractAuthRegist
         $store = DBLayerEpicryptPersonalAccessTokenStore::class;
 
         $this->recipe($store, $store, [
-            $this->ref(DBLayerFactory::class),
+            $this->ref(ContainerInterface::class),
             $this->ref(AuthTables::class),
             $connection,
         ]);

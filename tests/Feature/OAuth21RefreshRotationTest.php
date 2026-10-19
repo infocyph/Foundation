@@ -40,7 +40,7 @@ it('rotates the active Epicrypt OAuth refresh token exactly once and revokes the
         new AuthOAuthRevisionSchema($tables),
         new AuthOAuthEpicryptProtocolSchema($tables),
     ]);
-    $store = new DBLayerEpicryptRefreshTokenStore($factory, $tables);
+    $store = new DBLayerEpicryptRefreshTokenStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
     $familyId = str_repeat('F', 43);
 
     $grant = new RefreshTokenGrant(

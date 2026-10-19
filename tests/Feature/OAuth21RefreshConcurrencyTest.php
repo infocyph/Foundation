@@ -39,7 +39,7 @@ it('allows exactly one active Epicrypt refresh rotation and revokes the family a
         new AuthOAuthRevisionSchema($tables),
         new AuthOAuthEpicryptProtocolSchema($tables),
     ]);
-    $store = new DBLayerEpicryptRefreshTokenStore($factory, $tables);
+    $store = new DBLayerEpicryptRefreshTokenStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
 
     $child = <<<'PHP'
 <?php
@@ -68,7 +68,7 @@ $config = new ConfigRepository([
 ]);
 $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
 $factory->connection()->setQueryTimeoutMs(5000);
-$store = new DBLayerEpicryptRefreshTokenStore($factory, new AuthTables());
+$store = new DBLayerEpicryptRefreshTokenStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), new AuthTables());
 $grant = new RefreshTokenGrant(
     authorizationId: 'authorization-1',
     subject: 'account-1',

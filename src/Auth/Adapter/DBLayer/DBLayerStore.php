@@ -8,11 +8,12 @@ use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Query\QueryBuilder;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DBLayerFactory;
+use Psr\Container\ContainerInterface;
 
 abstract readonly class DBLayerStore
 {
     public function __construct(
-        protected DBLayerFactory $db,
+        protected ContainerInterface $services,
         protected AuthTables $tables,
         protected ?string $connection = null,
     ) {}
@@ -39,7 +40,12 @@ abstract readonly class DBLayerStore
 
     protected function connection(): Connection
     {
-        return $this->db->connection($this->connection);
+        $database = $this->services->get(DBLayerFactory::class);
+        if (!$database instanceof DBLayerFactory) {
+            throw new \LogicException('Auth DBLayerFactory binding is invalid.');
+        }
+
+        return $database->connection($this->connection);
     }
 
     /**

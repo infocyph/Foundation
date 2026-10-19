@@ -33,6 +33,125 @@ final class FoundationReleaseSourceHookProvider extends ServiceProvider
     }
 }
 
+final class FoundationUnusedBackendProvider extends ServiceProvider
+{
+    public static int $activations = 0;
+    public static int $mailActivations = 0;
+    public static int $filesystemActivations = 0;
+
+    /** @var list<string> */
+    public static array $unusedActivations = [];
+
+    public static function http(): \Infocyph\TalkingBytes\Http\HttpClient
+    {
+        self::$unusedActivations[] = 'http';
+        throw new LogicException('Unused HTTP integration was activated.');
+    }
+
+    public static function messaging(): \Infocyph\Omnibus\MessageBus
+    {
+        self::$unusedActivations[] = 'messaging';
+        throw new LogicException('Unused message bus was activated.');
+    }
+
+    public static function cache(): \Infocyph\Foundation\Cache\CacheLayerFactory
+    {
+        self::$unusedActivations[] = 'cache';
+        throw new LogicException('Unused cache integration was activated.');
+    }
+
+    public static function mail(): \Infocyph\Foundation\Notifications\MailNotificationChannel
+    {
+        ++self::$mailActivations;
+        throw new LogicException('Unused mail integration was activated.');
+    }
+
+    public static function filesystem(): \Infocyph\Foundation\Filesystem\StorageRegistry
+    {
+        ++self::$filesystemActivations;
+        throw new LogicException('Unused filesystem integration was activated.');
+    }
+
+    public static function database(): \Infocyph\Foundation\Database\DBLayerFactory
+    {
+        ++self::$activations;
+
+        throw new LogicException('Unused database factory was activated.');
+    }
+
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+    {
+        if (($context->config['test']['allow_database'] ?? false) !== true) {
+            $builder->unbind(\Infocyph\Foundation\Database\DBLayerFactory::class);
+            $builder->factory(
+                \Infocyph\Foundation\Database\DBLayerFactory::class,
+                \Infocyph\InterMix\DI\Support\FactoryDefinition::staticFactory(self::class, 'database'),
+            );
+        }
+        foreach ([
+            \Infocyph\Foundation\Notifications\MailNotificationChannel::class => 'mail',
+            \Infocyph\Foundation\Filesystem\StorageRegistry::class => 'filesystem',
+            \Infocyph\TalkingBytes\Http\HttpClient::class => 'http',
+        ] as $id => $method) {
+            $builder->unbind($id);
+            $builder->factory($id, \Infocyph\InterMix\DI\Support\FactoryDefinition::staticFactory(self::class, $method));
+        }
+        if (($context->config['test']['allow_messaging'] ?? false) !== true) {
+            $builder->unbind(\Infocyph\Omnibus\MessageBus::class);
+            $builder->factory(\Infocyph\Omnibus\MessageBus::class, \Infocyph\InterMix\DI\Support\FactoryDefinition::staticFactory(self::class, 'messaging'));
+        }
+        $builder->factory(FoundationColdMessageHandler::class, \Infocyph\InterMix\DI\Support\FactoryDefinition::construct(FoundationColdMessageHandler::class));
+        $builder->factory(FoundationColdGrpcHandler::class, \Infocyph\InterMix\DI\Support\FactoryDefinition::construct(FoundationColdGrpcHandler::class));
+        if (($context->config['test']['allow_cache'] ?? false) !== true) {
+            $builder->unbind(\Infocyph\Foundation\Cache\CacheLayerFactory::class);
+            $builder->factory(\Infocyph\Foundation\Cache\CacheLayerFactory::class, \Infocyph\InterMix\DI\Support\FactoryDefinition::staticFactory(self::class, 'cache'));
+        }
+        $builder->factory(FoundationColdNotificationChannel::class, \Infocyph\InterMix\DI\Support\FactoryDefinition::construct(FoundationColdNotificationChannel::class));
+
+    }
+}
+
+final class FoundationColdMessageHandler
+{
+    public function __invoke(stdClass $message): string
+    {
+        unset($message);
+        return 'handled';
+    }
+}
+
+final class FoundationColdGrpcHandler implements \Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundHandlerInterface
+{
+    public function handle(\Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundRequest $request): \Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse
+    {
+        return \Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse::ok($request->message);
+    }
+}
+
+final class FoundationColdNotification implements \Infocyph\Foundation\Notifications\Notification, \Infocyph\Foundation\Notifications\NotificationRecipient
+{
+    public function channels(\Infocyph\Foundation\Notifications\NotificationRecipient $recipient): array
+    {
+        unset($recipient);
+        return ['custom' => 'hello'];
+    }
+
+    public function routeNotificationFor(string $channel, \Infocyph\Foundation\Notifications\Notification $notification): mixed
+    {
+        unset($channel, $notification);
+        return null;
+    }
+}
+
+final class FoundationColdNotificationChannel implements \Infocyph\Foundation\Notifications\NotificationChannel
+{
+    public function send(\Infocyph\Foundation\Notifications\NotificationRecipient $recipient, \Infocyph\Foundation\Notifications\Notification $notification, mixed $payload): mixed
+    {
+        unset($recipient, $notification, $payload);
+        return 'custom-ok';
+    }
+}
+
 final class FoundationCompiledReleaseHandler
 {
     public function __invoke(): Response
@@ -145,6 +264,105 @@ it('rejects web releases requiring source runtime hooks before deployment', func
         foundationWebReleaseRemove($project);
     }
 });
+
+it('keeps unused backend integrations cold throughout unrelated flows', function (string $mode, string $flow): void {
+    $project = foundationWebReleaseProject();
+    $manifest = $project . '/bootstrap/cache/release.json';
+    $capabilities = ['auth', 'cache', 'session', 'database', 'validation', 'filesystem', 'notifications', 'communication', 'messaging', 'security', 'otp', 'passkeys'];
+    $config = [
+        'app' => ['base_path' => $project, 'env' => 'testing'],
+        '_config_cache' => false,
+        'providers' => ['web' => [FoundationUnusedBackendProvider::class]],
+        'auth' => ['drivers' => ['storage' => 'database']],
+        'notifications' => ['channels' => ['custom' => FoundationColdNotificationChannel::class]],
+        'test' => [
+            'allow_cache' => $flow === 'cache',
+            'allow_database' => in_array($flow, ['database-metadata', 'database-cached-metadata'], true),
+            'allow_messaging' => $flow === 'sync-message',
+        ],
+        'messaging' => [
+            'durable' => ['enabled' => true, 'failure_store' => 'database'],
+            'default_route' => ['transport' => 'sync'],
+            'handlers' => [stdClass::class => FoundationColdMessageHandler::class],
+        ],
+        'communication' => ['grpc' => ['inbound' => ['handlers' => [
+            '/cold.Service/Echo' => FoundationColdGrpcHandler::class,
+            '/cold.Service/Unused' => \Infocyph\Foundation\Database\DBLayerFactory::class,
+        ]]], 'webhooks' => ['inbound' => ['default' => [
+            'secret' => 'cold-webhook-test-secret',
+            'replay' => ['enabled' => true, 'store' => 'memory'],
+        ]]]],
+        'database' => [
+            'default' => 'unused',
+            'connections' => ['unused' => ['driver' => 'sqlite', 'database' => $project . '/never-open.sqlite']],
+            'pool' => ['enabled' => true, 'min_connections' => 0, 'max_connections' => 1],
+            'query_cache' => ['enabled' => $flow === 'database-cached-metadata', 'store' => 'memory'],
+        ],
+        'cache' => ['default' => 'memory', 'stores' => ['memory' => ['driver' => 'memory']]],
+        'session' => ['driver' => 'database', 'lock' => ['enabled' => true]],
+        'router' => ['files' => ['web.php']],
+    ];
+    FoundationUnusedBackendProvider::$activations = 0;
+    FoundationUnusedBackendProvider::$mailActivations = 0;
+    FoundationUnusedBackendProvider::$filesystemActivations = 0;
+    FoundationUnusedBackendProvider::$unusedActivations = [];
+
+    try {
+        if ($mode === 'development') {
+            $application = new \Infocyph\Foundation\Routing\WebGraphFactory()->compose($config, $capabilities)->application;
+            $application->boot();
+            $container = $application->runtime();
+        } else {
+            $release = new WebReleaseCompiler()->compile(
+                $config,
+                $project . '/bootstrap/cache/intermix.php',
+                $project . '/bootstrap/cache/router.php',
+                $manifest,
+                capabilities: $capabilities,
+            );
+            $container = ($mode === 'prevalidated'
+                ? WebReleaseRuntime::loadPrevalidated($config, $manifest, $release['release_runtime_manifest_sha256'], foundationCapabilities: $capabilities)
+                : WebReleaseRuntime::load($config, $manifest, foundationCapabilities: $capabilities))->container;
+        }
+        $container->withinScope('webrick.request', static function (\Psr\Container\ContainerInterface $scope) use ($flow): void {
+            match ($flow) {
+                'grpc' => expect($scope->get(\Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher::class)->receive('/cold.Service/Echo', ['ok' => true])->status->value)->toBe(0),
+                'auth-store' => expect($scope->get(\Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface::class))->toBeInstanceOf(\Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface::class),
+                'principal-invalid' => expect($scope->get(\Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver::class)->resolve(Request::fake(headers: ['Authorization' => 'Bearer malformed'])))->toBeNull(),
+                'serializer' => expect($scope->get(\Infocyph\Omnibus\Serialization\EnvelopeSerializer::class))->toBeInstanceOf(\Infocyph\Omnibus\Serialization\EnvelopeSerializer::class),
+                'consumer-empty' => expect($scope->get(\Infocyph\Omnibus\Consumer\Consumer::class)->run()->received)->toBe(0),
+                'webhook-rejected' => expect(fn() => $scope->get(\Infocyph\TalkingBytes\Webhook\WebhookReceiver::class)->receive('{}', [
+                    'X-TB-Event' => 'probe', 'X-TB-Delivery' => 'cold-probe',
+                ]))->toThrow(RuntimeException::class, 'Webhook verification failed'),
+                'database-metadata', 'database-cached-metadata' => expect($scope->get(\Infocyph\DBLayer\Connection\Connection::class)->isConnected())->toBeFalse(),
+                'sync-message' => expect($scope->get(\Infocyph\Omnibus\MessageBus::class)->dispatch(new stdClass())->last(\Infocyph\Omnibus\Envelope\HandledStamp::class)?->result)->toBe('handled'),
+                'notification' => expect($scope->get(\Infocyph\Foundation\Notifications\NotificationDispatcher::class)->send(
+                    new FoundationColdNotification(),
+                    new FoundationColdNotification(),
+                ))->toBe(['custom' => 'custom-ok']),
+                'cache' => expect($scope->get(\Infocyph\Foundation\Cache\CacheManager::class)->store()->set('probe', 'ok'))->toBeTrue(),
+                'principal' => expect($scope->get(\Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver::class)->resolve(Request::fake()))->toBeNull(),
+                'session' => expect($scope->get(\Infocyph\Foundation\Session\Middleware\SessionMiddleware::class)(
+                    Request::fake(),
+                    static fn(): Response => Response::json(['ok' => true]),
+                )->getStatusCode())->toBe(200),
+                'validation' => expect($scope->get(\Infocyph\Foundation\Validation\ValidatorFactory::class)->makeRules([
+                    'email' => 'required|email',
+                ])->validate(['email' => 'ada@example.test'])->fails())->toBeFalse(),
+                default => expect(Response::json(['ok' => true])->getStatusCode())->toBe(200),
+            };
+        });
+        expect(FoundationUnusedBackendProvider::$activations)->toBe(0)
+            ->and(FoundationUnusedBackendProvider::$mailActivations)->toBe(0)
+            ->and(FoundationUnusedBackendProvider::$filesystemActivations)->toBe(0)
+            ->and(FoundationUnusedBackendProvider::$unusedActivations)->toBe([])
+            ->and(is_file($project . '/never-open.sqlite'))->toBeFalse();
+    } finally {
+        FoundationUnusedBackendProvider::$activations = 0;
+        foundationResetWebrickProductionRegistries();
+        foundationWebReleaseRemove($project);
+    }
+})->with(['development', 'validated', 'prevalidated'])->with(['plain', 'cache', 'principal', 'principal-invalid', 'auth-store', 'session', 'validation', 'notification', 'sync-message', 'database-metadata', 'database-cached-metadata', 'serializer', 'consumer-empty', 'webhook-rejected', 'grpc']);
 
 it('compiles and boots a trusted route-first Webrick release without live router construction', function (): void {
     $project = foundationWebReleaseProject();

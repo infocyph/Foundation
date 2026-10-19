@@ -313,7 +313,7 @@ function foundationOAuthHttpRemoveProject(string $root): void
 it('performs one native OAuth protocol validation per HTTP authorization request', function (): void {
     $fixture = new OAuth21FlowFixture();
     $clientStore = new FoundationOAuthClientStoreProbe(
-        new DBLayerOAuthClientStore($fixture->factory, $fixture->tables),
+        new DBLayerOAuthClientStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $fixture->factory]), $fixture->tables),
     );
     $config = new ConfigRepository([
         'auth' => [

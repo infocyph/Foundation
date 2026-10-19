@@ -128,7 +128,7 @@ it('persists single-use reset and refresh transitions through native DBLayer tra
 
     try {
         new MigrationRunner($factory->connection(), [new AuthSchema($tables)])->run();
-        $resets = new DBLayerPasswordResetStore($factory, $tables, $clock);
+        $resets = new DBLayerPasswordResetStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables, $clock);
         $resets->save(new PasswordResetRequest('reset-db', 'account', $now, $now + 300));
 
         expect(fn() => $resets->consumeAndApply('reset-db', static function (): void {
@@ -140,7 +140,7 @@ it('persists single-use reset and refresh transitions through native DBLayer tra
             ->and($resets->consumeAndApply('reset-db', static function (): void {}))->toBeFalse()
             ->and($resets->wasConsumed('reset-db'))->toBeTrue();
 
-        $refresh = new DBLayerRefreshTokenStore($factory, $tables, $clock);
+        $refresh = new DBLayerRefreshTokenStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables, $clock);
         $current = new RefreshTokenRecord(
             tokenHash: hash('sha256', 'refresh-1'),
             clientId: null,
@@ -191,8 +191,8 @@ it('rolls back token rotation instead of overwriting an existing replacement ide
             );
     };
     $store = $kind === 'refresh'
-        ? new DBLayerRefreshTokenStore($factory, $tables, new SystemClock())
-        : new \Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerRememberTokenStore($factory, $tables, new SystemClock());
+        ? new DBLayerRefreshTokenStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables, new SystemClock())
+        : new \Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerRememberTokenStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables, new SystemClock());
     $current = $make('source', 'owner', 'family');
     $occupied = $make('occupied', 'other-account', 'other-family');
     $store->save($current);

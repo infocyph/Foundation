@@ -41,12 +41,12 @@ final readonly class AuthContentionFixture
         $clock = new SystemClock();
 
         return match ($kind) {
-            'reset' => new DBLayerPasswordResetStore($this->factory, $this->tables, $clock),
-            'email' => new DBLayerEmailVerificationStore($this->factory, $this->tables, $clock),
-            'refresh' => new DBLayerRefreshTokenStore($this->factory, $this->tables, $clock),
-            'remember' => new DBLayerRememberTokenStore($this->factory, $this->tables, $clock),
-            'session' => new DBLayerSessionStore($this->factory, $this->tables),
-            'passkey' => new DBLayerPasskeyCredentialStore($this->factory, $this->tables, $clock),
+            'reset' => new DBLayerPasswordResetStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables, $clock),
+            'email' => new DBLayerEmailVerificationStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables, $clock),
+            'refresh' => new DBLayerRefreshTokenStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables, $clock),
+            'remember' => new DBLayerRememberTokenStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables, $clock),
+            'session' => new DBLayerSessionStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables),
+            'passkey' => new DBLayerPasskeyCredentialStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables, $clock),
             default => throw new RuntimeException('Unknown auth contention subject.'),
         };
     }

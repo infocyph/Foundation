@@ -411,9 +411,11 @@ it('does not extend rejected sessions for suspended locked or disabled accounts'
     $sessions->create($session);
     $resolver = new \Infocyph\Foundation\Http\Resolver\SessionPrincipalResolver(
         new \Infocyph\Foundation\Config\ConfigRepository([]),
-        $sessions,
-        $services->accountProvider(),
-        new \Infocyph\Foundation\Auth\Support\SystemClock(),
+        new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([
+            SessionStoreInterface::class => $sessions,
+            \Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface::class => $services->accountProvider(),
+            \Infocyph\Foundation\Auth\Contract\Clock\ClockInterface::class => new \Infocyph\Foundation\Auth\Support\SystemClock(),
+        ]),
     );
     $request = \Infocyph\Webrick\Request\Request::fake(
         headers: ['X-Session-Id' => $session->id],

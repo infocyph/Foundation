@@ -13,7 +13,7 @@ it('separates direct module ownership from transitive package availability', fun
     $basePath = moduleStateBasePath('ownership');
 
     try {
-        moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1.1']);
+        moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1.2']);
         $directApp = Foundation::cli([
             'base_path' => $basePath,
             '_config_cache' => false,
@@ -182,7 +182,7 @@ it('reports unknown Composer ownership instead of silently treating packages as 
 
 it('separates effective configuration publication and explicit activation state', function (): void {
     $basePath = moduleStateBasePath('activation');
-    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1.1']);
+    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1.2']);
 
     try {
         $inferredApp = Foundation::cli([
@@ -309,7 +309,7 @@ it('reports optional integrations separately from managed module ownership', fun
 
 it('keeps ordinary Omnibus messaging portable without PCNTL or POSIX requirements', function (): void {
     $basePath = moduleStateBasePath('portable-messaging');
-    moduleStateWriteComposer($basePath, ['infocyph/omnibus' => '^3.0.1']);
+    moduleStateWriteComposer($basePath, ['infocyph/omnibus' => '^3.0.2']);
 
     try {
         $application = Foundation::cli([
@@ -350,8 +350,8 @@ it('keeps ordinary Omnibus messaging portable without PCNTL or POSIX requirement
 it('evaluates conditional specialist module dependencies against explicit topology', function (): void {
     $basePath = moduleStateBasePath('dependencies');
     moduleStateWriteComposer($basePath, [
-        'infocyph/omnibus' => '^3.0.1',
-        'infocyph/dblayer' => '^6.1.1',
+        'infocyph/omnibus' => '^3.0.2',
+        'infocyph/dblayer' => '^6.1.2',
     ]);
 
     try {
@@ -434,7 +434,7 @@ it('evaluates selected auth feature dependencies against core capabilities', fun
 
 it('reports runtime platform readiness and hard-blocks missing required extensions', function (): void {
     $basePath = moduleStateBasePath('platform');
-    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1.1']);
+    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1.2']);
 
     try {
         $application = Foundation::cli([

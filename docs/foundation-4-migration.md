@@ -11,6 +11,18 @@ Read [architecture](architecture.md), [modules](modules.md),
 and [4.0-native state integrity and recovery](foundation-4-retained-data-rehearsal.md)
 before production deployment.
 
+The demand-driven candidate also changes framework adapter constructors: HTTP
+principal resolvers and database-backed auth stores receive the host's PSR
+container. They resolve native collaborators only when credentials or a store
+operation requires them. Custom direct construction must pass that container;
+no legacy constructor overload is retained. Keep execution-scoped services in
+their active scope. Unused integrations remain cold through scope cleanup.
+
+Published DBLayer 6.1.2 and Omnibus 3.0.2 provide the native deferred cache,
+transport and failure-store contracts. Their Composer floors, feature catalogs,
+worker diagnostics and package tables are aligned. Foundation requires these
+patches when the corresponding optional feature is selected.
+
 ## Version and package requirements
 
 Foundation 4 requires 64-bit PHP 8.4+ and Composer 2. The candidate's direct production
@@ -21,13 +33,13 @@ Select only the optional **feature IDs** needed by this application, grouped int
 
 | Public feature | Composer package constraint |
 | --- | --- |
-| `data.database` | `infocyph/dblayer:^6.1.1` |
+| `data.database` | `infocyph/dblayer:^6.1.2` |
 | `data.filesystem` | `infocyph/pathwise:^4.2` |
 | `security.crypto` | `infocyph/epicrypt:^3.2` |
 | `security.validation` | `infocyph/reqshield:^3.3` |
 | `security.mfa` | `infocyph/otp:^7.0`; OTP-driver MFA also requires explicitly selected `security.crypto` |
 | `security.passkey` | `infocyph/otp:^7.0` and `web-auth/webauthn-lib:^5.3.9`; selecting passkeys does not activate MFA |
-| `execution.messaging` | `infocyph/omnibus:^3.0.1`; durable transport requires `data.database` |
+| `execution.messaging` | `infocyph/omnibus:^3.0.2`; durable transport requires `data.database` |
 | `execution.communication` | `infocyph/talkingbytes:^2.3` |
 
 The [module catalog](modules.md) owns optional feature and extension requirements.

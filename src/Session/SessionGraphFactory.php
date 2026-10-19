@@ -27,13 +27,19 @@ final class SessionGraphFactory
     public static function lockedManager(
         SessionConfig $config,
         SessionStoreFactory $stores,
-        CacheManager $cache,
         ContainerInterface $container,
     ): SessionManager {
         return new SessionManager(
             $config,
             static fn(): SessionStoreInterface => $stores->make(),
-            static fn() => $cache->lock($config->lockStore),
+            static function () use ($container, $config) {
+                $cache = $container->get(CacheManager::class);
+                if (!$cache instanceof CacheManager) {
+                    throw new \LogicException('CacheManager binding is invalid.');
+                }
+
+                return $cache->lock($config->lockStore);
+            },
             $container,
         );
     }

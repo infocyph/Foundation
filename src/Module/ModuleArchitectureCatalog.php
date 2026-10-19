@@ -46,7 +46,7 @@ final class ModuleArchitectureCatalog
                 'database' => [
                     'description' => 'DBLayer connections, queries, migrations and persistence.',
                     'owner' => 'infocyph/dblayer',
-                    'packages' => ['infocyph/dblayer' => '^6.1.1'],
+                    'packages' => ['infocyph/dblayer' => '^6.1.2'],
                     'config' => ['database.php'],
                     'schemas' => [],
                     'platform' => ['extensions' => ['pdo'], 'optional_extensions' => []],
@@ -129,7 +129,7 @@ final class ModuleArchitectureCatalog
                 'messaging' => [
                     'description' => 'Omnibus events, queue transports and durable messaging.',
                     'owner' => 'infocyph/omnibus',
-                    'packages' => ['infocyph/omnibus' => '^3.0.1'],
+                    'packages' => ['infocyph/omnibus' => '^3.0.2'],
                     'config' => ['messaging.php'],
                     'schemas' => ['messaging'],
                     'platform' => ['extensions' => [], 'optional_extensions' => []],

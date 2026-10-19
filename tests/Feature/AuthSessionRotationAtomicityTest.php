@@ -32,7 +32,7 @@ function atomicAuthSessionStore(string $backend): SessionStoreInterface
     $tables = new AuthTables();
     new MigrationRunner($factory->connection(), [new AuthSchema($tables)])->run();
 
-    return new DBLayerSessionStore($factory, $tables);
+    return new DBLayerSessionStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
 }
 
 it('allows only one rotation and rejects revoked changed expired and cross-account sessions', function (string $backend): void {

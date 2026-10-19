@@ -18,7 +18,7 @@ Foundation intentionally has no broad filesystem engine or second named-storage 
 
 ## StorageContext and configured disks
 
-Each Foundation application/generation creates exactly one Pathwise `StorageContext`. Disk operators stay lazy inside that context, and canonical logical paths use the configured disk name directly:
+Each Foundation application/generation creates its Pathwise `StorageContext` on first filesystem use. Disk operators stay lazy inside that context, and canonical logical paths use the configured disk name directly:
 
 ```php
 use Infocyph\Foundation\Filesystem\StorageRegistry;
@@ -35,7 +35,7 @@ $logical = $storage->path('reports/today.txt', 'public');
 
 The native `FilesystemOperator` DI binding resolves the configured default disk. `StorageRegistry::context()` exposes the application-owned Pathwise context for advanced Pathwise workflows that explicitly need it.
 
-Relative roots of local disks are resolved against the Foundation base path before `StorageContext` construction. Unknown disks, malformed names/configuration, or an invalid default fail during application boot without opening configured storage backends.
+Relative roots of local disks are resolved against the Foundation base path before `StorageContext` construction. Unknown disks, malformed names/configuration, or an invalid default fail when filesystem services are first resolved, without opening configured storage backends. Applications may explicitly resolve `StorageRegistry` during a deployment readiness check.
 
 ## Uploads
 
@@ -51,7 +51,7 @@ Normal and chunked Webrick uploads always use Pathwise 4.1 `UploadTrustProfile::
 
 - `off` — never scan;
 - `when_configured` — secure default; scan when a scanner is configured;
-- `required` — scanner configuration is mandatory and Foundation fails boot before traffic when no scanner is available.
+- `required` — scanner configuration is mandatory; creating an upload processor fails before upload work when no scanner is available. Unrelated requests do not resolve scanners. Deployment readiness checks may explicitly call `FilesystemMalwareScannerResolver::assertReady()`.
 
 `filesystem.uploads.malware_scan.driver` may be `clamav`, `service`, or omitted. When omitted, Foundation uses an application-bound Pathwise `MalwareScannerInterface` if one exists. `service` requires that binding. `clamav` composes Pathwise's `ClamAvDaemonScanner` directly.
 

@@ -124,7 +124,7 @@ jobs:
             ],
             "require": {
               "infocyph/foundation": "*",
-              "infocyph/dblayer": "^6.1.1"
+              "infocyph/dblayer": "^6.1.2"
             }
           }
           JSON
@@ -165,9 +165,9 @@ jobs:
             ],
             "require": {
               "infocyph/foundation": "*",
-              "infocyph/dblayer": "^6.1.1",
+              "infocyph/dblayer": "^6.1.2",
               "infocyph/epicrypt": "^3.2",
-              "infocyph/omnibus": "^3.0.1",
+              "infocyph/omnibus": "^3.0.2",
               "infocyph/otp": "^7.0",
               "infocyph/pathwise": "^4.2",
               "infocyph/reqshield": "^3.3",

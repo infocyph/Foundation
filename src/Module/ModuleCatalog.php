@@ -225,7 +225,7 @@ final class ModuleCatalog
         'database' => [
             'packages' => [
                 'infocyph/dblayer' => [
-                    'constraint' => '^6.1.1',
+                    'constraint' => '^6.1.2',
                     'role' => 'required',
                     'features' => [],
                 ],
@@ -345,7 +345,7 @@ final class ModuleCatalog
         'messaging' => [
             'packages' => [
                 'infocyph/omnibus' => [
-                    'constraint' => '^3.0.1',
+                    'constraint' => '^3.0.2',
                     'role' => 'required',
                     'features' => [],
                 ],

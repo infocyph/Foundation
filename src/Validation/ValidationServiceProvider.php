@@ -8,7 +8,6 @@ use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
@@ -16,6 +15,7 @@ use Infocyph\ReqShield\Bridge\DBLayerDatabaseProvider;
 use Infocyph\ReqShield\Contracts\DatabaseProvider;
 use Infocyph\ReqShield\Schema\SchemaRegistry;
 use Infocyph\ReqShield\Validator;
+use Psr\Container\ContainerInterface;
 
 final class ValidationServiceProvider extends ServiceProvider
 {
@@ -42,7 +42,7 @@ final class ValidationServiceProvider extends ServiceProvider
             $builder->factory(DBLayerDatabaseProvider::class, FactoryDefinition::staticFactory(
                 ValidationGraphFactory::class,
                 'databaseProvider',
-                [new ServiceReference(DBLayerFactory::class), $connection],
+                [new ServiceReference(ContainerInterface::class), $connection],
             ));
             $builder->alias(DatabaseProvider::class, DBLayerDatabaseProvider::class);
         }

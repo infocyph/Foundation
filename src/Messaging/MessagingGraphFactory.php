@@ -23,8 +23,10 @@ use Infocyph\Omnibus\Scheduling\MessageFactoryMap;
 use Infocyph\Omnibus\Serialization\EnvelopeSerializer;
 use Infocyph\Omnibus\Serialization\JsonEnvelopeSerializer;
 use Infocyph\Omnibus\Transport\InMemoryTransport;
+use Infocyph\Omnibus\Transport\Sender;
 use Infocyph\Omnibus\Transport\SyncTransport;
 use Infocyph\Omnibus\Transport\TransportRegistry;
+use Psr\Container\ContainerInterface;
 
 final class MessagingGraphFactory
 {
@@ -124,16 +126,27 @@ final class MessagingGraphFactory
     }
 
     public static function transports(
-        SyncTransport $sync,
-        InMemoryTransport $memory,
-        ?DBLayerTransport $database = null,
+        ContainerInterface $services,
+        bool $durableEnabled,
     ): TransportRegistry {
-        $transports = [
-            'sync' => $sync,
-            'memory' => $memory,
+        $definitions = [
+            'sync' => SyncTransport::class,
+            'memory' => InMemoryTransport::class,
         ];
-        if ($database instanceof DBLayerTransport) {
-            $transports['database'] = $database;
+        if ($durableEnabled) {
+            $definitions['database'] = DBLayerTransport::class;
+        }
+
+        $transports = [];
+        foreach ($definitions as $name => $id) {
+            $transports[$name] = static function () use ($services, $id): Sender {
+                $transport = $services->get($id);
+                if (!$transport instanceof Sender) {
+                    throw new \LogicException(sprintf('Messaging transport binding "%s" is invalid.', $id));
+                }
+
+                return $transport;
+            };
         }
 
         return new TransportRegistry($transports);

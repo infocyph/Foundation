@@ -1,6 +1,6 @@
 # Database migrations and seeding
 
-Foundation composes DBLayer 6.1.1 for application database configuration,
+Foundation composes DBLayer 6.1.2 for application database configuration,
 migrations, schema inspection, and operational commands. DBLayer remains the
 owner of connections, queries, transactions, schema grammar, migration
 execution, replicas, pooling, query caching, and telemetry.

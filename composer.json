@@ -16,9 +16,9 @@
     },
     "require-dev": {
         "ext-sodium": "*",
-        "infocyph/dblayer": "^6.1.1",
+        "infocyph/dblayer": "^6.1.2",
         "infocyph/epicrypt": "^3.2",
-        "infocyph/omnibus": "^3.0.1",
+        "infocyph/omnibus": "^3.0.2",
         "infocyph/otp": "^7.0",
         "infocyph/pathwise": "^4.2",
         "infocyph/phpforge": "dev-main@dev",
@@ -28,8 +28,8 @@
         "web-auth/webauthn-lib": "^5.3.9"
     },
     "conflict": {
-        "infocyph/dblayer": "<6.1.1",
-        "infocyph/omnibus": "<3.0.1",
+        "infocyph/dblayer": "<6.1.2",
+        "infocyph/omnibus": "<3.0.2",
         "league/flysystem-local": "<3.25.1",
         "league/mime-type-detection": "<1.16",
         "psr/http-factory": "<1.1",

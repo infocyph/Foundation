@@ -150,9 +150,9 @@ final class OAuth21FlowFixture
             new AuthOAuthEpicryptProtocolSchema($this->tables),
         ])->run();
 
-        $clientStore = new DBLayerOAuthClientStore($this->factory, $this->tables);
-        $consentStore = new DBLayerOAuthConsentStore($this->factory, $this->tables);
-        $this->authorizationStore = new DBLayerOAuthAuthorizationStore($this->factory, $this->tables);
+        $clientStore = new DBLayerOAuthClientStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
+        $consentStore = new DBLayerOAuthConsentStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
+        $this->authorizationStore = new DBLayerOAuthAuthorizationStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
 
         $this->clients = new OAuthClientManager(
             $clientStore,
@@ -167,11 +167,11 @@ final class OAuth21FlowFixture
         $authorizer = self::authorizer();
         $this->consents = new ConsentManager($consentStore, $authorizer, $this->clock);
 
-        $this->epicryptAuthorizations = new DBLayerEpicryptOAuthAuthorizationStore($this->factory, $this->tables);
-        $epicryptCodes = new DBLayerEpicryptAuthorizationCodeStore($this->factory, $this->tables);
-        $epicryptRefresh = new DBLayerEpicryptRefreshTokenStore($this->factory, $this->tables);
-        $status = new DBLayerEpicryptAccessTokenStatusStore($this->factory, $this->tables);
-        $replay = new DBLayerEpicryptJwtReplayStore($this->factory, $this->tables);
+        $this->epicryptAuthorizations = new DBLayerEpicryptOAuthAuthorizationStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
+        $epicryptCodes = new DBLayerEpicryptAuthorizationCodeStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
+        $epicryptRefresh = new DBLayerEpicryptRefreshTokenStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
+        $status = new DBLayerEpicryptAccessTokenStatusStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
+        $replay = new DBLayerEpicryptJwtReplayStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
 
         $codeArtifact = new AuthorizationCodeArtifact(
             self::protectionKeys(KeyPurpose::OAUTH_AUTHORIZATION_CODE_PROTECTION, $issuer, 'code'),

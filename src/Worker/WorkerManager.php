@@ -305,7 +305,7 @@ final readonly class WorkerManager
         callable $processHeartbeat,
     ): int {
         if (!class_exists(Worker::class) || !interface_exists(WorkerLifecycle::class)) {
-            throw new \LogicException('Messaging workers require infocyph/omnibus ^3.0.1.');
+            throw new \LogicException('Messaging workers require infocyph/omnibus ^3.0.2.');
         }
 
         $configuredPool = ValueNormalizer::associativeArray($definition['pool'] ?? []);

@@ -71,7 +71,6 @@ final class NotificationServiceProvider extends ServiceProvider
             NotificationChannelRegistry::class,
             [
                 new ServiceReference(ConfigRepository::class),
-                $mailAvailable ? new ServiceReference(MailNotificationChannel::class) : null,
                 new ServiceReference(ContainerInterface::class),
             ],
         ));

@@ -13,7 +13,6 @@ use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
@@ -21,6 +20,7 @@ use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Webrick\Interop\CacheLayer\AtomicCounterAdapter;
 use Infocyph\Webrick\Middleware\Throttle\AtomicCounterInterface as WebrickAtomicCounterInterface;
 use Psr\Cache\CacheItemPoolInterface;
+use Psr\Container\ContainerInterface;
 use Psr\SimpleCache\CacheInterface as SimpleCacheInterface;
 
 final class CacheServiceProvider extends ServiceProvider
@@ -35,7 +35,7 @@ final class CacheServiceProvider extends ServiceProvider
                 ? [
                     new ServiceReference(ConfigRepository::class),
                     new ServiceReference(PathManager::class),
-                    new ServiceReference(DBLayerFactory::class),
+                    new ServiceReference(ContainerInterface::class),
                 ]
                 : [
                     new ServiceReference(ConfigRepository::class),
@@ -48,7 +48,7 @@ final class CacheServiceProvider extends ServiceProvider
             $hasDatabase
                 ? [
                     new ServiceReference(CacheLayerFactory::class),
-                    new ServiceReference(DBLayerFactory::class),
+                    new ServiceReference(ContainerInterface::class),
                     new ServiceReference(ConfigRepository::class),
                     new ServiceReference(PathManager::class),
                 ]

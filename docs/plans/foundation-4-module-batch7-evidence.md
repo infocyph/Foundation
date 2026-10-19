@@ -1,5 +1,187 @@
 # Foundation 4 — Module architecture Batch 7 certification evidence
 
+## Both native patches published and adopted — 2026-10-19
+
+Composer now installs published DBLayer **6.1.2** at
+`e45130d1e8e8f491f449fe04551ccdfee0b6f34f` and Omnibus **3.0.2** at
+`40af1cffe069d6862f43d2275e20d946703ea4c7`. Omnibus's published tree
+`98dda6157dcca168961da8b4d5e275471e46190f` exactly matches its qualified PR
+head `093789137481525d39f8b4c6e9322f1e17ef4138`. Reflection confirms all
+three native deferred-contract classes load from Foundation's installed vendor
+distributions, with no sibling-source bootstrap or analyzer override.
+
+Composer floors/conflicts, both catalogs, consumer workflow manifests, worker
+diagnostics, current package docs and module-CLI fixtures now require the native
+patches. Existing unsupported-version cases cover the immediately preceding
+DBLayer 6.1.1 and Omnibus 3.0.1 releases. The module-CLI benchmark passes its
+unchanged semantic checks. Installation reports zero vulnerability advisories.
+Current local lock SHA-256:
+`07451ecdc2e3fde58d42672e3eac79eb45d8ebdcfd9d25cec7603666478dcab0`.
+
+The normal full `composer ic:process`, `composer ic:tests:details` and
+`composer ic:release:guard` flows pass against this published graph:
+**854 tests / 30,221 assertions**, complete static/security analysis,
+architecture, syntax/references, duplicates/comments, formatting and refactor
+checks. All nine `composer benchmark:release` specialist benchmarks complete
+successfully; their local component timings are diagnostic and do not certify
+the strict host-RPM gate. The module CLI fixture also passes unchanged semantics.
+No unresolved PR review threads were present at the pre-push audit.
+
+Normal commit hooks and new exact-source hosted/native/performance qualification
+remain required. Historical source/lock results below do not certify this graph.
+No merge, tag or publication is performed here.
+
+## Published DBLayer adopted; Omnibus release qualification — 2026-10-19
+
+DBLayer **6.1.2** is published and Composer-resolvable at
+`e45130d1e8e8f491f449fe04551ccdfee0b6f34f`. Its tree
+`9dbff9f1f40efd5ee08bbf5f988ba7ddc83a9fbd` matches the tested patch tree.
+Foundation now uses that real distribution, with `^6.1.2` development and
+`<6.1.2` conflict floors, both module catalogs, consumer workflow manifests and
+current package documentation aligned. Local dependency installation reports
+zero vulnerability advisories. Its current ignored lock differs from prior
+qualified snapshots; previous performance results do not certify this graph.
+
+Omnibus's validation graph now uses published **DBLayer 6.1.2 / Runwire 2.1.2**.
+Its native runtime dependencies and optional integration support remain unchanged.
+Processors, detailed checks, release guard and explicit `composer ic:ci` pass:
+**263 tests / 1,420 assertions**. Its dependency-contract regression is updated
+to the new development floors. Exact head
+`093789137481525d39f8b4c6e9322f1e17ef4138` passes
+[hosted run 39182245813](https://github.com/infocyph/Omnibus/actions/runs/39182245813):
+PHP 8.4/8.5 stable/lowest QA, both analysis and benchmark lanes, clean install,
+production archive/optional integrations/real PHP-FPM, replica writer affinity,
+examples and strict documentation. The owner can publish Omnibus 3.0.2 from
+[PR #18](https://github.com/infocyph/Omnibus/pull/18); no merge or publication
+is performed here.
+
+Foundation's complete functional suite passes **854 tests / 30,221 assertions**
+with DBLayer loaded from `vendor/infocyph/dblayer`, without a sibling-source
+DBLayer override. Only unpublished Omnibus uses the temporary candidate test
+bootstrap. Rector, Pint, PHPCBF and PHPStan also pass with the candidate Omnibus
+class discovery. Sandbox loopback and filesystem-namespace limitations required
+sequential Rector (`--debug`, unchanged PHPForge configuration) and elevated
+PHPStan; no rules or checked source paths were relaxed. Adopt its actual release
+and align every Omnibus package floor before
+normal full-graph PHPForge and exact-source hosted/native/strict performance
+qualification. No alias, vendor edit, merge, tag or publication is performed.
+
+## Demand-driven lifecycle candidate — 2026-10-19
+
+The owner requires this for **every integration**: installing, enabling,
+registering or injecting a service must not initialize an unrelated library or
+backend. Cleanup only touches resources actually acquired by that execution.
+First use retains validation, authorization, cancellation, atomicity, invalidation
+and failure behavior; required storage/scanning must fail closed when used.
+
+Foundation now defers authentication stores until credentials are present and
+resolves their DBLayer factory only when a store operation needs a connection,
+browser-session stores/locks until session access, database validation until a
+database rule, database cache adapters until selected, mail until the mail
+channel, Pathwise/scanners until filesystem/upload use, replay storage until a
+verified webhook claim, gRPC handler services until their method is selected,
+and messaging transports/failure stores until selected
+transport work or terminal/undecodable persistence. Serializer construction and
+empty queue polls do not initialize database integrations.
+
+Native prerequisites are prepared in their owning libraries:
+
+- DBLayer 6.1.2 candidate: `Connection::setQueryCacheResolver()`; ordinary reads,
+  metadata and cleanup leave the cache cold, while writes still invalidate shared
+  entries. Explicit store replacement, external ownership and retry behavior
+  remain intact. [Patch PR #36](https://github.com/infocyph/DBLayer/pull/36).
+- Omnibus 3.0.2 candidate: native transport factories and deferred consumer failure
+  storage. Factories retain caller/container lifetime ownership, propagate errors
+  before message rejection, and do not create workers or event loops.
+  [Patch PR #18](https://github.com/infocyph/Omnibus/pull/18).
+
+Both owner patches preserve existing public callers and runtime dependencies.
+Local detailed quality and release guards pass: DBLayer **776 tests / 3,962
+assertions**, Omnibus **263 tests / 1,420 assertions**; both also pass
+`composer ic:ci`. DBLayer final head `44dc1be8de9acf2d75d9082203995f208867f19d`
+passes [QA 39180108269](https://github.com/infocyph/DBLayer/actions/runs/39180108269),
+PHP 8.4/8.5 stable/lowest, clean install, docs, ReqShield bridge, and
+[matched host throughput/300-second Runwire soak 39180107906](https://github.com/infocyph/DBLayer/actions/runs/39180107906).
+Its artifact is `12155977642`, ZIP digest
+`51d08cd7af7362264ac903d402d7ff03d7124df7b215cff9e06e06dacf3fe145`.
+GitHub measures test-merge commit `b26a4c77d3fe47a66af58dd5514ff498378691dc`;
+its source tree `9dbff9f1f40efd5ee08bbf5f988ba7ddc83a9fbd` exactly matches release
+head `44dc1be`. The soak records **300.004 seconds, 279,754 successful requests,
+zero unexpected errors**, and passes every native acceptance condition.
+DBLayer is ready for the owner to release as 6.1.2. Omnibus refined head `7aca337`
+also passes [its current checks](https://github.com/infocyph/Omnibus/actions/runs/39180753759),
+including a regression preserving named constructor dependency discovery;
+its dependency update and final qualification await published DBLayer.
+Foundation introduces no cache, sender or failure-store proxies. Its constructor
+changes are part of the approved Foundation 4 break. Current configured static
+analysis passes with the four native candidate definitions added to discovery;
+normal PHPForge syntax/reference/duplicate/comment, security, architecture,
+formatting and refactor checks pass. All nine declared specialist acceptance
+benchmarks pass against the native candidate sources; these are integration
+diagnostics, not the hosted sustained-RPM gate. No detector scope or rule is weakened.
+
+Regression evidence includes **45 cases / 273 assertions** across development,
+validated and prevalidated web boot with all installed optional integrations
+selected, plus separate replay atomicity coverage. Before correction, unused
+backend factories throw in these flows. Tests now assert zero unrelated
+activations and no SQLite database file, through scope cleanup. The complete
+Foundation functional suite passes **854 tests / 30,221 assertions** against the
+actual native candidate sources through a temporary test bootstrap. This is
+unpublished-source integration evidence: vendor and Composer versions remain
+unchanged. Normal published-package QA and hosted qualification remain required
+after the owner patches are published. Release order is DBLayer 6.1.2 first;
+then update Omnibus against that published dependency and qualify/release
+Omnibus 3.0.2; then adopt both in Foundation. The historical **35/37** ledger below
+belongs to earlier immutable candidates, not this working tree.
+
+## Completed optimized qualification — 2026-10-18 (`236755e`)
+
+[Standard ARM run 39148047013](https://github.com/infocyph/Foundation/actions/runs/39148047013)
+compares frozen baseline `6274939c395f75e5cf777aad5d7439f10792758c` with immutable
+candidate/tool source `236755e8810a3dcbfd4dced1ac3489cc0e4618e2`, common lock
+`b5b1180b81592d106d0fe96db0bf00bc5342b4ec44318076595ac24b253d781d`.
+Independent verification checks downloaded ZIP digests against GitHub artifact
+metadata, all **240 valid trials and 16 soak windows**, 24 distinct runner
+identities, correct/authenticated responses, query/cache/worker evidence,
+process-tree RSS, interval CPU and actual affinity. The load generator peaks at
+**3.063% CPU**. Both native aggregate comparisons still fail the unchanged
+**2% RPM regression / 2.5% CV** gate.
+
+Verified aggregate artifact ZIP identities:
+
+| Batch | GitHub artifact ID | ZIP SHA-256 |
+| --- | --- | --- |
+| Primary | 12145587824 | `00a344bc8525198ffa61216d756d0f6897a2ea104b308e39e1e97f85ae6cd28c` |
+| Confirmation | 12145294127 | `59e5fd9ad46b08e5b1ea90de6d1555e1cd58d032d9c6a68dd0c34b72c17858c9` |
+
+All 24 median throughput changes are positive. Primary: **5 pass / 7
+inconclusive**; confirmation: **8 pass / 4 inconclusive**. No stable regressions
+occur in this run; excess variability still blocks certification. Passing cases
+are not mixed between batches. This result covers `236755e`, not the later
+demand-driven candidate above.
+
+| Scenario | Primary RPM change | Primary max CV | Primary verdict | Confirmation RPM change | Confirmation max CV | Confirmation verdict |
+| --- | ---: | ---: | --- | ---: | ---: | --- |
+| fpm-w1-c1 | +50.805% | 3.028% | Inconclusive | +54.208% | 1.788% | Pass |
+| fpm-w1-c10 | +51.337% | 3.633% | Inconclusive | +40.147% | 2.897% | Inconclusive |
+| fpm-w1-c50 | +47.567% | 2.518% | Inconclusive | +48.133% | 0.190% | Pass |
+| fpm-w4-c1 | +48.919% | 1.551% | Pass | +47.028% | 1.024% | Pass |
+| fpm-w4-c10 | +24.598% | 3.148% | Inconclusive | +15.737% | 3.566% | Inconclusive |
+| fpm-w4-c50 | +40.654% | 5.641% | Inconclusive | +15.336% | 1.720% | Pass |
+| runwire-w1-c1 | +10.632% | 2.173% | Pass | +4.574% | 3.413% | Inconclusive |
+| runwire-w1-c10 | +6.555% | 1.693% | Pass | +13.694% | 2.371% | Pass |
+| runwire-w1-c50 | +11.811% | 3.599% | Inconclusive | +9.932% | 1.601% | Pass |
+| runwire-w4-c1 | +6.697% | 1.298% | Pass | +10.020% | 1.803% | Pass |
+| runwire-w4-c10 | +13.060% | 3.456% | Inconclusive | +29.757% | 2.079% | Pass |
+| runwire-w4-c50 | +5.517% | 2.259% | Pass | +13.043% | 3.568% | Inconclusive |
+
+Exact-source hosted [QA 39148051235](https://github.com/infocyph/Foundation/actions/runs/39148051235)
+and [native hosting 39148050861](https://github.com/infocyph/Foundation/actions/runs/39148050861)
+pass. A separate local Docker Runwire w4/c50 diagnostic has five 120-second
+trials per revision: baseline median 13,878.20 RPM (CV 2.419%); candidate median
+16,230.01 RPM (CV 3.373%), zero failed responses. Its positive median change
+also does not satisfy the variance gate or replace a complete hosted matrix.
+
 ## Measured optimization candidate — 2026-10-18
 
 The owner declined a performance-gate exception and requested improvements across

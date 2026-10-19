@@ -11,7 +11,6 @@ final readonly class NotificationChannelRegistry
 {
     public function __construct(
         private ConfigRepository $config,
-        private ?NotificationChannel $mail,
         private ContainerInterface $container,
     ) {}
 
@@ -62,9 +61,11 @@ final readonly class NotificationChannelRegistry
             return $this->normalize($name, $configured[$name]);
         }
         if ($name === 'mail') {
-            return $this->mail ?? throw new \LogicException(
-                'The mail notification channel requires the optional infocyph/talkingbytes email integration.',
-            );
+            if (!$this->container->has(MailNotificationChannel::class)) {
+                throw new \LogicException('The mail notification channel requires the optional infocyph/talkingbytes email integration.');
+            }
+
+            return $this->normalize($name, MailNotificationChannel::class);
         }
 
         throw new \InvalidArgumentException(sprintf(

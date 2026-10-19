@@ -6,11 +6,7 @@ namespace Infocyph\Foundation\Auth;
 
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberMeManager;
-use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
-use Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
-use Infocyph\Foundation\Auth\Contract\Storage\SessionStoreInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Driver\AuthMfaDriver;
 use Infocyph\Foundation\Auth\Driver\AuthPasskeyDriver;
@@ -31,7 +27,6 @@ use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
 use Infocyph\Foundation\Auth\Internal\AuthStoreRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthTokenRegistrar;
 use Infocyph\Foundation\Auth\Internal\EpicryptTokenPolicyResolver;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Http\Middleware\AuthMiddleware;
@@ -49,6 +44,7 @@ use Infocyph\Foundation\Http\Response\AuthResponseFactory;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
+use Psr\Container\ContainerInterface;
 
 final class AuthServiceProvider extends ServiceProvider
 {
@@ -97,36 +93,20 @@ final class AuthServiceProvider extends ServiceProvider
     ): void {
         $builder->factory(SessionPrincipalResolver::class, FactoryDefinition::construct(
             SessionPrincipalResolver::class,
-            [
-                new ServiceReference(ConfigRepository::class),
-                new ServiceReference(SessionStoreInterface::class),
-                new ServiceReference(AccountProviderInterface::class),
-                new ServiceReference(ClockInterface::class),
-            ],
+            [new ServiceReference(ConfigRepository::class), new ServiceReference(ContainerInterface::class)],
         ));
         $builder->factory(BearerTokenPrincipalResolver::class, FactoryDefinition::construct(
             BearerTokenPrincipalResolver::class,
-            [
-                new ServiceReference(ConfigRepository::class),
-                new ServiceReference(AccessTokenServiceInterface::class),
-                new ServiceReference(AccountProviderInterface::class),
-            ],
+            [new ServiceReference(ConfigRepository::class), new ServiceReference(ContainerInterface::class)],
         ));
         $builder->factory(RememberMePrincipalResolver::class, FactoryDefinition::construct(
             RememberMePrincipalResolver::class,
-            [
-                new ServiceReference(ConfigRepository::class),
-                new ServiceReference(RememberMeManager::class),
-                new ServiceReference(AccountProviderInterface::class),
-            ],
+            [new ServiceReference(ConfigRepository::class), new ServiceReference(ContainerInterface::class)],
         ));
         if ($oauthEnabled) {
             $builder->factory(OAuthBearerTokenPrincipalResolver::class, FactoryDefinition::construct(
                 OAuthBearerTokenPrincipalResolver::class,
-                [
-                    new ServiceReference(ConfigRepository::class),
-                    new ServiceReference(OAuthAccessTokenValidator::class),
-                ],
+                [new ServiceReference(ConfigRepository::class), new ServiceReference(ContainerInterface::class)],
             ));
         }
 

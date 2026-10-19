@@ -111,7 +111,7 @@ final class DBLayerFactory
             return $connection;
         }
 
-        $connection->setQueryCache($this->queryCache());
+        $connection->setQueryCacheResolver($this->queryCache(...));
 
         return $connection;
     }

@@ -4,13 +4,13 @@ Foundation 4 has **prebuilt Core**, engineering-only **PHPForge QA**, and exactl
 
 | Module | Qualified feature | Native package | Published configuration |
 | --- | --- | --- | --- |
-| data | `data.database` | DBLayer ^6.1.1 | database.php |
+| data | `data.database` | DBLayer ^6.1.2 | database.php |
 | data | `data.filesystem` | Pathwise ^4.2 | filesystem.php |
 | security | `security.crypto` | Epicrypt ^3.2 | security.php |
 | security | `security.validation` | ReqShield ^3.3 | validation.php |
 | security | `security.mfa` | OTP ^7.0 | none |
 | security | `security.passkey` | OTP ^7.0, web-auth/webauthn-lib ^5.3.9 | none |
-| execution | `execution.messaging` | Omnibus ^3.0.1 | messaging.php |
+| execution | `execution.messaging` | Omnibus ^3.0.2 | messaging.php |
 | execution | `execution.communication` | TalkingBytes ^2.3 | communication.php |
 
 Core supplies auth, cache, logging, operations, resources, sessions, notifications, plus the native schema and readiness systems. Eight `core:*` diagnostics report Core availability without granting package installation rights. CacheLayer and Runwire are required Core dependencies. PHPForge is dev-only; `opis/closure` is dev-only and `psr/log` is Core runtime. Webrick, InterMix and Runwire retain native router, DI and host ownership. Runwire is installed in production even without PCNTL/POSIX or a persistent host; available capabilities govern its behavior.

@@ -34,7 +34,7 @@ it('installs selected feature packages only, with explicit OTP passkey co-owners
             'infocyph/otp' => '^7.0',
             'web-auth/webauthn-lib' => '^5.3.9',
         ])
-        ->and($catalog->packages('execution', ['messaging']))->toBe(['infocyph/omnibus' => '^3.0.1'])
+        ->and($catalog->packages('execution', ['messaging']))->toBe(['infocyph/omnibus' => '^3.0.2'])
         ->and(fn() => $catalog->packages('execution', ['runtime']))->toThrow(InvalidArgumentException::class)
         ->and($catalog->packages('execution', ['communication']))->toBe(['infocyph/talkingbytes' => '^2.3']);
 });

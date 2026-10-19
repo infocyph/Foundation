@@ -82,9 +82,9 @@ use Infocyph\Foundation\Auth\OAuth\Token\OAuthTokenManager;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
-use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Session\SessionConfig;
 use Psr\Clock\ClockInterface as PsrClock;
+use Psr\Container\ContainerInterface;
 
 final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
 {
@@ -293,7 +293,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         ];
         foreach ($stores as $id => $implementation) {
             $this->recipe($id, $implementation, [
-                $this->ref(DBLayerFactory::class),
+                $this->ref(ContainerInterface::class),
                 $this->ref(AuthTables::class),
                 $connection,
             ]);
@@ -439,7 +439,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         ];
         foreach ($stores as $id => $implementation) {
             $this->recipe($id, $implementation, [
-                $this->ref(DBLayerFactory::class),
+                $this->ref(ContainerInterface::class),
                 $this->ref(AuthTables::class),
                 $connection,
             ]);

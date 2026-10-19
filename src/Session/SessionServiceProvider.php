@@ -8,7 +8,6 @@ use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Filesystem\PathManager;
@@ -62,7 +61,6 @@ final class SessionServiceProvider extends ServiceProvider
                 [
                     new ServiceReference(SessionConfig::class),
                     new ServiceReference(SessionStoreFactory::class),
-                    new ServiceReference(CacheManager::class),
                     new ServiceReference(ContainerInterface::class),
                 ],
             ));
@@ -112,23 +110,16 @@ final class SessionServiceProvider extends ServiceProvider
 
     private function registerStore(ContainerBuilder $builder, FoundationBuildContext $context, string $driver): void
     {
-        $storeArguments = [new ServiceReference(SessionConfig::class)];
-        if ($driver === 'cache') {
-            if (!$context->permitsCapability('cache')) {
-                throw new \LogicException('Cache-backed sessions require the Foundation cache capability.');
-            }
-            $storeArguments[] = new ServiceReference(CacheManager::class);
-        } elseif ($driver === 'database') {
-            if (!$context->permitsCapability('database') || !class_exists(Connection::class)) {
-                throw new \LogicException('Database-backed sessions require the Foundation database capability.');
-            }
-            $storeArguments[] = null;
-            $storeArguments[] = new ServiceReference(DBLayerFactory::class);
+        if ($driver === 'cache' && !$context->permitsCapability('cache')) {
+            throw new \LogicException('Cache-backed sessions require the Foundation cache capability.');
+        }
+        if ($driver === 'database' && (!$context->permitsCapability('database') || !class_exists(Connection::class))) {
+            throw new \LogicException('Database-backed sessions require the Foundation database capability.');
         }
 
         $builder->factory(SessionStoreFactory::class, FactoryDefinition::construct(
             SessionStoreFactory::class,
-            $storeArguments,
+            [new ServiceReference(SessionConfig::class), new ServiceReference(ContainerInterface::class)],
         ));
 
         if ($context->permitsCapability('database') && class_exists(Connection::class)) {

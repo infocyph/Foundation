@@ -194,8 +194,8 @@ it('rejects stale MFA and passkey credential replacements through DBLayer single
             return 1_700_000_000;
         }
     };
-    $mfa = new DBLayerMfaFactorStore($factory, $tables);
-    $passkeys = new DBLayerPasskeyCredentialStore($factory, $tables, $clock);
+    $mfa = new DBLayerMfaFactorStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
+    $passkeys = new DBLayerPasskeyCredentialStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables, $clock);
 
     $factor = new MfaFactor(
         id: 'factor-1',

@@ -16,12 +16,12 @@ it('rejects a real Composer downgrade occurring while feature publication is sta
         'name' => 'test/publication-race',
         'repositories' => [
             ['type' => 'package', 'package' => [
-                ['name' => 'infocyph/dblayer', 'version' => '6.1.1', 'type' => 'metapackage'],
+                ['name' => 'infocyph/dblayer', 'version' => '6.1.2', 'type' => 'metapackage'],
                 ['name' => 'infocyph/dblayer', 'version' => '5.9.0', 'type' => 'metapackage'],
             ]],
             ['packagist.org' => false],
         ],
-        'require' => ['infocyph/dblayer' => '6.1.1'],
+        'require' => ['infocyph/dblayer' => '6.1.2'],
     ], JSON_THROW_ON_ERROR));
     file_put_contents($directory . '/config/database.php', '<?php return [];');
     $original = '<?php return ' . var_export(['features' => [], 'application_policy' => str_repeat('x', 16 * 1024 * 1024)], true) . ';';
@@ -76,7 +76,7 @@ it('rejects a real Composer downgrade occurring while feature publication is sta
             ->and(glob($directory . '/config/.foundation-modules-*'))->toBe([]);
 
         $repaired = $runner->run([
-            'composer', 'require', 'infocyph/dblayer:6.1.1', '--no-interaction', '--no-plugins', '--no-scripts',
+            'composer', 'require', 'infocyph/dblayer:6.1.2', '--no-interaction', '--no-plugins', '--no-scripts',
         ], new ProcessOptions(cwd: $directory, timeoutSeconds: 30));
         expect($repaired->successful())->toBeTrue();
         $app = \Infocyph\Foundation\Foundation::cli(['base_path' => $directory, '_config_cache' => false]);

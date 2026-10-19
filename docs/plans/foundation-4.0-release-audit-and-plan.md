@@ -1,3 +1,61 @@
+## Both published patches adopted; Foundation qualification — 2026-10-19
+
+Foundation now installs actual DBLayer 6.1.2 and Omnibus 3.0.2 distributions.
+All current dependency floors, module catalogs, consumer manifests, worker
+diagnostics, tests, module-CLI benchmark fixtures and package documentation are
+aligned. No sibling-source override or development alias remains necessary.
+Native patches provide the deferred mechanisms; Foundation composes them with
+host-owned container and execution lifetimes. Normal processors, detailed QA
+and the full release guard pass with 854 tests / 30,221 assertions, along with
+all nine specialist benchmark commands and module-CLI semantics. New exact-source
+hosted/native and strict performance acceptance remain required. No merge, tag
+or publication is performed here. Earlier qualification records below are
+historical.
+
+## Published DBLayer and pending Omnibus — 2026-10-19
+
+DBLayer 6.1.2 is published and adopted as a real Composer distribution. Its
+minimum versions are aligned across Composer, both module catalogs, consumer
+workflow manifests and current docs. Foundation passes 854 functional tests /
+30,221 assertions with published DBLayer and the unpublished Omnibus candidate.
+Omnibus passes its complete local quality flow against published DBLayer 6.1.2
+and Runwire 2.1.2. Exact head `093789137481525d39f8b4c6e9322f1e17ef4138`
+also passes [hosted run 39182245813](https://github.com/infocyph/Omnibus/actions/runs/39182245813),
+including all PHP 8.4/8.5 stable/lowest QA lanes, native production and integration
+checks. PR #18 is ready for the owner to release 3.0.2. Then adopt Omnibus, align its full dependency contract and
+repeat normal published-graph QA and complete strict performance qualification.
+The release is still pending; no merge or publication is performed here.
+
+## Demand-driven lifecycle and release status — 2026-10-19
+
+The owner requires unused integrations to stay uninitialized across boot,
+request/task handling and cleanup. This applies to **all libraries and backends**,
+including database, cache, auth/session stores, mail, messaging, validation,
+filesystem/scanners and webhook replay state. Preserve native security,
+atomicity, invalidation, cancellation and host-owned lifetimes on first use.
+
+The Foundation working tree implements these boundaries and passes 854
+functional tests / 30,221 assertions against actual unpublished native candidate
+sources, including 45 unused-backend cases across three web boot modes.
+DBLayer 6.1.2 and Omnibus 3.0.2 native patch candidates are prerequisites;
+Foundation must consume their real published versions before normal package QA
+and new exact-source hosted acceptance. Do not duplicate deferred SDK mechanisms
+in Foundation or substitute a development alias for a published dependency.
+
+The complete optimized `236755e` qualification finishes with all 24 median RPM
+changes positive, no stable regressions, and eleven variance-inconclusive cases.
+Its exact-source normal QA/native hosting pass; the unchanged <=2% regression /
+<=2.5% CV gate still blocks release. The previous 35/37 ledger is historical and
+cannot certify the newer working tree. See [current source, patch prerequisites,
+and full evidence](foundation-4-module-batch7-evidence.md).
+
+Next: finish exact-revision DBLayer patch checks and publish DBLayer first,
+update Omnibus against the published dependency and qualify/release it, adopt
+both published packages in Foundation, run the complete PHPForge workflow and exact-source native/consumer
+checks, then repeat the complete strict performance matrix on standard GitHub
+workers. No merge, tag or publication is performed here; Infbyte cutover remains
+deferred until Foundation publication.
+
 ## Current pre-merge status — 2026-10-18
 
 Current release ledger: **35/37**. Normal quality, lowest/stable dependencies,

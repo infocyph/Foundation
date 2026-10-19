@@ -23,7 +23,7 @@ it('models managed feature and optional package roles without broadening install
         ])
         ->and($modules['messaging']['packages'])->not->toHaveKey('infocyph/runwire')
         ->and($catalog->managedPackages($modules['messaging']))->toBe([
-            'infocyph/omnibus' => '^3.0.1',
+            'infocyph/omnibus' => '^3.0.2',
         ]);
 });
 
@@ -107,9 +107,9 @@ it('pins the complete seven-specialist module contract', function (): void {
     ))->toBe([
         'auth' => [],
         'communication' => ['infocyph/talkingbytes' => '^2.3'],
-        'database' => ['infocyph/dblayer' => '^6.1.1'],
+        'database' => ['infocyph/dblayer' => '^6.1.2'],
         'filesystem' => ['infocyph/pathwise' => '^4.2'],
-        'messaging' => ['infocyph/omnibus' => '^3.0.1'],
+        'messaging' => ['infocyph/omnibus' => '^3.0.2'],
         'security' => ['infocyph/epicrypt' => '^3.2'],
         'validation' => ['infocyph/reqshield' => '^3.3'],
     ])->and(array_map(

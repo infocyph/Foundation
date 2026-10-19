@@ -173,7 +173,7 @@ final class MessagingServiceProvider extends ServiceProvider
                 new ServiceReference(ConfigRepository::class),
                 new ServiceReference(TransportRegistry::class),
                 new ServiceReference(HandlerInvoker::class),
-                new ServiceReference(FailureStore::class),
+                new ServiceReference(ContainerInterface::class),
                 new ServiceReference(SystemClock::class),
                 new ServiceReference(ExecutionScope::class),
                 new ServiceReference(RunwireBinding::class),
@@ -204,7 +204,7 @@ final class MessagingServiceProvider extends ServiceProvider
             OmnibusDurableFactory::class,
             [
                 new ServiceReference(ConfigRepository::class),
-                new ServiceReference(DBLayerFactory::class),
+                new ServiceReference(ContainerInterface::class),
                 new ServiceReference(MessagingRuntimeResolver::class),
                 new ServiceReference(SystemClock::class),
             ],
@@ -385,9 +385,8 @@ final class MessagingServiceProvider extends ServiceProvider
             MessagingGraphFactory::class,
             'transports',
             [
-                new ServiceReference(SyncTransport::class),
-                new ServiceReference(InMemoryTransport::class),
-                $durableEnabled ? new ServiceReference(DBLayerTransport::class) : null,
+                new ServiceReference(ContainerInterface::class),
+                $durableEnabled,
             ],
         ));
     }

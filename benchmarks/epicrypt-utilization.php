@@ -382,7 +382,7 @@ new MigrationRunner(
 )->run();
 $foundationPat = new PersonalAccessTokenManager(
     $signingKeys,
-    new DBLayerEpicryptPersonalAccessTokenStore($patFactory, $patTables),
+    new DBLayerEpicryptPersonalAccessTokenStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $patFactory]), $patTables),
     $patPolicy,
     clock: $psrClock,
 );

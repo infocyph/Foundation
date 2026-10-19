@@ -67,7 +67,7 @@ use Infocyph\Foundation\Auth\Support\{
 };
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
-use Infocyph\Foundation\Database\DBLayerFactory;
+use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
 final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
@@ -108,7 +108,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
     private function bindClockedDbStore(string $id, string $storeClass, ?string $connection): void
     {
         $this->recipe($id, $storeClass, [
-            $this->ref(DBLayerFactory::class),
+            $this->ref(ContainerInterface::class),
             $this->ref(AuthTables::class),
             $this->ref(ClockInterface::class),
             $connection,
@@ -118,7 +118,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
     private function bindMfaDbStore(?string $connection, bool $protectSecrets): void
     {
         $arguments = [
-            $this->ref(DBLayerFactory::class),
+            $this->ref(ContainerInterface::class),
             $this->ref(AuthTables::class),
             $connection,
         ];
@@ -145,7 +145,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
     private function bindPlainDbStore(string $id, string $storeClass, ?string $connection): void
     {
         $this->recipe($id, $storeClass, [
-            $this->ref(DBLayerFactory::class),
+            $this->ref(ContainerInterface::class),
             $this->ref(AuthTables::class),
             $connection,
         ]);

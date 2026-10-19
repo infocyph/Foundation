@@ -20,7 +20,7 @@ No merge, tag, publication or release date is announced by these notes.
 - One trusted, source-free compiled generation for web and non-web runtimes. Webrick retains ownership of native HTTP routing, request dispatch, route formats and response output.
 - Native InterMix scoped input/borrowed scope handling, controlled cleanup, generation identity and concurrent execution isolation.
 - Runwire is a required Core dependency with always-available native integration across supported environments. Foundation uses the host-owned RuntimeContext/RequestContext and native Webrick/InterMix integration; it does not add a competing server or coroutine scheduler.
-- Published CacheLayer 4.0.1, DBLayer 6.1.1 and Omnibus 3.0.1 provide context sharing and native operation providers. Ordinary Foundation-created database and messaging services receive the active host context; redundant Foundation operation wrappers are removed.
+- Published CacheLayer 4.0.1, DBLayer 6.1.2 and Omnibus 3.0.2 provide context sharing and native operation providers. Ordinary Foundation-created database and messaging services receive the active host context; redundant Foundation operation wrappers are removed.
 - Optional specialist capabilities must be explicitly selected. Installation of an optional Composer package alone does not activate its framework integration.
 
 ## Serving and host ownership
@@ -54,6 +54,7 @@ The former 11-entry public module catalog and its unqualified installable aliase
 
 ## Security, state and lifecycle
 
+- Integrations remain uninitialized until their operation is needed. Anonymous authentication, untouched sessions, ordinary validation, custom notifications, rejected webhooks, synchronous messaging, and empty consumers do not initialize unrelated backend libraries. Query-cache configuration alone does not open a cache backend; writes still invalidate shared cached data. Published DBLayer 6.1.2 and Omnibus 3.0.2 supply these native deferred contracts.
 - Authentication, browser session/CSRF, OAuth 2.1, passkey, one-time recovery, revocation and replay-isolation workflows are exercised through current selected native integrations.
 - Built-in persistent lifecycle covers request/worker/fiber cleanup, cancellation, transaction rollback and no cross-request principal or runtime-scope leakage.
 - Current Foundation 4 auth/OAuth persistence snapshot/restoration is tested independently of compatibility with previous major versions.
@@ -71,7 +72,7 @@ current permissions so revocations and account isolation remain effective.
 
 - 64-bit PHP 8.4 or 8.5, Composer 2.
 - Required Core runtime: ArrayKit `^5.3.1`, CacheLayer `^4.0.1`, InterMix `^11.2`, Runwire `^2.1.2`, UID `^6.0`, Webrick `^6.0.3`, and PSR Log (`psr/log`) `^3.0.2`.
-- Optional selected specialists: DBLayer `^6.1.1`, Epicrypt `^3.2`, Omnibus `^3.0.1`, OTP `^7.0`, Pathwise `^4.2`, ReqShield `^3.3`, TalkingBytes `^2.3`; passkey feature uses compatible WebAuthn dependencies.
+- Optional selected specialists: DBLayer `^6.1.2`, Epicrypt `^3.2`, Omnibus `^3.0.2`, OTP `^7.0`, Pathwise `^4.2`, ReqShield `^3.3`, TalkingBytes `^2.3`; passkey feature uses compatible WebAuthn dependencies.
 - The WebAuthn passkey feature requires `web-auth/webauthn-lib` `^5.3.9`; `opis/closure` `^4.5` and PHPForge remain development/engineering dependencies, not required Core runtime packages.
 - Optional transitive compatibility floors exclude PHP 8.4/8.5 implicit-nullability deprecations: Flysystem Local 3.25.1, MIME detection 1.16, PSR HTTP Factory 1.1, PKI Framework 1.6.2, Symfony Clock/PropertyAccess/PropertyInfo/Serializer/UID 6.4.3 (also excluding 7.0.0–7.0.2), and PHP 8.3 polyfill 1.30. Composer applies these conflicts when the package is present; optional feature installation remains explicit.
 - Development and production `--no-dev` configurations build standalone Foundation releases. Infbyte's stable dependency cutover follows actual Foundation 4 publication; application publication is a separate release.

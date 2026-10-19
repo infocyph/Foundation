@@ -6,7 +6,6 @@ namespace Infocyph\Foundation\Communication;
 
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\ContainerBuilder;
@@ -138,7 +137,7 @@ final class CommunicationServiceProvider extends ServiceProvider
             [
                 new ServiceReference(CommunicationProfiles::class),
                 new ServiceReference(ConfigRepository::class),
-                new ServiceReference(CacheManager::class),
+                new ServiceReference(ContainerInterface::class),
             ],
         ));
     }

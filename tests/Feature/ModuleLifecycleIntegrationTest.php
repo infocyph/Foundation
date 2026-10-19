@@ -176,8 +176,8 @@ it('plans optional specialist packages and conditional dependencies without acti
             ->and($plan['requested'])->toBe(['execution.messaging'])
             ->and($plan['required'])->toBe(['data.database', 'execution.messaging'])
             ->and($plan['effects']['require'])->toBe([
-                'infocyph/dblayer' => '^6.1.1',
-                'infocyph/omnibus' => '^3.0.1',
+                'infocyph/dblayer' => '^6.1.2',
+                'infocyph/omnibus' => '^3.0.2',
             ])
             ->and($plan['effects']['activate'])->toBe([]);
     } finally {

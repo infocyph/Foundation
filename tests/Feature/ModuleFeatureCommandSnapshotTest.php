@@ -13,11 +13,11 @@ function foundationB6Project(): string
     mkdir($path . '/config', 0775, true);
     file_put_contents($path . '/composer.json', json_encode([
         'name' => 'test/application',
-        'require' => ['infocyph/dblayer' => '^6.1.1'],
+        'require' => ['infocyph/dblayer' => '^6.1.2'],
     ], JSON_THROW_ON_ERROR));
     file_put_contents($path . '/vendor/composer/installed.json', json_encode([
         'packages' => [
-            ['name' => 'infocyph/dblayer', 'version' => '6.1.1.0', 'pretty_version' => '6.1.1'],
+            ['name' => 'infocyph/dblayer', 'version' => '6.1.2.0', 'pretty_version' => '6.1.2'],
         ],
     ], JSON_THROW_ON_ERROR));
     file_put_contents($path . '/config/database.php', "<?php return [];\n");
@@ -49,8 +49,8 @@ it('reads a fresh root Composer and selected-feature project snapshot for the v2
         $plan = new ModuleFeaturePlanner()->plan('install', ['data.database'], $state);
 
         expect($state['root_known'])->toBeTrue()
-            ->and($state['root_requirements'])->toBe(['infocyph/dblayer' => '^6.1.1'])
-            ->and($state['installed']['infocyph/dblayer'] ?? null)->toBe('6.1.1.0')
+            ->and($state['root_requirements'])->toBe(['infocyph/dblayer' => '^6.1.2'])
+            ->and($state['installed']['infocyph/dblayer'] ?? null)->toBe('6.1.2.0')
             ->and($state['enabled'])->toBe(['data.database'])
             ->and($state['selected_features'])->toBe(['data.database', 'data.filesystem'])
             ->and($state['published_configs'])->toBe(['database.php'])
@@ -129,7 +129,7 @@ it('rejects Composer metadata changed after the v2 plan before locked activation
         $manifest = $path . '/vendor/composer/installed.json';
         $contents = file_get_contents($manifest);
         expect($contents)->toBeString();
-        file_put_contents($manifest, str_replace('6.1.1.0', '6.2.0.0', (string) $contents));
+        file_put_contents($manifest, str_replace('6.1.2.0', '6.2.0.0', (string) $contents));
 
         expect(fn() => $activation->applyFeatures('enable', ['data.database'], $snapshot))
             ->toThrow(RuntimeException::class, 'Composer metadata changed')
