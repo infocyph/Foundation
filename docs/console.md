@@ -1,6 +1,6 @@
 # CLI, schedules, and workers
 
-Foundation 2.0 has no `FoundationConsole`, `src/Console` hierarchy, or second
+Foundation uses no `FoundationConsole`, `src/Console` hierarchy, or second
 console framework. The root `infbyte` executable delegates to Foundation's
 `CommandDispatcher`.
 

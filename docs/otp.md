@@ -200,8 +200,9 @@ overwrite newer factor state.
 
 Sensitive factor metadata is persisted only where required for verification; it
 is redacted from enrollment/audit context. Protection of durable symmetric MFA
-secrets at rest is completed by Foundation's Epicrypt integration policy in
-plan point 26.10 rather than by inventing encryption inside the OTP adapter.
+secrets at rest uses Epicrypt at the DBLayer persistence boundary. See
+[MFA secret protection](security.md#mfa-secret-protection-and-migration) for
+the independent key domains and rotation policy.
 
 ## Passkey / WebAuthn
 

@@ -5,14 +5,11 @@ owns application lifecycle and integration policy; standalone libraries retain
 their domain behavior.
 
 - [Architecture and lifecycle](architecture.md)
-- [Foundation 4 release candidate notes (unpublished draft)](foundation-4.0-release-notes-draft.md)
+- [Foundation 4 release notes](foundation-4.0-release-notes.md)
 - [Foundation 4 setup and runtime guide](foundation-4-migration.md)
 - [Foundation 4 public/provider/config contract](foundation-4-api-map.md)
 - [Foundation 4 state-integrity and recovery](foundation-4-retained-data-rehearsal.md)
 - [Foundation 4 host performance certification](foundation-4-host-benchmark-certification.md)
-- [Foundation 3.0 release notes (historical)](foundation-3-release-notes.md)
-- [Foundation 2.0 through 2.x → 3.0 migration (historical)](foundation-3-migration.md)
-- [Foundation 3.0 release evidence (historical)](evidence/foundation-3.0/README.md)
 - [Runtime hosting and Runwire](runtime-hosting.md)
 - [Configuration](configuration.md)
 - [HTTP and optional capabilities](http-and-capabilities.md)
@@ -35,5 +32,6 @@ their domain behavior.
 The configuration templates under `resources/config/` are the canonical
 key-by-key reference for publishable configuration. Runtime behavior and public
 command/module names in these guides follow the Foundation source on the current
-branch; release verification is enforced by the Foundation runtime plan and CI
-release gates.
+branch; release verification is enforced by the
+[QA workflow](../.github/workflows/security-standards.yml) and
+[native host certification](foundation-4-host-benchmark-certification.md).

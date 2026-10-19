@@ -104,7 +104,7 @@ jobs:
           php-version: "8.4"
           tools: composer:v2
           extensions: "mbstring, intl, sodium, curl, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
-          ini-values: "opcache.enable_cli=1"
+          ini-values: "opcache.enable_cli=1, opcache.jit=disable, opcache.jit_buffer_size=0"
           coverage: none
       - name: Install native host and load tools
         run: |
@@ -237,7 +237,7 @@ jobs:
           php-version: "8.4"
           tools: composer:v2
           extensions: "mbstring, intl, sodium, curl, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
-          ini-values: "opcache.enable_cli=1"
+          ini-values: "opcache.enable_cli=1, opcache.jit=disable, opcache.jit_buffer_size=0"
           coverage: none
       - name: Install host prerequisites
         run: |
@@ -275,6 +275,7 @@ jobs:
           PHP
           printf 'FOUNDATION_CERTIFICATION_HOST_ID=github-%s-%s-%s-server%s-load0-backend1\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$(cat /proc/sys/kernel/random/boot_id)" "$FOUNDATION_HOST_SERVER_CPU_SET" >> "$GITHUB_ENV"
       - name: Run baseline and candidate on this same physical runner
+        timeout-minutes: 38
         env:
           BASELINE_SHA: ${{ inputs.baseline_ref }}
           CANDIDATE_SHA: ${{ needs.prepare-paired-host.outputs.candidate }}

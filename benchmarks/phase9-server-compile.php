@@ -186,6 +186,12 @@ use Infocyph\Runwire\Server;
 
 require %s;
 
+file_put_contents(
+    __DIR__ . '/runwire-runtime.json',
+    json_encode(require __DIR__ . '/runtime-settings.php', JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+    LOCK_EX,
+);
+
 $address = getenv('FOUNDATION_HOST_LISTEN') ?: '127.0.0.1:18781';
 $workers = (int) (getenv('FOUNDATION_HOST_WORKERS') ?: 1);
 $factory = new class implements RuntimeApplicationFactoryInterface {
@@ -213,19 +219,32 @@ PHP;
     );
 }
 
+$runtimeProbe = <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+$status = function_exists('opcache_get_status') ? opcache_get_status(false) : false;
+
+return [
+    'php_version' => PHP_VERSION,
+    'sapi' => PHP_SAPI,
+    'opcache_enabled' => is_array($status) && ($status['opcache_enabled'] ?? false) === true,
+    'jit_enabled' => is_array($status) && ($status['jit']['enabled'] ?? false) === true,
+    'jit_on' => is_array($status) && ($status['jit']['on'] ?? false) === true,
+    'jit_config' => ini_get('opcache.jit'),
+    'jit_buffer_config' => ini_get('opcache.jit_buffer_size'),
+];
+PHP;
+file_put_contents($app . '/runtime-settings.php', $runtimeProbe . PHP_EOL, LOCK_EX);
+
 $opcacheProbe = <<<'PHP'
 <?php
 
 declare(strict_types=1);
 
 header('Content-Type: application/json');
-$status = function_exists('opcache_get_status') ? opcache_get_status(false) : false;
-
-echo json_encode([
-    'php_version' => PHP_VERSION,
-    'sapi' => PHP_SAPI,
-    'opcache_enabled' => is_array($status) && ($status['opcache_enabled'] ?? false) === true,
-], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+echo json_encode(require dirname(__DIR__) . '/runtime-settings.php', JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 PHP;
 file_put_contents($app . '/public/opcache.php', $opcacheProbe . PHP_EOL, LOCK_EX);
 

@@ -1,10 +1,10 @@
 # OAuth 2.1, OIDC and PAT protocol integration
 
-Foundation 2.1 adds an opt-in OAuth authorization-server and resource-token
+Foundation 4 provides an opt-in OAuth authorization-server and resource-token
 capability. It is disabled by default. When `auth.oauth.enabled=false`, OAuth
 stores, protocol services, signing-key loading, OAuth bearer resolution and the
-OAuth schema revision remain inactive; the Foundation 2.0 authentication surface
-keeps its existing resolver order and behavior.
+OAuth schema revision remain inactive. Ordinary authentication retains its
+configured resolver order and behavior.
 
 Foundation owns the opt-in application/HTTP boundary while Epicrypt owns the
 transport-neutral OAuth 2.1/OIDC protocol and cryptographic mechanics.
@@ -287,15 +287,16 @@ than a replacement for Foundation authentication.
 
 ## Deployment and operations
 
-OAuth persistence is an additive revision of Foundation's existing `auth`
-schema. A normal 2.1 deployment should preserve existing Foundation 2.0 account,
-session, MFA and application-token data.
+OAuth persistence is a revision of Foundation 4's Core `auth` schema. Provision
+the current schema and preserve its account, session, MFA and application-token
+state when enabling OAuth. Previous-major schema conversion is outside the
+Foundation 4 contract; see the [setup guide](foundation-4-migration.md).
 
 ### Enablement sequence
 
 A production rollout should use this order:
 
-1. Deploy Foundation 2.1 code while OAuth remains disabled. This preserves the
+1. Deploy Foundation 4 code while OAuth remains disabled. This preserves the
    existing authentication bootstrap and allows the release to be deployed
    without loading OAuth key material.
 2. Provision the DBLayer connection, signing-key files and final OAuth
@@ -356,7 +357,7 @@ rollback**:
    deployment and rebuild configuration and route caches.
 2. Re-run configuration/readiness for the restored application surface.
 3. Leave the additive OAuth tables and durable state in place while the incident
-   is investigated. Existing Foundation 2.0 auth data remains independent of
+   is investigated. Foundation account/session data remains independent of
    those tables.
 4. Roll application code/configuration back to the previously approved release
    if necessary.
@@ -364,7 +365,7 @@ rollback**:
 A database rollback of the OAuth schema revision is a separate, destructive
 maintenance decision. Use it only with an appropriate backup/change window and
 only through the schema runner supported by that deployment. It is not part of
-the routine 2.1 rollback path. The Foundation integration matrix separately
+the routine OAuth disablement path. The Foundation integration matrix separately
 covers OAuth-revision rollback/re-application and transactional partial-failure
 behavior.
 
@@ -387,7 +388,7 @@ conformance to a final OAuth 2.1 RFC.
 Implemented protocol pieces include:
 
 - OAuth 2.0 authorization-code, client-credentials and refresh-token semantics
-  from RFC 6749, constrained by the Foundation 2.1 security policy;
+  from RFC 6749, constrained by the configured Foundation/Epicrypt security policy;
 - PKCE S256 from RFC 7636 for Authorization Code clients;
 - HTTP bearer-token handling/error semantics from RFC 6750;
 - token revocation behavior based on RFC 7009;

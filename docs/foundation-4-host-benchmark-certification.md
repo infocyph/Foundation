@@ -3,10 +3,10 @@
 
 This procedure certifies **Foundation 4 only**. It is not a legacy-version compatibility test. The routine PR host job runs a minimal-JSON smoke and a selected-owner native-read smoke on shared GitHub hardware; neither is a production-equivalent throughput certification.
 
-## Approved pre-merge workflow (2026-10-16)
+## Paired GitHub qualification
 
-The user selected GitHub Actions for the paired comparison and Docker for local
-diagnostics. The manual workflow now supports a full `authenticated-read`
+Use GitHub Actions for the paired comparison and Docker for local diagnostics.
+The [manual workflow](../.github/workflows/foundation4-host-certification.yml) supports a full `authenticated-read`
 PostgreSQL/Redis profile, distinct immutable baseline/candidate sources, one
 resolved dependency lock and benchmark revision, and the same runner for each
 pair. It records the workflow attempt and VM boot identity per matrix case;
@@ -28,7 +28,14 @@ Both complete batches must pass the unchanged 2.5% CV and 2% median successful-R
 regression limits. Passing cases from different batches or attempts are never
 combined. Unstable or failed comparisons cannot be certified by the environment
 approval.
-Current results and immutable artifact identities are in [Batch 7 evidence](plans/foundation-4-module-batch7-evidence.md).
+Record current verdicts, exact source/dependency identities and artifact hashes
+in the release pull request. Preserve failed and inconclusive evidence.
+
+The reference profile enables OPcache and disables JIT explicitly for both
+revisions and the load generator. The harness records and validates the actual
+FPM and Runwire process settings before load; inherited JIT settings cannot
+silently change this profile. Compare a separately qualified JIT-enabled profile
+only when representative evidence justifies it.
 
 The dedicated-host procedure below remains available for controlled reproduction
 and deployment-specific capacity validation. Routine PR smoke and local Docker
@@ -40,7 +47,7 @@ results remain diagnostic.
 
 The ordinary GitHub job checks 36 minimal-route samples (three repetitions), then a separate `native-read` profile with real DBLayer SQLite selects, CacheLayer file-cache reads and credential digest verification (two repetitions). Both profiles exercise FPM/Runwire and two 30-second four-worker soak windows, with contained error, cancellation and Runwire worker-replacement checks. The native fixture uses a low-work-factor testing hash and a small deterministic dataset; **it is not a production authentication, authorization or distributed database workload**. All outputs are artifacts, not controlled baselines.
 
-For the selected-owner profile, use `FOUNDATION_HOST_WORKLOAD_PROFILE=native-read` instead of `json-minimal`. The comparator rejects comparisons between different profile identities. [Native host #38552807316](https://github.com/infocyph/Foundation/actions/runs/38552807316) passed on source `8af4e1e0` with zero response-validation errors in both selected-native soak windows. These shared-runner smoke fixtures remain insufficient to approve the 2% release budget.
+For the selected-owner profile, use `FOUNDATION_HOST_WORKLOAD_PROFILE=native-read` instead of `json-minimal`. The comparator rejects comparisons between different profile identities. Shared-runner smoke fixtures remain insufficient to approve the 2% release budget.
 
 ## Controlled sustained comparison
 
@@ -72,10 +79,10 @@ php benchmarks/foundation4-host-compare.php \
 
 The comparator fails closed unless both reports contain the complete matching host/concurrency/worker matrix, matching declared physical host identity, PHP version, dependency-lock SHA-256, workload profile and sample configuration. Each case must contain at least five response-correct sustained observations of at least 30 seconds. It recalculates successful RPM from completed requests and elapsed time; rejects missing telemetry and internal inconsistencies; and refuses unstable evidence with RPM coefficient of variation greater than 2.5%. For every comparable stable case, the candidate median successful RPM must be at least **98%** of the baseline. A high-variance result is *inconclusive*, not a pass.
 
-## Additional evidence required for Batch 6
+## Release acceptance
 
-The comparison command does not, by itself, certify Batch 6. Perform dedicated production-equivalent workload profiles for authenticated/authorization requests, actual selected database reads/writes, cache hits/misses and service interactions, using valid fixture data and the real native library owners. Record cache hit rates, query counts, connections, worker-generation churn, errors and timeouts. Use a bounded longer persistent-host soak for memory growth, failure recovery, cancellations, recycle and shutdown; capture live peak and steady-state RSS, CPU and p50/p95/p99 and note client saturation.
+The comparison command alone does not certify a release. Perform dedicated production-equivalent workload profiles for authenticated/authorization requests, actual selected database reads/writes, cache hits/misses and service interactions, using valid fixture data and the real native library owners. Record cache hit rates, query counts, connections, worker-generation churn, errors and timeouts. Use a bounded longer persistent-host soak for memory growth, failure recovery, cancellations, recycle and shutdown; capture live peak and steady-state RSS, CPU and p50/p95/p99 and note client saturation.
 
 Treat the release as blocked if any selected workload is untested, unstable, materially regresses, or has unbounded resource growth. **Do not relax the 2% budget** or substitute the short shared-runner smoke for matched sustained certification.
 
-After final changes, repeat all required PHP 8.4/8.5 lowest/stable, production `--no-dev`, compiler, release trust, selected specialist and host workloads against the *same immutable Foundation source and resolved dependency set*. Record exact SHA, workflow URL and artifact hashes in the [Foundation 4 plan](plans/foundation-4.0-release-audit-and-plan.md). Infbyte application work, merging, tags and publication are outside this plan.
+After final changes, repeat all required PHP 8.4/8.5 lowest/stable, production `--no-dev`, compiler, release trust, selected specialist and host workloads against the *same immutable Foundation source and resolved dependency set*. Record exact SHA, workflow URL and artifact hashes with the release pull request. Infbyte application publication follows Foundation publication; merging, tags and publication remain operator actions.

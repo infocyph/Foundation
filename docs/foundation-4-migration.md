@@ -1,7 +1,6 @@
 # Foundation 4.0: setup and runtime contracts
 
-**Status:** setup and production-runtime guide for the Foundation 4.0 candidate
-on draft PR #20, not a publication announcement. Foundation 4.0 is a deliberate
+This guide describes Foundation 4.0 setup and production runtime contracts. Foundation 4.0 is a deliberate
 breaking major release; prior-version API signatures, legacy configuration,
 schema conversions and downgrade support are outside its release acceptance.
 
@@ -188,8 +187,9 @@ Run `composer ic:release:guard` and the full Security & Standards matrix
 (PHP 8.4/8.5, lowest/stable dependencies, clean installs, consumer checks
 and service-backed integration). Track exact source SHA, dependency versions
 and CI links. Do not merge, tag or publish Foundation 4 until all
-applicable release gates are accepted. The detailed acceptance tracker is
-[`foundation-4.0-release-audit-and-plan.md`](plans/foundation-4.0-release-audit-and-plan.md).
+applicable release gates are accepted. See the
+[host certification procedure](foundation-4-host-benchmark-certification.md) and
+[QA workflow](../.github/workflows/security-standards.yml) for required evidence.
 
 
 ## Runnable candidate bootstrap examples

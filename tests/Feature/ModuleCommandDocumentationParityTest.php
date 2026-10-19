@@ -73,12 +73,12 @@ it('keeps the Foundation 4 migration commands compatible with the final v2 catal
     expect($guide)->not->toMatch('/^php infbyte module:(?:show|doctor|plan|install) (?:database|messaging|auth)(?:\s|$)/m');
 });
 
-it('keeps draft release notes explicit about the v2 features and unfinished host certification', function (): void {
-    $notes = file_get_contents(dirname(__DIR__, 2) . '/docs/foundation-4.0-release-notes-draft.md');
+it('keeps release notes explicit about the v2 features and required host certification', function (): void {
+    $notes = file_get_contents(dirname(__DIR__, 2) . '/docs/foundation-4.0-release-notes.md');
     $inventory = new ModuleFeatureCommandCatalog()->inventory();
 
     expect($notes)->toContain('schema_version: 2')
-        ->and($notes)->toContain('unpublished draft')
+        ->and($notes)->toContain('Unpublished release candidate')
         ->and($notes)->toContain('2% successful-RPM regression');
 
     foreach (array_merge(...array_column($inventory['modules'], 'features')) as $feature) {
@@ -129,10 +129,10 @@ it('keeps Composer publication metadata and optional package roles consistent wi
 });
 
 it('retains explicit publication blockers in the release notes and module API documentation', function (): void {
-    $notes = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/foundation-4.0-release-notes-draft.md');
+    $notes = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/foundation-4.0-release-notes.md');
     $modules = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/modules.md');
 
-    expect($notes)->toContain('Publication metadata audit (reviewed; approval withheld)')
+    expect($notes)->toContain('Package metadata')
         ->and($notes)->toContain('psr/log')
         ->and($notes)->toContain('web-auth/webauthn-lib')
         ->and($notes)->toContain('opis/closure')
@@ -141,7 +141,7 @@ it('retains explicit publication blockers in the release notes and module API do
         ->and($notes)->toContain('five runs of at least')
         ->and($notes)->toContain('2.5% maximum coefficient of variation')
         ->and($notes)->toContain('2% median')
-        ->and($notes)->toContain('unpublished draft')
+        ->and($notes)->toContain('Unpublished release candidate')
         ->and($modules)->toContain('not release-ready')
-        ->and($modules)->toContain('Batch 7 certification evidence');
+        ->and($modules)->toContain('host certification procedure');
 });

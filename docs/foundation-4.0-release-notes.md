@@ -1,17 +1,16 @@
-# Foundation 4.0 — Release candidate notes (draft)
+# Foundation 4.0 — Release notes
 
 Foundation 4 is the framework composition, policy and application-lifecycle
 layer used by Infbyte. This is a breaking major release with current native
 library contracts, required Core Runwire, explicit optional features and trusted
 compiled generations.
 
-This remains an **unpublished draft**. PR #20 is not yet release-ready: the strict
-complete-matrix performance gate and dependent final acceptance remain open.
-Current source, quality results, immutable dependency/artifact identities and
-all performance verdicts are recorded in the
-[release audit](plans/foundation-4.0-release-audit-and-plan.md) and
-[Batch 7 evidence](plans/foundation-4-module-batch7-evidence.md).
-No merge, tag, publication or release date is announced by these notes.
+**Unpublished release candidate.** Publication requires final-source QA and the
+complete strict performance matrix described in the
+[host certification procedure](foundation-4-host-benchmark-certification.md).
+The release pull request and its CI artifacts record the exact source, resolved
+dependencies and acceptance results. These notes do not announce a published tag
+or release date.
 
 ## Core runtime and architecture
 
@@ -82,11 +81,11 @@ current permissions so revocations and account isolation remain effective.
 
 Foundation 4.0 is a deliberate breaking major release. **There are no backwards-compatibility aliases or guarantees for previous Foundation or specialist major versions.** Consumers must use the current 4.0 public/provider/capability contracts and rebuild trusted release generations.
 
-## Publication metadata audit (reviewed; approval withheld)
+## Package metadata
 
 The release candidate declares Composer package `infocyph/foundation`, type `library`, license `MIT`, PHP `^8.4`, Composer runtime API `^2.0`, PSR-4 namespace `Infocyph\Foundation\`, and shipped CLI entry `bin/infbyte`. Optional specialist and passkey dependencies are declared as suggested packages and available in `require-dev` for development/test coverage; application owners install only explicitly selected package requirements. The candidate `composer.json` does not hardcode a release `version`: Composer release identity will come from the operator-published Git tag.
 
-**Documentation and dependency roles have been reviewed, but publication approval has not been granted.** The release evidence must identify the **final published source SHA**, complete resolved dependency manifest, Composer lock digest, PHP/extensions and CI runs. No tag, release asset or release date should be presented as already published. The remaining paired same-runner baseline/candidate acceptance and dependent final go/no-go decision are recorded in [Batch 7 evidence](plans/foundation-4-module-batch7-evidence.md). CI smoke and synthetic benchmark results are not substitutes.
+Release evidence must identify the **final published source SHA**, complete resolved dependency manifest, Composer lock digest, PHP/extensions and CI runs. Retain paired same-runner baseline/candidate acceptance and immutable artifact hashes with the release pull request. CI smoke and synthetic benchmark results do not replace sustained host certification.
 
 ## Certification still required before publication
 
@@ -97,7 +96,7 @@ worker replacement. These results establish functional hosting and bounded-soak
 behavior; they do not establish stable throughput equivalence or capacity for an
 unmeasured production deployment.
 
-The user selected standard GitHub workers, with Docker available for local
+Release qualification uses standard GitHub workers, with Docker for local
 verification. The current standard workflow collects **five runs of at least
 120 seconds** after 60-second warm-up for each revision/case, plus sixteen
 120-second soak windows across independent primary and confirmation batches.
@@ -118,4 +117,4 @@ source SHA, complete resolved dependency manifest, Composer lock digest,
 PHP/extensions, actual supported hosts and exact CI/qualification artifacts.
 Publish only after every applicable release gate passes on the final source and
 dependency set and the operator approves the release. Until then, these notes
-remain an **unpublished draft**.
+remain unpublished.

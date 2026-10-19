@@ -111,11 +111,11 @@ A Runwire-hosted Foundation application must:
    Restart or replace applications through their actual lifetime owner rather
    than replacing a loaded generation in place.
 
-The installed Webrick bridge remains the runtime integration boundary. Foundation 4
-accepted the compiled host identity, generation leases, cancellation, deferred
-response drain and scoped native selected-module propagation in [Batch 3's
-release plan](plans/foundation-4.0-release-audit-and-plan.md). A deployment must
-still rehearse its actual chosen FPM/RoadRunner/Swoole host and transport.
+The installed Webrick bridge remains the runtime integration boundary. Compiled
+host identity, generation leases, cancellation, deferred response drain and scoped
+native integration are verified by the
+[native host workflow](../.github/workflows/foundation4-host-certification.yml).
+Rehearse the actual chosen FPM/RoadRunner/Swoole host and transport before deployment.
 
 ## Compiled web loading
 
@@ -146,7 +146,7 @@ cancelled shared requests are rejected before framework work starts. A
 runtime-only context leaves absent request/coroutine inputs null; Foundation
 does not manufacture them or complete caller-owned lifecycle objects.
 
-## Borrowed non-web scope propagation (Batch 3)
+## Borrowed non-web scope propagation
 
 For work that a host has already placed inside an InterMix worker, scheduler or
 CLI execution scope, Foundation provides
@@ -164,8 +164,9 @@ Expired handles, unrelated container handles and missing scoped execution IDs
 must fail, not trigger new runtime construction. This API intentionally rejects
 web mode: Webrick is the sole owner of its HTTP request scope.
 
-Batch 3 completed full native compiled-host Runwire identity, request/writer,
-coroutine scope, cancellation and deferred output coverage ([QA #38508326050](https://github.com/infocyph/Foundation/actions/runs/38508326050)).
+The [native host workflow](../.github/workflows/foundation4-host-certification.yml)
+verifies compiled-host Runwire identity, request/writer, coroutine scope,
+cancellation and deferred output behavior.
 Call `WebReleaseRuntime::runwireApplication($runtime)` only on a *trusted
 Foundation generation with native Core inputs*, passing the exact host-owned Runwire `RuntimeContext`
 instance, not a newly generated substitute. An execution without an active passed runtime uses the synchronous native path. See the [worker smoke](examples/foundation-4-runwire-worker.php).

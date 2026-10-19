@@ -32,7 +32,7 @@ SERVICE_PID=""
 PROXY_PID=""
 SAMPLER_PID=""
 SERVER_COMMAND=(setsid)
-LOAD_COMMAND=(php)
+LOAD_COMMAND=(php -d opcache.jit=disable -d opcache.jit_buffer_size=0)
 SERVER_CPU_SET="${FOUNDATION_HOST_SERVER_CPU_SET:-}"
 LOAD_CPU_SET="${FOUNDATION_HOST_LOAD_CPU_SET:-}"
 if [[ -n "$SERVER_CPU_SET" || -n "$LOAD_CPU_SET" ]]; then
@@ -44,7 +44,7 @@ if [[ -n "$SERVER_CPU_SET" || -n "$LOAD_CPU_SET" ]]; then
     taskset --cpu-list "$SERVER_CPU_SET" true
     taskset --cpu-list "$LOAD_CPU_SET" true
     SERVER_COMMAND=(taskset --cpu-list "$SERVER_CPU_SET" setsid)
-    LOAD_COMMAND=(taskset --cpu-list "$LOAD_CPU_SET" php)
+    LOAD_COMMAND=(taskset --cpu-list "$LOAD_CPU_SET" php -d opcache.jit=disable -d opcache.jit_buffer_size=0)
 fi
 
 for command in php "$FPM_BIN" nginx curl ps awk setsid; do
@@ -228,7 +228,9 @@ pm.max_children = $workers
 clear_env = no
 catch_workers_output = yes
 POOL
-    FOUNDATION_HOST_APP="$app" "${SERVER_COMMAND[@]}" "$FPM_BIN" -F -y "$cfg" > "$OUTPUT/fpm-$workers.stdout.log" 2>&1 &
+    FOUNDATION_HOST_APP="$app" "${SERVER_COMMAND[@]}" "$FPM_BIN" \
+        -d opcache.enable=1 -d opcache.jit=disable -d opcache.jit_buffer_size=0 \
+        -F -y "$cfg" > "$OUTPUT/fpm-$workers.stdout.log" 2>&1 &
     SERVICE_PID=$!
 
     local nginx_conf="$OUTPUT/nginx-$workers.conf"
@@ -264,7 +266,9 @@ start_runwire() {
     FOUNDATION_HOST_APP="$app" \
     FOUNDATION_HOST_LISTEN="127.0.0.1:$PORT_RUNWIRE" \
         FOUNDATION_HOST_WORKERS="$workers" \
-        "${SERVER_COMMAND[@]}" php "$app/runwire-server.php" > "$OUTPUT/runwire-$workers.stdout.log" 2>&1 &
+        "${SERVER_COMMAND[@]}" php \
+        -d opcache.enable_cli=1 -d opcache.jit=disable -d opcache.jit_buffer_size=0 \
+        "$app/runwire-server.php" > "$OUTPUT/runwire-$workers.stdout.log" 2>&1 &
     SERVICE_PID=$!
 }
 
@@ -295,6 +299,25 @@ for host in "${hosts[@]}"; do
         fi
         assert_ready "$url"
         boot_finished="$(date +%s.%N)"
+        if [[ "$host" == "fpm" ]]; then
+            curl --silent --show-error --fail --max-time 5 "$url/opcache.php" \
+                > "$OUTPUT/$host-$workers.runtime.json"
+        else
+            cp "$app/runwire-runtime.json" "$OUTPUT/$host-$workers.runtime.json"
+        fi
+        php -r '
+            $runtime = json_decode(file_get_contents($argv[1]), true, flags: JSON_THROW_ON_ERROR);
+            if (($runtime["php_version"] ?? null) !== PHP_VERSION
+                || ($runtime["sapi"] ?? null) !== ($argv[2] === "fpm" ? "fpm-fcgi" : "cli")
+                || ($runtime["opcache_enabled"] ?? null) !== true
+                || ($runtime["jit_enabled"] ?? null) !== false
+                || ($runtime["jit_on"] ?? null) !== false
+                || ($runtime["jit_config"] ?? null) !== "disable"
+                || ($runtime["jit_buffer_config"] ?? null) !== "0"
+            ) {
+                throw new RuntimeException("Host qualification requires matching PHP with OPcache enabled and JIT disabled.");
+            }
+        ' "$OUTPUT/$host-$workers.runtime.json" "$host"
         php -r 'file_put_contents($argv[1], json_encode(["startup_to_ready_ms" => round(((float) $argv[3] - (float) $argv[2]) * 1000, 3), "first_valid_request_ms" => round((float) $argv[4] * 1000, 3)], JSON_THROW_ON_ERROR) . PHP_EOL);' \
             "$OUTPUT/$host-w$workers.startup.json" "$boot_started" "$boot_finished" "$READY_REQUEST_SECONDS"
 

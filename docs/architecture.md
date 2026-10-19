@@ -102,7 +102,7 @@ DBLayer, Omnibus, TalkingBytes, Epicrypt, Pathwise, ReqShield, OTP, or WebAuthnâ
 does not by itself activate the corresponding runtime capability, open a
 connection, construct a store, or add unrelated request work.
 
-Foundation 4 optional modules (`data`, `security`, `execution`) expose nine
+Foundation 4 optional modules (`data`, `security`, `execution`) expose eight
 explicit `module.feature` selections; Core stays prebuilt and non-installable.
 Bare groups never select their siblings. Native specialist owners keep their
 own service implementations; Foundation selects and composes them without

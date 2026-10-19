@@ -7,6 +7,7 @@
 .vscode export-ignore
 .windsurf export-ignore
 build export-ignore
+benchmarks export-ignore
 composer.lock export-ignore
 storage export-ignore
 vendor export-ignore
