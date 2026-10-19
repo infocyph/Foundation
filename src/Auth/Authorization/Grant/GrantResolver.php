@@ -26,27 +26,7 @@ final readonly class GrantResolver
         $matches = [];
 
         foreach ($this->grants->grantsForPrincipal($principalId) as $grant) {
-            if ($grant->isRevoked() || $grant->isExpiredAt($now)) {
-                continue;
-            }
-
-            if (!$this->matcher->matches($grant->permission, $ability->name)) {
-                continue;
-            }
-
-            if ($grant->resourceType !== null && $ability->resourceType === null) {
-                continue;
-            }
-
-            if ($grant->resourceType !== null && $grant->resourceType !== $ability->resourceType) {
-                continue;
-            }
-
-            if ($grant->resourceId !== null && $ability->resourceId === null) {
-                continue;
-            }
-
-            if ($grant->resourceId !== null && $grant->resourceId !== $ability->resourceId) {
+            if (!$this->eligible($grant, $ability, $now)) {
                 continue;
             }
 
@@ -54,5 +34,18 @@ final readonly class GrantResolver
         }
 
         return $matches;
+    }
+
+    private function eligible(AccessGrant $grant, Ability $ability, int $now): bool
+    {
+        if ($grant->isRevoked() || $grant->isExpiredAt($now)) {
+            return false;
+        }
+        if (!$this->matcher->matches($grant->permission, $ability->name)) {
+            return false;
+        }
+
+        return ($grant->resourceType === null || $grant->resourceType === $ability->resourceType)
+            && ($grant->resourceId === null || $grant->resourceId === $ability->resourceId);
     }
 }

@@ -48,10 +48,32 @@ final readonly class DBLayerSessionStore extends DBLayerStore implements Session
         $this->deleteWhere('sessions', 'account_id = ?', [$accountId]);
     }
 
-    public function rotate(string $sessionId, AuthSession $replacement): void
+    public function rotate(AuthSession $current, AuthSession $replacement, int $now): bool
     {
-        $this->revoke($sessionId);
-        $this->create($replacement);
+        if ($replacement->id === $current->id || $replacement->accountId !== $current->accountId) {
+            return false;
+        }
+
+        return $this->connection()->transaction(function () use ($current, $replacement, $now): bool {
+            $query = $this->query('sessions')
+                ->where('id', '=', $current->id)
+                ->where('account_id', '=', $current->accountId)
+                ->where('created_at', '=', $current->createdAt)
+                ->where('last_seen_at', '=', $current->lastSeenAt)
+                ->where('expires_at', '=', $current->expiresAt)
+                ->where('expires_at', '>', $now);
+            foreach (['device_id' => $current->deviceId, 'recent_auth_at' => $current->recentAuthAt] as $column => $value) {
+                $value === null ? $query->whereNull($column) : $query->where($column, '=', $value);
+            }
+            $deleted = $query->delete();
+            if ($deleted !== 1) {
+                return false;
+            }
+
+            $this->create($replacement);
+
+            return true;
+        }, attempts: 3) === true;
     }
 
     public function touch(string $sessionId, int $lastSeenAt): void

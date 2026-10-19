@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
+use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Messaging\ConsumerFactory;
 use Infocyph\Foundation\Messaging\OmnibusWorkerFactory;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Omnibus\Consumer\WorkerLifecycle;
 use Infocyph\Omnibus\Consumer\WorkerPool;
 
@@ -53,7 +56,19 @@ it('passes Foundation lifecycle callbacks through to Omnibus 2.6 workers', funct
 
 
 it('keeps Omnibus worker configuration reads cold until a worker is constructed', function (): void {
+    $observer = new class extends ServiceProvider {
+        public bool $resolved = false;
+
+        public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+        {
+            unset($context);
+            $builder->onResolved(ConsumerFactory::class, function (): void {
+                $this->resolved = true;
+            });
+        }
+    };
     $app = Foundation::worker([
+        'providers' => ['common' => [$observer]],
         'messaging' => [
             'workers' => [
                 'cold' => [
@@ -64,17 +79,15 @@ it('keeps Omnibus worker configuration reads cold until a worker is constructed'
             ],
         ],
     ]);
-    $repository = $app->container()->getRepository();
-
-    expect($repository->hasResolvedSingleton(ConsumerFactory::class))->toBeFalse();
+    expect($observer->resolved)->toBeFalse();
 
     $factory = $app->make(OmnibusWorkerFactory::class);
     expect($factory->transport('cold'))->toBe('memory')
         ->and($factory->pool('cold')['enabled'])->toBeFalse()
-        ->and($repository->hasResolvedSingleton(ConsumerFactory::class))->toBeFalse();
+        ->and($observer->resolved)->toBeFalse();
 
     $factory->make('cold');
-    expect($repository->hasResolvedSingleton(ConsumerFactory::class))->toBeTrue();
+    expect($observer->resolved)->toBeTrue();
 });
 
 it('passes parent lifecycle directly to Omnibus 2.6 WorkerPool before child spawn', function (): void {

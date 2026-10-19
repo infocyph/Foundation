@@ -24,21 +24,26 @@ final class WebGraphFactory
      * @param array<string, mixed>|ConfigRepository $config
      * @param array<int|string, mixed>|null $capabilities
      */
-    public function compose(array|ConfigRepository $config, ?array $capabilities = null): WebGraphComposition
+    public function compose(array|ConfigRepository $config, ?array $capabilities = null, ?WebProductionGraph $production = null): WebGraphComposition
     {
         $sourceConfig = $config instanceof ConfigRepository
             ? $config
             : new ConfigLoader()->load($config);
         $context = FoundationBuildContext::fromConfig($sourceConfig, RuntimeMode::Web, $capabilities);
         $builder = FoundationGraph::compose($context);
-        $container = $builder->development();
+        $bootstrapper = new Bootstrapper();
+        $providers = new ServiceRegistry();
+        $bootstrapper->compose($builder, $context, $providers);
+
+        // Prepare deployment definitions before freeze so loading reuses this graph.
+        $production?->prepare($builder, $context->capabilities);
+        $bindings = $production === null ? DevelopmentRuntimeBindings::register($builder) : null;
+        $container = $builder->build();
         $runtimeConfig = $container->get(ConfigRepository::class);
         if (!$runtimeConfig instanceof ConfigRepository) {
             throw new \LogicException('Foundation web graph did not produce a ConfigRepository.');
         }
 
-        $bootstrapper = new Bootstrapper();
-        $providers = new ServiceRegistry();
         $application = new Application(
             config: $runtimeConfig,
             container: $container,
@@ -46,9 +51,8 @@ final class WebGraphFactory
             bootstrapper: $bootstrapper,
             runtimeMode: RuntimeMode::Web,
         );
-        DevelopmentRuntimeBindings::register($builder, $application, $container);
-        $bootstrapper->compose($builder, $context, $providers);
+        $bindings?->attach($application);
 
-        return new WebGraphComposition($builder, $application, $context, $runtimeConfig);
+        return new WebGraphComposition($builder, $application, $context, $runtimeConfig, $providers);
     }
 }

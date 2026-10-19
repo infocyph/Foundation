@@ -17,6 +17,7 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Http\Resolver\OAuthBearerTokenPrincipalResolver;
 use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 use Infocyph\Webrick\Request\Request;
 use Throwable;
 
@@ -390,7 +391,9 @@ PHP);
                 ],
                 'oauth' => ['resource_audiences' => [$audience]],
             ],
-        ]), $fixture->accessValidator);
+        ]), new RuntimeStateContainer([
+            \Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator::class => $fixture->accessValidator,
+        ]));
         $request = Request::fake(headers: [
             'Authorization' => 'Bearer ' . $response->accessToken,
             'Host' => 'benchmark.test',

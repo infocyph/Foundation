@@ -14,6 +14,23 @@ final readonly class DBLayerEmailVerificationStore extends DBLayerConsumableStor
         $this->consumeRequest('emailVerifications', $requestId);
     }
 
+    public function consumeAndApply(string $requestId, callable $apply): bool
+    {
+        return $this->connection()->transaction(function () use ($requestId, $apply): bool {
+            $now = $this->now();
+            $updated = $this->query('emailVerifications')
+                ->whereRaw('id = ? AND consumed_at IS NULL AND expires_at > ?', [$requestId, $now])
+                ->update(['consumed_at' => $now]);
+            if ($updated !== 1) {
+                return false;
+            }
+
+            $apply();
+
+            return true;
+        }, attempts: 3) === true;
+    }
+
     public function find(string $requestId): ?EmailVerificationRequest
     {
         return $this->findRequest('emailVerifications', $this->mapRequest(...), $requestId);

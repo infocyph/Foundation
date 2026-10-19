@@ -49,11 +49,15 @@ final readonly class SessionMiddleware
                 fn() => $this->sessions->leave($session),
             );
             if ($cleanupFailure !== null) {
-                $this->reporter?->report('warning', [
-                    'status' => 500,
-                    'phase' => 'browser_session_cleanup',
-                    'exception' => $cleanupFailure,
-                ]);
+                try {
+                    $this->reporter?->report('warning', [
+                        'status' => 500,
+                        'phase' => 'browser_session_cleanup',
+                        'exception' => $cleanupFailure,
+                    ]);
+                } catch (\Throwable) {
+                    // Secondary diagnostics must not replace the primary failure.
+                }
             }
         }
     }

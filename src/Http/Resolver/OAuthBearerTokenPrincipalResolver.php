@@ -13,6 +13,7 @@ use Infocyph\Foundation\Auth\Principal\PrincipalType;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Webrick\Request\Request;
+use Psr\Container\ContainerInterface;
 
 final class OAuthBearerTokenPrincipalResolver extends AbstractPrincipalResolver
 {
@@ -23,11 +24,9 @@ final class OAuthBearerTokenPrincipalResolver extends AbstractPrincipalResolver
 
     private readonly string $prefix;
 
-    public function __construct(
-        ConfigRepository $config,
-        private readonly OAuthAccessTokenValidator $validator,
-    ) {
-        parent::__construct($config);
+    public function __construct(ConfigRepository $config, ContainerInterface $container)
+    {
+        parent::__construct($config, $container);
         $this->header = $this->stringConfig('auth.http.bearer_header', 'Authorization');
         $this->prefix = $this->stringConfig('auth.http.bearer_prefix', 'Bearer ');
         $this->audiences = ValueNormalizer::stringList($config->get('auth.oauth.resource_audiences', []));
@@ -96,7 +95,7 @@ final class OAuthBearerTokenPrincipalResolver extends AbstractPrincipalResolver
     {
         foreach ($this->audiences as $audience) {
             try {
-                return $this->validator->verify($token, $audience);
+                return $this->service(OAuthAccessTokenValidator::class)->verify($token, $audience);
             } catch (OAuthTokenException) {
                 continue;
             }

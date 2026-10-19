@@ -82,9 +82,9 @@ use Infocyph\Foundation\Auth\OAuth\Token\OAuthTokenManager;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
-use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Session\SessionConfig;
 use Psr\Clock\ClockInterface as PsrClock;
+use Psr\Container\ContainerInterface;
 
 final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
 {
@@ -99,25 +99,25 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         return $this->boolConfig('auth.oauth.enabled', false);
     }
 
-    public function register(): void
+    public function register(bool $http): void
     {
         if (!$this->enabled()) {
             return;
         }
 
-        $this->requirePackage(Connection::class, 'infocyph/dblayer', 'database');
-        $this->requirePackage(AsymmetricJwt::class, 'infocyph/epicrypt', 'crypto');
+        $this->requirePackage(Connection::class, 'infocyph/dblayer', 'data.database');
+        $this->requirePackage(AsymmetricJwt::class, 'infocyph/epicrypt', 'security.crypto');
 
         $this->registerFoundationStores();
         $this->registerFoundationPolicy();
         $this->registerEpicryptStores();
         $this->registerEpicryptProtocol();
-        $this->registerFoundationFacades();
+        $this->registerFoundationFacades($http);
     }
 
     private function authConnection(): ?string
     {
-        $connection = $this->app->config()->get('database.default');
+        $connection = $this->config->get('database.default');
 
         return is_string($connection) && $connection !== '' ? $connection : null;
     }
@@ -293,7 +293,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         ];
         foreach ($stores as $id => $implementation) {
             $this->recipe($id, $implementation, [
-                $this->ref(DBLayerFactory::class),
+                $this->ref(ContainerInterface::class),
                 $this->ref(AuthTables::class),
                 $connection,
             ]);
@@ -303,7 +303,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         ]);
     }
 
-    private function registerFoundationFacades(): void
+    private function registerFoundationFacades(bool $http): void
     {
         $openId = $this->boolConfig('auth.oauth.oidc.enabled', false);
         $this->recipe(AuthorizationCodeManager::class, AuthorizationCodeManager::class, [
@@ -369,6 +369,10 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             $openId ? $this->ref(OpenIdInteractionPolicy::class) : null,
             $openId ? $this->ref(ClockInterface::class) : null,
         ]);
+        if (!$http) {
+            return;
+        }
+
         $this->recipe(OAuthHttpInput::class, OAuthHttpInput::class);
         $this->recipe(OAuthHttpResponseFactory::class, OAuthHttpResponseFactory::class);
         $this->recipe(OAuthHttpThrottleFactory::class, OAuthHttpThrottleFactory::class, [
@@ -402,7 +406,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             $this->ref(PasswordVerifierInterface::class),
             $this->ref(ClockInterface::class),
             $this->ref(OpaqueToken::class),
-            $this->app->config()->isProduction(),
+            $this->config->isProduction(),
         ]);
         $this->recipe(OAuthScopeResolver::class, OAuthScopeResolver::class, [
             $this->ref(OAuthClientStoreInterface::class),
@@ -439,7 +443,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         ];
         foreach ($stores as $id => $implementation) {
             $this->recipe($id, $implementation, [
-                $this->ref(DBLayerFactory::class),
+                $this->ref(ContainerInterface::class),
                 $this->ref(AuthTables::class),
                 $connection,
             ]);

@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Webrick\Request\Request;
+use Psr\Container\ContainerInterface;
 
 final class BearerTokenPrincipalResolver extends AbstractPrincipalResolver
 {
@@ -16,12 +17,9 @@ final class BearerTokenPrincipalResolver extends AbstractPrincipalResolver
 
     private readonly string $prefix;
 
-    public function __construct(
-        ConfigRepository $config,
-        private readonly AccessTokenServiceInterface $tokens,
-        private readonly AccountProviderInterface $accounts,
-    ) {
-        parent::__construct($config);
+    public function __construct(ConfigRepository $config, ContainerInterface $container)
+    {
+        parent::__construct($config, $container);
         $this->header = $this->stringConfig('auth.http.bearer_header', 'Authorization');
         $this->prefix = $this->stringConfig('auth.http.bearer_prefix', 'Bearer ');
     }
@@ -38,12 +36,12 @@ final class BearerTokenPrincipalResolver extends AbstractPrincipalResolver
             return null;
         }
 
-        $verified = $this->tokens->verify($token);
+        $verified = $this->service(AccessTokenServiceInterface::class)->verify($token);
         if (!$verified->verified || $verified->subjectId === null || $verified->subjectId === '') {
             return null;
         }
 
-        $account = $this->accounts->findById($verified->subjectId);
+        $account = $this->service(AccountProviderInterface::class)->findById($verified->subjectId);
         if ($account === null) {
             return null;
         }

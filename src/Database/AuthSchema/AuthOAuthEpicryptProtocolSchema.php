@@ -24,24 +24,9 @@ final readonly class AuthOAuthEpicryptProtocolSchema implements Migration
         if ($schema->hasTable($refresh)) {
             $dropDpop = $schema->hasColumn($refresh, 'dpop_jkt');
             $dropIdle = $schema->hasColumn($refresh, 'idle_expires_at');
-
             if ($dropDpop || $dropIdle) {
-                $schema->table($refresh, static function (Blueprint $table) use ($dropDpop, $dropIdle): void {
-                    if ($dropDpop) {
-                        $table->dropIndex('auth_oauth_refresh_tokens_dpop_jkt_index');
-                    }
-                    if ($dropIdle) {
-                        $table->dropIndex('auth_oauth_refresh_tokens_idle_expires_at_index');
-                    }
-                });
-                $schema->table($refresh, static function (Blueprint $table) use ($dropDpop, $dropIdle): void {
-                    if ($dropDpop) {
-                        $table->dropColumn('dpop_jkt');
-                    }
-                    if ($dropIdle) {
-                        $table->dropColumn('idle_expires_at');
-                    }
-                });
+                $this->dropRefreshIndexes($schema, $refresh, $dropDpop, $dropIdle);
+                $this->dropRefreshColumns($schema, $refresh, $dropDpop, $dropIdle);
             }
         }
 
@@ -94,6 +79,38 @@ final readonly class AuthOAuthEpicryptProtocolSchema implements Migration
             $table->string('namespace_hash', 64)->index();
             $table->string('token_id', 128);
             $table->bigInteger('expires_at')->index();
+        });
+    }
+
+    private function dropRefreshColumns(
+        SchemaManager $schema,
+        string $refresh,
+        bool $dropDpop,
+        bool $dropIdle,
+    ): void {
+        $schema->table($refresh, static function (Blueprint $table) use ($dropDpop, $dropIdle): void {
+            if ($dropDpop) {
+                $table->dropColumn('dpop_jkt');
+            }
+            if ($dropIdle) {
+                $table->dropColumn('idle_expires_at');
+            }
+        });
+    }
+
+    private function dropRefreshIndexes(
+        SchemaManager $schema,
+        string $refresh,
+        bool $dropDpop,
+        bool $dropIdle,
+    ): void {
+        $schema->table($refresh, static function (Blueprint $table) use ($dropDpop, $dropIdle): void {
+            if ($dropDpop) {
+                $table->dropIndex('auth_oauth_refresh_tokens_dpop_jkt_index');
+            }
+            if ($dropIdle) {
+                $table->dropIndex('auth_oauth_refresh_tokens_idle_expires_at_index');
+            }
         });
     }
 

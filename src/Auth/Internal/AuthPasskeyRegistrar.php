@@ -14,7 +14,7 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
 use Infocyph\Foundation\Auth\Passkey\PasskeyServiceInterface;
 use Infocyph\Foundation\Auth\Support\DisabledPasskeyService;
 use Infocyph\Foundation\Auth\Support\InMemoryPasskeyService;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\OTP\Passkey;
 use Webauthn\PublicKeyCredential;
@@ -32,13 +32,13 @@ final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
         }
 
         if ($driver === AuthPasskeyDriver::WEBAUTHN) {
-            $this->requirePackage(Passkey::class, 'infocyph/otp', 'passkeys');
-            $this->requirePackage(PublicKeyCredential::class, 'web-auth/webauthn-lib', 'passkeys');
+            $this->requirePackage(Passkey::class, 'infocyph/otp', 'security.passkey');
+            $this->requirePackage(PublicKeyCredential::class, 'web-auth/webauthn-lib', 'security.passkey');
             $this->recipe(WebAuthnConfigResolver::class, WebAuthnConfigResolver::class, [
                 $this->ref(ConfigRepository::class),
             ]);
 
-            $configured = $this->app->config()->get('auth.passkey.state.store');
+            $configured = $this->config->get('auth.passkey.state.store');
             $storeName = is_string($configured) && trim($configured) !== '' ? trim($configured) : null;
 
             $this->staticRecipe(
@@ -47,7 +47,7 @@ final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
                 'passkey',
                 [
                     $this->ref(WebAuthnConfigResolver::class),
-                    $this->ref(CacheLayerFactory::class),
+                    $this->ref(CacheManager::class),
                     $storeName,
                 ],
             );

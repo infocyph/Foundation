@@ -12,6 +12,11 @@ final class SessionExecutionState
 
     public ?SessionStoreInterface $store = null;
 
+    public function __destruct()
+    {
+        $this->reset(false);
+    }
+
     public function reset(bool $throw = true): void
     {
         $active = array_reverse($this->active);

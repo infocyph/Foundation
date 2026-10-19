@@ -48,11 +48,9 @@ final readonly class TerminalIO implements CommandIO
             if (in_array($answer, $choices, true)) {
                 return $answer;
             }
-            if (preg_match('/^\d+$/D', $answer) === 1) {
-                $selected = $choices[(int) $answer - 1] ?? null;
-                if (is_string($selected)) {
-                    return $selected;
-                }
+            $selected = $this->numberedChoice($answer, $choices);
+            if ($selected !== null) {
+                return $selected;
             }
             $this->error('Select one of the listed choices.');
         }
@@ -267,6 +265,18 @@ final readonly class TerminalIO implements CommandIO
         }
 
         return $data;
+    }
+
+    /** @param list<string> $choices */
+    private function numberedChoice(string $answer, array $choices): ?string
+    {
+        if (preg_match('/^\d+$/D', $answer) !== 1) {
+            return null;
+        }
+
+        $selected = $choices[(int) $answer - 1] ?? null;
+
+        return is_string($selected) ? $selected : null;
     }
 
     private function readRaw(string $prompt): string

@@ -51,26 +51,7 @@ final class CommandExecutionCoordinator
         $policy = $descriptor->definition->executionPolicy();
 
         if (!$policy->requiresSupervisor()) {
-            $this->record($history, $executionId, $name, CommandStatus::Running);
-
-            try {
-                $exitCode = $inline($executionId);
-                $this->record(
-                    $history,
-                    $executionId,
-                    $name,
-                    $exitCode === ExitCode::SUCCESS ? CommandStatus::Succeeded : CommandStatus::Failed,
-                    $exitCode,
-                );
-
-                return $exitCode;
-            } catch (\Throwable $exception) {
-                $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
-                    'exception' => $exception::class,
-                ]);
-
-                throw $exception;
-            }
+            return $this->runInline($history, $executionId, $name, $inline);
         }
 
         $lock = null;
@@ -229,6 +210,35 @@ final class CommandExecutionCoordinator
             exitCode: $exitCode,
             metadata: $metadata + ['runtime' => $this->application->runtimeMode()->value],
         );
+    }
+
+    /** @param callable(ExecutionId):int $inline */
+    private function runInline(
+        ExecutionHistory $history,
+        ExecutionId $executionId,
+        string $name,
+        callable $inline,
+    ): int {
+        $this->record($history, $executionId, $name, CommandStatus::Running);
+
+        try {
+            $exitCode = $inline($executionId);
+            $this->record(
+                $history,
+                $executionId,
+                $name,
+                $exitCode === ExitCode::SUCCESS ? CommandStatus::Succeeded : CommandStatus::Failed,
+                $exitCode,
+            );
+
+            return $exitCode;
+        } catch (\Throwable $exception) {
+            $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
+                'exception' => $exception::class,
+            ]);
+
+            throw $exception;
+        }
     }
 
     private function status(ProcessResult $result): CommandStatus

@@ -138,7 +138,18 @@ final readonly class PasskeyManager
      */
     public function revokeCredential(string $accountId, string $credentialId, array $context = []): void
     {
-        $this->credentials->revoke($credentialId);
+        $credential = array_find(
+            $this->credentials->findForAccount($accountId),
+            static fn(PasskeyCredential $candidate): bool => $candidate->id === $credentialId
+                || $candidate->credentialId === $credentialId,
+        );
+        if (!$credential instanceof PasskeyCredential) {
+            throw new \InvalidArgumentException('Passkey credential does not belong to the requested account.');
+        }
+        if (!$this->credentials->compareAndSwap($credential, $credential->revokedAt($this->clock->now()))) {
+            throw new \RuntimeException('Passkey credential changed concurrently during revocation.');
+        }
+
         $this->record(
             AuthEventType::PASSKEY_REMOVED,
             $accountId,

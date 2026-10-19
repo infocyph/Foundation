@@ -1,0 +1,373 @@
+name: Foundation 4 native HTTP host smoke
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch'
+      && format('Foundation 4 paired host comparison ({0})', inputs.host_runner)
+      || 'Foundation 4 native HTTP host smoke' }}
+
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: Immutable Foundation 4 baseline commit for paired authenticated host verification
+        required: true
+        default: 6274939c395f75e5cf777aad5d7439f10792758c
+        type: string
+      host_runner:
+        description: Standard public-repository runner for both revisions of each measured pair
+        required: true
+        default: ubuntu-24.04-arm
+        type: choice
+        options:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+  pull_request:
+    branches: [main, master]
+    paths:
+      - .github/workflows/foundation4-host-certification.yml
+      - composer.json
+      - composer.lock
+      - src/**
+      - resources/**
+      - tests/Feature/WebReleaseRuntimeTest.php
+      - tests/Feature/ServeCommandIntegrationTest.php
+      - tests/Feature/Foundation4HostLoadTest.php
+      - tests/Feature/Foundation4HostReportTest.php
+      - tests/Fixtures/ServeProbe.php
+      - tests/Fixtures/HostLoadProbe.php
+      - benchmarks/foundation4-host-certify.sh
+      - benchmarks/foundation4-host-load.php
+      - benchmarks/foundation4-host-report.php
+      - benchmarks/Foundation4AuthenticatedWorkload.php
+      - benchmarks/foundation4-host-merge.php
+      - benchmarks/foundation4-module-cli-*.php
+      - benchmarks/Support/Foundation*Comparison.php
+      - benchmarks/Phase9NativeReadHandler.php
+      - benchmarks/phase9-server-compile.php
+
+permissions:
+  contents: read
+
+concurrency:
+  group: foundation4-host-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hosted-serving:
+    name: Runwire ${{ matrix.extension }} serving - PHP ${{ matrix.php }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.4", "8.5"]
+        extension: [swoole, openswoole]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          extensions: "mbstring, intl, sodium, curl, pcntl, posix, sockets, pdo_sqlite, ${{ matrix.extension }}"
+          coverage: none
+      - name: Install published Foundation dependencies
+        run: composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+      - name: Require the real selected host runtime
+        run: |
+          php -r '
+          require "vendor/autoload.php";
+          if (!(new Infocyph\Runwire\Runtime\RuntimeEnvironmentProbe())->probe()->isAvailable(Infocyph\Runwire\Runtime\Enum\RuntimeDriver::SWOOLE)) {
+              throw new RuntimeException("Swoole/OpenSwoole is required for hosted serving acceptance.");
+          }
+          '
+      - name: Verify CLI serving and trusted worker contexts
+        run: |
+          cp vendor/infocyph/phpforge/resources/pest.xml .foundation-serving-pest.xml
+          trap 'rm -f .foundation-serving-pest.xml' EXIT
+          vendor/bin/pest --configuration=.foundation-serving-pest.xml --fail-on-skipped \
+            tests/Feature/ServeCommandIntegrationTest.php \
+            tests/Feature/WebReleaseRuntimeTest.php
+
+  native-host:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      FOUNDATION_HOST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "mbstring, intl, sodium, curl, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
+          ini-values: "opcache.enable_cli=1, opcache.jit=disable, opcache.jit_buffer_size=0"
+          coverage: none
+      - name: Install native host and load tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq software-properties-common
+          sudo add-apt-repository -y ppa:ondrej/php
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq nginx php8.4-fpm
+          php-fpm8.4 -v
+          nginx -v
+          php -r 'if (!extension_loaded("curl")) { exit(1); }'
+      - name: Resolve Foundation 4 and selected Runwire dependencies
+        run: composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+      - name: Exercise FPM and native Runwire host processes
+        env:
+          FOUNDATION_HOST_REQUESTS: "900"
+          FOUNDATION_HOST_REPEATS: "3"
+          FOUNDATION_HOST_SOAK_SECONDS: "30"
+          FOUNDATION_HOST_RESULT_DIR: ${{ github.workspace }}/build/foundation4-host
+        run: bash benchmarks/foundation4-host-certify.sh
+      - name: Verify selected DBLayer CacheLayer and credential workload
+        env:
+          FOUNDATION_HOST_WORKLOAD_PROFILE: native-read
+          FOUNDATION_HOST_REQUESTS: "120"
+          FOUNDATION_HOST_REPEATS: "2"
+          FOUNDATION_HOST_SOAK_SECONDS: "30"
+          FOUNDATION_HOST_RESULT_DIR: ${{ github.workspace }}/build/foundation4-native
+        run: bash benchmarks/foundation4-host-certify.sh
+      - name: Capture host toolchain and dependency identity
+        if: always()
+        run: |
+          mkdir -p build/foundation4-host
+          php -v > build/foundation4-host/php-version.txt
+          php -m > build/foundation4-host/php-extensions.txt
+          php --ini=diff > build/foundation4-host/php-ini-diff.txt
+          if test -f composer.lock; then
+            composer show --locked --format=json > build/foundation4-host/dependencies.json
+            sha256sum composer.lock > build/foundation4-host/composer-lock.sha256
+          else
+            printf 'dependency_resolution=not_completed\\n' > build/foundation4-host/dependency-resolution.env
+          fi
+          git rev-parse HEAD > build/foundation4-host/commit.txt
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-native-host-${{ github.sha }}
+          path: |
+            build/foundation4-host/
+            build/foundation4-native/
+          if-no-files-found: warn
+          retention-days: 30
+
+  prepare-paired-host:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    outputs:
+      candidate: ${{ steps.identity.outputs.candidate }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "mbstring, intl, sodium, curl, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
+          coverage: none
+      - name: Freeze candidate and shared dependency manifest
+        id: identity
+        env:
+          BASELINE_REF: ${{ inputs.baseline_ref }}
+        run: |
+          [[ "$BASELINE_REF" =~ ^[a-f0-9]{40}$ ]] || { echo "An immutable baseline SHA is required." >&2; exit 1; }
+          printf 'candidate=%s\n' "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+      - uses: actions/upload-artifact@v7
+        with:
+          name: foundation4-paired-host-lock
+          path: composer.lock
+          if-no-files-found: error
+
+  paired-host:
+    if: github.event_name == 'workflow_dispatch'
+    needs: prepare-paired-host
+    runs-on: ${{ inputs.host_runner || 'ubuntu-24.04' }}
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        batch: [primary, confirmation]
+        host: [fpm, runwire]
+        workers: [1, 4]
+        concurrency: [1, 10, 50]
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: phpforge
+          POSTGRES_PASSWORD: Phpforge_123!
+          POSTGRES_DB: phpforge
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U phpforge -d phpforge" --health-interval 2s --health-timeout 2s --health-retries 30
+      redis:
+        image: redis:8.10-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 30
+    env:
+      FOUNDATION_HOST_WORKLOAD_PROFILE: authenticated-read
+      FOUNDATION_HOST_FILTER_HOST: ${{ matrix.host }}
+      FOUNDATION_HOST_FILTER_WORKERS: ${{ matrix.workers }}
+      FOUNDATION_HOST_FILTER_CONCURRENCY: ${{ matrix.concurrency }}
+      FOUNDATION_HOST_REQUESTS: "1000"
+      FOUNDATION_HOST_REPEATS: "5"
+      FOUNDATION_HOST_MIN_SECONDS: "120"
+      FOUNDATION_HOST_WARMUP_SECONDS: "60"
+      FOUNDATION_HOST_SOAK_SECONDS: ${{ matrix.workers == 4 && matrix.concurrency == 10 && '120' || '0' }}
+      FOUNDATION_HOST_SERVER_CPU_SET: ${{ matrix.workers == 1 && '2' || '2,3' }}
+      FOUNDATION_HOST_LOAD_CPU_SET: "0"
+      FOUNDATION_HOST_BACKEND_CPU_SET: "1"
+      FOUNDATION_HOST_TOOL_SHA: ${{ needs.prepare-paired-host.outputs.candidate }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare-paired-host.outputs.candidate }}
+          path: candidate
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.baseline_ref }}
+          path: baseline
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "mbstring, intl, sodium, curl, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
+          ini-values: "opcache.enable_cli=1, opcache.jit=disable, opcache.jit_buffer_size=0"
+          coverage: none
+      - name: Install host prerequisites
+        run: |
+          test "$(nproc)" -ge 4
+          for cpu in 0 1 2 3; do
+            siblings="$(cat "/sys/devices/system/cpu/cpu$cpu/topology/thread_siblings_list")"
+            if [[ "$siblings" != "$cpu" ]]; then
+              printf 'CPU %s shares a reported core with %s; refusing this allocation.\n' "$cpu" "$siblings" >&2
+              exit 1
+            fi
+          done
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq software-properties-common
+          sudo add-apt-repository -y ppa:ondrej/php
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq nginx php8.4-fpm
+          docker update --cpuset-cpus 1 '${{ job.services.postgres.id }}' '${{ job.services.redis.id }}'
+      - uses: actions/download-artifact@v7
+        with:
+          name: foundation4-paired-host-lock
+          path: locked-dependencies
+      - name: Prepare identical dependencies, benchmark tooling and isolated datasets
+        run: |
+          cp locked-dependencies/composer.lock candidate/composer.lock
+          cp locked-dependencies/composer.lock baseline/composer.lock
+          cp -a candidate/benchmarks/. baseline/benchmarks/
+          composer install --working-dir=candidate --no-interaction --no-progress --prefer-dist
+          composer install --working-dir=baseline --no-interaction --no-progress --prefer-dist
+          php <<'PHP'
+          <?php
+          $pdo = new PDO("pgsql:host=127.0.0.1;dbname=phpforge", "phpforge", "Phpforge_123!");
+          foreach (["foundation_baseline", "foundation_candidate"] as $database) {
+              $pdo->exec("CREATE DATABASE " . $database);
+          }
+          PHP
+          printf 'FOUNDATION_CERTIFICATION_HOST_ID=github-%s-%s-%s-server%s-load0-backend1\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$(cat /proc/sys/kernel/random/boot_id)" "$FOUNDATION_HOST_SERVER_CPU_SET" >> "$GITHUB_ENV"
+      - name: Run baseline and candidate on this same physical runner
+        timeout-minutes: 38
+        env:
+          BASELINE_SHA: ${{ inputs.baseline_ref }}
+          CANDIDATE_SHA: ${{ needs.prepare-paired-host.outputs.candidate }}
+          MEASUREMENT_BATCH: ${{ matrix.batch }}
+        run: |
+          variants=(baseline candidate)
+          if [[ "$MEASUREMENT_BATCH" == confirmation ]]; then variants=(candidate baseline); fi
+          for variant in "${variants[@]}"; do
+            if [[ "$variant" == baseline ]]; then source_sha="$BASELINE_SHA"; else source_sha="$CANDIDATE_SHA"; fi
+            FOUNDATION_HOST_SOURCE_SHA="$source_sha" \
+              FOUNDATION_HOST_PG_DATABASE="foundation_$variant" \
+              FOUNDATION_HOST_RESULT_DIR="$GITHUB_WORKSPACE/evidence/$variant" \
+              taskset --cpu-list "$FOUNDATION_HOST_LOAD_CPU_SET" \
+                bash "$GITHUB_WORKSPACE/$variant/benchmarks/foundation4-host-certify.sh"
+            if [[ "$FOUNDATION_HOST_FILTER_HOST" == fpm && "$FOUNDATION_HOST_FILTER_WORKERS" == 1 && "$FOUNDATION_HOST_FILTER_CONCURRENCY" == 1 ]]; then
+              FOUNDATION_MODULE_SOURCE_SHA="$source_sha" \
+                FOUNDATION_MODULE_BASELINE_OUTPUT="$GITHUB_WORKSPACE/evidence/$variant/module-cli.json" \
+                php "$GITHUB_WORKSPACE/$variant/benchmarks/foundation4-module-cli-baseline.php" > "$GITHUB_WORKSPACE/evidence/$variant/module-cli.log"
+            fi
+          done
+      - name: Capture exact runtime and dependency identity
+        if: always()
+        run: |
+          mkdir -p evidence
+          php -v > evidence/php-version.txt
+          php -m > evidence/php-extensions.txt
+          php --ini > evidence/php-ini-files.txt
+          if php -r 'exit(PHP_VERSION_ID >= 80500 ? 0 : 1);'; then
+            php --ini=diff > evidence/php-ini-diff.txt
+          fi
+          php -r '
+            $settings = [];
+            foreach (["opcache.enable", "opcache.enable_cli", "opcache.validate_timestamps", "opcache.optimization_level", "opcache.jit", "opcache.jit_buffer_size", "memory_limit", "error_reporting"] as $name) {
+                $settings[$name] = ini_get($name);
+            }
+            echo json_encode($settings, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), PHP_EOL;
+          ' > evidence/php-runtime-settings.json
+          sha256sum locked-dependencies/composer.lock > evidence/composer-lock.sha256
+          lscpu > evidence/cpu.txt
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-pair-${{ matrix.batch }}-${{ matrix.host }}-${{ matrix.workers }}-${{ matrix.concurrency }}
+          path: |
+            evidence/*/*.json
+            evidence/*/*.csv
+            evidence/*/*.log
+            evidence/*/*.env
+            evidence/*.txt
+            evidence/php-runtime-settings.json
+            evidence/*.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  compare-paired-host:
+    if: github.event_name == 'workflow_dispatch' && !cancelled() && needs.prepare-paired-host.result == 'success'
+    needs: [prepare-paired-host, paired-host]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        batch: [primary, confirmation]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare-paired-host.outputs.candidate }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "mbstring, intl, sodium, pdo, pdo_sqlite, redis, memcached"
+          coverage: none
+      - uses: actions/download-artifact@v7
+        with:
+          name: foundation4-paired-host-lock
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: foundation4-pair-${{ matrix.batch }}-*
+          path: build/paired-input
+      - name: Enforce complete matched-host matrix and unchanged budgets
+        run: |
+          mkdir -p build/paired-comparison
+          php benchmarks/foundation4-module-cli-compare.php \
+            build/paired-input/foundation4-pair-${{ matrix.batch }}-fpm-1-1/baseline/module-cli.json \
+            build/paired-input/foundation4-pair-${{ matrix.batch }}-fpm-1-1/candidate/module-cli.json \
+            build/paired-comparison/module-cli-comparison.json
+          php benchmarks/foundation4-host-merge.php build/paired-input build/paired-comparison/comparison.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-paired-comparison-${{ matrix.batch }}
+          path: build/paired-comparison
+          if-no-files-found: error
+          retention-days: 30

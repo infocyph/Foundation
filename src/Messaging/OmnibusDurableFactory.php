@@ -21,12 +21,13 @@ use Infocyph\Omnibus\Serialization\MessageCodec;
 use Infocyph\Omnibus\Serialization\MessageCodecRegistry;
 use Infocyph\Omnibus\Serialization\StampCodec;
 use Infocyph\Omnibus\Serialization\StampCodecRegistry;
+use Psr\Container\ContainerInterface;
 
 final readonly class OmnibusDurableFactory
 {
     public function __construct(
         private ConfigRepository $config,
-        private DBLayerFactory $database,
+        private ContainerInterface $services,
         private MessagingRuntimeResolver $resolver,
         private SystemClock $clock,
     ) {}
@@ -34,7 +35,7 @@ final readonly class OmnibusDurableFactory
     public function afterCommit(MessageBus $bus): AfterCommitDispatcher
     {
         return new AfterCommitDispatcher(
-            $this->database->connection($this->connectionName()),
+            $this->database()->connection($this->connectionName()),
             $bus,
         );
     }
@@ -42,7 +43,7 @@ final readonly class OmnibusDurableFactory
     public function failureStore(EnvelopeSerializer $serializer): DBLayerFailureStore
     {
         return new DBLayerFailureStore(
-            $this->database->infrastructureConnection($this->connectionName()),
+            $this->database()->infrastructureConnection($this->connectionName()),
             $serializer,
             $this->table('failures', 'omnibus_failures'),
             $this->clock,
@@ -66,7 +67,7 @@ final readonly class OmnibusDurableFactory
     public function transport(EnvelopeSerializer $serializer): DBLayerTransport
     {
         return new DBLayerTransport(
-            $this->database->infrastructureConnection($this->connectionName()),
+            $this->database()->infrastructureConnection($this->connectionName()),
             $serializer,
             $this->clock,
             $this->table('messages', 'omnibus_messages'),
@@ -76,7 +77,7 @@ final readonly class OmnibusDurableFactory
     public function workflowStore(EnvelopeSerializer $serializer): DBLayerWorkflowStore
     {
         return new DBLayerWorkflowStore(
-            $this->database->infrastructureConnection($this->connectionName()),
+            $this->database()->infrastructureConnection($this->connectionName()),
             $serializer,
             $this->table('workflows', 'omnibus_workflows'),
             $this->table('workflow_items', 'omnibus_workflow_items'),
@@ -89,6 +90,16 @@ final readonly class OmnibusDurableFactory
         $connection = $this->config->get('messaging.durable.connection');
 
         return is_string($connection) && $connection !== '' ? $connection : null;
+    }
+
+    private function database(): DBLayerFactory
+    {
+        $database = $this->services->get(DBLayerFactory::class);
+        if (!$database instanceof DBLayerFactory) {
+            throw new ConfigurationException('DBLayerFactory binding is invalid.');
+        }
+
+        return $database;
     }
 
     /** @return list<MessageCodec> */

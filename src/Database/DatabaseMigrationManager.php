@@ -9,9 +9,10 @@ use Infocyph\DBLayer\Migration\Migration;
 use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\DBLayer\Migration\Seeder;
 use Infocyph\DBLayer\Migration\SeedRunner;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
+use Infocyph\InterMix\DI\RuntimeContainerInterface;
 use Psr\Container\ContainerInterface;
 
 final readonly class DatabaseMigrationManager
@@ -20,7 +21,7 @@ final readonly class DatabaseMigrationManager
         private ConfigRepository $config,
         private DBLayerFactory $factory,
         private ContainerInterface $services,
-        private ?CacheLayerFactory $cache = null,
+        private ?CacheManager $cache = null,
     ) {}
 
     public function runner(?string $connection = null): MigrationRunner
@@ -78,7 +79,7 @@ final readonly class DatabaseMigrationManager
         if ($store === null) {
             return null;
         }
-        if (!$this->cache instanceof CacheLayerFactory) {
+        if (!$this->cache instanceof CacheManager) {
             throw new \LogicException(
                 'Database migration locks require the Foundation cache capability.',
             );
@@ -108,7 +109,11 @@ final readonly class DatabaseMigrationManager
 
     private function resolve(string $definition): object
     {
-        $resolved = $this->services->get($definition);
+        $resolved = $this->services instanceof RuntimeContainerInterface
+            && !$this->services->has($definition)
+            && class_exists($definition)
+                ? $this->services->make($definition)
+                : $this->services->get($definition);
         if (!is_object($resolved)) {
             throw new \UnexpectedValueException(sprintf(
                 'Database definition "%s" did not resolve to an object.',

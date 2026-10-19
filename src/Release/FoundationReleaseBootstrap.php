@@ -7,10 +7,13 @@ namespace Infocyph\Foundation\Release;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
+use Infocyph\Runwire\Runtime\RuntimeApplicationFactoryInterface;
+use Infocyph\Runwire\Runtime\RuntimeApplicationInterface;
+use Infocyph\Runwire\RuntimeContext;
 use Infocyph\Webrick\Runtime\Http\RuntimeAdapterInterface;
 
 /** External deployment input selecting one trusted active Foundation generation. */
-final readonly class FoundationReleaseBootstrap
+final readonly class FoundationReleaseBootstrap implements RuntimeApplicationFactoryInterface
 {
     public const string MANIFEST_SHA256_ENV = 'INFOCYPH_FOUNDATION_RELEASE_MANIFEST_SHA256';
 
@@ -53,6 +56,11 @@ final readonly class FoundationReleaseBootstrap
         }
 
         return rtrim($releaseRoot, DIRECTORY_SEPARATOR);
+    }
+
+    public function create(RuntimeContext $context): RuntimeApplicationInterface
+    {
+        return $this->web()->runwireApplication($context);
     }
 
     /** @param array<string,mixed> $config */

@@ -9,6 +9,8 @@ use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\Exceptions\QueryException;
+use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
@@ -27,10 +29,29 @@ use Infocyph\Foundation\Session\Store\FileSessionStore;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Runtime\Http\RuntimeRequestContext;
 use Psr\Log\AbstractLogger;
+
+final class BrowserSessionResolutionProbe extends ServiceProvider
+{
+    private bool $resolved = false;
+
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+    {
+        unset($context);
+        $builder->onResolved(SessionManager::class, function (string $service): void {
+            $this->resolved = $service === SessionManager::class;
+        });
+    }
+
+    public function wasResolved(): bool
+    {
+        return $this->resolved;
+    }
+}
 
 it('persists session data and expires flash data after its next request', function (): void {
     [$middleware] = browserSessionStack();
@@ -66,6 +87,21 @@ it('persists session data and expires flash data after its next request', functi
     expect(browserSessionJson($second))->toBe(['user_id' => 42, 'notice' => 'saved'])
         ->and(browserSessionJson($third))->toBe(['user_id' => 42, 'notice' => null])
         ->and($first->getHeaderLine('Set-Cookie'))->toContain('Secure', 'HttpOnly', 'SameSite=Lax');
+});
+
+it('finalizes abandoned browser sessions when their native request scope is discarded', function (): void {
+    [, $manager, , , $container] = browserSessionStack();
+
+    $session = browserSessionWithinScope($container, static function () use ($manager): BrowserSession {
+        $session = $manager->open(null);
+        $manager->enter($session);
+        $session->put('scope_owned', true);
+
+        return $session;
+    });
+
+    expect(fn() => $session->put('after_scope', true))
+        ->toThrow(LogicException::class, 'finalized for this request');
 });
 
 it('finalizes browser sessions before deferred response bodies are produced', function (): void {
@@ -176,6 +212,57 @@ it('accepts CSRF tokens only from the configured header or body', function (): v
         ->and($store->load($id, time()))->not->toBeNull();
 });
 
+it('rejects cross-session and superseded CSRF tokens without invalidating other sessions', function (): void {
+    [$sessionMiddleware, , , $config] = browserSessionStack();
+    $csrf = new CsrfMiddleware($config);
+    $bootstrap = static fn(): Response => $sessionMiddleware(
+        Request::fake(headers: ['Host' => 'example.test'], uri: 'https://example.test/form'),
+        static fn(Request $request): Response => Response::json([
+            'token' => BrowserSession::fromRequest($request)->csrfToken(),
+        ]),
+    );
+    $first = $bootstrap();
+    $second = $bootstrap();
+    $firstId = browserSessionCookieId($first);
+    $secondId = browserSessionCookieId($second);
+    $firstToken = browserSessionJson($first)['token'];
+    $secondToken = browserSessionJson($second)['token'];
+    $submit = static fn(string $id, string $token): Response => $sessionMiddleware(
+        Request::fake(
+            headers: [
+                'Host' => 'example.test',
+                'Origin' => 'https://example.test',
+                'X-CSRF-Token' => $token,
+            ],
+            method: 'POST',
+            uri: 'https://example.test/save',
+        )->withCookieParams(['infbyte_session' => $id]),
+        static fn(Request $request): Response => $csrf(
+            $request,
+            static fn(): Response => Response::json(['ok' => true]),
+        ),
+    );
+
+    expect($firstId)->not->toBe($secondId)
+        ->and($firstToken)->not->toBe($secondToken)
+        ->and($submit($secondId, $firstToken)->getStatusCode())->toBe(419)
+        ->and($submit($firstId, $firstToken)->getStatusCode())->toBe(200);
+
+    $rotated = $sessionMiddleware(
+        Request::fake(headers: ['Host' => 'example.test'], uri: 'https://example.test/rotate')
+            ->withCookieParams(['infbyte_session' => $firstId]),
+        static fn(Request $request): Response => Response::json([
+            'token' => BrowserSession::fromRequest($request)->regenerateCsrfToken(),
+        ]),
+    );
+    $replacementToken = browserSessionJson($rotated)['token'];
+
+    expect($replacementToken)->not->toBe($firstToken)
+        ->and($submit($firstId, $firstToken)->getStatusCode())->toBe(419)
+        ->and($submit($firstId, $replacementToken)->getStatusCode())->toBe(200)
+        ->and($submit($secondId, $secondToken)->getStatusCode())->toBe(200);
+});
+
 it('does not activate session services for routes that do not select them', function (): void {
     $project = browserSessionProject([
         'routes/web.php' => <<<'PHP'
@@ -192,20 +279,24 @@ PHP,
     ]);
 
     try {
-        $app = Foundation::web(['base_path' => $project, 'session' => ['driver' => 'array']]);
-        $repository = $app->container()->getRepository();
-        expect($repository->hasResolvedSingleton(SessionManager::class))->toBeFalse();
+        $probe = new BrowserSessionResolutionProbe();
+        $app = Foundation::web([
+            'base_path' => $project,
+            'session' => ['driver' => 'array'],
+            'providers' => ['web' => [$probe]],
+        ]);
+        expect($probe->wasResolved())->toBeFalse();
         $leanResponse = $app->handle(Request::fake(
             headers: ['Host' => 'example.test'], uri: 'https://example.test/lean',
         ));
         expect($leanResponse->getStatusCode())->toBe(200)
-            ->and($repository->hasResolvedSingleton(SessionManager::class))->toBeFalse();
+            ->and($probe->wasResolved())->toBeFalse();
         $stateResponse = $app->handle(Request::fake(
             headers: ['Host' => 'example.test'], uri: 'https://example.test/state',
         ));
         expect($stateResponse->getStatusCode())->toBe(200)
             ->and(browserSessionJson($stateResponse))->toBe(['has' => true])
-            ->and($repository->hasResolvedSingleton(SessionManager::class))->toBeTrue();
+            ->and($probe->wasResolved())->toBeTrue();
     } finally {
         browserSessionRemoveDirectory($project);
     }
@@ -280,17 +371,19 @@ it('creates and uses the portable DBLayer session schema on SQLite', function ()
                 'connections' => ['session' => ['driver' => 'sqlite', 'database' => 'database/session.sqlite']],
             ],
         ]);
-        $schema = $app->make(\Infocyph\Foundation\Session\SessionDatabaseSchema::class);
-        $schema->install();
-        $connection = $app->make(DBLayerFactory::class)->connection('session');
-        $store = new DatabaseSessionStore($connection, 'browser_sessions');
-        $id = str_repeat('d', 64);
-        $payload = new \Infocyph\Foundation\Session\SessionPayload(['role' => 'admin'], [], time() + 60);
-        $store->save($id, $payload);
-        expect($schema->readiness()['installed'])->toBeTrue()
-            ->and($store->load($id, time())?->data)->toBe(['role' => 'admin']);
-        $store->save(str_repeat('e', 64), new \Infocyph\Foundation\Session\SessionPayload([], [], time() - 1));
-        expect($store->prune(time(), 1))->toBe(1);
+        $app->execution()->run(static function () use ($app): void {
+            $schema = $app->make(\Infocyph\Foundation\Session\SessionDatabaseSchema::class);
+            $schema->install();
+            $connection = $app->make(DBLayerFactory::class)->connection('session');
+            $store = new DatabaseSessionStore($connection, 'browser_sessions');
+            $id = str_repeat('d', 64);
+            $payload = new \Infocyph\Foundation\Session\SessionPayload(['role' => 'admin'], [], time() + 60);
+            $store->save($id, $payload);
+            expect($schema->readiness()['installed'])->toBeTrue()
+                ->and($store->load($id, time())?->data)->toBe(['role' => 'admin']);
+            $store->save(str_repeat('e', 64), new \Infocyph\Foundation\Session\SessionPayload([], [], time() - 1));
+            expect($store->prune(time(), 1))->toBe(1);
+        });
     } finally {
         \Infocyph\DBLayer\DB::purge();
         browserSessionRemoveDirectory($project);
@@ -341,6 +434,7 @@ it('reports cleanup failures without replacing the primary session failure', fun
     $store->save($id, new \Infocyph\Foundation\Session\SessionPayload(['value' => 1], [], time() + 60));
 
     $locks = new class implements LockProviderInterface {
+        public int $releases = 0;
         public function acquire(string $key, float $waitSeconds, float $leaseSeconds = 30.0): ?LockHandle
         {
             unset($waitSeconds);
@@ -356,6 +450,7 @@ it('reports cleanup failures without replacing the primary session failure', fun
         public function release(?LockHandle $handle): void
         {
             if ($handle !== null) {
+                ++$this->releases;
                 throw new RuntimeException('cleanup-secret');
             }
         }
@@ -364,8 +459,14 @@ it('reports cleanup failures without replacing the primary session failure', fun
         /** @var list<array{level:mixed,message:string,context:array<string,mixed>}> */
         public array $records = [];
 
+        public bool $fail = false;
+
         public function log($level, string|Stringable $message, array $context = []): void
         {
+            if ($this->fail) {
+                throw new RuntimeException('secondary reporting failed');
+            }
+
             $this->records[] = [
                 'level' => $level,
                 'message' => (string) $message,
@@ -401,6 +502,33 @@ it('reports cleanup failures without replacing the primary session failure', fun
         ->and(json_encode($logger->records, JSON_THROW_ON_ERROR))
         ->not->toContain('cleanup-secret')
         ->not->toContain('primary application failed');
+
+    expect($locks->releases)->toBe(1);
+    $logger->fail = true;
+    $primary = new RuntimeException('primary failure must win');
+    $caught = null;
+    try {
+        browserSessionWithinScope(
+            $container,
+            static fn(): Response => $middleware(
+                Request::fake(uri: 'https://example.test/reporter-failure')
+                    ->withCookieParams(['infbyte_session' => $id]),
+                static function (Request $request) use ($primary): never {
+                    BrowserSession::fromRequest($request)->get('value');
+
+                    throw $primary;
+                },
+            ),
+        );
+    } catch (Throwable $exception) {
+        $caught = $exception;
+    }
+
+    expect($caught)->toBe($primary)
+        ->and($locks->releases)->toBe(2)
+        ->and($logger->records)->toHaveCount(1);
+    expect(fn() => browserSessionWithinScope($container, static fn(): BrowserSession => $manager->current()))
+        ->toThrow(LogicException::class, 'No browser session is active');
 });
 
 it('releases CacheLayer session locks when request handling fails', function (): void {
@@ -595,12 +723,13 @@ function browserSessionStack(): array
 function browserSessionContainer(): Container
 {
     $builder = ContainerBuilder::create('foundation-browser-session-test');
-    $builder->scoped(
+    $builder->factory(
         SessionExecutionState::class,
         FactoryDefinition::construct(SessionExecutionState::class),
+        LifetimeEnum::Scoped,
     );
 
-    return $builder->development();
+    return $builder->build();
 }
 
 function browserSessionWithinScope(Container $container, callable $callback): mixed

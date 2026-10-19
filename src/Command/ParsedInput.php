@@ -286,14 +286,7 @@ final readonly class ParsedInput
                 continue;
             }
 
-            $value = substr($cluster, $offset + 1);
-            if ($value === '') {
-                $value = $tokens[$index + 1] ?? null;
-                if (!is_string($value) || $value === '--') {
-                    throw new \InvalidArgumentException(sprintf('Option "-%s" requires a value.', $short));
-                }
-                $index++;
-            }
+            $value = self::resolveShortOptionValue($tokens, $index, $cluster, $offset, $short);
             self::addOption($options, $metadata['name'], $value, $metadata['multiple']);
 
             break;
@@ -365,6 +358,28 @@ final readonly class ParsedInput
         }
 
         return [$candidate, $candidateMetadata, true];
+    }
+
+    /** @param list<string> $tokens */
+    private static function resolveShortOptionValue(
+        array $tokens,
+        int &$index,
+        string $cluster,
+        int $offset,
+        string $short,
+    ): string {
+        $value = substr($cluster, $offset + 1);
+        if ($value !== '') {
+            return $value;
+        }
+
+        $next = $tokens[$index + 1] ?? null;
+        if (!is_string($next) || $next === '--') {
+            throw new \InvalidArgumentException(sprintf('Option "-%s" requires a value.', $short));
+        }
+        $index++;
+
+        return $next;
     }
 
     /** @return array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}|null */

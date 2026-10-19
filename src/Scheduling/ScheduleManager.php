@@ -8,7 +8,7 @@ use Closure;
 use Infocyph\CacheLayer\Cache\Lock\LockHandle;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\Foundation\Application\Application;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Cache\FoundationCacheKey;
 use Infocyph\Foundation\Command\CommandStatus;
 use Infocyph\Foundation\Operations\ExecutionHistory;
@@ -132,12 +132,8 @@ final readonly class ScheduleManager
                     break;
                 }
 
-                $remaining = $sleepSeconds;
-                while ($remaining-- > 0) {
-                    if ($this->interrupted($control, $runtimeToken, $scheduleToken)) {
-                        return 0;
-                    }
-                    usleep(1_000_000);
+                if ($this->interruptedDuringWait($sleepSeconds, $control, $runtimeToken, $scheduleToken)) {
+                    return 0;
                 }
             }
 
@@ -225,6 +221,22 @@ final readonly class ScheduleManager
     ): bool {
         return $control->changed('runtime', null, $runtimeToken)
             || $control->changed('schedule', null, $scheduleToken);
+    }
+
+    private function interruptedDuringWait(
+        int $seconds,
+        RuntimeControl $control,
+        string $runtimeToken,
+        string $scheduleToken,
+    ): bool {
+        while ($seconds-- > 0) {
+            if ($this->interrupted($control, $runtimeToken, $scheduleToken)) {
+                return true;
+            }
+            usleep(1_000_000);
+        }
+
+        return false;
     }
 
     private function load(string $routes, string $manifest): Schedule
@@ -477,7 +489,7 @@ final readonly class ScheduleManager
             $this->record($history, $executionId, $name, CommandStatus::Waiting, metadata: $identity);
         }
 
-        $lock = $this->application->make(CacheLayerFactory::class)->lock();
+        $lock = $this->application->make(CacheManager::class)->lock();
         $handle = $lock->acquire(
             FoundationCacheKey::fingerprint('schedule-lock', 'scheduled-command', $entry->identity()),
             $entry->overlapWaitSeconds(),

@@ -44,11 +44,13 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
 
     public function findByCredentialId(string $credentialId): ?PasskeyCredential
     {
-        return $this->firstMapped(
-            sprintf('SELECT * FROM %s WHERE credential_id = ? AND revoked_at IS NULL', $this->table('passkeyCredentials')),
+        $credential = $this->firstMapped(
+            sprintf('SELECT * FROM %s WHERE credential_id_hash = ? AND revoked_at IS NULL', $this->table('passkeyCredentials')),
             $this->mapCredential(...),
-            [$credentialId],
+            [hash('sha3-256', $credentialId)],
         );
+
+        return $credential?->credentialId === $credentialId ? $credential : null;
     }
 
     public function findForAccount(string $accountId): array
@@ -65,8 +67,8 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
         $this->updateWhere(
             'passkeyCredentials',
             ['revoked_at' => $this->now()],
-            '(credential_id = ? OR id = ?) AND revoked_at IS NULL',
-            [$credentialId, $credentialId],
+            '(credential_id_hash = ? OR id = ?) AND revoked_at IS NULL',
+            [hash('sha3-256', $credentialId), $credentialId],
         );
     }
 
@@ -113,6 +115,7 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
             'id' => $credential->id,
             'account_id' => $credential->accountId,
             'credential_id' => $credential->credentialId,
+            'credential_id_hash' => hash('sha3-256', $credential->credentialId),
             'credential_record' => $credential->credentialRecordJson,
             'public_key' => $credential->publicKey,
             'sign_count' => $credential->signCount,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Application;
 
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Module\ModuleFeatureCapabilityPolicy;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\Support\TraceLevelEnum;
 
@@ -14,6 +15,7 @@ final readonly class FoundationBuildContext
      * @param array<string, mixed> $config
      * @param array<string, bool> $capabilities
      * @param array<string, bool> $capabilityOverrides
+     * @param array<string, bool>|null $featureSelections
      */
     public function __construct(
         public RuntimeMode $runtimeMode,
@@ -26,6 +28,7 @@ final readonly class FoundationBuildContext
         public bool $debugTracing,
         public TraceLevelEnum $debugTraceLevel,
         public bool $capabilitiesExplicit = false,
+        public ?array $featureSelections = null,
     ) {}
 
     /**
@@ -41,12 +44,13 @@ final readonly class FoundationBuildContext
         ?array $capabilities = null,
     ): self {
         $capabilities = self::configuredCapabilities($config, $capabilities);
+        $features = ModuleFeatureCapabilityPolicy::fromConfig($config);
 
         return new self(
             runtimeMode: $runtimeMode,
             environment: ValueNormalizer::nullableString($config->get('app.container.environment'))
                 ?? ValueNormalizer::nullableString($config->get('app.env')),
-            config: $config->all(),
+            config: self::normalizedSourceConfig($config, $features),
             compiledConfig: $config->isCompiled(),
             capabilities: self::normalizeCapabilities($capabilities ?? []),
             capabilityOverrides: self::moduleCapabilityOverrides($config),
@@ -59,21 +63,37 @@ final readonly class FoundationBuildContext
                 ValueNormalizer::string($config->get('app.container.debug_tracing.level'), 'node'),
             ),
             capabilitiesExplicit: $capabilities !== null,
+            featureSelections: $features,
         );
     }
 
     public function hasCapability(string $capability): bool
     {
-        if (array_key_exists($capability, $this->capabilityOverrides)) {
-            return $this->capabilityOverrides[$capability];
-        }
-
-        return $this->capabilities[$capability] ?? false;
+        return $this->rawCapability($capability)
+            && ModuleFeatureCapabilityPolicy::permits($capability, $this->featureSelections);
     }
 
     public function hasCapabilityOverride(string $capability): bool
     {
         return array_key_exists($capability, $this->capabilityOverrides);
+    }
+
+    public function hasFeature(string $feature): bool
+    {
+        return ModuleFeatureCapabilityPolicy::selected($feature, $this->featureSelections);
+    }
+
+    /**
+     * Match bootstrap's explicit capability and module override policy before
+     * the full provider graph is finalized; never inspect partial definitions.
+     */
+    public function permitsCapability(string $capability): bool
+    {
+        $legacyAllowed = $this->hasCapabilityOverride($capability)
+            ? $this->rawCapability($capability)
+            : (!$this->capabilitiesExplicit || $this->rawCapability($capability));
+
+        return $legacyAllowed && ModuleFeatureCapabilityPolicy::permits($capability, $this->featureSelections);
     }
 
     /**
@@ -139,6 +159,30 @@ final readonly class FoundationBuildContext
         return $normalized;
     }
 
+    /**
+     * Canonicalize the selected-feature map before the InterMix graph is
+     * frozen; logically identical selections must keep the same graph digest.
+     *
+     * @param array<string,bool>|null $features
+     * @return array<string,mixed>
+     */
+    private static function normalizedSourceConfig(ConfigRepository $config, ?array $features): array
+    {
+        $source = $config->all();
+        if ($features === null) {
+            return $source;
+        }
+
+        $modules = $source['modules'] ?? [];
+        if (!is_array($modules)) {
+            throw new \UnexpectedValueException('modules must contain a keyed feature configuration map.');
+        }
+        $modules['features'] = $features;
+        $source['modules'] = $modules;
+
+        return $source;
+    }
+
     private static function traceLevel(string $value): TraceLevelEnum
     {
         return match (strtolower($value)) {
@@ -149,5 +193,18 @@ final readonly class FoundationBuildContext
             'off' => TraceLevelEnum::Off,
             default => TraceLevelEnum::Node,
         };
+    }
+
+    private function rawCapability(string $capability): bool
+    {
+        if ($capability === 'runwire') {
+            return true;
+        }
+
+        if (array_key_exists($capability, $this->capabilityOverrides)) {
+            return $this->capabilityOverrides[$capability];
+        }
+
+        return $this->capabilities[$capability] ?? false;
     }
 }

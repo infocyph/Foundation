@@ -4,18 +4,16 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Session;
 
+use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
-use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Logging\ExceptionReporter;
 use Infocyph\Foundation\Session\Middleware\CsrfMiddleware;
 use Infocyph\Foundation\Session\Middleware\SessionMiddleware;
-use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -30,53 +28,39 @@ final class SessionServiceProvider extends ServiceProvider
         $driver = is_string($session['driver'] ?? null) ? $session['driver'] : 'file';
         $lock = is_array($session['lock'] ?? null) ? $session['lock'] : [];
 
-        $this->registerCore($builder, $context);
-        $this->registerStore($builder, $driver);
-        $this->registerManager($builder, ($lock['enabled'] ?? false) === true);
+        $this->registerCore($builder);
+        $this->registerStore($builder, $context, $driver);
+        $this->registerManager($builder, $context, ($lock['enabled'] ?? false) === true);
         $this->registerMiddleware($builder, $context);
     }
 
-    private function registerCore(ContainerBuilder $builder, FoundationBuildContext $context): void
+    private function registerCore(ContainerBuilder $builder): void
     {
-        $builder->singleton(SessionConfig::class, FactoryDefinition::staticFactory(
+        $builder->factory(SessionConfig::class, FactoryDefinition::staticFactory(
             SessionGraphFactory::class,
             'config',
             [new ServiceReference(ConfigRepository::class), new ServiceReference(PathManager::class)],
         ));
-        $builder->scoped(
+        $builder->factory(
             SessionExecutionState::class,
             FactoryDefinition::construct(SessionExecutionState::class),
+            LifetimeEnum::Scoped,
         );
 
-        if ($context->runtimeMode !== RuntimeMode::Web) {
-            return;
-        }
-
-        $builder->onScopeLeave(
-            $context->runtimeMode->scopeName(),
-            static function (string $scope, Container $container): void {
-                unset($scope);
-                $state = $container->get(SessionExecutionState::class);
-                if ($state instanceof SessionExecutionState) {
-                    $state->reset(false);
-                }
-            },
-        );
     }
 
-    private function registerManager(ContainerBuilder $builder, bool $lockEnabled): void
+    private function registerManager(ContainerBuilder $builder, FoundationBuildContext $context, bool $lockEnabled): void
     {
         if ($lockEnabled) {
-            if (!$builder->definitions()->has(CacheLayerFactory::class)) {
+            if (!$context->permitsCapability('cache')) {
                 throw new \LogicException('Session locking requires the Foundation cache capability.');
             }
-            $builder->singleton(SessionManager::class, FactoryDefinition::staticFactory(
+            $builder->factory(SessionManager::class, FactoryDefinition::staticFactory(
                 SessionGraphFactory::class,
                 'lockedManager',
                 [
                     new ServiceReference(SessionConfig::class),
                     new ServiceReference(SessionStoreFactory::class),
-                    new ServiceReference(CacheLayerFactory::class),
                     new ServiceReference(ContainerInterface::class),
                 ],
             ));
@@ -84,7 +68,7 @@ final class SessionServiceProvider extends ServiceProvider
             return;
         }
 
-        $builder->singleton(SessionManager::class, FactoryDefinition::staticFactory(
+        $builder->factory(SessionManager::class, FactoryDefinition::staticFactory(
             SessionGraphFactory::class,
             'manager',
             [
@@ -97,18 +81,7 @@ final class SessionServiceProvider extends ServiceProvider
 
     private function registerMiddleware(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $arguments = [
-            new ServiceReference(SessionManager::class),
-            new ServiceReference(SessionConfig::class),
-            $context->runtimeMode === RuntimeMode::Web
-                ? new ServiceReference(ExceptionReporter::class)
-                : null,
-        ];
-        $builder->singleton(SessionMiddleware::class, FactoryDefinition::construct(
-            SessionMiddleware::class,
-            $arguments,
-        ));
-        $builder->bind(
+        $builder->factory(
             BrowserSession::class,
             FactoryDefinition::staticFactory(
                 SessionGraphFactory::class,
@@ -117,36 +90,41 @@ final class SessionServiceProvider extends ServiceProvider
             ),
             LifetimeEnum::Scoped,
         );
-        $builder->singleton(CsrfMiddleware::class, FactoryDefinition::construct(
+        $builder->alias('foundation.session', SessionManager::class);
+        if ($context->runtimeMode !== RuntimeMode::Web) {
+            return;
+        }
+
+        $builder->factory(SessionMiddleware::class, FactoryDefinition::construct(
+            SessionMiddleware::class,
+            [
+                new ServiceReference(SessionManager::class),
+                new ServiceReference(SessionConfig::class),
+                new ServiceReference(ExceptionReporter::class),
+            ],
+        ));
+        $builder->factory(CsrfMiddleware::class, FactoryDefinition::construct(
             CsrfMiddleware::class,
             [new ServiceReference(SessionConfig::class)],
         ));
-        $builder->alias('foundation.session', SessionManager::class);
     }
 
-    private function registerStore(ContainerBuilder $builder, string $driver): void
+    private function registerStore(ContainerBuilder $builder, FoundationBuildContext $context, string $driver): void
     {
-        $storeArguments = [new ServiceReference(SessionConfig::class)];
-        if ($driver === 'cache') {
-            if (!$builder->definitions()->has(CacheManager::class)) {
-                throw new \LogicException('Cache-backed sessions require the Foundation cache capability.');
-            }
-            $storeArguments[] = new ServiceReference(CacheManager::class);
-        } elseif ($driver === 'database') {
-            if (!$builder->definitions()->has(DBLayerFactory::class)) {
-                throw new \LogicException('Database-backed sessions require the Foundation database capability.');
-            }
-            $storeArguments[] = null;
-            $storeArguments[] = new ServiceReference(DBLayerFactory::class);
+        if ($driver === 'cache' && !$context->permitsCapability('cache')) {
+            throw new \LogicException('Cache-backed sessions require the Foundation cache capability.');
+        }
+        if ($driver === 'database' && (!$context->permitsCapability('database') || !class_exists(Connection::class))) {
+            throw new \LogicException('Database-backed sessions require the Foundation database capability.');
         }
 
-        $builder->singleton(SessionStoreFactory::class, FactoryDefinition::construct(
+        $builder->factory(SessionStoreFactory::class, FactoryDefinition::construct(
             SessionStoreFactory::class,
-            $storeArguments,
+            [new ServiceReference(SessionConfig::class), new ServiceReference(ContainerInterface::class)],
         ));
 
-        if ($builder->definitions()->has(DBLayerFactory::class)) {
-            $builder->singleton(SessionDatabaseSchema::class, FactoryDefinition::construct(
+        if ($context->permitsCapability('database') && class_exists(Connection::class)) {
+            $builder->factory(SessionDatabaseSchema::class, FactoryDefinition::construct(
                 SessionDatabaseSchema::class,
                 [new ServiceReference(SessionConfig::class), new ServiceReference(DBLayerFactory::class)],
             ));

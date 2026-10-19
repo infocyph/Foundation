@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Validation;
 
+use Infocyph\Foundation\Runtime\NativeRunwireOperation;
 use Infocyph\ReqShield\Support\ValidationResult;
 use Infocyph\Webrick\Request\Request;
 
@@ -27,9 +28,18 @@ abstract class FormRequest
 
     final public function validate(Request $request): ValidationResult
     {
-        return $this->validators
-            ->makeRules($this->rules($request), $this->options($request))
-            ->validate($this->input($request));
+        $validator = $this->validators->makeRules($this->rules($request), $this->options($request));
+        $data = $this->input($request);
+        $context = NativeRunwireOperation::current();
+
+        return $context === null
+            ? $validator->validate($data)
+            : $validator->validateWithRunwire(
+                $data,
+                $context->runtime,
+                $context->request,
+                $context->scope,
+            );
     }
 
     /** @return array<int|string,mixed> */

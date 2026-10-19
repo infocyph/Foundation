@@ -26,7 +26,7 @@ final readonly class AuthPruner
         $readiness = $this->schema->readiness($connection);
         if (!$readiness['installed']) {
             throw new \RuntimeException(
-                'Authentication schema is not installed; run "php infbyte module:schema:install auth" first.',
+                'Authentication schema is not installed; provision it with the Core AuthSchemaInstaller before pruning.',
             );
         }
 

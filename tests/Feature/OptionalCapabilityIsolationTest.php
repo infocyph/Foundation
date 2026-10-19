@@ -45,12 +45,12 @@ it('boots with Foundation core dependencies while optional packages remain unava
         ->and($probe['auth']['otp']['message'] ?? null)->toBeString()
         ->and($probe['auth']['otp']['message'])->toContain(
             'The selected auth driver requires infocyph/otp;',
-            'module:install otp',
+            'module:install security.mfa',
         )
         ->and($probe['auth']['webauthn']['message'] ?? null)->toBeString()
         ->and($probe['auth']['webauthn']['message'])->toContain(
             'The selected auth driver requires infocyph/otp;',
-            'module:install passkeys',
+            'module:install security.passkey',
         );
 });
 

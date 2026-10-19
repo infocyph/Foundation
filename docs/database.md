@@ -1,18 +1,15 @@
 # Database migrations and seeding
 
-Foundation composes DBLayer 5 for application database configuration,
+Foundation composes DBLayer 6.1.2 for application database configuration,
 migrations, schema inspection, and operational commands. DBLayer remains the
 owner of connections, queries, transactions, schema grammar, migration
 execution, replicas, pooling, query caching, and telemetry.
 
-Install the canonical `database` module and publish `config/database.php`:
+Install the `data.database` feature and publish `config/database.php`:
 
 ```bash
-php infbyte module:install database
+php infbyte module:install data.database
 ```
-
-`db` and `dblayer` remain accepted module aliases, but public documentation uses
-`database` as the canonical capability name.
 
 Application services may type-hint `Infocyph\DBLayer\Connection\Connection` to
 receive the configured default connection. Generic database work should use
@@ -20,23 +17,18 @@ DBLayer directly rather than a Foundation database facade.
 
 ## Foundation-owned schemas
 
-The `database` module owns database infrastructure; it does not own an
-application schema. Capability schemas are installed through their purpose
-modules.
+`data.database` selects native DBLayer infrastructure. Core auth and browser
+session schemas are provisioned explicitly through their existing typed services:
 
-Foundation authentication schema:
-
-```bash
-php infbyte module:schema:status auth
-php infbyte module:schema:install auth
+```php
+$app->execution()->run(static function () use ($app): void {
+    $app->make(\Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller::class)->install();
+    $app->make(\Infocyph\Foundation\Session\SessionDatabaseSchema::class)->install();
+});
 ```
 
-Database-backed browser sessions:
-
-```bash
-php infbyte module:schema:status session
-php infbyte module:schema:install session
-```
+Their `readiness()` methods inspect installed state. These are deployment actions;
+run them outside request handling.
 
 Database-backed CacheLayer stores/invalidation transports are Foundation core
 cache infrastructure and are managed independently of the module system:
@@ -46,14 +38,14 @@ php infbyte cache:schema:status
 php infbyte cache:schema:install
 ```
 
-To provision every schema required by the current application configuration:
+To provision schemas belonging to explicitly enabled optional features:
 
 ```bash
 php infbyte module:schema:sync
 ```
 
-All schema commands accept `--connection=<name>` where the provisioner supports
-a DBLayer connection override. `module:remove` never drops schemas or
+Typed Core provisioners accept an optional connection name. Optional schema
+commands accept `--connection=<name>` where supported. `module:remove` never drops schemas or
 application data.
 
 Foundation auth MFA factors include a scalar `revision` column used for
@@ -115,7 +107,7 @@ php infbyte migrate:fresh --force
 
 Every migration command accepts `--connection=<name>`.
 
-`migrate --pretend` delegates directly to DBLayer 5
+`migrate --pretend` delegates directly to DBLayer 6.1
 `MigrationRunner::pretend()`. DBLayer returns pending migration IDs mapped to an
 ordered list of `sql` + `bindings` records. Foundation only renders that native
 preview; it does not implement a second SQL compiler or migration engine.

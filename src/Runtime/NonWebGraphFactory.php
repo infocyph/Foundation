@@ -35,14 +35,17 @@ final class NonWebGraphFactory
             : new ConfigLoader()->load($config);
         $context = FoundationBuildContext::fromConfig($sourceConfig, $runtime, $capabilities);
         $builder = FoundationGraph::compose($context);
-        $container = $builder->development();
+        $bootstrapper = new Bootstrapper();
+        $providers = new ServiceRegistry();
+        $bootstrapper->compose($builder, $context, $providers);
+
+        $bindings = DevelopmentRuntimeBindings::register($builder);
+        $container = $builder->build();
         $runtimeConfig = $container->get(ConfigRepository::class);
         if (!$runtimeConfig instanceof ConfigRepository) {
             throw new \LogicException('Foundation non-web graph did not produce a ConfigRepository.');
         }
 
-        $bootstrapper = new Bootstrapper();
-        $providers = new ServiceRegistry();
         $application = new Application(
             config: $runtimeConfig,
             container: $container,
@@ -50,8 +53,7 @@ final class NonWebGraphFactory
             bootstrapper: $bootstrapper,
             runtimeMode: $runtime,
         );
-        DevelopmentRuntimeBindings::register($builder, $application, $container);
-        $bootstrapper->compose($builder, $context, $providers);
+        $bindings->attach($application);
 
         return new NonWebGraphComposition(
             builder: $builder,

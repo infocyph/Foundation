@@ -27,24 +27,13 @@ final readonly class ReadinessReport
         $checks = $this->baseChecks();
         $checks['configuration'] = $this->configurationReadiness();
         $capabilities = new ConfiguredCapabilities($this->application->config());
+        $checks = [...$checks, ...new CoreCapabilityDiagnostics()->checks($capabilities)];
 
         if ($capabilities->enabled('auth') && $this->oauthEnabled()) {
             $checks['oauth:signing'] = $this->oauthSigningReadiness();
         }
 
-        foreach (new ModuleStateResolver($this->application, new ModuleCatalog())->all() as $module) {
-            if (!$module['enabled']) {
-                continue;
-            }
-
-            $detail = $module['blockers'] !== []
-                ? implode('; ', $module['blockers'])
-                : ($module['warnings'] !== [] ? implode('; ', $module['warnings']) : $module['status']);
-            $checks['module:' . $module['name']] = [
-                'ready' => $module['ready'],
-                'detail' => $detail,
-            ];
-        }
+        $this->appendLegacyModuleChecks($checks);
 
         $this->appendSchemaChecks($checks, $capabilities);
 
@@ -68,6 +57,28 @@ final readonly class ReadinessReport
                     'detail' => $schema['state'] . ': ' . $schema['detail'],
                 ];
             }
+        }
+    }
+
+    /** @param array<string,array{ready:bool,detail:string}> $checks */
+    private function appendLegacyModuleChecks(array &$checks): void
+    {
+        if ($this->application->config()->has('modules.features')) {
+            return;
+        }
+
+        foreach (new ModuleStateResolver($this->application, new ModuleCatalog())->all() as $module) {
+            if (!$module['enabled']) {
+                continue;
+            }
+
+            $detail = $module['blockers'] !== []
+                ? implode('; ', $module['blockers'])
+                : ($module['warnings'] !== [] ? implode('; ', $module['warnings']) : $module['status']);
+            $checks['module:' . $module['name']] = [
+                'ready' => $module['ready'],
+                'detail' => $detail,
+            ];
         }
     }
 

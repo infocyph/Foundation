@@ -16,11 +16,21 @@ use Infocyph\Foundation\Config\ConfigurationRedactor;
 use Infocyph\Foundation\Diagnostics\ReadinessReport;
 use Infocyph\Foundation\Module\ModuleCatalog;
 use Infocyph\Foundation\Module\ModuleManager;
-use Infocyph\Foundation\Process\ProcessOptions;
-use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 use Infocyph\Foundation\Security\EnvironmentSecretManager;
+use Infocyph\Runwire\Http\AdaptiveProtocolPolicy;
+use Infocyph\Runwire\Http\Enum\AdaptivePolicyMode;
+use Infocyph\Runwire\Http\Http1\Http1Limits;
+use Infocyph\Runwire\Http\Http2\Http2Limits;
+use Infocyph\Runwire\Runtime;
+use Infocyph\Runwire\Runtime\Enum\RuntimeDriver;
+use Infocyph\Runwire\Runtime\RuntimeEnvironmentProbe;
+use Infocyph\Runwire\Runtime\RuntimeSelection;
+use Infocyph\Runwire\Runtime\RuntimeSelector;
+use Infocyph\Runwire\RuntimeOptions;
+use Infocyph\Runwire\Server;
+use Infocyph\Runwire\SwooleOptions;
 
 final class ApplicationSystemCommand extends SystemCommand
 {
@@ -54,7 +64,6 @@ final class ApplicationSystemCommand extends SystemCommand
         foreach (new ModuleManager(
             $this->application,
             new ModuleCatalog(),
-            new ProcessRunner(),
         )->all() as $module) {
             $modules[$module['name']] = $module;
         }
@@ -315,16 +324,32 @@ final class ApplicationSystemCommand extends SystemCommand
 
     private function serve(): int
     {
-        $host = $this->option('host', '127.0.0.1') ?? '127.0.0.1';
-        $port = $this->positivePort($this->option('port', '8000') ?? '8000');
+        $options = $this->serveOptions();
+        $selection = new RuntimeSelector()->select($options, new RuntimeEnvironmentProbe()->probe());
+        $host = $options->swoole->host;
+        $port = $options->swoole->port;
         $public = $this->application->publicPath();
         if (!is_dir($public)) {
             throw new \RuntimeException(sprintf('Public directory "%s" does not exist.', $public));
         }
 
-        $endpoint = sprintf('http://%s:%d', $host, $port);
+        $address = sprintf('tcp://%s:%d', str_contains($host, ':') ? '[' . trim($host, '[]') . ']' : $host, $port);
+        $server = $this->serveServer($address, $options, $selection);
+        $endpoint = str_replace('tcp://', 'http://', $address);
         if ($this->flag('dry-run')) {
-            return $this->emit(['endpoint' => $endpoint, 'document_root' => $public], sprintf('%s -> %s', $endpoint, $public));
+            return $this->emit([
+                'endpoint' => in_array($selection->driver, [RuntimeDriver::NATIVE, RuntimeDriver::SWOOLE], true) ? $endpoint : null,
+                'document_root' => $public,
+                'requested_runtime' => $options->driver->value,
+                'runtime' => $selection->driver->value,
+                'workers' => match ($selection->driver) {
+                    RuntimeDriver::NATIVE => $server?->workers,
+                    RuntimeDriver::SWOOLE => $options->swoole->workerCount,
+                    default => null,
+                },
+                'protocol_policy' => $server?->http1->adaptive->mode->value,
+                'warnings' => $selection->warnings,
+            ], sprintf('Runwire %s: %s', $selection->driver->value, $endpoint));
         }
 
         $config = $this->releaseConfig();
@@ -336,21 +361,84 @@ final class ApplicationSystemCommand extends SystemCommand
         );
 
         $this->io()->info(sprintf(
-            'Development server listening on %s using Foundation generation %s.',
+            'Runwire serving %s using Foundation generation %s.',
             $endpoint,
             $release['generation'],
         ));
 
-        return new ProcessRunner()->run(
-            [PHP_BINARY, '-S', $host . ':' . $port, '-t', $public],
-            new ProcessOptions(
-                cwd: $this->application->basePath(),
-                environment: [
-                    FoundationReleaseBootstrap::RELEASE_ROOT_ENV => $releaseRoot,
-                    FoundationReleaseBootstrap::MANIFEST_SHA256_ENV => $release['manifest_sha256'],
-                ],
-                interactive: true,
-            ),
-        )->exitCode;
+        $bootstrap = new FoundationReleaseBootstrap($releaseRoot, $release['manifest_sha256']);
+        $runtime = Runtime::create($options);
+        if ($server === null) {
+            $runtime->serveApplication($bootstrap);
+        } else {
+            $runtime->listen($server->withApplicationFactory($bootstrap))->run();
+        }
+
+        return ExitCode::SUCCESS;
+    }
+
+    private function serveOptions(): RuntimeOptions
+    {
+        $host = $this->option('host', '127.0.0.1') ?? '127.0.0.1';
+        $port = $this->positivePort($this->option('port', '8000') ?? '8000');
+        if ($host === '' || str_contains($host, '/') || str_contains($host, "\0")) {
+            throw new \InvalidArgumentException('--host must be a non-empty host name or IP address.');
+        }
+        $driver = RuntimeDriver::tryFrom($this->option('runtime') ?? RuntimeDriver::AUTO->value)
+            ?? throw new \InvalidArgumentException('Invalid --runtime; see serve --help for supported Runwire runtimes.');
+        $workerOption = $this->option('workers');
+        if ($workerOption !== null && preg_match('/^\d+$/D', $workerOption) !== 1) {
+            throw new \InvalidArgumentException('--workers must be a non-negative integer.');
+        }
+
+        return new RuntimeOptions(
+            driver: $driver,
+            swoole: new SwooleOptions(host: trim($host, '[]'), port: $port, workerCount: (int) ($workerOption ?? 0)),
+        );
+    }
+
+    private function servePolicy(AdaptiveProtocolPolicy $defaults, AdaptivePolicyMode $mode): AdaptiveProtocolPolicy
+    {
+        return new AdaptiveProtocolPolicy(
+            mode: $mode,
+            lowWatermarkBasisPoints: $defaults->lowWatermarkBasisPoints,
+            highWatermarkBasisPoints: $defaults->highWatermarkBasisPoints,
+            transitionSamples: $defaults->transitionSamples,
+            ewmaNumerator: $defaults->ewmaNumerator,
+            ewmaDenominator: $defaults->ewmaDenominator,
+        );
+    }
+
+    private function serveServer(string $address, RuntimeOptions $options, RuntimeSelection $selection): ?Server
+    {
+        $policy = AdaptivePolicyMode::tryFrom($this->option('protocol-policy') ?? AdaptivePolicyMode::FIXED->value)
+            ?? throw new \InvalidArgumentException('Invalid --protocol-policy; see serve --help for Runwire policies.');
+        if ($selection->driver !== RuntimeDriver::NATIVE) {
+            if ($this->option('protocol-policy') !== null) {
+                throw new \InvalidArgumentException('--protocol-policy requires the native Runwire protocol engine.');
+            }
+            if ($selection->driver !== RuntimeDriver::SWOOLE
+                && ($this->option('workers') !== null || $this->option('host') !== null || $this->option('port') !== null)
+            ) {
+                throw new \InvalidArgumentException('The selected host owns its bind address and workers; configure them in that host.');
+            }
+
+            return null;
+        }
+        $workers = $this->option('workers') === null ? 1 : $options->swoole->workerCount;
+        if (!$selection->capabilities->ownsWorkerPool && $workers > 1) {
+            throw new \InvalidArgumentException('Portable Runwire serving supports at most one worker; prefork capabilities are unavailable.');
+        }
+        $http1 = new Http1Limits();
+        $http2 = new Http2Limits();
+
+        return new Server(
+            name: 'web',
+            address: $address,
+            handler: static function (): void {},
+            workers: $workers,
+            http1: new Http1Limits(adaptive: $this->servePolicy($http1->adaptive, $policy)),
+            http2: new Http2Limits(adaptive: $this->servePolicy($http2->adaptive, $policy)),
+        );
     }
 }

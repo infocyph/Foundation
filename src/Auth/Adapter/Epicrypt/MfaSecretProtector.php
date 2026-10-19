@@ -87,29 +87,9 @@ final readonly class MfaSecretProtector
         $legacyPlaintext = false;
         $usedFallbackKey = false;
         foreach (self::SECRET_FIELDS as $field) {
-            $value = $otp[$field] ?? null;
-            if (!is_string($value) || $value === '') {
-                continue;
+            if ($this->unprotectOtpField($factor, $field, $otp, $marker, $legacyPlaintext, $usedFallbackKey)) {
+                $changed = true;
             }
-
-            if (!str_starts_with($value, 'ep2.')) {
-                if ($marker !== null || !$this->allowLegacyPlaintext) {
-                    throw new DecryptionException('MFA factor contains an unprotected symmetric secret.');
-                }
-
-                $legacyPlaintext = true;
-
-                continue;
-            }
-
-            $result = $this->protector->unprotectWithKeyRing(
-                $value,
-                $this->keys,
-                $this->options($factor, $field),
-            );
-            $otp[$field] = $result->value;
-            $usedFallbackKey = $usedFallbackKey || $result->usedFallbackKey;
-            $changed = true;
         }
 
         if ($marker !== null) {
@@ -177,6 +157,40 @@ final readonly class MfaSecretProtector
         }
 
         return $normalized;
+    }
+
+    /** @param array<string,mixed> $otp */
+    private function unprotectOtpField(
+        MfaFactor $factor,
+        string $field,
+        array &$otp,
+        mixed $marker,
+        bool &$legacyPlaintext,
+        bool &$usedFallbackKey,
+    ): bool {
+        $value = $otp[$field] ?? null;
+        if (!is_string($value) || $value === '') {
+            return false;
+        }
+        if (!str_starts_with($value, 'ep2.')) {
+            if ($marker !== null || !$this->allowLegacyPlaintext) {
+                throw new DecryptionException('MFA factor contains an unprotected symmetric secret.');
+            }
+
+            $legacyPlaintext = true;
+
+            return false;
+        }
+
+        $result = $this->protector->unprotectWithKeyRing(
+            $value,
+            $this->keys,
+            $this->options($factor, $field),
+        );
+        $otp[$field] = $result->value;
+        $usedFallbackKey = $usedFallbackKey || $result->usedFallbackKey;
+
+        return true;
     }
 
     private function validMarker(mixed $marker): bool

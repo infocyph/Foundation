@@ -14,6 +14,8 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Http\HttpKernel;
 use Infocyph\Foundation\Http\HttpServiceProvider;
 use Infocyph\Foundation\Http\Middleware\AuthMiddleware;
+use Infocyph\Foundation\Process\ProcessOptions;
+use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Routing\RouteFileLoader;
 
 it('keeps CLI and web boot graphs isolated', function (): void {
@@ -31,13 +33,7 @@ it('keeps CLI and web boot graphs isolated', function (): void {
         '_config_cache' => false,
         'router' => ['cache' => false, 'files' => ['api.php']],
     ];
-    $explicitlyBound = static function (Application $app, string $id): bool {
-        $repository = $app->container()->getRepository();
-        return $repository->hasFunctionReference($id)
-            || $repository->hasClosureResource($id)
-            || $repository->hasResolved($id)
-            || $repository->hasResolvedDefinition($id);
-    };
+    $explicitlyBound = static fn(Application $app, string $id): bool => $app->has($id);
 
     try {
         $cli = Foundation::cli($options);
@@ -113,6 +109,28 @@ it('selects only providers assigned to the active runtime', function (): void {
         runtimeModeRemoveDirectory($basePath);
     }
 });
+
+it('keeps Webrick and HTTP adapters out of non-web compilation and execution', function (string $mode, string $boot): void {
+    $root = dirname(__DIR__, 2);
+    $project = sys_get_temp_dir() . '/foundation-nonweb-isolation-' . bin2hex(random_bytes(5));
+    mkdir($project, 0775, true);
+
+    try {
+        $result = new ProcessRunner()->run(
+            [PHP_BINARY, $root . '/tests/Fixtures/NonWebIsolationProbe.php', $mode, $boot, $project],
+            new ProcessOptions(cwd: $root, timeoutSeconds: 30.0),
+        );
+        expect($result->successful())->toBeTrue($result->stderr)
+            ->and($result->stderr)->toBe('');
+        $probe = json_decode($result->stdout, true, flags: JSON_THROW_ON_ERROR);
+        expect($probe['runtime'])->toBe($mode)
+            ->and($probe['webrick'])->toBe([])
+            ->and($probe['executions'])->toHaveCount(2)
+            ->and($probe['executions'][0])->not->toBe($probe['executions'][1]);
+    } finally {
+        runtimeModeRemoveDirectory($project);
+    }
+})->with(['cli', 'worker', 'scheduler'])->with(['development', 'validated', 'prevalidated']);
 
 function runtimeModeRemoveDirectory(string $directory): void
 {

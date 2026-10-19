@@ -10,11 +10,13 @@ use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 use Infocyph\Foundation\Auth\Principal\PrincipalType;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Psr\Container\ContainerInterface;
 
 abstract class AbstractPrincipalResolver implements PrincipalResolverInterface
 {
     public function __construct(
         protected readonly ConfigRepository $config,
+        protected readonly ContainerInterface $container,
     ) {}
 
     /**
@@ -38,6 +40,21 @@ abstract class AbstractPrincipalResolver implements PrincipalResolverInterface
             accountId: $accountId,
             metadata: $metadata,
         );
+    }
+
+    /**
+     * @template T of object
+     * @param class-string<T> $id
+     * @return T
+     */
+    protected function service(string $id): object
+    {
+        $service = $this->container->get($id);
+        if (!$service instanceof $id) {
+            throw new \LogicException(sprintf('Invalid principal resolver service: %s.', $id));
+        }
+
+        return $service;
     }
 
     protected function stringConfig(string $key, string $default): string

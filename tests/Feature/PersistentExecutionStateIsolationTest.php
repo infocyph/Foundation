@@ -16,6 +16,8 @@ use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Session\SessionManager;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\Exceptions\ContainerException;
 use Infocyph\Omnibus\Consumer\ExecutionScope as OmnibusExecutionScope;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Envelope\MessageIdStamp;
@@ -63,10 +65,12 @@ final class FoundationPersistentStateProvider extends ServiceProvider
     {
         unset($context);
 
-        $builder->scoped(
+        $builder->factory(
             'persistent.execution.scoped',
             FactoryDefinition::construct(FoundationPersistentScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
+        $builder->input(FoundationPersistentMessage::class);
     }
 }
 
@@ -78,6 +82,8 @@ final readonly class FoundationPersistentMessage
 final class FoundationPersistentMemoCalls
 {
     public int $memo = 0;
+
+    public ?Closure $memoClosure = null;
 
     public int $once = 0;
 }
@@ -116,7 +122,7 @@ it('isolates execution state while preserving bounded process-local memoizers', 
         $principal = $app->make(CurrentPrincipalContext::class);
         $sessions = $app->make(SessionManager::class);
         $databaseFactory = $app->make(DBLayerFactory::class);
-        $database = $databaseFactory->connection();
+        $database = $databaseFactory->infrastructureConnection();
         $database->getPdo()->exec('CREATE TABLE runtime_state (value TEXT NOT NULL)');
 
         $firstScoped = null;
@@ -165,8 +171,8 @@ it('isolates execution state while preserving bounded process-local memoizers', 
             });
         })->toThrow(RuntimeException::class, 'deliberate persistent execution failure');
 
-        expect($principal->get())->toBeNull()
-            ->and(fn() => $sessions->current())->toThrow(LogicException::class)
+        expect($app->execution()->run(static fn(): ?PrincipalInterface => $principal->get()))->toBeNull()
+            ->and(fn() => $sessions->current())->toThrow(ContainerException::class, 'requires an active scope')
             ->and($database->transactionLevel())->toBe(0)
             ->and((int) $database->getPdo()->query('SELECT COUNT(*) FROM runtime_state')->fetchColumn())->toBe(0)
             ->and(Memoizer::instance()->stats())->toBe(['hits' => 0, 'misses' => 1, 'total' => 1]);
@@ -239,9 +245,11 @@ it('isolates execution state while preserving bounded process-local memoizers', 
 
 function foundationPersistentMemoized(FoundationPersistentMemoCalls $calls): int
 {
-    return Memoizer::instance()->get(static function () use ($calls): int {
+    $calls->memoClosure ??= static function () use ($calls): int {
         return ++$calls->memo;
-    });
+    };
+
+    return Memoizer::instance()->get($calls->memoClosure);
 }
 
 function foundationPersistentOnce(FoundationPersistentMemoCalls $calls): int

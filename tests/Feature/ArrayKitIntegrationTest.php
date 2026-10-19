@@ -108,8 +108,30 @@ PHP);
     );
     $lazyConfig->warmNamespaceCache('data');
 
+    $cacheDirectory = $basePath . '/cache/config';
+    $activeDirectory = foundationArrayKitActiveCacheDirectory($cacheDirectory);
+    $flatIndex = is_file($activeDirectory . '/.arraykit-flat.php')
+        ? $activeDirectory . '/.arraykit-flat.php'
+        : $cacheDirectory . '/__flat.php';
+
     expect($lazyConfig->get('data.answer'))->toBe(42)
-        ->and($lazyConfig->namespaceCacheDirectory())->toBe($basePath . '/cache/config')
-        ->and($basePath . '/cache/config/data.php')->toBeFile()
-        ->and($basePath . '/cache/config/__flat.php')->toBeFile();
+        ->and($lazyConfig->namespaceCacheDirectory())->toBe($cacheDirectory)
+        ->and($activeDirectory . '/data.php')->toBeFile()
+        ->and($flatIndex)->toBeFile();
 });
+
+
+function foundationArrayKitActiveCacheDirectory(string $directory): string
+{
+    $pointer = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '.arraykit-generation';
+    if (!is_file($pointer) || !is_readable($pointer)) {
+        return rtrim($directory, DIRECTORY_SEPARATOR);
+    }
+
+    $generation = trim((string) file_get_contents($pointer));
+    $active = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $generation;
+
+    return preg_match('/^\.arraykit-gen-[a-f0-9]+$/', $generation) === 1 && is_dir($active)
+        ? $active
+        : rtrim($directory, DIRECTORY_SEPARATOR);
+}

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Routing;
 
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Config\ConfigExportValidator;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
+use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Webrick\Router\Dispatch\RuntimeMiddlewareDescriptor;
 use Infocyph\Webrick\Router\Matching\FusedMatcher;
@@ -25,7 +27,11 @@ final readonly class WebReleaseConfiguration
 
     private const array MAINTENANCE_RESOLVER = [RouteMiddlewareRuntimeResolver::class, 'maintenance'];
 
-    public function __construct(private WebGraphComposition $graph) {}
+    public function __construct(
+        private FoundationBuildContext $context,
+        private ConfigRepository $repository,
+        private ?PathManager $paths = null,
+    ) {}
 
     public function assertArtifactSafeMiddleware(): void
     {
@@ -48,7 +54,7 @@ final readonly class WebReleaseConfiguration
 
     public function configFingerprint(): string
     {
-        $config = $this->graph->context->config;
+        $config = $this->context->config;
         ConfigExportValidator::assertExportable($config);
 
         return hash('xxh128', serialize($this->canonicalize($config)));
@@ -61,7 +67,7 @@ final readonly class WebReleaseConfiguration
 
     public function environment(): string
     {
-        return $this->graph->context->environment ?? 'production';
+        return $this->context->environment ?? 'production';
     }
 
     public function maintenanceMiddlewareEnabled(): bool
@@ -128,7 +134,12 @@ final readonly class WebReleaseConfiguration
             return $path;
         }
 
-        return $this->graph->application->basePath($path);
+        $basePath = $this->config()->get('app.base_path');
+        $basePath = is_string($basePath) && $basePath !== ''
+            ? rtrim($basePath, DIRECTORY_SEPARATOR)
+            : (getcwd() ?: dirname(__DIR__, 2));
+
+        return ($this->paths ?? new PathManager($basePath))->base($path);
     }
 
     public function signedDefaultTtl(): ?int
@@ -185,7 +196,7 @@ final readonly class WebReleaseConfiguration
 
     private function config(): ConfigRepository
     {
-        return $this->graph->config;
+        return $this->repository;
     }
 
     private function string(string $key, string $default = ''): string

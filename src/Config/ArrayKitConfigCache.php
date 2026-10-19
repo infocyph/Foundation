@@ -40,6 +40,8 @@ final class ArrayKitConfigCache
      */
     public function writeSharded(array $config, string $directory): array
     {
+        $this->assertPublicationRoot($directory);
+        $this->assertNativeGenerationsSafe($directory);
         $namespaces = [];
         foreach ($config as $namespace => $value) {
             if (is_array($value) && preg_match('/^[A-Za-z0-9_-]+$/', $namespace) === 1) {
@@ -47,7 +49,6 @@ final class ArrayKitConfigCache
             }
         }
         sort($namespaces);
-        $this->removeStaleFiles($directory, $namespaces);
 
         new LazyFileConfig(
             directory: $directory,
@@ -55,9 +56,11 @@ final class ArrayKitConfigCache
             namespaceCacheDirectory: $directory,
         )->warmNamespaceCache($namespaces);
 
+        $active = $this->activeCacheDirectory($directory);
         foreach ($namespaces as $namespace) {
-            $this->validateNamespace($directory, $namespace);
+            $this->validateNamespace($active, $namespace);
         }
+        $this->removeStaleFiles($directory, $namespaces);
 
         return $namespaces;
     }
@@ -65,7 +68,8 @@ final class ArrayKitConfigCache
     /** @param array<string,mixed> $config */
     public function writeSingle(array $config, string $directory): void
     {
-        $this->removeStaleFiles($directory, [], keepFlat: false);
+        $this->assertPublicationRoot($directory);
+        $this->assertNativeGenerationsSafe($directory);
 
         $native = new Config();
         if (!$native->loadArray($config)) {
@@ -89,6 +93,82 @@ final class ArrayKitConfigCache
         }
 
         ConfigExportValidator::assertExportable($materialized);
+
+        // Once the single cache is valid, remove only verified native artifacts.
+        $this->removeStaleFiles($directory, [pathinfo(self::SINGLE_FILE, PATHINFO_FILENAME)], keepFlat: false);
+        $this->retireNativeGenerationPointer($directory);
+    }
+
+    private function activeCacheDirectory(string $directory): string
+    {
+        $root = rtrim($directory, DIRECTORY_SEPARATOR);
+        $pointer = $root . DIRECTORY_SEPARATOR . '.arraykit-generation';
+        if (!is_file($pointer)) {
+            return $root;
+        }
+
+        $generation = trim((string) file_get_contents($pointer));
+        if (preg_match('/^\\.arraykit-gen-[a-f0-9]+$/', $generation) !== 1) {
+            throw new \RuntimeException('ArrayKit namespace cache generation pointer is invalid.');
+        }
+
+        $active = $root . DIRECTORY_SEPARATOR . $generation;
+        if (!is_dir($active) || is_link($active)) {
+            throw new \RuntimeException('ArrayKit namespace cache generation is not a trusted directory.');
+        }
+
+        return $active;
+    }
+
+    private function assertNativeGenerationDirectory(string $generation): void
+    {
+        if (is_link($generation) || !is_dir($generation)) {
+            throw new \RuntimeException('ArrayKit cache generation cannot be a symbolic link or non-directory.');
+        }
+
+        $entries = scandir($generation);
+        if ($entries === false) {
+            throw new \RuntimeException('Unable to inspect ArrayKit namespace cache generation.');
+        }
+
+        foreach ($entries as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+
+            $path = $generation . DIRECTORY_SEPARATOR . $entry;
+            if (is_link($path) || !is_file($path) || !str_ends_with($entry, '.php')) {
+                throw new \RuntimeException('ArrayKit generation contains an unsafe file or symbolic link.');
+            }
+        }
+    }
+
+    private function assertNativeGenerationPointer(string $root): void
+    {
+        $pointer = $root . DIRECTORY_SEPARATOR . '.arraykit-generation';
+        if (is_link($pointer)) {
+            throw new \RuntimeException('ArrayKit generation pointer cannot be a symbolic link.');
+        }
+        if (is_file($pointer)) {
+            $this->activeCacheDirectory($root);
+        }
+    }
+
+    private function assertNativeGenerationsSafe(string $directory): void
+    {
+        $root = rtrim($directory, DIRECTORY_SEPARATOR);
+        $this->assertNativeGenerationPointer($root);
+
+        foreach (glob($root . DIRECTORY_SEPARATOR . '.arraykit-gen-*') ?: [] as $generation) {
+            $this->assertNativeGenerationDirectory($generation);
+        }
+    }
+
+    private function assertPublicationRoot(string $directory): void
+    {
+        if (is_link($directory)) {
+            throw new \RuntimeException('ArrayKit configuration cache publication root cannot be a symbolic link.');
+        }
     }
 
     /** @param list<string> $namespaces */
@@ -107,6 +187,19 @@ final class ArrayKitConfigCache
                     $file,
                 ));
             }
+        }
+    }
+
+    /**
+     * Existing readers may be pinned to an older ArrayKit generation. Never
+     * delete those directories during an in-place cache mode transition.
+     * Release-owned generation garbage collection follows the host's lease.
+     */
+    private function retireNativeGenerationPointer(string $directory): void
+    {
+        $pointer = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '.arraykit-generation';
+        if (is_file($pointer) && !unlink($pointer)) {
+            throw new \RuntimeException('Unable to retire obsolete ArrayKit generation pointer.');
         }
     }
 

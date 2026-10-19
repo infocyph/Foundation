@@ -40,7 +40,9 @@ it('resolves account and service OAuth bearer tokens into the existing principal
                 ],
                 'oauth' => ['resource_audiences' => [$audience]],
             ],
-        ]), $validator);
+        ]), new RuntimeStateContainer([
+            \Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator::class => $validator,
+        ]));
 
         $account = $resolver->resolve(Request::fake(headers: ['Authorization' => 'Bearer ' . $accountToken]));
         $service = $resolver->resolve(Request::fake(headers: ['Authorization' => 'Bearer ' . $serviceToken]));

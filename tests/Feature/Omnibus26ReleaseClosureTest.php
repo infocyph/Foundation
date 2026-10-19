@@ -37,12 +37,15 @@ final class FoundationOmnibus26CommandStateProvider extends ServiceProvider
     {
         unset($context);
 
-        $builder->bindFactory(
+        // The selected test provider intentionally replaces the default module bindings.
+        $builder->unbind(FailureStore::class);
+        $builder->unbind(TransportRegistry::class);
+        $builder->factory(
             FailureStore::class,
             static fn(): FailureStore => self::$failures
                 ?? throw new LogicException('Omnibus command failure store fixture is not initialized.'),
         );
-        $builder->bindFactory(
+        $builder->factory(
             TransportRegistry::class,
             static fn(): TransportRegistry => self::$transports
                 ?? throw new LogicException('Omnibus command transport registry fixture is not initialized.'),
@@ -168,7 +171,9 @@ it('executes Omnibus failure administration and queue monitoring through the rea
 
     try {
         $listed = new FoundationOmnibus26CommandIO();
-        expect($dispatcher->run(['infbyte', 'queue:failed', '--limit=10'], $listed))->toBe(ExitCode::SUCCESS)
+        $status = $dispatcher->run(['infbyte', 'queue:failed', '--limit=10'], $listed);
+        expect($listed->errors)->toBe([])
+            ->and($status)->toBe(ExitCode::SUCCESS)
             ->and($listed->json)->toHaveCount(1)
             ->and($listed->json[0])->toHaveCount(3);
 

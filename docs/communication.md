@@ -7,7 +7,7 @@ Install the optional communication module when the application needs outbound
 HTTP, email, webhooks, inbound email, or gRPC composition:
 
 ```bash
-php infbyte module:install communication
+php infbyte module:install execution.communication
 ```
 
 This publishes `config/communication.php` and `config/notifications.php`.
@@ -98,15 +98,16 @@ second replay abstraction.
 
 Production inbound profiles reject the shipped `change-me` secret. Outbound
 profiles may select a named HTTP profile and optional TalkingBytes retry/signing
-policy. Foundation 3 with TalkingBytes 2.1 uses the native bound webhook `v2`
+policy. Foundation 4 uses the native TalkingBytes bound webhook `v2`
 signature path end-to-end; timestamp, event, delivery ID and exact raw body are
-authenticated together. Do not mix native TalkingBytes 2.0 senders with 2.1
-receivers during a rolling deployment.
+authenticated together. Senders and receivers must use the same supported
+signature version during deployment.
 
 Replay protection stays provider-neutral in TalkingBytes. Foundation supplies
 its CacheLayer-backed implementation, whose `claim()` path requires native
-atomic cache support and therefore fails composition rather than emulating an
-unsafe read-then-write claim.
+atomic cache support. Framework-composed profiles resolve that store only when
+a verified delivery reaches the claim operation; unsupported stores fail closed
+instead of emulating an unsafe read-then-write claim.
 
 ## gRPC outbound
 

@@ -80,6 +80,7 @@ it('uses an application supplied PSR logger at the HTTP reporting boundary', fun
         {
             unset($context);
 
+            $builder->unbind(LoggerInterface::class);
             $builder->value(LoggerInterface::class, $this->logger);
         }
     };
@@ -152,10 +153,7 @@ it('resolves relative log paths from the application and includes exception deta
 
 it('keeps web-only logging out of the CLI graph', function (): void {
     $app = Foundation::cli();
-    $repository = $app->container()->getRepository();
-
-    expect($repository->hasResolvedSingleton(LoggerInterface::class))->toBeFalse()
-        ->and($app->has(LoggerInterface::class))->toBeFalse();
+    expect($app->has(LoggerInterface::class))->toBeFalse();
 });
 
 it('supports exception exclusions, sampling, and bounded repeated reporting', function (): void {

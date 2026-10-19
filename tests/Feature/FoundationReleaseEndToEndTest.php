@@ -24,6 +24,7 @@ use Infocyph\Foundation\Worker\WorkerProvider;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
@@ -199,23 +200,24 @@ final class FoundationPhase8ReleaseProvider extends ServiceProvider
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
-        $builder->singleton(
+        $builder->factory(
             FoundationPhase8ReleaseProbe::class,
             FactoryDefinition::construct(
                 FoundationPhase8ReleaseProbe::class,
                 [new ServiceReference(RuntimeMode::class)],
             ),
         );
-        $builder->scoped(
+        $builder->factory(
             FoundationPhase8ReleaseScopedProbe::class,
             FactoryDefinition::construct(FoundationPhase8ReleaseScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
         foreach ([
             FoundationPhase8ReleaseCliCommand::class,
             FoundationPhase8ReleaseSchedulerCommand::class,
             FoundationPhase8ReleaseWorkerProvider::class,
         ] as $service) {
-            $builder->singleton(
+            $builder->factory(
                 $service,
                 FactoryDefinition::construct(
                     $service,
@@ -264,10 +266,18 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
             ->and($foundationManifest['worker']['provider_topology'] ?? null)->toBe('worker/providers.php')
             ->and($foundationManifest['worker']['provider_topology_sha256'] ?? null)->toMatch('/^[a-f0-9]{64}$/D');
 
-        foreach (['cli', 'worker', 'scheduler'] as $runtime) {
-            expect(is_file($generation . '/' . $runtime . '/container.php'))->toBeTrue()
-                ->and(is_file($generation . '/' . $runtime . '/container.php.meta.json'))->toBeTrue()
-                ->and(is_file($generation . '/' . $runtime . '/container.php.foundation.json'))->toBeTrue();
+        foreach (['web', 'cli', 'worker', 'scheduler'] as $runtime) {
+            $pointer = $generation . '/' . $runtime . '/container.php';
+            $target = realpath($pointer);
+            expect(is_link($pointer))->toBeTrue()
+                ->and(is_file($pointer))->toBeTrue()
+                ->and(readlink($pointer))->toStartWith('container.php.builds/')
+                ->and($target)->toBeString()
+                ->and(is_file(dirname((string) $target) . '/manifest.json'))->toBeTrue();
+
+            if ($runtime !== 'web') {
+                expect(is_file($pointer . '.foundation.json'))->toBeTrue();
+            }
         }
 
         $trustedFoundationSha256 = hash_file('sha256', $release['manifest']);
@@ -292,6 +302,34 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         ));
         expect($response->getStatusCode())->toBe(200)
             ->and((string) $response->getBody())->toBe('{"generation":"phase8-e2e"}');
+
+        foundationResetWebrickProductionRegistries();
+        $bootstrap = new FoundationReleaseBootstrap($releaseRoot, $trustedFoundationSha256);
+        $hostRuntime = \Infocyph\Runwire\RuntimeContext::standalone();
+        $host = $bootstrap->create($hostRuntime);
+        $hostRequest = \Infocyph\Runwire\RequestContext::create($hostRuntime);
+        $writer = new \Infocyph\Foundation\Tests\Fixtures\RunwireCollectingWriter();
+        $host->start();
+        try {
+            $host->handle(new \Infocyph\Runwire\Http\HttpRequest(
+                method: 'GET',
+                target: '/phase8',
+                version: \Infocyph\Runwire\Http\Enum\ProtocolVersion::HTTP_1_1,
+                headers: \Infocyph\Runwire\Http\Headers::fromArray(['Host' => 'phase8.test']),
+                body: new \Infocyph\Foundation\Tests\Fixtures\RunwireEmptyBody(),
+                context: $hostRequest,
+            ), $writer, completeResponse: true);
+            expect($bootstrap)->toBeInstanceOf(\Infocyph\Runwire\Runtime\RuntimeApplicationFactoryInterface::class)
+                ->and($writer->status)->toBe(200)
+                ->and($writer->endCalls)->toBe(1)
+                ->and($writer->body)->toBe('{"generation":"phase8-e2e"}')
+                ->and($hostRequest->completed())->toBeTrue();
+        } finally {
+            $host->drain();
+            $host->shutdown();
+        }
+        expect(fn() => new FoundationReleaseBootstrap($releaseRoot, str_repeat('0', 64))->create($hostRuntime))
+            ->toThrow(RuntimeException::class);
 
         file_put_contents(
             $project . '/bootstrap/providers.php',

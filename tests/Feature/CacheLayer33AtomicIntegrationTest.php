@@ -53,6 +53,23 @@ it('fails composition when the selected CacheLayer store cannot provide atomic s
         ->toThrow(LogicException::class, 'atomic cache capability');
 });
 
+it('defers replay storage until a claim and preserves atomic failure behavior', function (): void {
+    $calls = 0;
+    $cache = Cache::memory(namespace: 'deferred-replay-' . bin2hex(random_bytes(4)), options: new CacheOptions(failOpen: false));
+    $replay = new CacheLayerWebhookReplayStore(static function () use (&$calls, $cache) {
+        ++$calls;
+        return $cache;
+    });
+    expect($calls)->toBe(0);
+    expect(fn() => $replay->claim('payments', 'invalid-ttl', 0))->toThrow(InvalidArgumentException::class);
+    expect($calls)->toBe(0);
+    expect($replay->claim('payments', 'one', 30))->toBeTrue()
+        ->and($replay->claim('payments', 'one', 30))->toBeFalse()
+        ->and($calls)->toBe(2);
+    $unavailable = new CacheLayerWebhookReplayStore(static fn() => Cache::nullStore(new CacheOptions(failOpen: false)));
+    expect(fn() => $unavailable->claim('payments', 'two', 30))->toThrow(LogicException::class, 'atomic cache capability');
+});
+
 it('preserves replay consume CAS and auth lockout atomicity under process contention', function (): void {
     $dsn = foundationCacheLayer33RedisDsn();
     $namespace = 'foundation-33-' . bin2hex(random_bytes(8));

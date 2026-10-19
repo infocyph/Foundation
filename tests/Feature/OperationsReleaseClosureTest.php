@@ -218,7 +218,6 @@ it('closes maintenance runtime control and process registry operations through r
         expect($cleanStatus['processes'] ?? null)->toBe([])
             ->and($registry->all('worker', 'jobs'))->toBe([]);
     } finally {
-        $registryApp->container()->unset();
         foundationOperationsRemove($basePath);
     }
 });

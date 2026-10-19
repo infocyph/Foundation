@@ -4,88 +4,129 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Module;
 
+use Closure;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\ConfigCacheManager;
 
-/** @phpstan-import-type ResolvedModule from ModuleCatalog */
+/**
+ * @phpstan-import-type Context from ModuleFeatureResolver
+ */
 final readonly class ModuleActivationManager
 {
     public function __construct(
         private Application $application,
-        private ModuleCatalog $catalog,
     ) {}
 
-    public function disable(string $module): string
+    /**
+     * Persist selected optional feature overrides without changing the legacy
+     * module capability map. The production graph adopts these in Batch 4/6.
+     *
+     * @param list<string> $features
+     * @phpstan-param Context $context
+     */
+    public function applyFeatures(string $operation, array $features, array $context): string
     {
-        $definition = $this->catalog->resolve($module);
-        $this->assertMutable($definition);
-        $this->assertDisableSafe($definition['name']);
-
-        return $this->write($definition['name'], false);
-    }
-
-    public function enable(string $module): string
-    {
-        $definition = $this->catalog->resolve($module);
-        $this->assertMutable($definition);
-        $state = array_find(
-            new ModuleStateResolver($this->application, $this->catalog)->all(),
-            static fn(array $candidate): bool => $candidate['name'] === $definition['name'],
-        );
-        if (!is_array($state)) {
-            throw new \RuntimeException(sprintf('Unable to resolve module "%s".', $definition['name']));
-        }
-        if (!$state['installed']) {
-            throw new \RuntimeException(sprintf(
-                'Module "%s" is not installed; install it before enabling.',
-                $definition['name'],
-            ));
-        }
-        if (!$state['dependencies_satisfied']) {
-            throw new \RuntimeException(sprintf(
-                'Module "%s" cannot be enabled: %s',
-                $definition['name'],
-                implode(' ', $state['blockers']),
-            ));
+        if (!in_array($operation, ['enable', 'disable'], true)) {
+            throw new \InvalidArgumentException('Feature activation requires enable or disable.');
         }
 
-        return $this->write($definition['name'], true);
-    }
+        $plan = new ModuleFeaturePlanner()->plan($operation, $features, $context);
+        if (!$plan['applicable']) {
+            throw new \RuntimeException('Feature activation is blocked: ' . implode('; ', $plan['blockers']));
+        }
 
-    private function assertDisableSafe(string $module): void
-    {
-        $states = new ModuleStateResolver($this->application, $this->catalog)->all();
-        $dependents = [];
+        $lockPath = $this->application->basePath('.foundation-module-composer.lock');
+        if (is_link($lockPath)) {
+            throw new \RuntimeException('Refusing symbolic-linked module Composer lock.');
+        }
+        $lock = fopen($lockPath, 'c');
+        if ($lock === false) {
+            throw new \RuntimeException('Unable to open module Composer lock.');
+        }
 
-        foreach ($states as $state) {
-            if (!$state['enabled'] || $state['name'] === $module) {
-                continue;
+        try {
+            if (!flock($lock, LOCK_SH)) {
+                throw new \RuntimeException('Unable to acquire shared module Composer lock.');
             }
-            foreach ($state['dependencies']['active'] as $dependency) {
-                if ($dependency['type'] === 'module' && $dependency['target'] === $module) {
-                    $dependents[] = sprintf('%s: %s', $state['name'], $dependency['reason']);
+
+            return $this->mutate(
+                fn(array $config): array => $this->updateFeatureFlags(
+                    $config,
+                    $plan['effects']['activate'],
+                    $context,
+                    $operation,
+                    $features,
+                ),
+                $context,
+            );
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
+    }
+
+    /**
+     * @phpstan-param Context $context
+     * @param array<string,bool> $flags
+     * @param list<string> $features
+     */
+    private function assertFeatureGraph(array $flags, array $context, string $operation, array $features): void
+    {
+        $nextContext = $context;
+        $nextContext['enabled'] = array_keys(array_filter($flags));
+        $nextContext['selected_features'] = array_keys($flags);
+        $modules = $nextContext['config']['modules'] ?? [];
+        $nextContext['config']['modules'] = is_array($modules)
+            ? ['features' => $flags] + $modules
+            : ['features' => $flags];
+
+        $plan = new ModuleFeaturePlanner()->plan($operation, $features, $context);
+        if (!$plan['applicable']) {
+            throw new \RuntimeException('Feature activation changed; re-plan before applying.');
+        }
+        $resolved = new ModuleFeatureResolver()->resolve($nextContext['enabled'], $nextContext);
+        if ($resolved['blockers'] !== []) {
+            throw new \RuntimeException('Feature activation creates invalid dependencies: ' . implode('; ', $resolved['blockers']));
+        }
+        foreach ($resolved['states'] as $state) {
+            foreach ($state['dependencies'] as $dependency) {
+                if (!in_array($dependency, $nextContext['enabled'], true)) {
+                    throw new \RuntimeException('Feature activation creates invalid dependency graph.');
                 }
             }
         }
-
-        if ($dependents !== []) {
-            throw new \RuntimeException(sprintf(
-                'Module "%s" cannot be disabled while active dependents require it: %s',
-                $module,
-                implode('; ', array_values(array_unique($dependents))),
-            ));
-        }
     }
 
-    /** @phpstan-param ResolvedModule $definition */
-    private function assertMutable(array $definition): void
+    /**
+     * @phpstan-param Context $context
+     * @param array<string,mixed> $config
+     * @return array<string,bool>
+     */
+    private function assertFreshFeatureFlags(array $config, array $context): array
     {
-        if (($definition['built_in'] ?? false) === true) {
-            throw new \InvalidArgumentException(sprintf(
-                'Module "%s" is built into Foundation and has no module activation lifecycle.',
-                $definition['name'],
-            ));
+        $flags = $config['features'] ?? [];
+        if (!is_array($flags)) {
+            throw new \RuntimeException('modules.features must be a feature map.');
         }
+        foreach ($flags as $id => $active) {
+            if (!is_string($id) || !is_bool($active)) {
+                throw new \RuntimeException('modules.features must contain boolean feature flags.');
+            }
+        }
+
+        $expected = $context['selected_features'] ?? array_keys($flags);
+        $actual = array_keys($flags);
+        sort($expected);
+        sort($actual);
+        $snapshotEnabled = $context['enabled'];
+        $actualEnabled = array_keys(array_filter($flags));
+        sort($snapshotEnabled);
+        sort($actualEnabled);
+        if ($expected !== $actual || $snapshotEnabled !== $actualEnabled) {
+            throw new \RuntimeException('Feature activation changed; re-plan before applying.');
+        }
+
+        return $flags;
     }
 
     /** @return array<string,mixed> */
@@ -113,22 +154,96 @@ final readonly class ModuleActivationManager
         return $normalized;
     }
 
-    private function write(string $module, bool $enabled): string
+    /**
+     * @param Closure(array<string,mixed>):array<string,mixed> $change
+     * @phpstan-param Context $context
+     */
+    private function mutate(Closure $change, array $context): string
     {
         $path = $this->application->configPath('modules.php');
         $directory = dirname($path);
+        if (is_link($directory)) {
+            throw new \RuntimeException('Refusing symbolic-linked module activation directory.');
+        }
         if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create config directory "%s".', $directory));
         }
 
-        $config = $this->load($path);
-        $capabilities = $config['capabilities'] ?? [];
-        if (!is_array($capabilities)) {
-            throw new \RuntimeException('modules.capabilities must be a capability map.');
+        $lockPath = $path . '.lock';
+        if (is_link($lockPath)) {
+            throw new \RuntimeException('Refusing symbolic-linked module activation lock.');
         }
-        $capabilities[$module] = $enabled;
-        ksort($capabilities);
-        $config['capabilities'] = $capabilities;
+        $lock = fopen($lockPath, 'c');
+        if ($lock === false) {
+            throw new \RuntimeException('Unable to open module activation lock.');
+        }
+
+        try {
+            if (!flock($lock, LOCK_EX)) {
+                throw new \RuntimeException('Unable to acquire safe module activation lock.');
+            }
+
+            return $this->writeUnderLock($path, $change, $context);
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
+    }
+
+    private function restoreConfig(string $path, string $temporary, ?string $original, \Throwable $failure): void
+    {
+        if ($original === null) {
+            if (!unlink($path)) {
+                throw new \RuntimeException('Unable to remove stale module activation config.', previous: $failure);
+            }
+        } elseif (file_put_contents($temporary, $original, LOCK_EX) !== strlen($original)
+            || !rename($temporary, $path)
+        ) {
+            throw new \RuntimeException('Unable to restore module activation config after Composer drift.', previous: $failure);
+        }
+        new ConfigCacheManager($this->application)->clear();
+    }
+
+    /**
+     * @param array<string,mixed> $config
+     * @param array<string,bool> $changes
+     * @phpstan-param Context $context
+     * @param list<string> $features
+     * @return array<string,mixed>
+     */
+    private function updateFeatureFlags(array $config, array $changes, array $context, string $operation, array $features): array
+    {
+        new ModuleFeatureCommandSnapshot($this->application)->assertCurrent($context);
+
+        $flags = $this->assertFreshFeatureFlags($config, $context);
+        foreach ($changes as $id => $active) {
+            $flags[$id] = $active;
+        }
+        ksort($flags);
+        $this->assertFeatureGraph($flags, $context, $operation, $features);
+        $config['features'] = $flags;
+
+        return $config;
+    }
+
+    /**
+     * @param Closure(array<string,mixed>):array<string,mixed> $change
+     * @phpstan-param Context $context
+     */
+    private function writeUnderLock(string $path, Closure $change, array $context): string
+    {
+        $directory = dirname($path);
+        $previous = $this->load($path);
+        $original = is_file($path) ? file_get_contents($path) : null;
+        if ($original === false) {
+            throw new \RuntimeException('Unable to preserve module activation config.');
+        }
+        $config = $change($previous);
+        if ($config === $previous) {
+            // A repeat activation with an identical feature topology must not
+            // republish the file or invalidate unrelated compiled config.
+            return $path;
+        }
 
         $temporary = tempnam($directory, '.foundation-modules-');
         if ($temporary === false) {
@@ -139,13 +254,24 @@ final readonly class ModuleActivationManager
             . var_export($config, true)
             . ";\n";
 
+        $published = false;
+
         try {
-            if (file_put_contents($temporary, $payload, LOCK_EX) === false) {
+            if (file_put_contents($temporary, $payload, LOCK_EX) !== strlen($payload)) {
                 throw new \RuntimeException('Unable to write module activation staging file.');
             }
+            new ModuleFeatureCommandSnapshot($this->application)->assertCurrent($context);
             if (!rename($temporary, $path)) {
                 throw new \RuntimeException('Unable to publish module activation config.');
             }
+            $published = true;
+            new ModuleFeatureCommandSnapshot($this->application)->assertCurrent($context, false);
+        } catch (\Throwable $failure) {
+            if ($published) {
+                $this->restoreConfig($path, $temporary, $original, $failure);
+            }
+
+            throw $failure;
         } finally {
             if (is_file($temporary)) {
                 unlink($temporary);

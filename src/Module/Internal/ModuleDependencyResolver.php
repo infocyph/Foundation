@@ -53,27 +53,15 @@ final readonly class ModuleDependencyResolver
         }
 
         foreach ($features as $feature => $state) {
-            $featureSatisfied[$feature] = true;
-            foreach ($state['dependencies'] as $dependency) {
-                if (!$state['selected']) {
-                    $inactive[] = $this->state($dependency, false, false);
-
-                    continue;
-                }
-
-                $resolved = $this->resolveOne($dependency, $modules, $capabilities);
-                $active[] = $resolved;
-                if (!$resolved['satisfied']) {
-                    $featureSatisfied[$feature] = false;
-                    $blockers[] = sprintf(
-                        'Feature %s requires %s %s: %s',
-                        $feature,
-                        $resolved['type'] === 'module' ? 'module' : 'core capability',
-                        $resolved['target'],
-                        $resolved['reason'],
-                    );
-                }
-            }
+            $featureSatisfied[$feature] = $this->resolveFeatureDependencies(
+                $feature,
+                $state,
+                $modules,
+                $capabilities,
+                $active,
+                $inactive,
+                $blockers,
+            );
         }
 
         return [
@@ -150,6 +138,47 @@ final readonly class ModuleDependencyResolver
         }
 
         return $state['installed'] && $state['enabled'];
+    }
+
+    /**
+     * @phpstan-param FeatureState $state
+     * @phpstan-param array<string,ModuleState> $modules
+     * @phpstan-param list<DependencyState> $active
+     * @phpstan-param list<DependencyState> $inactive
+     * @param list<string> $blockers
+     */
+    private function resolveFeatureDependencies(
+        string $feature,
+        array $state,
+        array $modules,
+        ConfiguredCapabilities $capabilities,
+        array &$active,
+        array &$inactive,
+        array &$blockers,
+    ): bool {
+        $satisfied = true;
+        foreach ($state['dependencies'] as $dependency) {
+            if (!$state['selected']) {
+                $inactive[] = $this->state($dependency, false, false);
+
+                continue;
+            }
+
+            $resolved = $this->resolveOne($dependency, $modules, $capabilities);
+            $active[] = $resolved;
+            if (!$resolved['satisfied']) {
+                $satisfied = false;
+                $blockers[] = sprintf(
+                    'Feature %s requires %s %s: %s',
+                    $feature,
+                    $resolved['type'] === 'module' ? 'module' : 'core capability',
+                    $resolved['target'],
+                    $resolved['reason'],
+                );
+            }
+        }
+
+        return $satisfied;
     }
 
     /**

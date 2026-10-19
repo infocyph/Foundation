@@ -14,17 +14,75 @@ it('models managed feature and optional package roles without broadening install
         ->and($modules['auth']['packages']['infocyph/otp']['features'] ?? null)->toBe(['otp', 'passkey'])
         ->and($modules['auth']['packages']['web-auth/webauthn-lib']['features'] ?? null)->toBe(['passkey'])
         ->and($catalog->managedPackages($modules['auth']))->toBe([
-            'infocyph/otp' => '^6.1',
+            'infocyph/otp' => '^7.0',
             'web-auth/webauthn-lib' => '^5.3.9',
         ])
         ->and($modules['communication']['packages']['grpc/grpc']['role'] ?? null)->toBe('optional')
         ->and($catalog->managedPackages($modules['communication']))->toBe([
-            'infocyph/talkingbytes' => '^2.1',
+            'infocyph/talkingbytes' => '^2.3',
         ])
-        ->and($modules['messaging']['packages']['infocyph/runwire']['role'] ?? null)->toBe('optional')
+        ->and($modules['messaging']['packages'])->not->toHaveKey('infocyph/runwire')
         ->and($catalog->managedPackages($modules['messaging']))->toBe([
-            'infocyph/omnibus' => '^2.6',
+            'infocyph/omnibus' => '^3.0.2',
         ]);
+});
+
+it('documents the canonical three-module feature IDs and package version floors', function (): void {
+    $content = file_get_contents(dirname(__DIR__, 2) . '/docs/modules.md');
+    expect($content)->toBeString();
+
+    $catalog = new \Infocyph\Foundation\Module\ModuleArchitectureCatalog();
+    foreach ($catalog->all() as $group => $definition) {
+        foreach ($definition['features'] as $feature => $metadata) {
+            expect($content)->toContain('`' . $group . '.' . $feature . '`');
+            foreach ($metadata['packages'] as $constraint) {
+                expect($content)->toContain($constraint);
+            }
+        }
+    }
+});
+
+it('keeps Composer core and specialist module floors on one supported generation', function (): void {
+    $manifest = json_decode(
+        (string) file_get_contents(dirname(__DIR__, 2) . '/composer.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+    expect($manifest)->toBeArray();
+
+    $core = [
+        'infocyph/arraykit' => '^5.3.1',
+        'infocyph/cachelayer' => '^4.0.1',
+        'infocyph/intermix' => '^11.2',
+        'infocyph/runwire' => '^2.1.2',
+        'infocyph/uid' => '^6.0',
+        'infocyph/webrick' => '^6.0.3',
+    ];
+    foreach ($core as $package => $constraint) {
+        expect($manifest['require'][$package] ?? null)->toBe($constraint);
+    }
+
+    $catalog = new ModuleCatalog();
+    foreach ($catalog->all() as $module) {
+        foreach ($catalog->managedPackages($module) as $package => $constraint) {
+            expect($manifest['require-dev'][$package] ?? $manifest['require'][$package] ?? null)
+                ->toBe($constraint);
+        }
+    }
+});
+
+it('keeps all publishable module templates aligned with the configuration guide', function (): void {
+    $root = dirname(__DIR__, 2);
+    $documentation = file_get_contents($root . '/docs/configuration.md');
+    expect($documentation)->toBeString();
+
+    foreach (new ModuleCatalog()->all() as $module) {
+        foreach ($module['config'] as $filename) {
+            expect($root . '/resources/config/' . $filename)->toBeFile()
+                ->and($documentation)->toContain('`resources/config/' . $filename . '`');
+        }
+    }
 });
 
 it('pins the complete seven-specialist module contract', function (): void {
@@ -48,12 +106,12 @@ it('pins the complete seven-specialist module contract', function (): void {
         $specialists,
     ))->toBe([
         'auth' => [],
-        'communication' => ['infocyph/talkingbytes' => '^2.1'],
-        'database' => ['infocyph/dblayer' => '^5.1'],
-        'filesystem' => ['infocyph/pathwise' => '^4.1'],
-        'messaging' => ['infocyph/omnibus' => '^2.6'],
-        'security' => ['infocyph/epicrypt' => '^3.1'],
-        'validation' => ['infocyph/reqshield' => '^3.2'],
+        'communication' => ['infocyph/talkingbytes' => '^2.3'],
+        'database' => ['infocyph/dblayer' => '^6.1.2'],
+        'filesystem' => ['infocyph/pathwise' => '^4.2'],
+        'messaging' => ['infocyph/omnibus' => '^3.0.2'],
+        'security' => ['infocyph/epicrypt' => '^3.2'],
+        'validation' => ['infocyph/reqshield' => '^3.3'],
     ])->and(array_map(
         static fn(array $definition): array => $definition['config'],
         $specialists,
@@ -82,10 +140,10 @@ it('resolves auth feature aliases without broadening the core module request', f
         ->and($passkey['requested_features'])->toBe(['passkey'])
         ->and($webAuthnPackage['requested_features'])->toBe(['passkey'])
         ->and($catalog->installationPackages($auth, ['otp']))->toBe([
-            'infocyph/otp' => '^6.1',
+            'infocyph/otp' => '^7.0',
         ])
         ->and($catalog->installationPackages($auth, ['passkey']))->toBe([
-            'infocyph/otp' => '^6.1',
+            'infocyph/otp' => '^7.0',
             'web-auth/webauthn-lib' => '^5.3.9',
         ])
         ->and($catalog->resolve('infocyph/otp', ['otp'])['requested_features'])->toBe(['otp'])
@@ -110,7 +168,9 @@ it('records platform requirements and conditional module dependencies declarativ
     expect($modules['communication']['platform']['extensions'] ?? null)
         ->toBe(['curl', 'fileinfo', 'openssl'])
         ->and($modules['database']['platform']['extensions'] ?? null)->toBe(['pdo'])
-        ->and($modules['messaging']['platform']['extensions'] ?? null)->toBe(['pcntl', 'posix'])
+        ->and($modules['messaging']['platform']['extensions'] ?? null)->toBe([])
+        ->and($modules['messaging']['platform']['optional_extensions'] ?? null)
+        ->toBe(['memcached', 'msgpack', 'pcntl', 'posix', 'redis'])
         ->and($modules['security']['platform']['extensions'] ?? null)
         ->toBe(['hash', 'json', 'openssl', 'sodium'])
         ->and($modules['validation']['platform']['extensions'] ?? null)

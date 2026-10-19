@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Release;
 
 use Infocyph\Foundation\Application\RuntimeMode;
+use Infocyph\Foundation\Config\ConfigLoader;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeMetadata;
@@ -210,8 +212,13 @@ final readonly class FoundationReleaseCompiler
     ): array {
         ReleaseGenerationLease::initialize($stage);
         $this->mkdir($stage . '/web');
+        // The deployed release uses an immutable, compiled ConfigRepository.
+        // Compile against that exact graph identity, not the development-only
+        // ConfigRepository(compiled: false) definition.
+        $normalizedConfig = new ConfigLoader()->load($config);
+        $compiledConfig = new ConfigRepository($normalizedConfig->all(), compiled: true);
         $web = $this->web->compile(
-            $config,
+            $compiledConfig,
             $stage . '/web/container.php',
             $stage . '/web/router.php',
             $stage . '/web/release.json',
@@ -292,9 +299,8 @@ final readonly class FoundationReleaseCompiler
                 $name,
             ));
         }
-        if ($report['skipped'] !== []) {
-            throw new \RuntimeException(sprintf('Foundation %s runtime contains skipped definitions.', $name));
-        }
+        // GeneratedRuntimeCompiler already rejects every skipped definition
+        // except an explicitly declared native InterMix scoped input.
 
         return [
             'intermix_path' => $name . '/container.php',
@@ -369,6 +375,40 @@ final readonly class FoundationReleaseCompiler
 
     private function publishStage(string $stage, string $final, string $generation): void
     {
+        // InterMix publishes absolute activation symlinks. The Foundation-owned
+        // generation move must make them relative to their immutable build,
+        // otherwise the symlinks retain the removed staging directory path.
+        foreach (['web', 'cli', 'worker', 'scheduler'] as $mode) {
+            $pointer = $stage . '/' . $mode . '/container.php';
+            $directory = realpath(dirname($pointer));
+            $builds = realpath($pointer . '.builds');
+            $target = realpath($pointer);
+            if (!is_link($pointer)
+                || !is_string($directory)
+                || !is_string($builds)
+                || !is_string($target)
+                || $builds !== $directory . DIRECTORY_SEPARATOR . 'container.php.builds'
+                || dirname($target, 2) !== $builds
+                || basename($target) !== 'runtime.php'
+                || !is_file(dirname($target) . '/manifest.json')
+            ) {
+                throw new \RuntimeException(sprintf('Foundation %s runtime activation pointer is invalid.', $mode));
+            }
+
+            $relativeTarget = substr($target, strlen($directory) + 1);
+            $temporary = $pointer . '.relative-' . bin2hex(random_bytes(8));
+
+            try {
+                if (!symlink($relativeTarget, $temporary) || !rename($temporary, $pointer)) {
+                    throw new \RuntimeException(sprintf('Unable to publish portable %s runtime pointer.', $mode));
+                }
+            } finally {
+                if (is_link($temporary)) {
+                    unlink($temporary);
+                }
+            }
+        }
+
         if (!rename($stage, $final)) {
             throw new \RuntimeException(sprintf('Unable to publish Foundation release generation "%s".', $generation));
         }

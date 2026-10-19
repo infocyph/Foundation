@@ -13,6 +13,7 @@ use Infocyph\Foundation\Worker\WorkerRestartRequested;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
 final class FoundationGeneratedWorkerCancellationProbe {}
 
@@ -21,9 +22,10 @@ final class FoundationGeneratedWorkerCancellationProvider extends ServiceProvide
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
-        $builder->scoped(
+        $builder->factory(
             FoundationGeneratedWorkerCancellationProbe::class,
             FactoryDefinition::construct(FoundationGeneratedWorkerCancellationProbe::class),
+            LifetimeEnum::Scoped,
         );
     }
 }

@@ -25,26 +25,35 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
 
     public function rotate(string $tokenId, RefreshTokenRecord $replacement): void
     {
-        $this->markTokenRotated('refreshTokens', $tokenId);
+        $current = $this->find($tokenId);
+        if ($current === null || !$this->rotateIfActive($current, $replacement)) {
+            throw new \RuntimeException('Token cannot be rotated more than once.');
+        }
+    }
 
-        $this->save($replacement);
+    public function rotateIfActive(RefreshTokenRecord $current, RefreshTokenRecord $replacement): bool
+    {
+        if ($replacement->id === $current->id
+            || $replacement->accountId !== $current->accountId
+            || $replacement->familyId !== $current->familyId
+        ) {
+            return false;
+        }
+
+        return $this->rotateTokenIfActive(
+            'refreshTokens',
+            $current->id,
+            $current->accountId,
+            $current->familyId,
+            'token_hash',
+            $current->tokenHash,
+            fn() => $this->insertRecord('refreshTokens', $this->record($replacement)),
+        );
     }
 
     public function save(RefreshTokenRecord $record): void
     {
-        $this->upsertRecord('refreshTokens', 'id', [
-            'id' => $record->id,
-            'account_id' => $record->accountId,
-            'token_hash' => $record->tokenHash,
-            'family_id' => $record->familyId,
-            'client_id' => $record->clientId,
-            'device_id' => $record->deviceId,
-            'issued_at' => $record->issuedAt,
-            'expires_at' => $record->expiresAt,
-            'rotated_at' => $record->rotatedAt,
-            'revoked_at' => $record->revokedAt,
-            'metadata' => DBLayerJson::encode($record->metadata),
-        ]);
+        $this->upsertRecord('refreshTokens', 'id', $this->record($record));
     }
 
     public function wasFamilyRevoked(string $familyId): bool
@@ -70,5 +79,23 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
             revokedAt: $this->intOrNull($row['revoked_at'] ?? null),
             metadata: DBLayerJson::decode($row['metadata'] ?? null),
         );
+    }
+
+    /** @return array<string, mixed> */
+    private function record(RefreshTokenRecord $record): array
+    {
+        return [
+            'id' => $record->id,
+            'account_id' => $record->accountId,
+            'token_hash' => $record->tokenHash,
+            'family_id' => $record->familyId,
+            'client_id' => $record->clientId,
+            'device_id' => $record->deviceId,
+            'issued_at' => $record->issuedAt,
+            'expires_at' => $record->expiresAt,
+            'rotated_at' => $record->rotatedAt,
+            'revoked_at' => $record->revokedAt,
+            'metadata' => DBLayerJson::encode($record->metadata),
+        ];
     }
 }

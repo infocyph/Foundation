@@ -9,7 +9,7 @@ execution-scope cleanup, and persistent-runtime control.
 Install and publish messaging configuration with:
 
 ```bash
-php infbyte module:install messaging
+php infbyte module:install execution.messaging
 ```
 
 Foundation ships a bounded `messaging.workers.default` profile, but no worker
@@ -158,8 +158,8 @@ failure inspection volatile; a custom binding is fully application-owned.
 Provision or inspect Omnibus's durable tables through the module lifecycle:
 
 ```bash
-php infbyte module:schema:status messaging
-php infbyte module:schema:install messaging
+php infbyte module:schema:status execution.messaging
+php infbyte module:schema:install execution.messaging
 php infbyte module:schema:sync
 ```
 

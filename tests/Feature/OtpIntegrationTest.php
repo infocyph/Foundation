@@ -57,38 +57,40 @@ it('exposes the otp enrollment lifecycle through foundation', function (): void 
         ],
     ])->boot();
 
-    $otp = $app->make(OtpManager::class);
-    $enrollment = $otp->beginEnrollment(
-        accountId: 'acct-otp-1',
-        label: 'ada@example.com',
-        withQrSvg: true,
-        recoveryCodeCount: 8,
-    );
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $otp = $app->make(OtpManager::class);
+        $enrollment = $otp->beginEnrollment(
+            accountId: 'acct-otp-1',
+            label: 'ada@example.com',
+            withQrSvg: true,
+            recoveryCodeCount: 8,
+        );
 
-    $factor = $enrollment->factor();
-    if (!$factor instanceof MfaFactor) {
-        throw new \RuntimeException('OTP enrollment did not create a factor.');
-    }
+        $factor = $enrollment->factor();
+        if (!$factor instanceof MfaFactor) {
+            throw new \RuntimeException('OTP enrollment did not create a factor.');
+        }
 
-    expect($enrollment->successful())->toBeTrue()
-        ->and($factor)->toBeInstanceOf(MfaFactor::class)
-        ->and($factor->enabled)->toBeFalse()
-        ->and($enrollment->payload->issuer)->toBe('Infbyte Test')
-        ->and($enrollment->payload->label)->toBe('ada@example.com')
-        ->and($enrollment->payload->qrSvg)->not->toBeNull()
-        ->and($enrollment->recoveryCodes())->toHaveCount(8)
-        ->and($enrollment->factorMetadata['otp']['secret'] ?? null)->toBe($enrollment->payload->secret);
+        expect($enrollment->successful())->toBeTrue()
+            ->and($factor)->toBeInstanceOf(MfaFactor::class)
+            ->and($factor->enabled)->toBeFalse()
+            ->and($enrollment->payload->issuer)->toBe('Infbyte Test')
+            ->and($enrollment->payload->label)->toBe('ada@example.com')
+            ->and($enrollment->payload->qrSvg)->not->toBeNull()
+            ->and($enrollment->recoveryCodes())->toHaveCount(8)
+            ->and($enrollment->factorMetadata['otp']['secret'] ?? null)->toBe($enrollment->payload->secret);
 
-    $code = new TOTP($enrollment->payload->secret, 6, 30, 'sha256')->generate();
+        $code = new TOTP($enrollment->payload->secret, 6, 30, 'sha256')->generate();
 
-    $confirmation = $otp->completeEnrollment('acct-otp-1', $factor->id, $code);
-    $replayed = $otp->verifyFactor($factor, $code);
-    $parsed = ProvisioningUriParser::parse($enrollment->payload->uri);
+        $confirmation = $otp->completeEnrollment('acct-otp-1', $factor->id, $code);
+        $replayed = $otp->verifyFactor($factor, $code);
+        $parsed = ProvisioningUriParser::parse($enrollment->payload->uri);
 
-    expect($confirmation->successful())->toBeTrue()
-        ->and($confirmation->factor?->enabled)->toBeTrue()
-        ->and($replayed->verified)->toBeFalse()
-        ->and($replayed->reason)->toBe('mfa_code_replayed')
-        ->and($parsed->issuer)->toBe('Infbyte Test')
-        ->and($parsed->label)->toBe('ada@example.com');
+        expect($confirmation->successful())->toBeTrue()
+            ->and($confirmation->factor?->enabled)->toBeTrue()
+            ->and($replayed->verified)->toBeFalse()
+            ->and($replayed->reason)->toBe('mfa_code_replayed')
+            ->and($parsed->issuer)->toBe('Infbyte Test')
+            ->and($parsed->label)->toBe('ada@example.com');
+    });
 });

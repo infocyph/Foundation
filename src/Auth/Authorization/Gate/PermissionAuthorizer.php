@@ -65,20 +65,11 @@ final readonly class PermissionAuthorizer implements AuthorizerInterface
     }
 
     /**
-     * @return list<Permission>
+     * @return iterable<Permission>
      */
-    private function directAndRolePermissions(string $accountId): array
+    private function directAndRolePermissions(string $accountId): iterable
     {
-        $permissions = [];
-
-        foreach ($this->permissions->forAccount($accountId) as $permission) {
-            $permissions[$permission->name] = $permission;
-        }
-
-        foreach ($this->rolePermissions->forAccount($accountId) as $permission) {
-            $permissions[$permission->name] = $permission;
-        }
-
-        return array_values($permissions);
+        yield from $this->permissions->forAccount($accountId);
+        yield from $this->rolePermissions->forAccount($accountId);
     }
 }

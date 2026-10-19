@@ -6,7 +6,6 @@ namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\Epicrypt\Token\Jwt\SymmetricJwt;
 use Infocyph\Epicrypt\Token\Payload\PurposeToken;
-use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptAccessTokenService;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptEmailVerificationTokenService;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptPasswordlessTokenService;
@@ -36,12 +35,12 @@ use Infocyph\InterMix\DI\ContainerBuilder;
 final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
 {
     public function __construct(
-        Application $app,
+        ConfigRepository $config,
         ContainerBuilder $builder,
         private AuthSecretResolver $secrets,
         private EpicryptTokenPolicyResolver $epicrypt,
     ) {
-        parent::__construct($app, $builder);
+        parent::__construct($config, $builder);
     }
 
     public function register(AuthDriverResolver $drivers): void
@@ -50,7 +49,7 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
         $this->registerSecretResolver();
 
         if ($drivers->tokens() === AuthTokenDriver::SECURITY) {
-            $this->requirePackage(SymmetricJwt::class, 'infocyph/epicrypt', 'crypto');
+            $this->requirePackage(SymmetricJwt::class, 'infocyph/epicrypt', 'security.crypto');
             $this->registerEpicryptTokens();
 
             return;
@@ -82,6 +81,7 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
             $this->ref(RememberTokenStoreInterface::class),
             $this->ref(ClockInterface::class),
             $this->intConfig('auth.remember_me_ttl', 2592000),
+            $this->ref(AuthSecretResolver::class),
         ]);
     }
 
@@ -108,7 +108,7 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
     private function registerEpicryptTokens(): void
     {
         $minimumKeyBytes = $this->epicrypt->minimumKeyBytes();
-        if ($this->app->config()->isProduction()) {
+        if ($this->config->isProduction()) {
             // Validate before traffic without embedding the resolved secret in
             // the generated InterMix definition.
             $this->secrets->tokenSecret($minimumKeyBytes);
@@ -134,10 +134,6 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
 
     private function registerSecretResolver(): void
     {
-        if ($this->hasExplicitBinding(AuthSecretResolver::class)) {
-            return;
-        }
-
         $this->recipe(AuthSecretResolver::class, AuthSecretResolver::class, [
             $this->ref(ConfigRepository::class),
         ]);

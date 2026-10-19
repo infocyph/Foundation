@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Webrick\Request\Request;
+use Psr\Container\ContainerInterface;
 
 final class RememberMePrincipalResolver extends AbstractPrincipalResolver
 {
@@ -16,12 +17,9 @@ final class RememberMePrincipalResolver extends AbstractPrincipalResolver
 
     private readonly string $header;
 
-    public function __construct(
-        ConfigRepository $config,
-        private readonly RememberMeManager $rememberMe,
-        private readonly AccountProviderInterface $accounts,
-    ) {
-        parent::__construct($config);
+    public function __construct(ConfigRepository $config, ContainerInterface $container)
+    {
+        parent::__construct($config, $container);
         $this->header = $this->stringConfig('auth.http.remember_header', 'X-Remember-Token');
         $this->cookie = $this->stringConfig('auth.http.remember_cookie', 'foundation_remember');
     }
@@ -38,7 +36,7 @@ final class RememberMePrincipalResolver extends AbstractPrincipalResolver
             return null;
         }
 
-        $verified = $this->rememberMe->verify($token, [
+        $verified = $this->service(RememberMeManager::class)->verify($token, [
             'ip' => $request->ip(true),
             'user_agent' => $request->header('User-Agent'),
         ]);
@@ -47,7 +45,7 @@ final class RememberMePrincipalResolver extends AbstractPrincipalResolver
             return null;
         }
 
-        $account = $this->accounts->findById($verified->record->accountId);
+        $account = $this->service(AccountProviderInterface::class)->findById($verified->record->accountId);
         if ($account === null) {
             return null;
         }

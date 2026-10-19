@@ -193,7 +193,7 @@ it('persists only protected MFA secrets while preserving revision based DB CAS',
     $protector = new MfaSecretProtector(
         foundationEpicrypt3MfaRing('active', (new KeyMaterialGenerator())->forAead()),
     );
-    $store = new DBLayerMfaFactorStore($factory, $tables, secretProtector: $protector);
+    $store = new DBLayerMfaFactorStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables, secretProtector: $protector);
     $factor = foundationEpicrypt3MfaFactor(revision: 0);
 
     expect($store->compareAndSwap(null, $factor))->toBeTrue();
@@ -235,13 +235,11 @@ it('does not let stale fallback-key reprotection overwrite a newer OTP counter r
     $generator = new KeyMaterialGenerator();
     $oldKey = $generator->forAead();
     $newKey = $generator->forAead();
-    $oldStore = new DBLayerMfaFactorStore(
-        $factory,
+    $oldStore = new DBLayerMfaFactorStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]),
         $tables,
         secretProtector: new MfaSecretProtector(foundationEpicrypt3MfaRing('old', $oldKey)),
     );
-    $rotatedStore = new DBLayerMfaFactorStore(
-        $factory,
+    $rotatedStore = new DBLayerMfaFactorStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]),
         $tables,
         secretProtector: new MfaSecretProtector(foundationEpicrypt3MfaRing('new', $newKey, 'old', $oldKey)),
     );
@@ -396,7 +394,7 @@ it('atomically replaces and consumes OTP recovery digests without double consump
     $tables = new AuthTables();
     (new MigrationRunner($factory->connection(), [new AuthSchema($tables)]))->run();
 
-    $store = new DBLayerMfaFactorStore($factory, $tables);
+    $store = new DBLayerMfaFactorStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
     $recovery = new OtpRecoveryCodeStore($store);
     $issuedAt = new DateTimeImmutable('@1700000000');
     $usedAt = new DateTimeImmutable('@1700000100');

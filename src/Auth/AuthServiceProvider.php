@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth;
 
 use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberMeManager;
-use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
-use Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
-use Infocyph\Foundation\Auth\Contract\Storage\SessionStoreInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
+use Infocyph\Foundation\Auth\Driver\AuthMfaDriver;
+use Infocyph\Foundation\Auth\Driver\AuthPasskeyDriver;
 use Infocyph\Foundation\Auth\Internal\AuthAuthorizationRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthCacheRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthCoreRegistrar;
@@ -29,7 +28,6 @@ use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
 use Infocyph\Foundation\Auth\Internal\AuthStoreRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthTokenRegistrar;
 use Infocyph\Foundation\Auth\Internal\EpicryptTokenPolicyResolver;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Http\Middleware\AuthMiddleware;
@@ -47,33 +45,42 @@ use Infocyph\Foundation\Http\Response\AuthResponseFactory;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
+use Psr\Container\ContainerInterface;
 
 final class AuthServiceProvider extends ServiceProvider
 {
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $app = $this->application($builder, $context);
-        $drivers = new AuthDriverResolver($app->config());
-        $secrets = new AuthSecretResolver($app->config());
-        $epicryptTokens = new EpicryptTokenPolicyResolver($app);
+        $config = new ConfigRepository($context->config, $context->compiledConfig);
+        $drivers = new AuthDriverResolver($config);
+        if ($context->featureSelections !== null) {
+            if ($drivers->mfa() === AuthMfaDriver::OTP && !$context->hasFeature('security.mfa')) {
+                throw new \LogicException('OTP MFA requires explicitly enabled security.mfa module feature.');
+            }
+            if ($drivers->passkey() === AuthPasskeyDriver::WEBAUTHN && !$context->hasFeature('security.passkey')) {
+                throw new \LogicException('WebAuthn requires explicitly enabled security.passkey module feature.');
+            }
+        }
+        $secrets = new AuthSecretResolver($config);
+        $epicryptTokens = new EpicryptTokenPolicyResolver($config);
 
-        new AuthCoreRegistrar($builder)->register($drivers);
-        new AuthProductionGuard($app)->guard($drivers);
-        new AuthStoreRegistrar($app, $builder)->register($drivers);
-        new AuthCacheRegistrar($app, $builder)->register($drivers);
-        new AuthPasswordRegistrar($app, $builder)->register($drivers);
-        new AuthTokenRegistrar($app, $builder, $secrets, $epicryptTokens)->register($drivers);
-        new AuthMfaRegistrar($app, $builder)->register($drivers);
-        new AuthPasskeyRegistrar($app, $builder)->register($drivers);
-        new AuthPersonalAccessTokenRegistrar($app, $builder)->register();
-        new AuthNotificationRegistrar($app, $builder)->register($drivers);
-        new AuthManagerRegistrar($app, $builder)->register($drivers);
-        new AuthAuthorizationRegistrar($app, $builder)->register();
-        new AuthRuntimeRegistrar($app, $builder)->register();
-        $oauth = new AuthOAuthRegistrar($app, $builder);
-        $oauth->register();
+        new AuthCoreRegistrar($builder, $config)->register($drivers);
+        new AuthProductionGuard($config)->guard($drivers);
+        new AuthStoreRegistrar($config, $builder)->register($drivers);
+        new AuthCacheRegistrar($config, $builder)->register($drivers);
+        new AuthPasswordRegistrar($config, $builder)->register($drivers);
+        new AuthTokenRegistrar($config, $builder, $secrets, $epicryptTokens)->register($drivers);
+        new AuthMfaRegistrar($config, $builder)->register($drivers);
+        new AuthPasskeyRegistrar($config, $builder)->register($drivers);
+        new AuthPersonalAccessTokenRegistrar($config, $builder)->register();
+        new AuthNotificationRegistrar($config, $builder)->register($drivers);
+        new AuthManagerRegistrar($config, $builder)->register($drivers);
+        new AuthAuthorizationRegistrar($config, $builder)->register();
+        new AuthRuntimeRegistrar($config, $builder)->register();
+        $oauth = new AuthOAuthRegistrar($config, $builder);
+        $oauth->register($context->runtimeMode === RuntimeMode::Web);
 
-        if ($context->runtimeMode->value === 'web') {
+        if ($context->runtimeMode === RuntimeMode::Web) {
             $this->contributeHttp($builder, $context, $oauth->enabled());
         }
 
@@ -85,42 +92,26 @@ final class AuthServiceProvider extends ServiceProvider
         FoundationBuildContext $context,
         bool $oauthEnabled,
     ): void {
-        $builder->singleton(SessionPrincipalResolver::class, FactoryDefinition::construct(
+        $builder->factory(SessionPrincipalResolver::class, FactoryDefinition::construct(
             SessionPrincipalResolver::class,
-            [
-                new ServiceReference(ConfigRepository::class),
-                new ServiceReference(SessionStoreInterface::class),
-                new ServiceReference(AccountProviderInterface::class),
-                new ServiceReference(ClockInterface::class),
-            ],
+            [new ServiceReference(ConfigRepository::class), new ServiceReference(ContainerInterface::class)],
         ));
-        $builder->singleton(BearerTokenPrincipalResolver::class, FactoryDefinition::construct(
+        $builder->factory(BearerTokenPrincipalResolver::class, FactoryDefinition::construct(
             BearerTokenPrincipalResolver::class,
-            [
-                new ServiceReference(ConfigRepository::class),
-                new ServiceReference(AccessTokenServiceInterface::class),
-                new ServiceReference(AccountProviderInterface::class),
-            ],
+            [new ServiceReference(ConfigRepository::class), new ServiceReference(ContainerInterface::class)],
         ));
-        $builder->singleton(RememberMePrincipalResolver::class, FactoryDefinition::construct(
+        $builder->factory(RememberMePrincipalResolver::class, FactoryDefinition::construct(
             RememberMePrincipalResolver::class,
-            [
-                new ServiceReference(ConfigRepository::class),
-                new ServiceReference(RememberMeManager::class),
-                new ServiceReference(AccountProviderInterface::class),
-            ],
+            [new ServiceReference(ConfigRepository::class), new ServiceReference(ContainerInterface::class)],
         ));
         if ($oauthEnabled) {
-            $builder->singleton(OAuthBearerTokenPrincipalResolver::class, FactoryDefinition::construct(
+            $builder->factory(OAuthBearerTokenPrincipalResolver::class, FactoryDefinition::construct(
                 OAuthBearerTokenPrincipalResolver::class,
-                [
-                    new ServiceReference(ConfigRepository::class),
-                    new ServiceReference(OAuthAccessTokenValidator::class),
-                ],
+                [new ServiceReference(ConfigRepository::class), new ServiceReference(ContainerInterface::class)],
             ));
         }
 
-        $builder->singleton(RequestPrincipalResolver::class, FactoryDefinition::staticFactory(
+        $builder->factory(RequestPrincipalResolver::class, FactoryDefinition::staticFactory(
             AuthHttpGraphFactory::class,
             'requestPrincipalResolver',
             [
@@ -132,19 +123,19 @@ final class AuthServiceProvider extends ServiceProvider
                 $this->principalResolverOrder($context, $oauthEnabled),
             ],
         ));
-        $builder->singleton(ResolvePrincipalMiddleware::class, FactoryDefinition::construct(
+        $builder->factory(ResolvePrincipalMiddleware::class, FactoryDefinition::construct(
             ResolvePrincipalMiddleware::class,
             [new ServiceReference(CurrentPrincipalContext::class), new ServiceReference(RequestPrincipalResolver::class)],
         ));
-        $builder->singleton(AuthMiddleware::class, FactoryDefinition::construct(
+        $builder->factory(AuthMiddleware::class, FactoryDefinition::construct(
             AuthMiddleware::class,
             [new ServiceReference(CurrentPrincipalContext::class), new ServiceReference(AuthResponseFactory::class)],
         ));
-        $builder->singleton(GuestMiddleware::class, FactoryDefinition::construct(
+        $builder->factory(GuestMiddleware::class, FactoryDefinition::construct(
             GuestMiddleware::class,
             [new ServiceReference(CurrentPrincipalContext::class), new ServiceReference(AuthResponseFactory::class)],
         ));
-        $builder->singleton(VerifiedMiddleware::class, FactoryDefinition::construct(
+        $builder->factory(VerifiedMiddleware::class, FactoryDefinition::construct(
             VerifiedMiddleware::class,
             [
                 new ServiceReference(CurrentPrincipalContext::class),
@@ -152,11 +143,11 @@ final class AuthServiceProvider extends ServiceProvider
                 new ServiceReference(AuthResponseFactory::class),
             ],
         ));
-        $builder->singleton(MfaRequiredMiddleware::class, FactoryDefinition::construct(
+        $builder->factory(MfaRequiredMiddleware::class, FactoryDefinition::construct(
             MfaRequiredMiddleware::class,
             [new ServiceReference(CurrentPrincipalContext::class), new ServiceReference(AuthResponseFactory::class)],
         ));
-        $builder->singleton(RecentAuthMiddleware::class, FactoryDefinition::construct(
+        $builder->factory(RecentAuthMiddleware::class, FactoryDefinition::construct(
             RecentAuthMiddleware::class,
             [new ServiceReference(CurrentPrincipalContext::class), new ServiceReference(AuthResponseFactory::class)],
         ));

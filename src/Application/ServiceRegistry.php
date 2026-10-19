@@ -8,11 +8,19 @@ use Infocyph\InterMix\DI\ContainerBuilder;
 
 final class ServiceRegistry
 {
+    private ?FoundationBuildContext $contributedContext = null;
+
     /** @var array<class-string<ServiceProviderInterface>, ServiceProviderInterface> */
     private array $providers = [];
 
+    private bool $sealed = false;
+
     public function add(ServiceProviderInterface $provider): void
     {
+        if ($this->sealed) {
+            throw new \LogicException('Foundation provider registration is closed after graph contribution.');
+        }
+
         $this->providers[$provider::class] = $provider;
     }
 
@@ -31,6 +39,14 @@ final class ServiceRegistry
 
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
+        if ($this->contributedContext !== null && $this->contributedContext !== $context) {
+            throw new \LogicException('Foundation provider graph cannot switch build context after contribution.');
+        }
+
+        // Seal the exact context and providers before invoking any callback.
+        $this->contributedContext = $context;
+        $this->sealed = true;
+
         foreach ($this->providers as $provider) {
             $provider->contribute($builder, $context);
         }

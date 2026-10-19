@@ -10,6 +10,7 @@ use Infocyph\Foundation\Auth\Contract\Storage\SessionStoreInterface;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Webrick\Request\Request;
+use Psr\Container\ContainerInterface;
 
 final class SessionPrincipalResolver extends AbstractPrincipalResolver
 {
@@ -17,13 +18,9 @@ final class SessionPrincipalResolver extends AbstractPrincipalResolver
 
     private readonly string $header;
 
-    public function __construct(
-        ConfigRepository $config,
-        private readonly SessionStoreInterface $sessions,
-        private readonly AccountProviderInterface $accounts,
-        private readonly ClockInterface $clock,
-    ) {
-        parent::__construct($config);
+    public function __construct(ConfigRepository $config, ContainerInterface $container)
+    {
+        parent::__construct($config, $container);
         $this->header = $this->stringConfig('auth.http.session_header', 'X-Session-Id');
         $this->cookie = $this->stringConfig('auth.http.session_cookie', 'foundation_session');
     }
@@ -40,30 +37,35 @@ final class SessionPrincipalResolver extends AbstractPrincipalResolver
             return null;
         }
 
-        $session = $this->sessions->find($sessionId);
+        $session = $this->service(SessionStoreInterface::class)->find($sessionId);
         if ($session === null) {
             return null;
         }
 
-        $now = $this->clock->now();
+        $now = $this->service(ClockInterface::class)->now();
         if ($session->expiresAt <= $now) {
-            $this->sessions->revoke($sessionId);
+            $this->service(SessionStoreInterface::class)->revoke($sessionId);
 
             return null;
         }
 
-        $account = $this->accounts->findById($session->accountId);
+        $account = $this->service(AccountProviderInterface::class)->findById($session->accountId);
         if ($account === null) {
             return null;
         }
 
-        $this->sessions->touch($sessionId, $now);
-
-        return $this->principalForAccount($account, [
+        $principal = $this->principalForAccount($account, [
             'auth_via' => 'session',
             'device_id' => $session->deviceId,
             'session_id' => $session->id,
         ]);
+        if ($principal === null) {
+            return null;
+        }
+
+        $this->service(SessionStoreInterface::class)->touch($sessionId, $now);
+
+        return $principal;
     }
 
     private function sessionId(Request $request): ?string

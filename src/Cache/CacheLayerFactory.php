@@ -28,6 +28,7 @@ use Infocyph\CacheLayer\Node\NodeCacheConfig;
 use Infocyph\CacheLayer\Support\RedisConnection;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Cache\Internal\CacheTierDescriptorResolver;
+use Infocyph\Foundation\Cache\Internal\MemcachedConnector;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Filesystem\PathManager;
@@ -41,12 +42,14 @@ use Infocyph\Foundation\Support\ValueNormalizer;
  */
 final readonly class CacheLayerFactory
 {
-    public function __construct(
-        private ConfigRepository $config,
-        private PathManager $paths,
-        /** @var Closure(?string):Connection */
-        private Closure $database,
-    ) {}
+    /** @var Closure(?string):Connection */
+    private Closure $database;
+
+    /** @param callable(?string):Connection $database */
+    public function __construct(private ConfigRepository $config, private PathManager $paths, callable $database)
+    {
+        $this->database = Closure::fromCallable($database);
+    }
 
     public function cluster(string $name): ClusterRuntime
     {
@@ -69,6 +72,7 @@ final readonly class CacheLayerFactory
             new ClusterCacheConfig(
                 cluster: $this->requiredString($cluster, 'cluster', 'cache.clusters.' . $name),
                 nodeId: $this->requiredString($cluster, 'node_id', 'cache.clusters.' . $name),
+                transportIdentity: $this->requiredString($cluster, 'transport_identity', 'cache.clusters.' . $name),
                 consumerBatchSize: max(1, ValueNormalizer::int($cluster['consumer_batch_size'] ?? null, 1_000)),
                 invalidateLocallyFirst: ValueNormalizer::bool($cluster['invalidate_locally_first'] ?? null, true),
             ),
@@ -97,11 +101,12 @@ final readonly class CacheLayerFactory
         };
     }
 
-    public function lock(?string $storeName = null): LockProviderInterface
-    {
+    public function lock(
+        ?string $storeName = null,
+        CacheInterface|Closure|null $resolvedStore = null,
+    ): LockProviderInterface {
         $lock = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
-        $storeName ??= $this->stringOrNull($lock['store'] ?? null)
-            ?? $this->stringConfig('cache.default', 'memory');
+        $storeName = $this->lockStoreName($storeName);
         $store = $this->stores()[$storeName] ?? ['driver' => $storeName];
         $driver = $this->driver($storeName, $store);
 
@@ -109,7 +114,9 @@ final readonly class CacheLayerFactory
             return $this->lockProvider($store, $lock, $driver);
         }
 
-        $cache = $this->make($storeName);
+        $cache = $resolvedStore instanceof Closure
+            ? $resolvedStore()
+            : ($resolvedStore ?? $this->make($storeName));
         if ($cache instanceof AuthenticationStateCacheInterface) {
             $native = $cache->authenticationStateLock();
             if ($native instanceof LockProviderInterface) {
@@ -123,9 +130,21 @@ final readonly class CacheLayerFactory
         ));
     }
 
+    public function lockStoreName(?string $storeName = null): string
+    {
+        if ($storeName !== null) {
+            return $storeName;
+        }
+
+        $lock = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
+
+        return $this->stringOrNull($lock['store'] ?? null)
+            ?? $this->storeName();
+    }
+
     public function make(?string $name = null): CacheInterface
     {
-        $name ??= $this->stringConfig('cache.default', 'memory');
+        $name = $this->storeName($name);
         $store = $this->stores()[$name] ?? ['driver' => $name];
         $driver = $this->driver($name, $store);
 
@@ -163,6 +182,11 @@ final readonly class CacheLayerFactory
         }
 
         return $transport->pruneBefore(time() - $retentionSeconds, max(1, $limit));
+    }
+
+    public function storeName(?string $name = null): string
+    {
+        return $name ?? $this->stringConfig('cache.default', 'memory');
     }
 
     /** @param array<string,mixed> $store */
@@ -222,8 +246,8 @@ final readonly class CacheLayerFactory
             maxPayloadBytes: is_numeric($maxPayload) ? max(1, (int) $maxPayload) : 8_388_608,
             compressionThreshold: is_numeric($threshold) && (int) $threshold > 0 ? (int) $threshold : null,
             compressionLevel: max(1, min(9, ValueNormalizer::int($compression['level'] ?? null, 6))),
-            allowClosures: ValueNormalizer::bool($serialization['allow_closure_payloads'] ?? null, true),
-            allowObjects: ValueNormalizer::bool($serialization['allow_object_payloads'] ?? null, true),
+            allowClosures: ValueNormalizer::bool($serialization['allow_closure_payloads'] ?? null, false),
+            allowObjects: ValueNormalizer::bool($serialization['allow_object_payloads'] ?? null, false),
             failOpen: ValueNormalizer::bool($store['fail_open'] ?? null, true),
         );
     }
@@ -240,7 +264,7 @@ final readonly class CacheLayerFactory
             CacheDriver::LOCAL => $this->localCache($namespace, $store, $options),
             CacheDriver::MEMCACHE => Cache::memcached(
                 namespace: $namespace,
-                servers: $this->servers($store['servers'] ?? null),
+                servers: MemcachedConnector::servers($store['servers'] ?? null),
                 client: ($store['client'] ?? null) instanceof \Memcached ? $store['client'] : null,
                 options: $options,
             ),
@@ -356,7 +380,7 @@ final readonly class CacheLayerFactory
         return match ($driver) {
             'file' => new FileLockProvider($this->directory($lock), $retry),
             'memcache', 'memcached' => new MemcachedLockProvider(
-                $this->memcachedClient($store, $lock),
+                MemcachedConnector::client($store, $lock),
                 $prefix,
                 $retry,
             ),
@@ -372,28 +396,6 @@ final readonly class CacheLayerFactory
             ),
             default => throw new ConfigurationException(sprintf('Unsupported cache lock driver "%s".', $driver)),
         };
-    }
-
-    /**
-     * @param array<string,mixed> $store
-     * @param array<string,mixed> $lock
-     */
-    private function memcachedClient(array $store, array $lock): \Memcached
-    {
-        $client = $lock['client'] ?? $store['client'] ?? null;
-        if ($client instanceof \Memcached) {
-            return $client;
-        }
-        if (!class_exists(\Memcached::class)) {
-            throw new ConfigurationException('Memcached lock provider requires the Memcached extension.');
-        }
-
-        $client = new \Memcached();
-        if (!$client->addServers($this->servers($lock['servers'] ?? $store['servers'] ?? null))) {
-            throw new ConfigurationException('Memcached lock provider could not configure its servers.');
-        }
-
-        return $client;
     }
 
     /** @return array<string,array<string,mixed>> */
@@ -437,8 +439,8 @@ final readonly class CacheLayerFactory
             lockDirectory: $this->directoryFrom($store, 'lock_directory'),
             busyTimeoutMs: max(0, ValueNormalizer::int($store['busy_timeout_ms'] ?? null, 1_000)),
             apcuEnabled: ValueNormalizer::bool($store['apcu_enabled'] ?? null, true),
-            failOpen: ValueNormalizer::bool($store['fail_open'] ?? null, true),
             lockProvider: $this->nodeLockProvider($store),
+            options: $this->cacheOptions($store),
         );
     }
 
@@ -626,36 +628,6 @@ final readonly class CacheLayerFactory
         return is_array($value) && $value !== []
             ? ValueNormalizer::stringList($value)
             : ['127.0.0.1:6379'];
-    }
-
-    /** @return list<array{0:string,1:int,2:int}> */
-    private function servers(mixed $value): array
-    {
-        if (!is_array($value) || $value === []) {
-            return [['127.0.0.1', 11211, 0]];
-        }
-
-        $servers = [];
-        foreach ($value as $server) {
-            if (is_array($server) && isset($server[0], $server[1]) && is_string($server[0])) {
-                $servers[] = [
-                    $server[0],
-                    ValueNormalizer::int($server[1], 11211),
-                    ValueNormalizer::int($server[2] ?? null, 0),
-                ];
-
-                continue;
-            }
-
-            $server = ValueNormalizer::associativeArray($server);
-            $servers[] = [
-                ValueNormalizer::string($server['host'] ?? null, '127.0.0.1'),
-                ValueNormalizer::int($server['port'] ?? null, 11211),
-                ValueNormalizer::int($server['weight'] ?? null, 0),
-            ];
-        }
-
-        return $servers;
     }
 
     /** @param array<string,mixed> $store */

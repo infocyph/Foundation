@@ -8,15 +8,23 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\ReqShield\Bridge\DBLayerDatabaseProvider;
 use Infocyph\ReqShield\Schema\SchemaRegistry;
+use Psr\Container\ContainerInterface;
 
 final class ValidationGraphFactory
 {
     public static function databaseProvider(
-        DBLayerFactory $database,
+        ContainerInterface $container,
         ?string $connection,
     ): DBLayerDatabaseProvider {
         return new DBLayerDatabaseProvider(
-            static fn() => $database->connection($connection),
+            static function () use ($container, $connection) {
+                $database = $container->get(DBLayerFactory::class);
+                if (!$database instanceof DBLayerFactory) {
+                    throw new \LogicException('DBLayerFactory binding is invalid.');
+                }
+
+                return $database->connection($connection);
+            },
         );
     }
 

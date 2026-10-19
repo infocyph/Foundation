@@ -8,6 +8,7 @@ use Infocyph\Foundation\Process\Internal\ProcessCapture;
 use Infocyph\Foundation\Process\Internal\ProcessOutcome;
 use Infocyph\Foundation\Process\Internal\ProcessSignals;
 use Infocyph\Foundation\Process\Internal\ProcessTree;
+use Infocyph\Foundation\Runtime\CleanupGuard;
 
 final readonly class ProcessRunner
 {
@@ -182,6 +183,20 @@ final readonly class ProcessRunner
                 $this->tree->terminate($process, $options->terminationGraceSeconds, $tree);
             }
             $status = proc_get_status($process);
+        } catch (\Throwable $exception) {
+            // A throwing heartbeat or cancellation probe must not orphan a
+            // child. Preserve the original failure if termination also fails.
+            CleanupGuard::run(
+                $exception,
+                function () use ($process, $options, $tree): void {
+                    $this->tree->terminate($process, $options->terminationGraceSeconds, $tree);
+                },
+                static function () use ($process): void {
+                    proc_close($process);
+                },
+            );
+
+            throw $exception;
         } finally {
             $this->signals->restore($signalState);
         }

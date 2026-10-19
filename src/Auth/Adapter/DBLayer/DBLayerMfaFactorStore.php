@@ -8,17 +8,17 @@ use Infocyph\Foundation\Auth\Adapter\Epicrypt\MfaSecretProtector;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
-use Infocyph\Foundation\Database\DBLayerFactory;
+use Psr\Container\ContainerInterface;
 
 final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFactorCompareAndSwapStoreInterface
 {
     public function __construct(
-        DBLayerFactory $db,
+        ContainerInterface $services,
         AuthTables $tables,
         ?string $connection = null,
         private ?MfaSecretProtector $secretProtector = null,
     ) {
-        parent::__construct($db, $tables, $connection);
+        parent::__construct($services, $tables, $connection);
     }
 
     public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool

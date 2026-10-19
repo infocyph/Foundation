@@ -45,20 +45,7 @@ final class ModuleCatalogValidator
         $owners = [];
 
         foreach ($modules as $name => $definition) {
-            $this->registerAlias($owners, $name, $name);
-            foreach ($definition['aliases'] as $alias) {
-                $this->registerAlias($owners, $alias, $name);
-            }
-            foreach ($definition['features'] as $feature) {
-                foreach ($feature['aliases'] as $alias) {
-                    $this->registerAlias($owners, $alias, $name);
-                }
-            }
-            foreach ($definition['packages'] as $package => $requirement) {
-                if ($requirement['role'] !== 'optional') {
-                    $this->registerAlias($owners, $package, $name);
-                }
-            }
+            $this->registerModuleAliases($owners, $name, $definition);
         }
     }
 
@@ -79,25 +66,38 @@ final class ModuleCatalogValidator
                 throw new \LogicException(sprintf('Module dependency "%s" must explain why it is required.', $scope));
             }
 
-            if ($dependency['type'] === 'module') {
-                if (!isset($modules[$dependency['target']])) {
-                    throw new \LogicException(sprintf(
-                        'Module dependency "%s" targets unknown module "%s".',
-                        $scope,
-                        $dependency['target'],
-                    ));
-                }
-                if ($dependency['target'] === $owner) {
-                    throw new \LogicException(sprintf('Module "%s" cannot depend on itself.', $owner));
-                }
-            } elseif ($dependency['target'] === '') {
-                throw new \LogicException(sprintf('Capability dependency "%s" has an empty target.', $scope));
-            }
+            $this->assertDependencyTarget($scope, $dependency, $modules, $owner);
 
             $when = $dependency['when'] ?? null;
             if ($when !== null) {
                 $this->assertPredicate($scope, $when);
             }
+        }
+    }
+
+    /**
+     * @phpstan-param ModuleDependency $dependency
+     * @phpstan-param array<string,ModuleDefinition> $modules
+     */
+    private function assertDependencyTarget(
+        string $scope,
+        array $dependency,
+        array $modules,
+        string $owner,
+    ): void {
+        if ($dependency['type'] === 'module') {
+            if (!isset($modules[$dependency['target']])) {
+                throw new \LogicException(sprintf(
+                    'Module dependency "%s" targets unknown module "%s".',
+                    $scope,
+                    $dependency['target'],
+                ));
+            }
+            if ($dependency['target'] === $owner) {
+                throw new \LogicException(sprintf('Module "%s" cannot depend on itself.', $owner));
+            }
+        } elseif ($dependency['target'] === '') {
+            throw new \LogicException(sprintf('Capability dependency "%s" has an empty target.', $scope));
         }
     }
 
@@ -258,6 +258,28 @@ final class ModuleCatalogValidator
         }
 
         $owners[$normalized] = $module;
+    }
+
+    /**
+     * @param array<string,string> $owners
+     * @phpstan-param ModuleDefinition $definition
+     */
+    private function registerModuleAliases(array &$owners, string $name, array $definition): void
+    {
+        $this->registerAlias($owners, $name, $name);
+        foreach ($definition['aliases'] as $alias) {
+            $this->registerAlias($owners, $alias, $name);
+        }
+        foreach ($definition['features'] as $feature) {
+            foreach ($feature['aliases'] as $alias) {
+                $this->registerAlias($owners, $alias, $name);
+            }
+        }
+        foreach ($definition['packages'] as $package => $requirement) {
+            if ($requirement['role'] !== 'optional') {
+                $this->registerAlias($owners, $package, $name);
+            }
+        }
     }
 
     /**

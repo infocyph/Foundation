@@ -12,17 +12,15 @@ use Infocyph\TalkingBytes\Webhook\Contracts\WebhookReplayStore;
 
 final readonly class CacheLayerWebhookReplayStore implements WebhookReplayStore
 {
-    private AtomicCacheInterface $atomic;
+    /** @var AtomicCacheInterface|(\Closure(): AtomicCacheInterface) */
+    private AtomicCacheInterface|\Closure $atomic;
 
-    public function __construct(CacheInterface $cache)
+    /** @param CacheInterface|(\Closure(): CacheInterface) $cache */
+    public function __construct(CacheInterface|\Closure $cache)
     {
-        if (!$cache instanceof AtomicCacheProviderInterface || ($atomic = $cache->atomic()) === null) {
-            throw new \LogicException(
-                'Webhook replay protection requires a CacheLayer store with atomic cache capability.',
-            );
-        }
-
-        $this->atomic = $atomic;
+        $this->atomic = $cache instanceof \Closure
+            ? static fn(): AtomicCacheInterface => self::atomic($cache())
+            : self::atomic($cache);
     }
 
     public function claim(string $namespace, string $deliveryId, int $ttlSeconds): bool
@@ -34,6 +32,19 @@ final readonly class CacheLayerWebhookReplayStore implements WebhookReplayStore
         $logical = json_encode([$namespace, $deliveryId], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
         $key = FoundationCacheKey::security('wr', 'foundation.webhook.replay.v1', $logical);
 
-        return $this->atomic->setIfAbsent($key, 1, $ttlSeconds);
+        $atomic = $this->atomic instanceof \Closure ? ($this->atomic)() : $this->atomic;
+
+        return $atomic->setIfAbsent($key, 1, $ttlSeconds);
+    }
+
+    private static function atomic(CacheInterface $cache): AtomicCacheInterface
+    {
+        if (!$cache instanceof AtomicCacheProviderInterface || ($atomic = $cache->atomic()) === null) {
+            throw new \LogicException(
+                'Webhook replay protection requires a CacheLayer store with atomic cache capability.',
+            );
+        }
+
+        return $atomic;
     }
 }

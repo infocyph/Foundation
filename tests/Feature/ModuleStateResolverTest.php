@@ -13,7 +13,7 @@ it('separates direct module ownership from transitive package availability', fun
     $basePath = moduleStateBasePath('ownership');
 
     try {
-        moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^5.1']);
+        moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1.2']);
         $directApp = Foundation::cli([
             'base_path' => $basePath,
             '_config_cache' => false,
@@ -79,7 +79,7 @@ it('rejects direct root constraints that can fall below the supported module flo
             ->and($database['installed'])->toBeFalse()
             ->and($database['ready'])->toBeFalse()
             ->and(implode(' ', $database['blockers']))
-            ->toContain('outside the supported module range ^5.1');
+            ->toContain('outside the supported module range ^6.1');
     } finally {
         moduleStateRemoveDirectory($basePath);
     }
@@ -182,7 +182,7 @@ it('reports unknown Composer ownership instead of silently treating packages as 
 
 it('separates effective configuration publication and explicit activation state', function (): void {
     $basePath = moduleStateBasePath('activation');
-    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^5.1']);
+    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1.2']);
 
     try {
         $inferredApp = Foundation::cli([
@@ -227,7 +227,7 @@ it('keeps core auth ready while tracking OTP and passkey feature state independe
     $basePath = moduleStateBasePath('auth-features');
 
     try {
-        moduleStateWriteComposer($basePath, ['infocyph/otp' => '^6.1']);
+        moduleStateWriteComposer($basePath, ['infocyph/otp' => '^7.0']);
         $otpApp = Foundation::cli([
             'base_path' => $basePath,
             '_config_cache' => false,
@@ -253,7 +253,7 @@ it('keeps core auth ready while tracking OTP and passkey feature state independe
             ->and($otp['features']['passkey']['installed'] ?? null)->toBeFalse();
 
         moduleStateWriteComposer($basePath, [
-            'infocyph/otp' => '^6.1',
+            'infocyph/otp' => '^7.0',
             'web-auth/webauthn-lib' => '^5.3.9',
         ]);
         $passkeyApp = Foundation::cli([
@@ -283,7 +283,7 @@ it('keeps core auth ready while tracking OTP and passkey feature state independe
 
 it('reports optional integrations separately from managed module ownership', function (): void {
     $basePath = moduleStateBasePath('optional-integrations');
-    moduleStateWriteComposer($basePath, ['infocyph/talkingbytes' => '^2.1']);
+    moduleStateWriteComposer($basePath, ['infocyph/talkingbytes' => '^2.3']);
 
     try {
         $application = Foundation::cli([
@@ -307,11 +307,51 @@ it('reports optional integrations separately from managed module ownership', fun
     }
 });
 
+it('keeps ordinary Omnibus messaging portable without PCNTL or POSIX requirements', function (): void {
+    $basePath = moduleStateBasePath('portable-messaging');
+    moduleStateWriteComposer($basePath, ['infocyph/omnibus' => '^3.0.2']);
+
+    try {
+        $application = Foundation::cli([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+            'app' => ['capabilities' => ['messaging']],
+        ]);
+        $messaging = moduleStateFind(
+            (new ModuleStateResolver($application, new ModuleCatalog()))->all(),
+            'messaging',
+        );
+
+        expect($messaging['platform']['extensions'])->toBe([])
+            ->and($messaging['platform_ready'])->toBeTrue()
+            ->and($messaging['platform_status']['required_extensions'])->toBe([])
+            ->and($messaging['platform_status']['optional_extensions'])->toHaveKeys(['pcntl', 'posix']);
+
+        $definition = (new ModuleCatalog())->resolve('messaging');
+        $definition['platform']['optional_extensions'][] = 'foundation_missing_optional_extension';
+        $resolver = new ModulePlatformResolver($application);
+        $optional = $resolver->resolve('messaging', $definition, [], true);
+
+        expect($optional['ready'])->toBeTrue()
+            ->and($optional['blockers'])->toBe([])
+            ->and($optional['optional_extensions']['foundation_missing_optional_extension'])->toBeFalse();
+
+        $definition['platform']['extensions'][] = 'foundation_missing_required_extension';
+        $required = $resolver->resolve('messaging', $definition, [], true);
+
+        expect($required['ready'])->toBeFalse()
+            ->and(implode(' ', $required['blockers']))
+            ->toContain('ext-foundation_missing_required_extension');
+    } finally {
+        moduleStateRemoveDirectory($basePath);
+    }
+});
+
 it('evaluates conditional specialist module dependencies against explicit topology', function (): void {
     $basePath = moduleStateBasePath('dependencies');
     moduleStateWriteComposer($basePath, [
-        'infocyph/omnibus' => '^2.6',
-        'infocyph/dblayer' => '^5.1',
+        'infocyph/omnibus' => '^3.0.2',
+        'infocyph/dblayer' => '^6.1.2',
     ]);
 
     try {
@@ -352,7 +392,7 @@ it('evaluates conditional specialist module dependencies against explicit topolo
 
 it('evaluates selected auth feature dependencies against core capabilities', function (): void {
     $basePath = moduleStateBasePath('core-dependencies');
-    moduleStateWriteComposer($basePath, ['infocyph/otp' => '^6.1']);
+    moduleStateWriteComposer($basePath, ['infocyph/otp' => '^7.0']);
 
     try {
         $blockedApp = Foundation::cli([
@@ -394,7 +434,7 @@ it('evaluates selected auth feature dependencies against core capabilities', fun
 
 it('reports runtime platform readiness and hard-blocks missing required extensions', function (): void {
     $basePath = moduleStateBasePath('platform');
-    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^5.1']);
+    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1.2']);
 
     try {
         $application = Foundation::cli([
@@ -448,7 +488,7 @@ it('keeps specialist catalog package floors aligned with the tested dependency s
         }
     }
 
-    expect($composer['require']['infocyph/cachelayer'] ?? null)->toBe('^3.4');
+    expect($composer['require']['infocyph/cachelayer'] ?? null)->toBe('^4.0.1');
 });
 
 /**

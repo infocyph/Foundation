@@ -43,9 +43,11 @@ it('keeps runtime token roots out of generated InterMix artifacts', function (st
 
     try {
         $report = new GeneratedRuntimeCompiler()->compile($config, RuntimeMode::Cli, $artifact, ['auth']);
+        $runtimePath = realpath($artifact);
+        expect($runtimePath)->toBeString();
         foreach ([
             $artifact,
-            $artifact . '.meta.json',
+            dirname((string) $runtimePath) . '/manifest.json',
             $artifact . '.foundation.json',
         ] as $path) {
             $contents = file_get_contents($path);

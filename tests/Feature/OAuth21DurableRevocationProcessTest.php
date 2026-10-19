@@ -31,7 +31,7 @@ it('persists access and authorization revocation across fresh processes without 
     $tables = new AuthTables();
     $factory = oauth21DurableRevocationFactory($database, 'setup');
     $runner = new MigrationRunner($factory->connection(), [new AuthOAuthRevisionSchema($tables)]);
-    $authorizations = new DBLayerOAuthAuthorizationStore($factory, $tables);
+    $authorizations = new DBLayerOAuthAuthorizationStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
 
     $writerScript = <<<'PHP'
 <?php
@@ -60,8 +60,8 @@ $config = new ConfigRepository([
 ]);
 $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
 $tables = new AuthTables();
-$access = new DBLayerOAuthAccessRevocationStore($factory, $tables);
-$authorizations = new DBLayerOAuthAuthorizationStore($factory, $tables);
+$access = new DBLayerOAuthAccessRevocationStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
+$authorizations = new DBLayerOAuthAuthorizationStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
 $access->revoke(new OAuthAccessTokenRevocation(
     tokenId: $tokenId,
     clientId: 'oc_durable',
@@ -102,8 +102,8 @@ $config = new ConfigRepository([
 ]);
 $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
 $tables = new AuthTables();
-$access = new DBLayerOAuthAccessRevocationStore($factory, $tables);
-$authorization = new DBLayerOAuthAuthorizationStore($factory, $tables)->find($authorizationId);
+$access = new DBLayerOAuthAccessRevocationStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
+$authorization = new DBLayerOAuthAuthorizationStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables)->find($authorizationId);
 file_put_contents($result, json_encode([
     'access_revoked' => $access->isRevoked($tokenId, (int) $now + 1),
     'authorization_revoked_at' => $authorization?->revokedAt,
