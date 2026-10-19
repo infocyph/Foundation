@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Filesystem;
 
 use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\ContainerBuilder;
@@ -36,8 +37,6 @@ final class FilesystemServiceProvider extends ServiceProvider
 
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        unset($context);
-
         if (!class_exists(StorageContext::class)) {
             throw new \LogicException(
                 'Foundation filesystem services require infocyph/pathwise ^4.2; run "php infbyte module:install data.filesystem".',
@@ -84,23 +83,25 @@ final class FilesystemServiceProvider extends ServiceProvider
             ),
             LifetimeEnum::Transient,
         );
-        $builder->factory(FilesystemUploadRequestHandler::class, FactoryDefinition::construct(
-            FilesystemUploadRequestHandler::class,
-            [new ServiceReference(FilesystemTransferFactory::class)],
-        ));
         $builder->factory(FilesystemPublicFileResolver::class, FactoryDefinition::construct(
             FilesystemPublicFileResolver::class,
             [new ServiceReference(ConfigRepository::class), new ServiceReference(PathManager::class)],
         ));
-        $builder->factory(FilesystemResponseFactory::class, FactoryDefinition::construct(
-            FilesystemResponseFactory::class,
-            [
-                new ServiceReference(ConfigRepository::class),
-                new ServiceReference(FilesystemTransferFactory::class),
-                new ServiceReference(StorageRegistry::class),
-                new ServiceReference(FilesystemPublicFileResolver::class),
-            ],
-        ));
+        if ($context->runtimeMode === RuntimeMode::Web) {
+            $builder->factory(FilesystemUploadRequestHandler::class, FactoryDefinition::construct(
+                FilesystemUploadRequestHandler::class,
+                [new ServiceReference(FilesystemTransferFactory::class)],
+            ));
+            $builder->factory(FilesystemResponseFactory::class, FactoryDefinition::construct(
+                FilesystemResponseFactory::class,
+                [
+                    new ServiceReference(ConfigRepository::class),
+                    new ServiceReference(FilesystemTransferFactory::class),
+                    new ServiceReference(StorageRegistry::class),
+                    new ServiceReference(FilesystemPublicFileResolver::class),
+                ],
+            ));
+        }
         $builder->factory(StorageLinkManager::class, FactoryDefinition::construct(StorageLinkManager::class, [
             new ServiceReference(ConfigRepository::class),
             new ServiceReference(PathManager::class),

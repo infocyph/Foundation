@@ -216,7 +216,7 @@ it('requires an atomic counter when auth uses shared cache state', function (): 
     expect($keys)->toContain('cache.default_counter');
 });
 
-it('registers atomic auth and Webrick counter adapters without requiring a Redis runtime', function (): void {
+it('registers atomic auth counters and confines Webrick adapters to web graphs', function (RuntimeMode $mode): void {
     $application = Foundation::cli([
         'app' => [
             'capabilities' => ['auth', 'cache'],
@@ -243,16 +243,20 @@ it('registers atomic auth and Webrick counter adapters without requiring a Redis
             ],
         ],
     ]);
-    $definitions = foundationRuntimeCapabilityDefinitions($application->config());
+    $definitions = foundationRuntimeCapabilityDefinitions($application->config(), $mode);
 
     $authCounter = $definitions[CounterStoreInterface::class] ?? null;
     $webrickCounter = $definitions[WebrickAtomicCounterInterface::class] ?? null;
 
     expect($authCounter)->toBeInstanceOf(FactoryDefinition::class)
-        ->and($authCounter?->class)->toBe(AtomicCounterStore::class)
-        ->and($webrickCounter)->toBeInstanceOf(FactoryDefinition::class)
-        ->and($webrickCounter?->class)->toBe(AtomicCounterAdapter::class);
-});
+        ->and($authCounter?->class)->toBe(AtomicCounterStore::class);
+    if ($mode === RuntimeMode::Web) {
+        expect($webrickCounter)->toBeInstanceOf(FactoryDefinition::class)
+            ->and($webrickCounter?->class)->toBe(AtomicCounterAdapter::class);
+    } else {
+        expect($webrickCounter)->toBeNull();
+    }
+})->with(RuntimeMode::cases());
 
 it('fails composition when shared auth cache has no atomic counter selection', function (): void {
     expect(fn() => Foundation::cli([
@@ -308,9 +312,9 @@ it('uses an in-memory counter for process-local CacheLayer auth state', function
 });
 
 /** @return array<string, mixed> */
-function foundationRuntimeCapabilityDefinitions(ConfigRepository $config): array
+function foundationRuntimeCapabilityDefinitions(ConfigRepository $config, RuntimeMode $mode = RuntimeMode::Cli): array
 {
-    $context = FoundationBuildContext::fromConfig($config, RuntimeMode::Cli);
+    $context = FoundationBuildContext::fromConfig($config, $mode);
     $builder = FoundationGraph::compose($context);
     new Bootstrapper()->compose($builder, $context);
 

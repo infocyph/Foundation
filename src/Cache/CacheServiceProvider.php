@@ -11,6 +11,7 @@ use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\PathManager;
@@ -82,10 +83,12 @@ final class CacheServiceProvider extends ServiceProvider
                 'counters',
                 [new ServiceReference(CacheLayerFactory::class), $counter],
             ));
-            $builder->factory(WebrickAtomicCounterInterface::class, FactoryDefinition::construct(
-                AtomicCounterAdapter::class,
-                [new ServiceReference(AtomicCounterStoreInterface::class)],
-            ));
+            if ($context->runtimeMode === RuntimeMode::Web) {
+                $builder->factory(WebrickAtomicCounterInterface::class, FactoryDefinition::construct(
+                    AtomicCounterAdapter::class,
+                    [new ServiceReference(AtomicCounterStoreInterface::class)],
+                ));
+            }
         }
 
         $builder->alias('foundation.cache', CacheInterface::class);

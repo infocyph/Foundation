@@ -1,5 +1,35 @@
 # Foundation 4 — Module architecture Batch 7 certification evidence
 
+## Runtime-specific activation boundary — 2026-10-19
+
+The owner clarified that isolation includes native-library activation, beyond
+execution-state isolation. A cold standalone CLI probe reproduced Webrick
+autoload from CacheServiceProvider's unconditional HTTP counter adapter when
+`cache.default_counter` was configured. Shared session, filesystem and OAuth
+providers also exposed HTTP-only bindings to non-web graphs.
+
+Those existing providers now register their HTTP adapters only for the web
+runtime. Native counter, session-state, filesystem/storage and OAuth application
+services remain available in their selected non-web graphs. No new production
+class, alternate SDK mechanism or dependency is added.
+
+Nine fresh-process probes cover CLI/worker/scheduler across development,
+validated and trusted generated boots. Every probe rejects Webrick autoload,
+requires the HTTP-only bindings to be absent, runs two isolated executions and
+exercises native memory-cache operations and auth metadata. OAuth is enabled
+and an unused Redis counter is configured at an unavailable endpoint; neither
+requires HTTP activation. Four counter-registration cases preserve the positive
+web adapter assertions and verify its absence from the other three modes.
+The focused suite passes **23 tests / 143 assertions**. Independently restoring
+each preceding cache/session/filesystem/OAuth provider in temporary test-only
+autoload maps makes its corresponding boundary probe fail; no vendor source
+was edited. Normal processors and complete detailed QA now pass:
+**866 tests / 30,284 assertions**, PHPStan/Psalm, architecture, references,
+duplicates/comments, syntax, formatting and refactor checks. The complete
+`composer ic:release:guard` also passes. Normal commit hooks and exact-source
+hosted qualification remain required for this change.
+The preceding local results below certify the earlier source only.
+
 ## Both native patches published and adopted — 2026-10-19
 
 Composer now installs published DBLayer **6.1.2** at

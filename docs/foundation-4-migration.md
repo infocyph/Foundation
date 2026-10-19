@@ -23,6 +23,13 @@ transport and failure-store contracts. Their Composer floors, feature catalogs,
 worker diagnostics and package tables are aligned. Foundation requires these
 patches when the corresponding optional feature is selected.
 
+Runtime selection also limits integration registration. Webrick routing, HTTP
+counter adapters, browser-session/CSRF middleware, filesystem HTTP handlers and
+OAuth HTTP controllers belong to the web graph. CLI, worker and scheduler
+graphs retain their native cache, storage, auth and OAuth application services
+without registering or loading those HTTP adapters. Each operation initializes
+only the backends it actually uses.
+
 ## Version and package requirements
 
 Foundation 4 requires 64-bit PHP 8.4+ and Composer 2. The candidate's direct production

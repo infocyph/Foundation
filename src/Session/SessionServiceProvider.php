@@ -81,17 +81,6 @@ final class SessionServiceProvider extends ServiceProvider
 
     private function registerMiddleware(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $arguments = [
-            new ServiceReference(SessionManager::class),
-            new ServiceReference(SessionConfig::class),
-            $context->runtimeMode === RuntimeMode::Web
-                ? new ServiceReference(ExceptionReporter::class)
-                : null,
-        ];
-        $builder->factory(SessionMiddleware::class, FactoryDefinition::construct(
-            SessionMiddleware::class,
-            $arguments,
-        ));
         $builder->factory(
             BrowserSession::class,
             FactoryDefinition::staticFactory(
@@ -101,11 +90,23 @@ final class SessionServiceProvider extends ServiceProvider
             ),
             LifetimeEnum::Scoped,
         );
+        $builder->alias('foundation.session', SessionManager::class);
+        if ($context->runtimeMode !== RuntimeMode::Web) {
+            return;
+        }
+
+        $builder->factory(SessionMiddleware::class, FactoryDefinition::construct(
+            SessionMiddleware::class,
+            [
+                new ServiceReference(SessionManager::class),
+                new ServiceReference(SessionConfig::class),
+                new ServiceReference(ExceptionReporter::class),
+            ],
+        ));
         $builder->factory(CsrfMiddleware::class, FactoryDefinition::construct(
             CsrfMiddleware::class,
             [new ServiceReference(SessionConfig::class)],
         ));
-        $builder->alias('foundation.session', SessionManager::class);
     }
 
     private function registerStore(ContainerBuilder $builder, FoundationBuildContext $context, string $driver): void

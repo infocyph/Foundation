@@ -1,3 +1,17 @@
+## Web-only native activation — 2026-10-19
+
+Runtime isolation includes registration and library activation. A standalone
+probe reproduced Webrick counter-adapter autoload during non-web boot; shared
+providers also registered session/filesystem/OAuth HTTP bindings outside web.
+These adapters are now web-only while selected native application services
+remain available to CLI, workers and schedulers. Nine fresh-process regressions
+cover all non-web boot modes, reject Webrick loading and HTTP-only bindings,
+and exercise scoped auth/cache work. Positive web counter coverage is retained;
+the focused suite passes 23 tests / 143 assertions. Normal processors and full
+detailed QA pass with 866 tests / 30,284 assertions and all configured analyzers.
+The complete release guard also passes. Normal commit hooks and exact-source
+hosted qualification remain required; no merge or publication is performed.
+
 ## Both published patches adopted; Foundation qualification — 2026-10-19
 
 Foundation now installs actual DBLayer 6.1.2 and Omnibus 3.0.2 distributions.

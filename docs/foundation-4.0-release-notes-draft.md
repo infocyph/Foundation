@@ -22,6 +22,7 @@ No merge, tag, publication or release date is announced by these notes.
 - Runwire is a required Core dependency with always-available native integration across supported environments. Foundation uses the host-owned RuntimeContext/RequestContext and native Webrick/InterMix integration; it does not add a competing server or coroutine scheduler.
 - Published CacheLayer 4.0.1, DBLayer 6.1.2 and Omnibus 3.0.2 provide context sharing and native operation providers. Ordinary Foundation-created database and messaging services receive the active host context; redundant Foundation operation wrappers are removed.
 - Optional specialist capabilities must be explicitly selected. Installation of an optional Composer package alone does not activate its framework integration.
+- Webrick and HTTP-only counter, session, filesystem and OAuth adapters are confined to web graphs. Non-web commands, workers and scheduled tasks retain native application services without HTTP adapter registration or Webrick class loading.
 
 ## Serving and host ownership
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth;
 
 use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
@@ -77,9 +78,9 @@ final class AuthServiceProvider extends ServiceProvider
         new AuthAuthorizationRegistrar($config, $builder)->register();
         new AuthRuntimeRegistrar($config, $builder)->register();
         $oauth = new AuthOAuthRegistrar($config, $builder);
-        $oauth->register();
+        $oauth->register($context->runtimeMode === RuntimeMode::Web);
 
-        if ($context->runtimeMode->value === 'web') {
+        if ($context->runtimeMode === RuntimeMode::Web) {
             $this->contributeHttp($builder, $context, $oauth->enabled());
         }
 

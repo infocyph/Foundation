@@ -99,7 +99,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         return $this->boolConfig('auth.oauth.enabled', false);
     }
 
-    public function register(): void
+    public function register(bool $http): void
     {
         if (!$this->enabled()) {
             return;
@@ -112,7 +112,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         $this->registerFoundationPolicy();
         $this->registerEpicryptStores();
         $this->registerEpicryptProtocol();
-        $this->registerFoundationFacades();
+        $this->registerFoundationFacades($http);
     }
 
     private function authConnection(): ?string
@@ -303,7 +303,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         ]);
     }
 
-    private function registerFoundationFacades(): void
+    private function registerFoundationFacades(bool $http): void
     {
         $openId = $this->boolConfig('auth.oauth.oidc.enabled', false);
         $this->recipe(AuthorizationCodeManager::class, AuthorizationCodeManager::class, [
@@ -369,6 +369,10 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             $openId ? $this->ref(OpenIdInteractionPolicy::class) : null,
             $openId ? $this->ref(ClockInterface::class) : null,
         ]);
+        if (!$http) {
+            return;
+        }
+
         $this->recipe(OAuthHttpInput::class, OAuthHttpInput::class);
         $this->recipe(OAuthHttpResponseFactory::class, OAuthHttpResponseFactory::class);
         $this->recipe(OAuthHttpThrottleFactory::class, OAuthHttpThrottleFactory::class, [
