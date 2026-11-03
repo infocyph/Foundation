@@ -176,3 +176,49 @@ it('imports MobileOTP only through the explicit legacy workflow', function (): v
         expect($confirmed->successful())->toBeTrue();
     });
 });
+
+it('preserves GridOTP state after cancellation of a borrowed Runwire operation', function (): void {
+    $app = foundationOtp61App();
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $otp = $app->make(OtpManager::class);
+        $enrollment = $otp->enrollGridOtp('acct-grid-cancelled');
+        $factor = $enrollment->factor();
+        expect($factor)->toBeInstanceOf(MfaFactor::class);
+        if (!$factor instanceof MfaFactor) {
+            throw new RuntimeException('GridOTP test factor was not created.');
+        }
+
+        $challenge = $otp->issueGridEnrollmentChallenge('acct-grid-cancelled', $factor->id);
+        $response = GridOTP::respond($challenge, $enrollment->secret);
+        $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
+        $request = \Infocyph\Runwire\RequestContext::create($runtime);
+        \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::bind($runtime);
+
+        try {
+            \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
+                $request,
+                null,
+                static function () use ($request, $otp, $factor, $challenge, $response): void {
+                    $request->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
+                    expect(fn() => $otp->completeGridEnrollment(
+                        'acct-grid-cancelled',
+                        $factor->id,
+                        $challenge,
+                        $response,
+                    ))->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
+                },
+                $runtime,
+            );
+        } finally {
+            $request->complete();
+            \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::release($runtime);
+        }
+
+        expect($otp->completeGridEnrollment(
+            'acct-grid-cancelled',
+            $factor->id,
+            $challenge,
+            $response,
+        )->successful())->toBeTrue();
+    });
+});
