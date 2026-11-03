@@ -60,7 +60,11 @@ it('refuses to execute mismatched trusted config bytes', function (): void {
         ))->toThrow(RuntimeException::class, 'trust identity mismatch');
         expect(is_file($marker))->toBeFalse();
     } finally {
-        @unlink($file);
-        @unlink($marker);
+        if (is_file($file)) {
+            unlink($file);
+        }
+        if (is_file($marker)) {
+            unlink($marker);
+        }
     }
 });

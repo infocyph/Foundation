@@ -118,12 +118,17 @@ final class FoundationReleaseManifest
      *
      * @return array<string,mixed>
      */
-    public static function loadTrustedArray(string $path, string $sha256): array
+    public static function loadTrustedArray(string $path, string $sha256, string $artifact = 'release artifact'): array
     {
         self::digest($sha256, 64, 'artifact_sha256');
-        $contents = @file_get_contents($path);
+        set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
+        try {
+            $contents = file_get_contents($path);
+        } finally {
+            restore_error_handler();
+        }
         if (!is_string($contents) || !hash_equals($sha256, hash('sha256', $contents))) {
-            throw new \RuntimeException('Foundation release artifact trust identity mismatch.');
+            throw new \RuntimeException(sprintf('Foundation %s trust identity mismatch.', $artifact));
         }
 
         $temporary = tempnam(sys_get_temp_dir(), 'foundation-trusted-');

@@ -59,6 +59,32 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         ], true);
     }
 
+    /**
+     * Password-reset delivery is bound to the stored account, never to request
+     * metadata (including an untrusted nested context.email override).
+     */
+    private function passwordResetRecipient(?string $accountId): string
+    {
+        $account = $accountId === null ? null : $this->accounts->findById($accountId);
+        if ($account === null) {
+            throw new \RuntimeException('Password reset requires an existing account recipient.');
+        }
+
+        foreach ([$account->identifier(), $account->metadata()['email'] ?? null] as $candidate) {
+            if (!is_string($candidate) || $candidate === '') {
+                continue;
+            }
+
+            try {
+                return EmailAddress::fromMailbox($candidate)->email;
+            } catch (\InvalidArgumentException) {
+                continue;
+            }
+        }
+
+        throw new \RuntimeException('Password reset account has no valid trusted email recipient.');
+    }
+
     private function resolveRecipient(AuthNotification $notification): ?string
     {
         if ($notification->type === AuthNotificationType::PASSWORD_RESET_REQUESTED) {
@@ -93,32 +119,6 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         }
 
         return null;
-    }
-
-    /**
-     * Password-reset delivery is bound to the stored account, never to request
-     * metadata (including an untrusted nested context.email override).
-     */
-    private function passwordResetRecipient(?string $accountId): string
-    {
-        $account = $accountId === null ? null : $this->accounts->findById($accountId);
-        if ($account === null) {
-            throw new \RuntimeException('Password reset requires an existing account recipient.');
-        }
-
-        foreach ([$account->identifier(), $account->metadata()['email'] ?? null] as $candidate) {
-            if (!is_string($candidate) || $candidate === '') {
-                continue;
-            }
-
-            try {
-                return EmailAddress::fromMailbox($candidate)->email;
-            } catch (\InvalidArgumentException) {
-                continue;
-            }
-        }
-
-        throw new \RuntimeException('Password reset account has no valid trusted email recipient.');
     }
 
     private function shouldThrow(AuthNotification $notification): bool

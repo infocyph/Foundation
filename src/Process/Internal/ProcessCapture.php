@@ -287,29 +287,6 @@ final readonly class ProcessCapture
         return $this->writeReadyInput($stdin, $input, $inputOffset, $lastActivityAt, $pipes);
     }
 
-    /**
-     * @param resource $stdin
-     * @param array<int, resource> $pipes
-     */
-    private function writeReadyInput($stdin, string $input, int &$offset, int &$lastActivityAt, array &$pipes): ?ProcessTerminationReason
-    {
-        $written = @fwrite($stdin, substr($input, $offset, 8192));
-        if ($written === false) {
-            return ProcessTerminationReason::IoError;
-        }
-
-        $offset += $written;
-        if ($written > 0) {
-            $lastActivityAt = ProcessOutcome::clock();
-        }
-        if ($offset >= strlen($input)) {
-            fclose($stdin);
-            unset($pipes[0]);
-        }
-
-        return null;
-    }
-
     /** @param array<int, resource> $pipes */
     private function preparePipes(array &$pipes, ProcessOptions $options): void
     {
@@ -390,4 +367,31 @@ final readonly class ProcessCapture
         }
     }
 
+    /**
+     * @param resource $stdin
+     * @param array<int, resource> $pipes
+     */
+    private function writeReadyInput($stdin, string $input, int &$offset, int &$lastActivityAt, array &$pipes): ?ProcessTerminationReason
+    {
+        set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
+        try {
+            $written = fwrite($stdin, substr($input, $offset, 8192));
+        } finally {
+            restore_error_handler();
+        }
+        if ($written === false) {
+            return ProcessTerminationReason::IoError;
+        }
+
+        $offset += $written;
+        if ($written > 0) {
+            $lastActivityAt = ProcessOutcome::clock();
+        }
+        if ($offset >= strlen($input)) {
+            fclose($stdin);
+            unset($pipes[0]);
+        }
+
+        return null;
+    }
 }

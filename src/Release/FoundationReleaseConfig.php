@@ -19,7 +19,7 @@ final class FoundationReleaseConfig
             throw new \RuntimeException(sprintf('Foundation release config is not readable: "%s".', $path));
         }
 
-        $payload = FoundationReleaseManifest::loadTrustedArray($path, $trustedSha256);
+        $payload = FoundationReleaseManifest::loadTrustedArray($path, $trustedSha256, 'release config');
         if (($payload['format'] ?? null) !== self::FORMAT
             || !is_array($payload['config'] ?? null)
         ) {
