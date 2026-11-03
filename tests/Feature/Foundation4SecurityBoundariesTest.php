@@ -63,6 +63,39 @@ it('delivers account password resets only to the authoritative stored address', 
         ['email' => 'new-address@example.test', 'token' => 'verification-token'],
     ));
     $mailer->assertable()->assertSentTo('new-address@example.test');
+
+    // Passwordless issuance is keyed to the requested identifier; ancillary
+    // caller-supplied email fields may not redirect its bearer token.
+    $notifier->send(new AuthNotification(
+        AuthNotificationType::PASSWORDLESS_LOGIN_REQUESTED,
+        null,
+        ['identifier' => 'victim@example.test', 'email' => 'attacker@example.test', 'token' => 'test-passwordless-token'],
+    ));
+    $notifier->send(new AuthNotification(
+        AuthNotificationType::MFA_CHALLENGE_REQUESTED,
+        'victim',
+        ['recipient_email' => 'attacker@example.test', 'challenge_id' => 'challenge-1'],
+    ));
+    $notifier->send(new AuthNotification(
+        AuthNotificationType::LOGIN_ALERT,
+        'victim',
+        ['email' => 'attacker@example.test', 'request_id' => 'req-2'],
+    ));
+    $notifier->send(new AuthNotification(
+        AuthNotificationType::PASSWORDLESS_LOGIN_REQUESTED,
+        null,
+        ['identifier' => 'unknown@example.test', 'email' => 'attacker@example.test', 'token' => 'no-delivery'],
+    ));
+
+    $mailer->assertable()->assertSentCount(5);
+    $mailer->assertable()->assertSentTo('victim@example.test');
+    expect(fn() => $mailer->assertable()->assertSentTo('attacker@example.test'))
+        ->toThrow(RuntimeException::class);
+    expect(fn() => $notifier->send(new AuthNotification(
+        AuthNotificationType::EMAIL_VERIFICATION_REQUESTED,
+        'victim',
+        ['recipient_email' => 'attacker@example.test', 'token' => 'missing-address'],
+    )))->toThrow(RuntimeException::class, 'explicit destination');
 });
 
 it('redacts nested credentials at the shared authentication audit recorder boundary', function (): void {

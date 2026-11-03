@@ -60,14 +60,41 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
     }
 
     /**
-     * Password-reset delivery is bound to the stored account, never to request
-     * metadata (including an untrusted nested context.email override).
+     * Security notifications resolve the recipient from authoritative account
+     * state; only verification uses its validated, purpose-specific new address.
      */
-    private function passwordResetRecipient(?string $accountId): string
+    private function resolveRecipient(AuthNotification $notification): ?string
     {
-        $account = $accountId === null ? null : $this->accounts->findById($accountId);
+        if ($notification->type === AuthNotificationType::EMAIL_VERIFICATION_REQUESTED) {
+            $email = $notification->payload['email'] ?? null;
+            if (!is_string($email) || $email === '') {
+                throw new \RuntimeException('Email verification requires an explicit destination.');
+            }
+
+            try {
+                return EmailAddress::fromMailbox($email)->email;
+            } catch (\InvalidArgumentException $exception) {
+                throw new \RuntimeException('Email verification destination is invalid.', 0, $exception);
+            }
+        }
+
+        if ($notification->type === AuthNotificationType::PASSWORDLESS_LOGIN_REQUESTED) {
+            $identifier = $notification->payload['identifier'] ?? null;
+            $account = is_string($identifier) && $identifier !== ''
+                ? $this->accounts->findByIdentifier($identifier)
+                : null;
+        } else {
+            $account = $notification->accountId === null
+                ? null
+                : $this->accounts->findById($notification->accountId);
+        }
+
         if ($account === null) {
-            throw new \RuntimeException('Password reset requires an existing account recipient.');
+            if ($notification->type === AuthNotificationType::PASSWORD_RESET_REQUESTED) {
+                throw new \RuntimeException('Password reset requires an existing account recipient.');
+            }
+
+            return null;
         }
 
         foreach ([$account->identifier(), $account->metadata()['email'] ?? null] as $candidate) {
@@ -82,45 +109,12 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
             }
         }
 
-        throw new \RuntimeException('Password reset account has no valid trusted email recipient.');
-    }
-
-    private function resolveRecipient(AuthNotification $notification): ?string
-    {
         if ($notification->type === AuthNotificationType::PASSWORD_RESET_REQUESTED) {
-            return $this->passwordResetRecipient($notification->accountId);
-        }
-
-        $candidates = [
-            $notification->payload['email'] ?? null,
-            $notification->payload['identifier'] ?? null,
-            $notification->payload['account_email'] ?? null,
-            $notification->payload['recipient_email'] ?? null,
-        ];
-
-        if ($notification->accountId !== null) {
-            $account = $this->accounts->findById($notification->accountId);
-            if ($account !== null) {
-                $candidates[] = $account->metadata()['email'] ?? null;
-                $candidates[] = $account->identifier();
-            }
-        }
-
-        foreach ($candidates as $candidate) {
-            if (!is_string($candidate) || $candidate === '') {
-                continue;
-            }
-
-            try {
-                return EmailAddress::fromMailbox($candidate)->email;
-            } catch (\Throwable) {
-                continue;
-            }
+            throw new \RuntimeException('Password reset account has no valid trusted email recipient.');
         }
 
         return null;
     }
-
     private function shouldThrow(AuthNotification $notification): bool
     {
         if ($this->failSilently) {
