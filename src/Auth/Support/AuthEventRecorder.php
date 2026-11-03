@@ -62,11 +62,12 @@ final class AuthEventRecorder
                 ? strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', str_replace('-', '_', $key)) ?? $key)
                 : '';
             $sensitive = $name !== ''
-                && !in_array($name, ['token_id', 'credential_id'], true)
+                && !in_array($name, ['token_id', 'token_type', 'credential_id', 'authorization_id'], true)
                 && preg_match('/(?:^|_)(?:password|passwd|secret|token|authorization|credential|signature|otp|cookie|recovery_code)(?:_|$)/', $name) === 1;
             $sensitive = $sensitive || in_array($name, ['code', 'code_verifier', 'api_key', 'private_key', 'private_key_path', 'authenticator_data', 'attestation_object'], true);
 
             $safe[$key] = match (true) {
+                $value === null => null,
                 $sensitive => '[REDACTED]',
                 is_array($value) => self::safeMetadata($value, $depth + 1),
                 is_object($value), is_resource($value) => '[REDACTED]',
