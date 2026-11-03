@@ -85,7 +85,7 @@ it('observes cancellation after entering an ordinary native database query', fun
     \Infocyph\DBLayer\Events\Events::listen('db.query.executing', $listener);
 
     try {
-        $app->execution()->run(static function () use ($app): void {
+        $app->execution()->run(static function () use ($app, $request): void {
             $connection = $app->make(DBLayerFactory::class)->connection();
             expect(fn() => $connection->scalar('SELECT 42'))
                 ->toThrow(\Infocyph\DBLayer\Exceptions\ConnectionException::class);

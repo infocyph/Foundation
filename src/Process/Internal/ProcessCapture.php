@@ -374,11 +374,13 @@ final readonly class ProcessCapture
     private function writeReadyInput($stdin, string $input, int &$offset, int &$lastActivityAt, array &$pipes): ?ProcessTerminationReason
     {
         set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
+
         try {
             $written = fwrite($stdin, substr($input, $offset, 8192));
         } finally {
             restore_error_handler();
         }
+
         if ($written === false) {
             return ProcessTerminationReason::IoError;
         }
