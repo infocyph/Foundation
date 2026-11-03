@@ -103,6 +103,15 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         };
     }
 
+    private function shouldThrow(AuthNotification $notification): bool
+    {
+        if ($this->failSilently) {
+            return false;
+        }
+
+        return in_array($notification->type->value, $this->criticalTypes, true)
+            || $this->isCriticalByDefault($notification->type);
+    }
     private function storedAddress(AccountInterface $account): ?string
     {
         foreach ([$account->identifier(), $account->metadata()['email'] ?? null] as $candidate) {
@@ -132,14 +141,5 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         } catch (\InvalidArgumentException $exception) {
             throw new \RuntimeException('Email verification destination is invalid.', 0, $exception);
         }
-    }
-    private function shouldThrow(AuthNotification $notification): bool
-    {
-        if ($this->failSilently) {
-            return false;
-        }
-
-        return in_array($notification->type->value, $this->criticalTypes, true)
-            || $this->isCriticalByDefault($notification->type);
     }
 }
