@@ -11,7 +11,7 @@ on:
       baseline_ref:
         description: Immutable Foundation 4 baseline commit for paired authenticated host verification
         required: true
-        default: 6274939c395f75e5cf777aad5d7439f10792758c
+        default: c220759fcbd6654fead843599712a5b79685f02d
         type: string
       comparison_mode:
         description: Shared-lock source comparison or reviewed independent-lock dependency upgrade

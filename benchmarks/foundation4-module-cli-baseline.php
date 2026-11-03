@@ -46,9 +46,9 @@ try {
     $composerFixture = json_encode([
         'name' => 'foundation/module-baseline',
         'require' => [
-            'infocyph/dblayer' => '^6.1.2',
-            'infocyph/omnibus' => '^3.0.2',
-            'infocyph/otp' => '^7.0',
+            'infocyph/dblayer' => '^6.1.4',
+            'infocyph/omnibus' => '^3.0.3',
+            'infocyph/otp' => '^7.0.1',
         ],
     ], JSON_THROW_ON_ERROR) . PHP_EOL;
     file_put_contents($root . '/composer.json', $composerFixture, LOCK_EX);
@@ -60,9 +60,9 @@ try {
     mkdir($root . '/config', 0775, true);
     file_put_contents($root . '/config/database.php', "<?php return [];\n");
     file_put_contents($root . '/vendor/composer/installed.json', json_encode(['packages' => [
-        ['name' => 'infocyph/dblayer', 'version' => '6.1.2.0'],
-        ['name' => 'infocyph/omnibus', 'version' => '3.0.2.0'],
-        ['name' => 'infocyph/otp', 'version' => '7.0.0.0'],
+        ['name' => 'infocyph/dblayer', 'version' => '6.1.4.0'],
+        ['name' => 'infocyph/omnibus', 'version' => '3.0.3.0'],
+        ['name' => 'infocyph/otp', 'version' => '7.0.1.0'],
     ]], JSON_THROW_ON_ERROR));
     $config = [
         'base_path' => $root,

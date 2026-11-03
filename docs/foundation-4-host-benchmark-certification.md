@@ -44,16 +44,16 @@ results remain diagnostic.
 ## Separate source-only and dependency-upgrade verdicts
 
 The manual paired-host workflow accepts **two distinct modes**. The default
-\`source-only\` mode uses the same resolved Composer lock in both checkouts and
-still rejects any differing lock SHA-256. The \`dependency-upgrade\` mode resolves
+`source-only` mode uses the same resolved Composer lock in both checkouts and
+still rejects any differing lock SHA-256. The `dependency-upgrade` mode resolves
 independent baseline and candidate locks, keeping the same benchmark tooling,
 workload fixture, PHP/INI, services, host CPU allocation and baseline/candidate
 run order. It does **not** rewrite the old stack to use the candidate lock.
 
 For an upgrade run, commit a reviewed JSON policy into the candidate source and
-provide its relative path through \`upgrade_allowlist_path\`. Its format is:
+provide its relative path through `upgrade_allowlist_path`. Its format is:
 
-\`\`\`json
+```json
 {
   "format": 1,
   "allowed_changes": {
@@ -71,15 +71,15 @@ provide its relative path through \`upgrade_allowlist_path\`. Its format is:
     }
   }
 }
-\`\`\`
+```
 
 Replace these placeholders with the exact Composer lock identities for **every
-changed package**, including dev/tooling dependencies, and \`null\` where a source
-or dist reference is absent. A package addition/removal uses \`null\` as the entire
-\`before\`/\`after\` identity. The prepare job derives both lock manifests from
+changed package**, including dev/tooling dependencies, and `null` where a source
+or dist reference is absent. A package addition/removal uses `null` as the entire
+`before`/`after` identity. The prepare job derives both lock manifests from
 actual Composer files and refuses any missing, unexpected or mismatched change
 *before* launching the expensive 24-job matrix. The final report separately
-labels \`comparison_kind: dependency_upgrade\` and lists the changed package
+labels `comparison_kind: dependency_upgrade` and lists the changed package
 names. Identical locks, tool/fixture drift, invalid load evidence, unfinished
 soaks, unstable throughput or a >2% successful-RPM regression still block a
 verdict.
@@ -101,7 +101,7 @@ For the selected-owner profile, use `FOUNDATION_HOST_WORKLOAD_PROFILE=native-rea
 
 ## Controlled sustained comparison
 
-Run the **same version of benchmark tooling**, on a dedicated, stable host using two separately checked-out Foundation 4 candidate sources: a known-good frozen 4.0 baseline and the proposed release candidate. Do not modify working trees during measurement. Reuse an identical resolved Composer lock, PHP version/extensions and INI, services, datasets, routes, OPcache settings, and OS configuration. Disable competing workloads and verify that the load generator can saturate the host without becoming the bottleneck.
+Run the **same version of benchmark tooling** on a dedicated, stable host with two separately checked-out Foundation 4 sources: a known-good frozen baseline and the proposed release candidate. For source attribution use an identical resolved Composer lock; for the reviewed whole-upgrade comparison use independently resolved, attested locks. Never mix verdict types. Do not modify working trees during measurement. Keep the PHP version/extensions and INI, services, datasets, routes, OPcache settings and OS configuration identical. Disable competing workloads and verify that the load generator can saturate the host without becoming the bottleneck.
 
 For each checkout, install the selected services, then run (using a different result directory for each):
 
@@ -127,7 +127,7 @@ php benchmarks/foundation4-host-compare.php \
   build/foundation4-host-comparison.json
 ```
 
-The comparator fails closed unless both reports contain the complete matching host/concurrency/worker matrix, matching declared physical host identity, PHP version, dependency-lock SHA-256, workload profile and sample configuration. Each case must contain at least five response-correct sustained observations of at least 30 seconds. It recalculates successful RPM from completed requests and elapsed time; rejects missing telemetry and internal inconsistencies; and refuses unstable evidence with RPM coefficient of variation greater than 2.5%. For every comparable stable case, the candidate median successful RPM must be at least **98%** of the baseline. A high-variance result is *inconclusive*, not a pass.
+The comparator fails closed unless both reports contain the complete matching host/concurrency/worker matrix, matching declared physical host identity, PHP version, workload profile and sample configuration. Source-only comparisons require an identical dependency-lock SHA-256; upgrade comparisons require different locks and a reviewed exact dependency delta. Each case must contain at least five response-correct sustained observations of at least 120 seconds. It recalculates successful RPM from completed requests and elapsed time; rejects missing telemetry and internal inconsistencies; and refuses unstable evidence with RPM coefficient of variation greater than 2.5%. For every comparable stable case, the candidate median successful RPM must be at least **98%** of the baseline. A high-variance result is *inconclusive*, not a pass.
 
 ## Release acceptance
 
