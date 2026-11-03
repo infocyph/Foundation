@@ -27,9 +27,10 @@ final class Foundation4HostComparison
     /**
      * @param array<string, mixed> $baseline
      * @param array<string, mixed> $candidate
+     * @param array<string, mixed>|null $upgradeEvidence
      * @return array<string, mixed>
      */
-    public static function compare(array $baseline, array $candidate): array
+    public static function compare(array $baseline, array $candidate, ?array $upgradeEvidence = null): array
     {
         foreach ([$baseline, $candidate] as $report) {
             if (($report['schema'] ?? null) !== 2
@@ -56,7 +57,16 @@ final class Foundation4HostComparison
             }
         }
 
-        foreach (['hardware_id', 'php', 'protocol', 'workload_profile', 'request_count', 'repetitions', 'composer_lock_sha256'] as $field) {
+        $changedPackages = $upgradeEvidence === null
+            ? []
+            : Foundation4HostUpgradeEvidence::verify($baseline, $candidate, $upgradeEvidence);
+
+        $identityFields = ['hardware_id', 'php', 'protocol', 'workload_profile', 'request_count', 'repetitions'];
+        if ($upgradeEvidence === null) {
+            $identityFields[] = 'composer_lock_sha256';
+        }
+
+        foreach ($identityFields as $field) {
             if ($baseline[$field] !== $candidate[$field]) {
                 throw new InvalidArgumentException(sprintf('Incomparable host evidence: %s differs.', $field));
             }
@@ -104,6 +114,8 @@ final class Foundation4HostComparison
 
         return [
             'passed' => $passed,
+            'comparison_kind' => $upgradeEvidence === null ? 'source_only' : 'dependency_upgrade',
+            'changed_packages' => $changedPackages,
             'regression_budget_percent' => self::REGRESSION_BUDGET_PERCENT,
             'max_cv_percent' => self::MAX_VARIATION_PERCENT,
             'min_repetition_seconds' => self::MIN_SUSTAINED_SECONDS,

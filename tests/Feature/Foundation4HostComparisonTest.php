@@ -235,3 +235,65 @@ it('retains both required host soaks when aggregating separately paired scenario
         \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($directory);
     }
 });
+
+
+/** @return array<string,mixed> */
+function foundationUpgradeEvidence(): array
+{
+    $before = ['version' => '2.1.2', 'source_ref' => str_repeat('a', 40), 'dist_ref' => str_repeat('a', 40)];
+    $after = ['version' => '3.0.0', 'source_ref' => str_repeat('c', 40), 'dist_ref' => str_repeat('c', 40)];
+
+    return [
+        'format' => 1,
+        'baseline' => ['sha256' => str_repeat('b', 64), 'packages' => ['infocyph/runwire' => $before]],
+        'candidate' => ['sha256' => str_repeat('c', 64), 'packages' => ['infocyph/runwire' => $after]],
+        'allowed_changes' => ['infocyph/runwire' => ['before' => $before, 'after' => $after]],
+    ];
+}
+
+it('accepts only explicitly reviewed whole-upgrade dependency identities', function (): void {
+    $baseline = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
+    $candidate['composer_lock_sha256'] = str_repeat('c', 64);
+    $baseline['tool_sha'] = $candidate['tool_sha'] = str_repeat('d', 40);
+    $baseline['fixture_id'] = $candidate['fixture_id'] = 'auth-postgres-redis';
+
+    $comparison = Foundation4HostComparison::compare($baseline, $candidate, foundationUpgradeEvidence());
+    expect($comparison['passed'])->toBeTrue()
+        ->and($comparison['comparison_kind'])->toBe('dependency_upgrade')
+        ->and($comparison['changed_packages'])->toBe(['infocyph/runwire']);
+
+    expect(fn() => Foundation4HostComparison::compare($baseline, $candidate))
+        ->toThrow(InvalidArgumentException::class, 'composer_lock_sha256 differs.');
+
+    $evidence = foundationUpgradeEvidence();
+    $evidence['allowed_changes']['infocyph/runwire']['after']['version'] = '3.0.1';
+    expect(fn() => Foundation4HostComparison::compare($baseline, $candidate, $evidence))
+        ->toThrow(InvalidArgumentException::class, 'Unreviewed or mismatched');
+
+    $evidence = foundationUpgradeEvidence();
+    $evidence['candidate']['sha256'] = str_repeat('e', 64);
+    expect(fn() => Foundation4HostComparison::compare($baseline, $candidate, $evidence))
+        ->toThrow(InvalidArgumentException::class, 'does not match candidate');
+
+    $candidate['tool_sha'] = str_repeat('e', 40);
+    expect(fn() => Foundation4HostComparison::compare($baseline, $candidate, foundationUpgradeEvidence()))
+        ->toThrow(InvalidArgumentException::class, 'tool_sha differs.');
+});
+
+it('rejects unreviewed extra package changes in dependency upgrade reports', function (): void {
+    $baseline = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
+    $candidate['composer_lock_sha256'] = str_repeat('c', 64);
+    $baseline['tool_sha'] = $candidate['tool_sha'] = str_repeat('d', 40);
+    $baseline['fixture_id'] = $candidate['fixture_id'] = 'auth-postgres-redis';
+    $evidence = foundationUpgradeEvidence();
+    $evidence['candidate']['packages']['psr/log'] = [
+        'version' => '3.0.2',
+        'source_ref' => str_repeat('d', 40),
+        'dist_ref' => null,
+    ];
+
+    expect(fn() => Foundation4HostComparison::compare($baseline, $candidate, $evidence))
+        ->toThrow(InvalidArgumentException::class, 'Unreviewed or mismatched');
+});
