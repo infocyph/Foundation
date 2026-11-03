@@ -12,6 +12,7 @@ Work is underway on PR #20 / `feature/foundation-3`; no merge, tag, publication,
 - **P4–P5 partial:** synchronized version labels in the migration/release/OTP/authentication/filesystem/operations documentation and native API test descriptions; documented operation-local Runwire forwarding, ordinary PHP fallback and response-stream ownership. Exhaustive documentation and compatibility review remain open.
 - **P6 open:** at `694aa480`, all four production consumers, both static-analysis lanes, both benchmark scripts, full Pest and Deptrac passed; four QA lanes failed only Pint formatting, corrected at `4fecb4a3`. Native-host run `41639644975` was green. Strict paired-host throughput, end-to-end dependency-upgrade comparison, retained-state rollback and an all-green exact-final-head run remain release blockers.
 - **Additional security improvement:** removed untrusted notification payload from TalkingBytes email message metadata, preventing reset tokens and caller context from leaking into transport-level metadata while preserving rendered message content. The privileged PHPForge release workflow is pinned to an immutable revision.
+- **Latest rolling implementation (verification pending):** added Foundation ReqShield upload/MIME/path and `FormRequest` cancellation regressions (`5e6e5ba7`); bound passwordless delivery to the actual identifier's stored account and MFA/security notifications to trusted account addresses, while keeping purpose-specific email-verification destinations (`da1aa9b7`, `2828e444`); corrected the host throughput comparator to reject trials shorter than 120 seconds (`2790750c`). These do not close the full real-backend or performance-upgrade gates.
 
 The 90 implementation checkboxes below are acceptance criteria. Mark only entries with implementation and focused test/CI evidence; unmarked entries remain release requirements, even when partially implemented.
 
@@ -24,6 +25,9 @@ The 90 implementation checkboxes below are acceptance criteria. Mark only entrie
 | Architecture boundary | `694aa480` | Project Deptrac check and negative Foundation-to-Infbyte dependency fixture passed four QA lanes | Broader coverage review and architectural audit |
 | QA formatting and document parity | `4fecb4a3`, `79977e28` | Single remaining Pint blank-line failure corrected; old version labels and native-context docs synchronized | Verify newest commit and finish detailed documentation |
 | Hosting and packaging | `694aa480` | Host smoke run `41639644975` passed; four production consumers and both static-analysis lanes passed run `41639645706` | Strict paired-host and retained-state certification |
+| ReqShield file and cancellation boundary | `5e6e5ba7` | New regression fixtures; current four-lane QA was green for prior tested source | Exact-commit QA and MIME/host cancellation results |
+| Auth notification recipient hardening | `da1aa9b7`–`2828e444` | Purpose-specific recipient identity and negative override regressions implemented; resolved PHPStan complexity finding | Exact-commit security/QA result and wider auth flow review |
+| Sustained performance contract | `2790750c` | Comparator and fixture enforce 120-second trials rather than 60 | Full matched-host execution and separate dependency-upgrade evidence |
 
 
 
