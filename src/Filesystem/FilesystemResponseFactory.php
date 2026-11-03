@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Filesystem;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
+use Infocyph\Pathwise\Integration\Runwire\RunwireExecutionContext;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Pathwise\Results\DownloadPreparation;
@@ -262,6 +264,27 @@ final readonly class FilesystemResponseFactory
         return $response;
     }
 
+    private function prepareDownloadWithRunwire(
+        DownloadProcessor $processor,
+        string $path,
+        ?string $downloadName,
+        ?string $rangeHeader = null,
+    ): DownloadPreparation {
+        $borrowed = CacheRunwire::current();
+        if ($borrowed === null) {
+            return $processor->prepareDownload($path, $downloadName, $rangeHeader);
+        }
+
+        return $processor->withRunwire(
+            new RunwireExecutionContext($borrowed->runtime, $borrowed->request, $borrowed->scope),
+            static fn(DownloadProcessor $bound): DownloadPreparation => $bound->prepareDownload(
+                $path,
+                $downloadName,
+                $rangeHeader,
+            ),
+        );
+    }
+
     /**
      * @param array<string, string|list<string>> $headers
      * @return array{0:DownloadProcessor,1:string,2:DownloadPreparation,3:?Response}
@@ -276,7 +299,7 @@ final readonly class FilesystemResponseFactory
         bool $inline,
     ): array {
         [$processor, $resolvedPath] = $this->prepareProcessor($path, $directory, $disk, $inline);
-        $manifest = $processor->prepareDownload($resolvedPath, $downloadName);
+        $manifest = $this->prepareDownloadWithRunwire($processor, $resolvedPath, $downloadName);
 
         return [$processor, $resolvedPath, $manifest, $this->shortCircuitResponse($request, $manifest, $headers)];
     }
@@ -330,7 +353,7 @@ final readonly class FilesystemResponseFactory
         $rangeHeader = $this->freshRangeHeader($request, $baseManifest);
         $manifest = $rangeHeader === null
             ? $baseManifest
-            : $processor->prepareDownload($resolvedPath, $downloadName, $rangeHeader);
+            : $this->prepareDownloadWithRunwire($processor, $resolvedPath, $downloadName, $rangeHeader);
         $mergedHeaders = $this->mergeHeaders($manifest->headers, $headers);
 
         if ($this->isHead($request)) {

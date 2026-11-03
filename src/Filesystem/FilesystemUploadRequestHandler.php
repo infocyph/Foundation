@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Filesystem;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
+use Infocyph\Pathwise\Integration\Runwire\RunwireExecutionContext;
 use Infocyph\Pathwise\Results\ChunkUploadState;
+use Infocyph\Pathwise\StreamHandler\UploadProcessor;
 use Infocyph\Pathwise\StreamHandler\UploadSource;
 use Infocyph\Webrick\Request\Core\UploadedFile;
 use Infocyph\Webrick\Request\Request;
@@ -15,7 +18,10 @@ final readonly class FilesystemUploadRequestHandler
 
     public function finalizeChunkUpload(string $uploadId, ?string $directory = null, ?string $disk = null): string
     {
-        return $this->transfers->upload($directory, $disk)->finalizeChunkUpload($uploadId);
+        return $this->withRunwire(
+            $this->transfers->upload($directory, $disk),
+            static fn(UploadProcessor $processor): string => $processor->finalizeChunkUpload($uploadId),
+        );
     }
 
     public function processChunkUploadRequest(
@@ -47,12 +53,17 @@ final readonly class FilesystemUploadRequestHandler
         );
         $resolvedFilename = $this->resolveFilename($originalFilename, $request, $file, $field);
 
-        return $processor->processChunkUploadSource(
-            $this->source($file, $resolvedFilename),
-            $resolvedUploadId,
-            $resolvedChunkIndex,
-            $resolvedTotalChunks,
-            $resolvedFilename,
+        $source = $this->source($file, $resolvedFilename);
+
+        return $this->withRunwire(
+            $processor,
+            static fn(UploadProcessor $bound): ChunkUploadState => $bound->processChunkUploadSource(
+                $source,
+                $resolvedUploadId,
+                $resolvedChunkIndex,
+                $resolvedTotalChunks,
+                $resolvedFilename,
+            ),
         );
     }
 
@@ -65,9 +76,12 @@ final readonly class FilesystemUploadRequestHandler
         $file = $this->uploadedFile($request, $field);
         $clientName = $file->getClientFilename() ?? $field;
 
-        return $this->transfers
-            ->upload($directory, $disk)
-            ->ingestSource($this->source($file, $clientName));
+        $source = $this->source($file, $clientName);
+
+        return $this->withRunwire(
+            $this->transfers->upload($directory, $disk),
+            static fn(UploadProcessor $processor): string => $processor->ingestSource($source),
+        );
     }
 
     private function resolveFilename(?string $filename, Request $request, UploadedFile $file, string $field): string
@@ -149,5 +163,23 @@ final readonly class FilesystemUploadRequestHandler
         }
 
         return $file;
+    }
+
+    /**
+     * @template T
+     * @param callable(UploadProcessor):T $operation
+     * @return T
+     */
+    private function withRunwire(UploadProcessor $processor, callable $operation): mixed
+    {
+        $borrowed = CacheRunwire::current();
+        if ($borrowed === null) {
+            return $operation($processor);
+        }
+
+        return $processor->withRunwire(
+            new RunwireExecutionContext($borrowed->runtime, $borrowed->request, $borrowed->scope),
+            $operation,
+        );
     }
 }

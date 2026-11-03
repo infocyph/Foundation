@@ -383,3 +383,60 @@ final class FoundationFilesystemMetadataProbe extends Filesystem
         $this->mimeTypeReads = 0;
     }
 }
+
+
+it('rejects cancelled Runwire uploads and downloads before Pathwise file side effects', function (): void {
+    [$app, $root] = foundationFilesystemApp();
+    $app->boot();
+    $storage = $app->make(StorageRegistry::class);
+    $disk = $storage->disk('uploads');
+    $responses = $app->make(FilesystemResponseFactory::class);
+    $uploads = $app->make(FilesystemUploadRequestHandler::class);
+    $directory = 'tests/runwire-' . bin2hex(random_bytes(6));
+    $path = $directory . '/exists.txt';
+    $disk->write($path, 'unchanged');
+    $temp = tempnam(sys_get_temp_dir(), 'foundation-runwire-upload-');
+    expect($temp)->toBeString();
+    file_put_contents($temp, 'must-not-upload');
+    $request = Request::fake(headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload')
+        ->withUploadedFiles(['file' => [
+            'tmp_name' => $temp, 'size' => filesize($temp) ?: 0, 'error' => UPLOAD_ERR_OK,
+            'name' => 'blocked.txt', 'type' => 'text/plain',
+        ]]);
+
+    $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
+    $hostRequest = \Infocyph\Runwire\RequestContext::create($runtime);
+    \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::bind($runtime);
+
+    try {
+        \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
+            $hostRequest,
+            null,
+            static function () use ($hostRequest, $responses, $uploads, $request, $path, $directory): void {
+                $hostRequest->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
+                expect(fn() => $responses->download(
+                    Request::fake(headers: ['Host' => 'localhost'], uri: 'http://localhost/download'),
+                    $path,
+                    directory: $directory,
+                    disk: 'uploads',
+                ))->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
+                expect(fn() => $uploads->processUploadRequest(
+                    $request,
+                    directory: $directory,
+                    disk: 'uploads',
+                ))->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
+            },
+            $runtime,
+        );
+        expect($disk->read($path))->toBe('unchanged')
+            ->and($disk->fileExists($directory . '/blocked.txt'))->toBeFalse();
+    } finally {
+        $hostRequest->complete();
+        \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::release($runtime);
+        if (is_file($temp)) {
+            unlink($temp);
+        }
+        $disk->deleteDirectory($directory);
+        foundationFilesystemRemoveDirectory($root);
+    }
+});
