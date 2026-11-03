@@ -60,6 +60,7 @@ it('keeps optional specialist packages out of the Foundation runtime requirement
         'infocyph/arraykit',
         'infocyph/cachelayer',
         'infocyph/intermix',
+        'infocyph/runwire',
         'infocyph/uid',
         'infocyph/webrick',
     )->not->toContain(
@@ -69,7 +70,6 @@ it('keeps optional specialist packages out of the Foundation runtime requirement
         'infocyph/otp',
         'infocyph/pathwise',
         'infocyph/reqshield',
-        'infocyph/runwire',
         'infocyph/talkingbytes',
         'web-auth/webauthn-lib',
     );

@@ -32,26 +32,26 @@ only the backends it actually uses.
 ## Version and package requirements
 
 Foundation 4 requires 64-bit PHP 8.4+ and Composer 2. The candidate's direct production
-dependencies are ArrayKit `^5.3.1`, CacheLayer `^4.0.1`, InterMix `^11.2`,
-Runwire `^2.1.2`, UID `^6.0`, Webrick `^6.0.3`, and PSR Log `^3.0.2`.
+dependencies are ArrayKit `^5.3.2`, CacheLayer `^4.0.2`, InterMix `^11.2.1`,
+Runwire `^3.0`, UID `^6.0.1`, Webrick `^6.0.4`, and PSR Log `^3.0.3`.
 
 Select only the optional **feature IDs** needed by this application, grouped into the three public modules `data`, `security`, and `execution`. The following packages are installed only for selected features:
 
 | Public feature | Composer package constraint |
 | --- | --- |
-| `data.database` | `infocyph/dblayer:^6.1.2` |
-| `data.filesystem` | `infocyph/pathwise:^4.2` |
-| `security.crypto` | `infocyph/epicrypt:^3.2` |
-| `security.validation` | `infocyph/reqshield:^3.3` |
-| `security.mfa` | `infocyph/otp:^7.0`; OTP-driver MFA also requires explicitly selected `security.crypto` |
-| `security.passkey` | `infocyph/otp:^7.0` and `web-auth/webauthn-lib:^5.3.9`; selecting passkeys does not activate MFA |
-| `execution.messaging` | `infocyph/omnibus:^3.0.2`; durable transport requires `data.database` |
-| `execution.communication` | `infocyph/talkingbytes:^2.3` |
+| `data.database` | `infocyph/dblayer:^6.1.4` |
+| `data.filesystem` | `infocyph/pathwise:^4.2.1` |
+| `security.crypto` | `infocyph/epicrypt:^3.3` |
+| `security.validation` | `infocyph/reqshield:^3.3.1` |
+| `security.mfa` | `infocyph/otp:^7.0.1`; OTP-driver MFA also requires explicitly selected `security.crypto` |
+| `security.passkey` | `infocyph/otp:^7.0.1` and `web-auth/webauthn-lib:^5.3.12`; selecting passkeys does not activate MFA |
+| `execution.messaging` | `infocyph/omnibus:^3.0.3`; durable transport requires `data.database` |
+| `execution.communication` | `infocyph/talkingbytes:^2.3.1` |
 
 The [module catalog](modules.md) owns optional feature and extension requirements.
 Do not blindly install all optional modules. CacheLayer remains a Foundation
-production dependency, not a separately installable module. Runwire 2.1.2 is also Core: its host/context integration is always available,
-with native capability checks and synchronous fallback when no active context is passed.
+production dependency, not a separately installable module. Runwire 3.0 is also Core: its host/context integration is always available,
+with native capability checks and normal synchronous execution when no active context is passed.
 
 **Before installing Foundation 4**, confirm all required
 published versions are resolvable by Composer/Packagist. In particular,
