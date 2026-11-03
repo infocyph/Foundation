@@ -18,7 +18,7 @@ final class Foundation4HostComparison
 
     private const int MIN_REPETITIONS = 5;
 
-    private const float MIN_SUSTAINED_SECONDS = 60.0;
+    private const float MIN_SUSTAINED_SECONDS = 120.0;
 
     private const int MIN_WARMUP_SECONDS = 30;
 

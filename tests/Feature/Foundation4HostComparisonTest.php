@@ -15,10 +15,10 @@ function foundationHostFixture(float $rpm = 1000.0, bool $candidate = false): ar
                     'workers' => $workers,
                     'concurrency' => $concurrency,
                     'runs' => array_fill(0, 5, [
-                        'requests' => 1000,
-                        'successful' => 1000,
+                        'requests' => 2000,
+                        'successful' => 2000,
                         'failed' => 0,
-                        'duration_seconds' => 60_000.0 / $rpm,
+                        'duration_seconds' => 120_000.0 / $rpm,
                         'rpm' => $rpm,
                         'peak_rss_mb' => 100.0,
                         'samples' => 30,
@@ -66,7 +66,7 @@ it('rejects a throughput regression exceeding 2 percent', function (): void {
 it('rejects noisy evidence instead of silently waiving the throughput budget', function (): void {
     $candidate = foundationHostFixture(candidate: true);
     $candidate['hosts']['fpm'][0]['runs'][0]['rpm'] = 500.0;
-    $candidate['hosts']['fpm'][0]['runs'][0]['duration_seconds'] = 120.0;
+    $candidate['hosts']['fpm'][0]['runs'][0]['duration_seconds'] = 240.0;
 
     $result = Foundation4HostComparison::compare(foundationHostFixture(), $candidate);
 
@@ -113,7 +113,7 @@ it('rejects short runs, invalid responses and missing benchmark scenarios', func
         ->toThrow(InvalidArgumentException::class, 'Complete 1/4-worker');
 });
 
-it('requires a full minute in every baseline and candidate measured trial', function (bool $candidateRun, float $seconds): void {
+it('requires two sustained minutes in every baseline and candidate measured trial', function (bool $candidateRun, float $seconds): void {
     $base = foundationHostFixture();
     $candidate = foundationHostFixture(candidate: true);
     $run = &$base['hosts']['fpm'][0]['runs'][0];
@@ -125,7 +125,7 @@ it('requires a full minute in every baseline and candidate measured trial', func
 
     expect(fn() => Foundation4HostComparison::compare($base, $candidate))
         ->toThrow(InvalidArgumentException::class, 'Invalid or unsustained evidence');
-})->with([false, true])->with([29.999, 30.0, 59.999]);
+})->with([false, true])->with([59.999, 60.0, 119.999]);
 
 it('requires the approved warm-up in both reports before comparing throughput', function (?int $seconds): void {
     $base = foundationHostFixture();
@@ -176,7 +176,7 @@ it('requires authenticated query and cache evidence from every successful respon
         foreach ($report['hosts'] as &$cases) {
             foreach ($cases as &$case) {
                 foreach ($case['runs'] as &$run) {
-                    $run += ['authenticated' => true, 'database_queries' => 2000, 'application_cache_hits' => 1000];
+                    $run += ['authenticated' => true, 'database_queries' => 4000, 'application_cache_hits' => 2000];
                 }
                 unset($run);
             }
@@ -186,7 +186,7 @@ it('requires authenticated query and cache evidence from every successful respon
     }
     unset($report);
     expect(Foundation4HostComparison::compare($base, $candidate)['passed'])->toBeTrue();
-    $candidate['hosts']['runwire'][0]['runs'][0]['application_cache_hits'] = 999;
+    $candidate['hosts']['runwire'][0]['runs'][0]['application_cache_hits'] = 1999;
     expect(fn() => Foundation4HostComparison::compare($base, $candidate))
         ->toThrow(InvalidArgumentException::class, 'query/cache evidence is incomplete');
 });
