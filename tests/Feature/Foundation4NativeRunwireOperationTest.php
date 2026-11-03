@@ -50,7 +50,7 @@ it('binds ordinary database operations to passed host inputs and restores the sy
 
             $request->cancel(CancellationReason::HOST_CANCELLED);
             expect(fn() => $connection->scalar('SELECT 1'))
-                ->toThrow(\Infocyph\DBLayer\Exceptions\ConnectionException::class);
+                ->toThrow(CancelledException::class);
         }, [RuntimeContext::class => $runtime, RequestContext::class => $request]);
 
         expect(CacheRunwire::current())->toBeNull()
@@ -88,7 +88,7 @@ it('observes cancellation after entering an ordinary native database query', fun
         $app->execution()->run(static function () use ($app): void {
             $connection = $app->make(DBLayerFactory::class)->connection();
             expect(fn() => $connection->scalar('SELECT 42'))
-                ->toThrow(\Infocyph\DBLayer\Exceptions\ConnectionException::class);
+                ->toThrow(CancelledException::class);
         }, [RuntimeContext::class => $runtime, RequestContext::class => $request]);
         expect($observed)->toBe(['runtime' => $runtime, 'request' => $request, 'scope' => null])
             ->and(CacheRunwire::current())->toBeNull();

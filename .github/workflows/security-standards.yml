@@ -16,7 +16,7 @@ jobs:
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     needs: [phpforge, production-consumer, release-evidence, runtime-hosts]
-    uses: infocyph/phpforge/.github/workflows/release.yml@main
+    uses: infocyph/phpforge/.github/workflows/release.yml@7214b16487277181c177343d4e4163a9b5843f24
     permissions:
       contents: write
     secrets:

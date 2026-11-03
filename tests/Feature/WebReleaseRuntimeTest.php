@@ -912,7 +912,7 @@ final class FoundationRunwireInterleavedHandler
         if ($runwireRequest->cancelled()) {
             try {
                 $connection->scalar('SELECT 1');
-            } catch (\Infocyph\DBLayer\Exceptions\ConnectionException) {
+            } catch (\Infocyph\Runwire\Exception\CancelledException) {
                 self::$observed[$runwireRequest->requestId]['database_cancelled'] = true;
             }
 

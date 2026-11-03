@@ -64,9 +64,12 @@ final readonly class RoutePresetRegistrar
     /** @return list<string> */
     public function stack(string $preset): array
     {
-        $stack = $this->configuredGroups()[$preset] ?? $this->builtInGroups()[$preset] ?? [];
+        $groups = $this->configuredGroups() + $this->builtInGroups();
+        if (!array_key_exists($preset, $groups)) {
+            throw new \InvalidArgumentException(sprintf('Unknown route middleware preset "%s".', $preset));
+        }
 
-        return $this->normalizeStack($stack);
+        return $groups[$preset];
     }
 
     /** @return array<string, list<string>> */
@@ -86,13 +89,13 @@ final readonly class RoutePresetRegistrar
     {
         $configured = $this->config->get('router.middleware.groups', []);
         if (!is_array($configured)) {
-            return [];
+            throw new \InvalidArgumentException('router.middleware.groups must be a middleware group map.');
         }
 
         $groups = [];
         foreach ($configured as $name => $stack) {
-            if (!is_string($name) || !is_array($stack)) {
-                continue;
+            if (!is_string($name) || $name === '' || !is_array($stack)) {
+                throw new \InvalidArgumentException('Route middleware group names and stacks must be valid.');
             }
 
             $groups[$name] = $this->normalizeStack($stack);
@@ -109,8 +112,8 @@ final readonly class RoutePresetRegistrar
     {
         $normalized = [];
         foreach ($stack as $middleware) {
-            if (!is_string($middleware) || $middleware === '') {
-                continue;
+            if (!is_string($middleware) || trim($middleware) === '') {
+                throw new \InvalidArgumentException('Route middleware stacks may contain only non-empty names.');
             }
 
             $normalized[] = $middleware;

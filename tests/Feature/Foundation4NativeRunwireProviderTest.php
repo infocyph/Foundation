@@ -82,7 +82,7 @@ it('forwards published native providers through compiled and borrowed execution 
 
                 $request->cancel(CancellationReason::HOST_CANCELLED);
                 expect(fn() => $connection->scalar('SELECT 3'))
-                    ->toThrow(\Infocyph\DBLayer\Exceptions\ConnectionException::class)
+                    ->toThrow(CancelledException::class)
                     ->and(fn() => $bus->dispatch(new stdClass()))->toThrow(CancelledException::class);
 
                 return $connection;
@@ -142,7 +142,7 @@ it('isolates providers across overlapping Foundation executions and preserves ex
             Fiber::suspend($connection);
             if ($request->cancelled()) {
                 expect(fn() => $connection->scalar('SELECT 1'))
-                    ->toThrow(\Infocyph\DBLayer\Exceptions\ConnectionException::class)
+                    ->toThrow(CancelledException::class)
                     ->and(fn() => $bus->dispatch(new stdClass()))->toThrow(CancelledException::class);
 
                 throw new RuntimeException('primary execution failure');
@@ -206,7 +206,7 @@ it('keeps the host coroutine scope in a structured child and stops native work a
                             ->and($connection->scalar('SELECT 1'))->toBe(1);
                         $request->cancel(CancellationReason::HOST_CANCELLED);
                         expect(fn() => $connection->scalar('SELECT 2'))
-                            ->toThrow(\Infocyph\DBLayer\Exceptions\ConnectionException::class)
+                            ->toThrow(CancelledException::class)
                             ->and(fn() => $bus->dispatch(new stdClass()))->toThrow(CancelledException::class);
                         $observed->cancelled = true;
                     },

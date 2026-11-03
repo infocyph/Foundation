@@ -38,7 +38,41 @@ final class AuthEventRecorder
             deviceId: $deviceId ?? ContextValue::stringOrNull($metadata, 'device_id'),
             correlationId: $ids->correlationId(),
             occurredAt: $clock->now(),
-            metadata: $metadata,
+            metadata: self::safeMetadata($metadata),
         ));
+    }
+
+    /**
+     * Audit stores must never persist credentials, including values nested in
+     * caller-supplied context arrays or passed directly to this recorder.
+     *
+     * @param array<int|string, mixed> $metadata
+     * @return array<int|string, mixed>
+     */
+    private static function safeMetadata(array $metadata, int $depth = 0): array
+    {
+        if ($depth >= 8) {
+            return ['redacted' => '[REDACTED]'];
+        }
+
+        $safe = [];
+        foreach ($metadata as $key => $value) {
+            $name = is_string($key)
+                ? strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', str_replace('-', '_', $key)) ?? $key)
+                : '';
+            $sensitive = $name !== ''
+                && !in_array($name, ['token_id', 'credential_id'], true)
+                && preg_match('/(?:^|_)(?:password|passwd|secret|token|authorization|credential|signature|otp|cookie|recovery_code)(?:_|$)/', $name) === 1;
+            $sensitive ||= in_array($name, ['code', 'code_verifier', 'api_key', 'private_key', 'private_key_path', 'authenticator_data', 'attestation_object'], true);
+
+            $safe[$key] = match (true) {
+                $sensitive => '[REDACTED]',
+                is_array($value) => self::safeMetadata($value, $depth + 1),
+                is_object($value), is_resource($value) => '[REDACTED]',
+                default => $value,
+            };
+        }
+
+        return $safe;
     }
 }
