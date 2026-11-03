@@ -67,7 +67,7 @@ final class AuthEventRecorder
                 : '';
             $sensitive = $name !== ''
                 && !in_array($name, ['token_id', 'token_type', 'credential_id', 'authorization_id'], true)
-                && preg_match('/(?:^|_)(?:password|passwd|secret|token|authorization|credential|signature|otp|cookie|recovery_code)(?:_|$)/', $name) === 1;
+                && preg_match('/(?:^|_)(?:password|passwd|passphrase|secret|token|authorization|credential|signature|otp|pin|seed|bearer|jwt|assertion|cookie|recovery_codes?)(?:s)?(?:_|$)/', $name) === 1;
             $sensitive = $sensitive || in_array($name, ['code', 'code_verifier', 'api_key', 'private_key', 'private_key_path', 'authenticator_data', 'attestation_object'], true);
 
             $safe[$key] = match (true) {

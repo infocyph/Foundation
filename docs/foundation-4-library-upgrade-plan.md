@@ -27,6 +27,7 @@ The 90 implementation checkboxes below are acceptance criteria. Mark only entrie
 | Hosting and packaging | `694aa480` | Host smoke run `41639644975` passed; four production consumers and both static-analysis lanes passed run `41639645706` | Strict paired-host and retained-state certification |
 | ReqShield file and cancellation boundary | `5e6e5ba7` | New regression fixtures; current four-lane QA was green for prior tested source | Exact-commit QA and MIME/host cancellation results |
 | Auth notification recipient hardening | `da1aa9b7`–`2828e444` | Purpose-specific recipient identity and negative override regressions implemented; resolved PHPStan complexity finding | Exact-commit security/QA result and wider auth flow review |
+| Authentication audit persistence | Pending verification | Added direct DBLayer/SQLite persistence regression for nested mixed-case MFA, recovery, assertion, token and key material; extended redaction while retaining nonsecret IDs | Confirm PHP 8.4/8.5 QA before checking A04 criteria |
 | Sustained performance contract | `2790750c` | Comparator and fixture enforce 120-second trials rather than 60 | Full matched-host execution and separate dependency-upgrade evidence |
 
 
