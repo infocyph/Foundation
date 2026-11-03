@@ -141,6 +141,7 @@ final class FoundationReleaseManifest
                 throw new \UnexpectedValueException('Authenticated Foundation release artifact must return an array.');
             }
 
+            /** @var array<string,mixed> $value */
             return $value;
         } finally {
             if (is_file($temporary)) {

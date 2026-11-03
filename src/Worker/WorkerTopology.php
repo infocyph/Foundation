@@ -60,7 +60,7 @@ final class WorkerTopology
             throw new \RuntimeException(sprintf('Foundation worker topology is not readable: "%s".', $artifactPath));
         }
         $payload = FoundationReleaseManifest::loadTrustedArray($artifactPath, $expectedSha256);
-        if (!is_array($payload) || ($payload['format'] ?? null) !== self::FORMAT) {
+        if (($payload['format'] ?? null) !== self::FORMAT) {
             throw new \UnexpectedValueException('Foundation worker topology format is invalid.');
         }
         $providers = $payload['providers'] ?? null;

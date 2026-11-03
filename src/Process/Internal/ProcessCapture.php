@@ -280,19 +280,29 @@ final readonly class ProcessCapture
             $observedBytes,
             $lastActivityAt,
         );
-        if ($reason !== null || $write === []) {
+        if ($reason !== null || $write === [] || !is_resource($stdin)) {
             return $reason;
         }
 
-        $written = @fwrite($stdin, substr($input, $inputOffset, 8192));
+        return $this->writeReadyInput($stdin, $input, $inputOffset, $lastActivityAt, $pipes);
+    }
+
+    /**
+     * @param resource $stdin
+     * @param array<int, resource> $pipes
+     */
+    private function writeReadyInput($stdin, string $input, int &$offset, int &$lastActivityAt, array &$pipes): ?ProcessTerminationReason
+    {
+        $written = @fwrite($stdin, substr($input, $offset, 8192));
         if ($written === false) {
             return ProcessTerminationReason::IoError;
         }
-        $inputOffset += $written;
+
+        $offset += $written;
         if ($written > 0) {
             $lastActivityAt = ProcessOutcome::clock();
         }
-        if ($inputOffset >= strlen($input)) {
+        if ($offset >= strlen($input)) {
             fclose($stdin);
             unset($pipes[0]);
         }

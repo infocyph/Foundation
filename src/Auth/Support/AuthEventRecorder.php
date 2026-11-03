@@ -46,8 +46,9 @@ final class AuthEventRecorder
      * Audit stores must never persist credentials, including values nested in
      * caller-supplied context arrays or passed directly to this recorder.
      *
-     * @param array<int|string, mixed> $metadata
-     * @return array<int|string, mixed>
+     * @template TKey of array-key
+     * @param array<TKey, mixed> $metadata
+     * @return array<TKey, mixed>
      */
     private static function safeMetadata(array $metadata, int $depth = 0): array
     {

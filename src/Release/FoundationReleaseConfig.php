@@ -20,8 +20,7 @@ final class FoundationReleaseConfig
         }
 
         $payload = FoundationReleaseManifest::loadTrustedArray($path, $trustedSha256);
-        if (!is_array($payload)
-            || ($payload['format'] ?? null) !== self::FORMAT
+        if (($payload['format'] ?? null) !== self::FORMAT
             || !is_array($payload['config'] ?? null)
         ) {
             throw new \UnexpectedValueException('Foundation release config snapshot is malformed.');
