@@ -5,9 +5,10 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 use Infocyph\Foundation\Benchmarks\Support\Foundation4HostComparison;
+use Infocyph\Foundation\Benchmarks\Support\Foundation4HostUpgradeEvidence;
 
-if ($argc !== 3) {
-    throw new InvalidArgumentException('Usage: php foundation4-host-merge.php ARTIFACT_DIRECTORY OUTPUT');
+if (!in_array($argc, [3, 6], true)) {
+    throw new InvalidArgumentException('Usage: php foundation4-host-merge.php ARTIFACT_DIRECTORY OUTPUT [BASELINE.lock CANDIDATE.lock REVIEWED_ALLOWLIST.json]');
 }
 $reports = ['baseline' => [], 'candidate' => []];
 $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($argv[1], FilesystemIterator::SKIP_DOTS));
@@ -77,7 +78,21 @@ if ($merged['baseline']['tool_sha'] !== $merged['candidate']['tool_sha']
 ) {
     throw new RuntimeException('Baseline/candidate tooling or workload differs.');
 }
-$comparison = Foundation4HostComparison::compare($merged['baseline'], $merged['candidate']);
+$upgrade = null;
+if ($argc === 6) {
+    $review = json_decode((string) file_get_contents($argv[5]), true, flags: JSON_THROW_ON_ERROR);
+    if (!is_array($review)) {
+        throw new InvalidArgumentException('Reviewed dependency upgrade policy must be a JSON object.');
+    }
+    $upgrade = [
+        'format' => $review['format'] ?? null,
+        'baseline' => Foundation4HostUpgradeEvidence::fromLock($argv[3]),
+        'candidate' => Foundation4HostUpgradeEvidence::fromLock($argv[4]),
+        'allowed_changes' => $review['allowed_changes'] ?? null,
+    ];
+}
+
+$comparison = Foundation4HostComparison::compare($merged['baseline'], $merged['candidate'], $upgrade);
 file_put_contents($argv[2], json_encode($comparison, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . PHP_EOL);
 foreach ($merged as $variant => $report) {
     file_put_contents(dirname($argv[2]) . '/' . $variant . '-merged.json', json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . PHP_EOL);

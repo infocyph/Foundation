@@ -39,6 +39,9 @@ final class Foundation4HostUpgradeEvidence
             }
 
             foreach ($entries as $package) {
+                if (!is_array($package) || !is_string($package['name'] ?? null)) {
+                    throw new InvalidArgumentException('Composer lock package name is invalid.');
+                }
                 $identity = self::identity($package);
                 $name = $package['name'];
                 if (isset($packages[$name])) {
@@ -90,9 +93,32 @@ final class Foundation4HostUpgradeEvidence
             }
         }
 
-        $changes = self::changes($before['packages'], $after['packages']);
         $allowed = $evidence['allowed_changes'] ?? null;
-        if (!is_array($allowed) || $changes === []) {
+        if (!is_array($allowed)) {
+            throw new InvalidArgumentException('Reviewed dependency changes are required.');
+        }
+
+        return self::review($before, $after, $allowed);
+    }
+
+    /**
+     * Check an exact package/ref delta before spending time on host measurements.
+     *
+     * @param array<string,mixed> $baseline
+     * @param array<string,mixed> $candidate
+     * @param array<string,mixed> $allowed
+     * @return list<string>
+     */
+    public static function review(array $baseline, array $candidate, array $allowed): array
+    {
+        $before = self::manifest($baseline);
+        $after = self::manifest($candidate);
+        if ($before['sha256'] === $after['sha256']) {
+            throw new InvalidArgumentException('Dependency upgrade review requires distinct Composer locks.');
+        }
+
+        $changes = self::changes($before['packages'], $after['packages']);
+        if ($changes === []) {
             throw new InvalidArgumentException('Reviewed, nonempty dependency changes are required.');
         }
 
@@ -163,6 +189,9 @@ final class Foundation4HostUpgradeEvidence
             throw new InvalidArgumentException('Dependency upgrade lock manifest is invalid.');
         }
 
-        return ['sha256' => $manifest['sha256'], 'packages' => $manifest['packages']];
+        /** @var array<string,mixed> $packages */
+        $packages = $manifest['packages'];
+
+        return ['sha256' => $manifest['sha256'], 'packages' => $packages];
     }
 }

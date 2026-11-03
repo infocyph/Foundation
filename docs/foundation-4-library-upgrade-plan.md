@@ -32,7 +32,7 @@ The 90 implementation checkboxes below are acceptance criteria. Mark only entrie
 | Process stdin cancellation and early exit | Pending verification | Added active cancellation during blocked writes plus early child exit checks; existing no-read and output-before-input regressions retained | Verify timings and termination across both PHP lanes |
 | Sustained performance contract | `2790750c` | Comparator and fixture enforce 120-second trials rather than 60 | Full matched-host execution and separate dependency-upgrade evidence |
 | Retired test-label cleanup | Pending verification | Renamed DBLayer 5/Omnibus 2.6/Pathwise 4.1-labelled test owners to version-neutral contract names; retained their behaviors | Verify all migrated tests and references in QA |
-| Whole-dependency-upgrade comparator contract | Pending verification | Separate explicit upgrade mode requires distinct lock SHA-256s, exact source/dist references, reviewed package-change allowlist, same workload/runner/tool/fixture identity and unchanged RPM/CV budgets; source-only comparisons still reject differing locks | Wire real lock manifests into paired workflow, exercise full matrix and capture evidence |
+| Whole-dependency-upgrade comparator contract | Pending verification | Explicit dependency-upgrade mode now resolves separate Composer locks, verifies a reviewed exact source/dist-ref change manifest before running the matrix, preserves the strict shared-lock default and produces distinct verdicts | Verify workflow, compare both full matrices and record host artifacts |
 
 
 

@@ -13,6 +13,18 @@ on:
         required: true
         default: 6274939c395f75e5cf777aad5d7439f10792758c
         type: string
+      comparison_mode:
+        description: Shared-lock source comparison or reviewed independent-lock dependency upgrade
+        required: true
+        default: source-only
+        type: choice
+        options:
+          - source-only
+          - dependency-upgrade
+      upgrade_allowlist_path:
+        description: Repository-relative JSON policy with exact reviewed package changes
+        required: false
+        type: string
       host_runner:
         description: Standard public-repository runner for both revisions of each measured pair
         required: true
@@ -164,24 +176,54 @@ jobs:
       candidate: ${{ steps.identity.outputs.candidate }}
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        if: inputs.comparison_mode == 'dependency-upgrade'
+        with:
+          ref: ${{ inputs.baseline_ref }}
+          path: baseline-source
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
           tools: composer:v2
           extensions: "mbstring, intl, sodium, curl, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
           coverage: none
-      - name: Freeze candidate and shared dependency manifest
+      - name: Freeze candidate and reviewed dependency identities
         id: identity
         env:
           BASELINE_REF: ${{ inputs.baseline_ref }}
+          COMPARISON_MODE: ${{ inputs.comparison_mode || 'source-only' }}
+          UPGRADE_ALLOWLIST: ${{ inputs.upgrade_allowlist_path }}
         run: |
           [[ "$BASELINE_REF" =~ ^[a-f0-9]{40}$ ]] || { echo "An immutable baseline SHA is required." >&2; exit 1; }
           printf 'candidate=%s\n' "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+          cp composer.lock candidate.lock
+          if [[ "$COMPARISON_MODE" == dependency-upgrade ]]; then
+            [[ "$UPGRADE_ALLOWLIST" =~ ^[a-zA-Z0-9._/-]+$ && "$UPGRADE_ALLOWLIST" != /* && "$UPGRADE_ALLOWLIST" != *..* ]] || { echo "Invalid reviewed allowlist path." >&2; exit 1; }
+            test -f "$UPGRADE_ALLOWLIST"
+            composer update --working-dir=baseline-source --no-interaction --no-progress --prefer-dist --prefer-stable
+            cp baseline-source/composer.lock baseline.lock
+            UPGRADE_ALLOWLIST_PATH="$UPGRADE_ALLOWLIST" php -r '
+              require "vendor/autoload.php";
+              $review = json_decode((string) file_get_contents(getenv("UPGRADE_ALLOWLIST_PATH")), true, flags: JSON_THROW_ON_ERROR);
+              if (!is_array($review) || ($review["format"] ?? null) !== 1 || !is_array($review["allowed_changes"] ?? null)) {
+                throw new InvalidArgumentException("Reviewed dependency-upgrade policy is invalid.");
+              }
+              \Infocyph\Foundation\Benchmarks\Support\Foundation4HostUpgradeEvidence::review(
+                \Infocyph\Foundation\Benchmarks\Support\Foundation4HostUpgradeEvidence::fromLock("baseline.lock"),
+                \Infocyph\Foundation\Benchmarks\Support\Foundation4HostUpgradeEvidence::fromLock("candidate.lock"),
+                $review["allowed_changes"],
+              );
+            '
+          else
+            cp candidate.lock baseline.lock
+          fi
       - uses: actions/upload-artifact@v7
         with:
-          name: foundation4-paired-host-lock
-          path: composer.lock
+          name: foundation4-paired-host-locks
+          path: |
+            baseline.lock
+            candidate.lock
           if-no-files-found: error
 
   paired-host:
@@ -257,12 +299,12 @@ jobs:
           docker update --cpuset-cpus 1 '${{ job.services.postgres.id }}' '${{ job.services.redis.id }}'
       - uses: actions/download-artifact@v7
         with:
-          name: foundation4-paired-host-lock
+          name: foundation4-paired-host-locks
           path: locked-dependencies
-      - name: Prepare identical dependencies, benchmark tooling and isolated datasets
+      - name: Prepare reviewed dependencies, identical tooling and isolated datasets
         run: |
-          cp locked-dependencies/composer.lock candidate/composer.lock
-          cp locked-dependencies/composer.lock baseline/composer.lock
+          cp locked-dependencies/candidate.lock candidate/composer.lock
+          cp locked-dependencies/baseline.lock baseline/composer.lock
           cp -a candidate/benchmarks/. baseline/benchmarks/
           composer install --working-dir=candidate --no-interaction --no-progress --prefer-dist
           composer install --working-dir=baseline --no-interaction --no-progress --prefer-dist
@@ -313,7 +355,7 @@ jobs:
             }
             echo json_encode($settings, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), PHP_EOL;
           ' > evidence/php-runtime-settings.json
-          sha256sum locked-dependencies/composer.lock > evidence/composer-lock.sha256
+          sha256sum locked-dependencies/baseline.lock locked-dependencies/candidate.lock > evidence/composer-lock.sha256
           lscpu > evidence/cpu.txt
       - uses: actions/upload-artifact@v7
         if: always()
@@ -350,20 +392,30 @@ jobs:
           coverage: none
       - uses: actions/download-artifact@v7
         with:
-          name: foundation4-paired-host-lock
-      - run: composer install --no-interaction --no-progress --prefer-dist
+          name: foundation4-paired-host-locks
+      - run: |
+          cp candidate.lock composer.lock
+          composer install --no-interaction --no-progress --prefer-dist
       - uses: actions/download-artifact@v7
         with:
           pattern: foundation4-pair-${{ matrix.batch }}-*
           path: build/paired-input
       - name: Enforce complete matched-host matrix and unchanged budgets
+        env:
+          COMPARISON_MODE: ${{ inputs.comparison_mode || 'source-only' }}
+          UPGRADE_ALLOWLIST: ${{ inputs.upgrade_allowlist_path }}
         run: |
           mkdir -p build/paired-comparison
           php benchmarks/foundation4-module-cli-compare.php \
             build/paired-input/foundation4-pair-${{ matrix.batch }}-fpm-1-1/baseline/module-cli.json \
             build/paired-input/foundation4-pair-${{ matrix.batch }}-fpm-1-1/candidate/module-cli.json \
             build/paired-comparison/module-cli-comparison.json
-          php benchmarks/foundation4-host-merge.php build/paired-input build/paired-comparison/comparison.json
+          if [[ "$COMPARISON_MODE" == dependency-upgrade ]]; then
+            php benchmarks/foundation4-host-merge.php build/paired-input build/paired-comparison/comparison.json \
+              baseline.lock candidate.lock "$UPGRADE_ALLOWLIST"
+          else
+            php benchmarks/foundation4-host-merge.php build/paired-input build/paired-comparison/comparison.json
+          fi
       - uses: actions/upload-artifact@v7
         if: always()
         with:

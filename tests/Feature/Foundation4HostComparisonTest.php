@@ -297,3 +297,43 @@ it('rejects unreviewed extra package changes in dependency upgrade reports', fun
     expect(fn() => Foundation4HostComparison::compare($baseline, $candidate, $evidence))
         ->toThrow(InvalidArgumentException::class, 'Unreviewed or mismatched');
 });
+
+
+it('derives deterministic Composer package/reference identities from a real lock file', function (): void {
+    $file = tempnam(sys_get_temp_dir(), 'foundation-lock-evidence-');
+    expect($file)->toBeString();
+    $lock = [
+        'packages' => [[
+            'name' => 'infocyph/runwire',
+            'version' => '3.0.0',
+            'source' => ['reference' => str_repeat('c', 40)],
+            'dist' => ['reference' => str_repeat('d', 40)],
+        ]],
+        'packages-dev' => [[
+            'name' => 'phpstan/phpstan',
+            'version' => '2.1.0',
+        ]],
+    ];
+
+    try {
+        $contents = json_encode($lock, JSON_THROW_ON_ERROR);
+        file_put_contents($file, $contents);
+        $manifest = \Infocyph\Foundation\Benchmarks\Support\Foundation4HostUpgradeEvidence::fromLock($file);
+        expect($manifest['sha256'])->toBe(hash('sha256', $contents))
+            ->and($manifest['packages']['infocyph/runwire'])->toBe([
+                'version' => '3.0.0',
+                'source_ref' => str_repeat('c', 40),
+                'dist_ref' => str_repeat('d', 40),
+            ])
+            ->and($manifest['packages']['phpstan/phpstan']['source_ref'])->toBeNull();
+
+        $lock['packages-dev'][] = $lock['packages'][0];
+        file_put_contents($file, json_encode($lock, JSON_THROW_ON_ERROR));
+        expect(fn() => \Infocyph\Foundation\Benchmarks\Support\Foundation4HostUpgradeEvidence::fromLock($file))
+            ->toThrow(InvalidArgumentException::class, 'Duplicate Composer package');
+    } finally {
+        if (is_file($file)) {
+            unlink($file);
+        }
+    }
+});

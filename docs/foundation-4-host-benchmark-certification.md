@@ -41,6 +41,56 @@ The dedicated-host procedure below remains available for controlled reproduction
 and deployment-specific capacity validation. Routine PR smoke and local Docker
 results remain diagnostic.
 
+## Separate source-only and dependency-upgrade verdicts
+
+The manual paired-host workflow accepts **two distinct modes**. The default
+\`source-only\` mode uses the same resolved Composer lock in both checkouts and
+still rejects any differing lock SHA-256. The \`dependency-upgrade\` mode resolves
+independent baseline and candidate locks, keeping the same benchmark tooling,
+workload fixture, PHP/INI, services, host CPU allocation and baseline/candidate
+run order. It does **not** rewrite the old stack to use the candidate lock.
+
+For an upgrade run, commit a reviewed JSON policy into the candidate source and
+provide its relative path through \`upgrade_allowlist_path\`. Its format is:
+
+\`\`\`json
+{
+  "format": 1,
+  "allowed_changes": {
+    "infocyph/runwire": {
+      "before": {
+        "version": "EXACT_BASELINE_VERSION",
+        "source_ref": "EXACT_BASELINE_SOURCE_SHA",
+        "dist_ref": "EXACT_BASELINE_DIST_SHA"
+      },
+      "after": {
+        "version": "EXACT_CANDIDATE_VERSION",
+        "source_ref": "EXACT_CANDIDATE_SOURCE_SHA",
+        "dist_ref": "EXACT_CANDIDATE_DIST_SHA"
+      }
+    }
+  }
+}
+\`\`\`
+
+Replace these placeholders with the exact Composer lock identities for **every
+changed package**, including dev/tooling dependencies, and \`null\` where a source
+or dist reference is absent. A package addition/removal uses \`null\` as the entire
+\`before\`/\`after\` identity. The prepare job derives both lock manifests from
+actual Composer files and refuses any missing, unexpected or mismatched change
+*before* launching the expensive 24-job matrix. The final report separately
+labels \`comparison_kind: dependency_upgrade\` and lists the changed package
+names. Identical locks, tool/fixture drift, invalid load evidence, unfinished
+soaks, unstable throughput or a >2% successful-RPM regression still block a
+verdict.
+
+This distinction matters: a source-only pass cannot validate the old-to-new
+dependency cutover, and a whole-upgrade pass cannot substitute for a same-lock
+source attribution result. Record both immutable locks and both comparisons
+with the PR. No benchmark certification is claimed until the two primary and
+confirmation matrices actually finish with acceptable evidence.
+
+
 ## Measurements already automated
 
 `benchmarks/foundation4-host-certify.sh` compiles a trusted Foundation Webrick/InterMix generation and launches real Nginx/PHP-FPM and native Runwire listeners. It validates each HTTP/1.1 status and response body, tests concurrency 1/10/50 with one/four workers, samples process-tree CPU and RSS during load, and exercises failed-request recovery, client cancellation, and prefork worker replacement.
