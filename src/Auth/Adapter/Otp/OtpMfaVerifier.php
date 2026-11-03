@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\Otp;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Auth\Mfa\MfaChallenge;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
@@ -13,6 +14,8 @@ use Infocyph\Foundation\Auth\Mfa\MfaVerifierInterface;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\OTP\HOTP;
 use Infocyph\OTP\OCRA;
+use Infocyph\OTP\Support\RunwireState;
+use Infocyph\Runwire\Exception\CancelledException;
 use Infocyph\OTP\Result\VerificationResult;
 use Infocyph\OTP\TOTP;
 use Infocyph\OTP\ValueObjects\VerificationWindow;
@@ -45,6 +48,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_disabled');
         }
 
+        RunwireState::checkpoint(CacheRunwire::current());
         try {
             return match ($factor->type) {
                 MfaFactorType::AOTP->value => $this->challengeFactors->verifyAotp($factor, $challenge, $code),
@@ -55,6 +59,8 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
                 MfaFactorType::TOTP->value => $this->verifyTotp($factor, $code),
                 default => new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_unsupported'),
             };
+        } catch (CancelledException $exception) {
+            throw $exception;
         } catch (\Throwable) {
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
         }
@@ -62,12 +68,15 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
 
     public function verifyEnrollment(MfaFactor $factor, string $code): MfaVerificationResult
     {
+        RunwireState::checkpoint(CacheRunwire::current());
         try {
             return match ($factor->type) {
                 MfaFactorType::MOBILE_OTP->value => $this->challengeFactors->verifyLegacyMobile($factor, $code),
                 MfaFactorType::TOTP->value => $this->verifyTotp($factor, $code),
                 default => new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_unsupported'),
             };
+        } catch (CancelledException $exception) {
+            throw $exception;
         } catch (\Throwable) {
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
         }
@@ -83,6 +92,8 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
 
         $otp['counter'] = $counter;
         $metadata['otp'] = $otp;
+
+        RunwireState::checkpoint(CacheRunwire::current());
 
         return $this->factors->compareAndSwap($factor, $factor->withMetadata($metadata));
     }
@@ -246,6 +257,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
             cache: $suite->counterEnabled ? null : $this->challengeFactors->stateCache(),
             factorId: $suite->counterEnabled ? null : $this->factorBinding($factor, $config['secret']),
             replayTtl: $suite->counterEnabled ? null : $this->ocraReplayTtl,
+            runwire: CacheRunwire::current(),
         );
 
         if (!$result->matched) {
@@ -286,6 +298,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
             window: VerificationWindow::symmetric($config['window']),
             cache: $this->challengeFactors->stateCache(),
             factorId: $this->factorBinding($factor, $config['secret']),
+            runwire: CacheRunwire::current(),
         );
 
         if (!$result->matched) {

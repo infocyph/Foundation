@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\Otp;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface;
 use Infocyph\Foundation\Auth\Mfa\MfaChallenge;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
@@ -34,12 +35,13 @@ final readonly class OtpChallengeFactorService
             $factor->id,
             $context,
             $ttlSeconds,
+            runwire: CacheRunwire::current(),
         );
     }
 
     public function issueGrid(MfaFactor $factor): GridChallenge
     {
-        return $this->grid($factor)->issue($factor->id);
+        return $this->grid($factor)->issue($factor->id, runwire: CacheRunwire::current());
     }
 
     public function stateCache(): AuthenticationStateCacheInterface
@@ -82,6 +84,7 @@ final readonly class OtpChallengeFactorService
             $factor->id,
             $challenge,
             $response,
+            runwire: CacheRunwire::current(),
         );
 
         return $this->verification($factor, $result);
@@ -104,7 +107,7 @@ final readonly class OtpChallengeFactorService
     ): MfaVerificationResult {
         return $this->verification(
             $factor,
-            $this->grid($factor)->verifyWithResult($factor->id, $challenge, $response),
+            $this->grid($factor)->verifyWithResult($factor->id, $challenge, $response, runwire: CacheRunwire::current()),
         );
     }
 
@@ -130,6 +133,7 @@ final readonly class OtpChallengeFactorService
                 'sha3-256',
                 "foundation:otp-mobile:v1\0" . $factor->id . "\0" . $this->requiredString($config, 'secret'),
             ),
+            runwire: CacheRunwire::current(),
         );
 
         return $this->verification($factor, $result);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\Otp;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
@@ -51,6 +52,7 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
             credentialRecordJson: $this->credentialRecordJson($credential),
             credentialJson: $credentialJson,
             now: $this->clock->now(),
+            runwire: CacheRunwire::current(),
         );
 
         if (!$verification->matched) {
@@ -78,6 +80,7 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
             ceremonyId: $result->challengeId,
             credentialJson: $this->credentialJson($result->metadata),
             now: $this->clock->now(),
+            runwire: CacheRunwire::current(),
         );
 
         if (!$verification->matched || $verification->credentialId === null || $verification->credentialRecordJson === null) {
@@ -120,6 +123,7 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
             credentialRecordsJson: $records,
             userHandle: $userHandle,
             now: $now,
+            runwire: CacheRunwire::current(),
         );
 
         return $this->challenge($ceremony, $accountId, $now);
@@ -146,6 +150,7 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
             displayName: $displayName,
             existingCredentialRecordsJson: $this->activeCredentialRecords($accountId),
             now: $now,
+            runwire: CacheRunwire::current(),
         );
 
         return $this->challenge($ceremony, $accountId, $now);
