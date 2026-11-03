@@ -6,6 +6,7 @@ their domain behavior.
 
 - [Architecture and lifecycle](architecture.md)
 - [Foundation 4 release notes](foundation-4.0-release-notes.md)
+- [Foundation 4 library upgrade and audit plan](foundation-4-library-upgrade-plan.md)
 - [Foundation 4 setup and runtime guide](foundation-4-migration.md)
 - [Foundation 4 public/provider/config contract](foundation-4-api-map.md)
 - [Foundation 4 state-integrity and recovery](foundation-4-retained-data-rehearsal.md)
