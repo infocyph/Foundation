@@ -69,12 +69,12 @@ final class ModuleCatalog
         'auth' => [
             'packages' => [
                 'infocyph/otp' => [
-                    'constraint' => '^7.0',
+                    'constraint' => '^7.0.1',
                     'role' => 'feature',
                     'features' => ['otp', 'passkey'],
                 ],
                 'web-auth/webauthn-lib' => [
-                    'constraint' => '^5.3.9',
+                    'constraint' => '^5.3.12',
                     'role' => 'feature',
                     'features' => ['passkey'],
                 ],
@@ -189,7 +189,7 @@ final class ModuleCatalog
         'communication' => [
             'packages' => [
                 'infocyph/talkingbytes' => [
-                    'constraint' => '^2.3',
+                    'constraint' => '^2.3.1',
                     'role' => 'required',
                     'features' => [],
                 ],
@@ -225,7 +225,7 @@ final class ModuleCatalog
         'database' => [
             'packages' => [
                 'infocyph/dblayer' => [
-                    'constraint' => '^6.1.2',
+                    'constraint' => '^6.1.4',
                     'role' => 'required',
                     'features' => [],
                 ],
@@ -245,7 +245,7 @@ final class ModuleCatalog
         'filesystem' => [
             'packages' => [
                 'infocyph/pathwise' => [
-                    'constraint' => '^4.2',
+                    'constraint' => '^4.2.1',
                     'role' => 'required',
                     'features' => [],
                 ],
@@ -345,7 +345,7 @@ final class ModuleCatalog
         'messaging' => [
             'packages' => [
                 'infocyph/omnibus' => [
-                    'constraint' => '^3.0.2',
+                    'constraint' => '^3.0.3',
                     'role' => 'required',
                     'features' => [],
                 ],
@@ -437,7 +437,7 @@ final class ModuleCatalog
         'security' => [
             'packages' => [
                 'infocyph/epicrypt' => [
-                    'constraint' => '^3.2',
+                    'constraint' => '^3.3.1',
                     'role' => 'required',
                     'features' => [],
                 ],
