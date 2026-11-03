@@ -22,12 +22,12 @@ use Infocyph\Omnibus\MessageBus;
 use Infocyph\Omnibus\Transport\InMemoryTransport;
 use Infocyph\Omnibus\Transport\TransportRegistry;
 
-final readonly class FoundationOmnibus26ReleaseMessage
+final readonly class FoundationMessagingReleaseMessage
 {
     public function __construct(public string $value) {}
 }
 
-final class FoundationOmnibus26CommandStateProvider extends ServiceProvider
+final class FoundationMessagingCommandStateProvider extends ServiceProvider
 {
     public static ?FailureStore $failures = null;
 
@@ -53,14 +53,14 @@ final class FoundationOmnibus26CommandStateProvider extends ServiceProvider
     }
 }
 
-final class FoundationOmnibus26RestartingHandler
+final class FoundationMessagingRestartingHandler
 {
     /** @var list<string> */
     public static array $handled = [];
 
     public function __construct(private readonly Application $application) {}
 
-    public function __invoke(FoundationOmnibus26ReleaseMessage $message): void
+    public function __invoke(FoundationMessagingReleaseMessage $message): void
     {
         self::$handled[] = $message->value;
         if (count(self::$handled) === 1) {
@@ -69,7 +69,7 @@ final class FoundationOmnibus26RestartingHandler
     }
 }
 
-final class FoundationOmnibus26CommandIO implements CommandIO
+final class FoundationMessagingCommandIO implements CommandIO
 {
     /** @var list<string> */
     public array $errors = [];
@@ -140,49 +140,49 @@ final class FoundationOmnibus26CommandIO implements CommandIO
 }
 
 beforeEach(function (): void {
-    FoundationOmnibus26CommandStateProvider::$failures = null;
-    FoundationOmnibus26CommandStateProvider::$transports = null;
-    FoundationOmnibus26RestartingHandler::$handled = [];
+    FoundationMessagingCommandStateProvider::$failures = null;
+    FoundationMessagingCommandStateProvider::$transports = null;
+    FoundationMessagingRestartingHandler::$handled = [];
 });
 
 afterEach(function (): void {
-    FoundationOmnibus26CommandStateProvider::$failures = null;
-    FoundationOmnibus26CommandStateProvider::$transports = null;
+    FoundationMessagingCommandStateProvider::$failures = null;
+    FoundationMessagingCommandStateProvider::$transports = null;
 });
 
 it('executes Omnibus failure administration and queue monitoring through the real command dispatcher', function (): void {
-    $project = foundationOmnibus26ReleaseProject('commands');
+    $project = foundationMessagingReleaseProject('commands');
     $clock = new SystemClock();
     $failures = new InMemoryFailureStore($clock);
     $transport = new InMemoryTransport($clock);
-    FoundationOmnibus26CommandStateProvider::$failures = $failures;
-    FoundationOmnibus26CommandStateProvider::$transports = new TransportRegistry(['shared' => $transport]);
+    FoundationMessagingCommandStateProvider::$failures = $failures;
+    FoundationMessagingCommandStateProvider::$transports = new TransportRegistry(['shared' => $transport]);
 
-    $failures->add(foundationOmnibus26Failure('retry-me', 'retry', '-5 minutes'));
-    $failures->add(foundationOmnibus26Failure('old-one', 'old', '-3 days'));
-    $failures->add(foundationOmnibus26Failure('forget-me', 'forget', 'now'));
+    $failures->add(foundationMessagingFailure('retry-me', 'retry', '-5 minutes'));
+    $failures->add(foundationMessagingFailure('old-one', 'old', '-3 days'));
+    $failures->add(foundationMessagingFailure('forget-me', 'forget', 'now'));
 
     $dispatcher = CommandDispatcher::project([
         'base_path' => $project,
         'app' => ['base_path' => $project, 'env' => 'testing'],
-        'providers' => ['common' => [FoundationOmnibus26CommandStateProvider::class]],
+        'providers' => ['common' => [FoundationMessagingCommandStateProvider::class]],
         'messaging' => ['consumer' => ['transport' => 'shared']],
     ], manifestPath: $project . '/bootstrap/cache/commands.php', routesPath: $project . '/routes/console.php');
 
     try {
-        $listed = new FoundationOmnibus26CommandIO();
+        $listed = new FoundationMessagingCommandIO();
         $status = $dispatcher->run(['infbyte', 'queue:failed', '--limit=10'], $listed);
         expect($listed->errors)->toBe([])
             ->and($status)->toBe(ExitCode::SUCCESS)
             ->and($listed->json)->toHaveCount(1)
             ->and($listed->json[0])->toHaveCount(3);
 
-        $shown = new FoundationOmnibus26CommandIO();
+        $shown = new FoundationMessagingCommandIO();
         expect($dispatcher->run(['infbyte', 'queue:failed:show', 'retry-me'], $shown))->toBe(ExitCode::SUCCESS)
             ->and($shown->json[0]['id'] ?? null)->toBe('retry-me')
             ->and($shown->json[0]['decoded'] ?? null)->toBeTrue();
 
-        $retried = new FoundationOmnibus26CommandIO();
+        $retried = new FoundationMessagingCommandIO();
         expect($dispatcher->run([
             'infbyte',
             'queue:retry',
@@ -194,7 +194,7 @@ it('executes Omnibus failure administration and queue monitoring through the rea
             ->and($transport->size('retried'))->toBe(1)
             ->and($retried->json[0]['queue'] ?? null)->toBe('retried');
 
-        $monitored = new FoundationOmnibus26CommandIO();
+        $monitored = new FoundationMessagingCommandIO();
         expect($dispatcher->run([
             'infbyte',
             'queue:monitor',
@@ -207,36 +207,36 @@ it('executes Omnibus failure administration and queue monitoring through the rea
                 'size' => 1,
             ]);
 
-        $pruned = new FoundationOmnibus26CommandIO();
+        $pruned = new FoundationMessagingCommandIO();
         expect($dispatcher->run(['infbyte', 'queue:prune-failed', '--hours=24'], $pruned))->toBe(ExitCode::SUCCESS)
             ->and($failures->find('old-one'))->toBeNull()
             ->and($pruned->json[0]['pruned'] ?? null)->toBe(1);
 
-        $forgotten = new FoundationOmnibus26CommandIO();
+        $forgotten = new FoundationMessagingCommandIO();
         expect($dispatcher->run(['infbyte', 'queue:forget', 'forget-me'], $forgotten))->toBe(ExitCode::SUCCESS)
             ->and($failures->find('forget-me'))->toBeNull();
 
-        $failures->add(foundationOmnibus26Failure('flush-a', 'a', 'now'));
-        $failures->add(foundationOmnibus26Failure('flush-b', 'b', 'now'));
-        $denied = new FoundationOmnibus26CommandIO();
+        $failures->add(foundationMessagingFailure('flush-a', 'a', 'now'));
+        $failures->add(foundationMessagingFailure('flush-b', 'b', 'now'));
+        $denied = new FoundationMessagingCommandIO();
         expect($dispatcher->run(['infbyte', 'queue:flush', '--no-interaction'], $denied))->toBe(ExitCode::FAILURE)
             ->and($failures->all())->toHaveCount(2)
             ->and($denied->errors)->toContain(
                 'This destructive queue operation requires --force in non-interactive mode.',
             );
 
-        $flushed = new FoundationOmnibus26CommandIO();
+        $flushed = new FoundationMessagingCommandIO();
         expect($dispatcher->run(['infbyte', 'queue:flush', '--no-interaction', '--force'], $flushed))
             ->toBe(ExitCode::SUCCESS)
             ->and($failures->all())->toBe([])
             ->and($flushed->json[0]['flushed'] ?? null)->toBe(2);
     } finally {
-        foundationOmnibus26ReleaseRemove($project);
+        foundationMessagingReleaseRemove($project);
     }
 });
 
 it('gracefully stops an Omnibus message worker after a named restart signal and leaves later work queued', function (): void {
-    $project = foundationOmnibus26ReleaseProject('restart');
+    $project = foundationMessagingReleaseProject('restart');
     $app = Foundation::worker([
         'app' => ['base_path' => $project, 'env' => 'testing'],
         'operations' => [
@@ -244,9 +244,9 @@ it('gracefully stops an Omnibus message worker after a named restart signal and 
             'runtime_registry' => ['path' => 'storage/framework/runtime', 'stale_seconds' => 15],
         ],
         'messaging' => [
-            'handlers' => [FoundationOmnibus26ReleaseMessage::class => FoundationOmnibus26RestartingHandler::class],
+            'handlers' => [FoundationMessagingReleaseMessage::class => FoundationMessagingRestartingHandler::class],
             'routes' => [
-                FoundationOmnibus26ReleaseMessage::class => ['transport' => 'memory', 'queue' => 'jobs'],
+                FoundationMessagingReleaseMessage::class => ['transport' => 'memory', 'queue' => 'jobs'],
             ],
             'consumer' => ['transport' => 'memory'],
             'retry' => [
@@ -275,11 +275,11 @@ it('gracefully stops an Omnibus message worker after a named restart signal and 
 
     try {
         $bus = $app->make(MessageBus::class);
-        $bus->dispatch(new FoundationOmnibus26ReleaseMessage('first'));
-        $bus->dispatch(new FoundationOmnibus26ReleaseMessage('second'));
+        $bus->dispatch(new FoundationMessagingReleaseMessage('first'));
+        $bus->dispatch(new FoundationMessagingReleaseMessage('second'));
 
         expect(new WorkerManager($app)->run('jobs'))->toBe(0)
-            ->and(FoundationOmnibus26RestartingHandler::$handled)->toBe(['first'])
+            ->and(FoundationMessagingRestartingHandler::$handled)->toBe(['first'])
             ->and(new RuntimeProcessRegistry($app)->all('worker', 'jobs'))->toBe([]);
 
         $transport = $app->make(TransportRegistry::class)->get('memory');
@@ -289,16 +289,16 @@ it('gracefully stops an Omnibus message worker after a named restart signal and 
         }
         expect($transport->size('jobs'))->toBe(1);
     } finally {
-        foundationOmnibus26ReleaseRemove($project);
+        foundationMessagingReleaseRemove($project);
     }
 });
 
-function foundationOmnibus26Failure(string $id, string $value, string $failedAt): FailedMessage
+function foundationMessagingFailure(string $id, string $value, string $failedAt): FailedMessage
 {
     return FailedMessage::decoded(
         $id,
         'failed',
-        Envelope::wrap(new FoundationOmnibus26ReleaseMessage($value)),
+        Envelope::wrap(new FoundationMessagingReleaseMessage($value)),
         1,
         new DateTimeImmutable($failedAt),
         RuntimeException::class,
@@ -306,7 +306,7 @@ function foundationOmnibus26Failure(string $id, string $value, string $failedAt)
     );
 }
 
-function foundationOmnibus26ReleaseProject(string $name): string
+function foundationMessagingReleaseProject(string $name): string
 {
     $project = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR
         . 'foundation-omnibus-26-' . $name . '-' . bin2hex(random_bytes(5));
@@ -315,7 +315,7 @@ function foundationOmnibus26ReleaseProject(string $name): string
     return $project;
 }
 
-function foundationOmnibus26ReleaseRemove(string $directory): void
+function foundationMessagingReleaseRemove(string $directory): void
 {
     if (!is_dir($directory)) {
         return;

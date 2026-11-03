@@ -11,17 +11,17 @@ use Infocyph\DBLayer\Monitoring\DatabaseMonitor;
 use Infocyph\DBLayer\Schema\Blueprint;
 use Infocyph\DBLayer\Schema\SchemaManager;
 
-final class FoundationDBLayer5FirstMigration implements Migration
+final class FoundationDBLayerFirstMigration implements Migration
 {
     public function id(): string
     {
-        return '20260825000100_create_foundation_dblayer5_first';
+        return '20260825000100_create_foundation_dblayer_first';
     }
 
     public function up(SchemaManager $schema, MigrationContext $context): void
     {
         $context->checkpoint();
-        $schema->create('foundation_dblayer5_first', static function (Blueprint $table): void {
+        $schema->create('foundation_dblayer_first', static function (Blueprint $table): void {
             $table->increments();
             $table->string('value');
         });
@@ -30,21 +30,21 @@ final class FoundationDBLayer5FirstMigration implements Migration
     public function down(SchemaManager $schema, MigrationContext $context): void
     {
         $context->checkpoint();
-        $schema->dropIfExists('foundation_dblayer5_first');
+        $schema->dropIfExists('foundation_dblayer_first');
     }
 }
 
-final class FoundationDBLayer5SecondMigration implements Migration
+final class FoundationDBLayerSecondMigration implements Migration
 {
     public function id(): string
     {
-        return '20260825000200_create_foundation_dblayer5_second';
+        return '20260825000200_create_foundation_dblayer_second';
     }
 
     public function up(SchemaManager $schema, MigrationContext $context): void
     {
         $context->checkpoint();
-        $schema->create('foundation_dblayer5_second', static function (Blueprint $table): void {
+        $schema->create('foundation_dblayer_second', static function (Blueprint $table): void {
             $table->increments();
             $table->string('value');
         });
@@ -53,53 +53,53 @@ final class FoundationDBLayer5SecondMigration implements Migration
     public function down(SchemaManager $schema, MigrationContext $context): void
     {
         $context->checkpoint();
-        $schema->dropIfExists('foundation_dblayer5_second');
+        $schema->dropIfExists('foundation_dblayer_second');
     }
 }
 
-it('preserves DBLayer 5 pretend, step batches, exact rollback, refresh and reset semantics', function (): void {
+it('preserves DBLayer 6.1 pretend, step batches, exact rollback, refresh and reset semantics', function (): void {
     DB::purge();
     $connection = DB::addConnection(ConnectionConfig::fromArray([
         'driver' => 'sqlite',
         'database' => ':memory:',
     ]));
     $schema = new SchemaManager($connection);
-    $first = new FoundationDBLayer5FirstMigration();
-    $second = new FoundationDBLayer5SecondMigration();
+    $first = new FoundationDBLayerFirstMigration();
+    $second = new FoundationDBLayerSecondMigration();
     $runner = new MigrationRunner($connection, [$first, $second]);
 
     try {
         $preview = $runner->pretend();
 
         expect($preview)->toHaveKeys([$first->id(), $second->id()])
-            ->and($schema->hasTable('foundation_dblayer5_first'))->toBeFalse()
-            ->and($schema->hasTable('foundation_dblayer5_second'))->toBeFalse()
+            ->and($schema->hasTable('foundation_dblayer_first'))->toBeFalse()
+            ->and($schema->hasTable('foundation_dblayer_second'))->toBeFalse()
             ->and($runner->run(step: true))->toBe([$first->id(), $second->id()])
             ->and($runner->status())->toBe([
                 ['id' => $first->id(), 'applied' => true, 'batch' => 1],
                 ['id' => $second->id(), 'applied' => true, 'batch' => 2],
             ])
             ->and($runner->rollbackBatch(1))->toBe([$first->id()])
-            ->and($schema->hasTable('foundation_dblayer5_first'))->toBeFalse()
-            ->and($schema->hasTable('foundation_dblayer5_second'))->toBeTrue()
+            ->and($schema->hasTable('foundation_dblayer_first'))->toBeFalse()
+            ->and($schema->hasTable('foundation_dblayer_second'))->toBeTrue()
             ->and($runner->status())->toBe([
                 ['id' => $first->id(), 'applied' => false, 'batch' => null],
                 ['id' => $second->id(), 'applied' => true, 'batch' => 2],
             ])
             ->and($runner->rollback(1))->toBe([$second->id()])
             ->and($runner->fresh(true))->toBe([$first->id(), $second->id()])
-            ->and($schema->hasTable('foundation_dblayer5_first'))->toBeTrue()
-            ->and($schema->hasTable('foundation_dblayer5_second'))->toBeTrue()
+            ->and($schema->hasTable('foundation_dblayer_first'))->toBeTrue()
+            ->and($schema->hasTable('foundation_dblayer_second'))->toBeTrue()
             ->and($runner->refresh(true))->toBe([$first->id(), $second->id()])
             ->and($runner->reset(true))->toBe([$second->id(), $first->id()])
-            ->and($schema->hasTable('foundation_dblayer5_first'))->toBeFalse()
-            ->and($schema->hasTable('foundation_dblayer5_second'))->toBeFalse();
+            ->and($schema->hasTable('foundation_dblayer_first'))->toBeFalse()
+            ->and($schema->hasTable('foundation_dblayer_second'))->toBeFalse();
     } finally {
         DB::purge();
     }
 });
 
-it('keeps DBLayer 5 schema wipe and monitor surfaces compatible with Foundation commands', function (): void {
+it('keeps DBLayer 6.1 schema wipe and monitor surfaces compatible with Foundation commands', function (): void {
     DB::purge();
     $connection = DB::addConnection(ConnectionConfig::fromArray([
         'driver' => 'sqlite',
@@ -108,7 +108,7 @@ it('keeps DBLayer 5 schema wipe and monitor surfaces compatible with Foundation 
     $schema = new SchemaManager($connection);
 
     try {
-        $schema->create('foundation_dblayer5_wipe', static function (Blueprint $table): void {
+        $schema->create('foundation_dblayer_wipe', static function (Blueprint $table): void {
             $table->increments();
         });
 
@@ -129,11 +129,11 @@ it('keeps DBLayer 5 schema wipe and monitor surfaces compatible with Foundation 
                 'replication',
                 'errors',
             ])
-            ->and($schema->hasTable('foundation_dblayer5_wipe'))->toBeTrue();
+            ->and($schema->hasTable('foundation_dblayer_wipe'))->toBeTrue();
 
         $schema->dropAllTables(true);
 
-        expect($schema->hasTable('foundation_dblayer5_wipe'))->toBeFalse();
+        expect($schema->hasTable('foundation_dblayer_wipe'))->toBeFalse();
     } finally {
         DB::purge();
     }

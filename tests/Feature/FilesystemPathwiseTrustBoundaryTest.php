@@ -12,8 +12,8 @@ use Infocyph\Pathwise\StreamHandler\UploadTrustProfile;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Body\FileBody;
 
-it('applies the Pathwise 4.1 untrusted upload profile to Webrick-facing transfers', function (): void {
-    $basePath = foundationPathwise41Base('upload');
+it('applies the Pathwise 4.2.1 untrusted upload profile to Webrick-facing transfers', function (): void {
+    $basePath = foundationPathwiseBase('upload');
 
     try {
         $app = Foundation::web([
@@ -32,7 +32,7 @@ it('applies the Pathwise 4.1 untrusted upload profile to Webrick-facing transfer
             ->and($info['namingStrategy'])->toBe('hash')
             ->and($info['strictContentTypeValidation'])->toBeTrue();
 
-        $source = tempnam(sys_get_temp_dir(), 'foundation-pathwise41-');
+        $source = tempnam(sys_get_temp_dir(), 'foundation-pathwise-');
         if ($source === false) {
             throw new RuntimeException('Unable to allocate the upload source.');
         }
@@ -65,12 +65,12 @@ it('applies the Pathwise 4.1 untrusted upload profile to Webrick-facing transfer
             unlink($source);
         }
     } finally {
-        foundationPathwise41Remove($basePath);
+        foundationPathwiseRemove($basePath);
     }
 });
 
 it('resolves public files through Pathwise before Webrick owns the response', function (): void {
-    $basePath = foundationPathwise41Base('public');
+    $basePath = foundationPathwiseBase('public');
     mkdir($basePath . '/public/assets', 0775, true);
     file_put_contents($basePath . '/public/assets/app.css', 'body{display:block}');
     file_put_contents($basePath . '/private.txt', 'private');
@@ -107,19 +107,19 @@ it('resolves public files through Pathwise before Webrick owns the response', fu
             unlink($link);
         }
     } finally {
-        foundationPathwise41Remove($basePath);
+        foundationPathwiseRemove($basePath);
     }
 });
 
-function foundationPathwise41Base(string $suffix): string
+function foundationPathwiseBase(string $suffix): string
 {
-    $base = sys_get_temp_dir() . '/foundation-pathwise41-' . $suffix . '-' . bin2hex(random_bytes(6));
+    $base = sys_get_temp_dir() . '/foundation-pathwise-' . $suffix . '-' . bin2hex(random_bytes(6));
     mkdir($base, 0775, true);
 
     return $base;
 }
 
-function foundationPathwise41Remove(string $directory): void
+function foundationPathwiseRemove(string $directory): void
 {
     if (!is_dir($directory)) {
         return;

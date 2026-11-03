@@ -31,6 +31,7 @@ The 90 implementation checkboxes below are acceptance criteria. Mark only entrie
 | Captured release-artifact bytes | Pending verification | Added an authenticated private-copy execution proof and tamper-after-signing rejection without executing the substituted payload | Verify stable/lowest PHP 8.4/8.5 tests before closing trust edge |
 | Process stdin cancellation and early exit | Pending verification | Added active cancellation during blocked writes plus early child exit checks; existing no-read and output-before-input regressions retained | Verify timings and termination across both PHP lanes |
 | Sustained performance contract | `2790750c` | Comparator and fixture enforce 120-second trials rather than 60 | Full matched-host execution and separate dependency-upgrade evidence |
+| Retired test-label cleanup | Pending verification | Renamed DBLayer 5/Omnibus 2.6/Pathwise 4.1-labelled test owners to version-neutral contract names; retained their behaviors | Verify all migrated tests and references in QA |
 
 
 
