@@ -6,6 +6,8 @@ namespace Infocyph\Foundation\Security;
 
 use Infocyph\Epicrypt\DataProtection\FileProtector;
 use Infocyph\Epicrypt\DataProtection\ProtectionOptions;
+use Infocyph\Epicrypt\Integration\Runwire\RunwireExecutionContext;
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Application\Application;
 
 final readonly class EnvironmentFileProtector
@@ -134,11 +136,17 @@ final readonly class EnvironmentFileProtector
         $protector = new FileProtector();
         $options = new ProtectionOptions(self::PURPOSE, self::AAD);
         $key = $this->key($keyFile, $keyEnvironment);
+        $borrowed = CacheRunwire::current();
+        $runwire = $borrowed === null ? null : new RunwireExecutionContext(
+            $borrowed->runtime,
+            $borrowed->request,
+            $borrowed->scope,
+        );
 
         if ($protect) {
-            $protector->protect($source, $target, $key, $options);
+            $protector->protect($source, $target, $key, $options, context: $runwire);
         } else {
-            $protector->unprotect($source, $target, $key, $options);
+            $protector->unprotect($source, $target, $key, $options, context: $runwire);
         }
 
         return $target;

@@ -80,3 +80,39 @@ function foundationEnvironmentProtectionRemove(string $directory): void
     }
     rmdir($directory);
 }
+
+
+it('rejects cancelled borrowed Runwire context before writing an encrypted environment file', function (): void {
+    $root = sys_get_temp_dir() . '/foundation-env-runwire-' . bin2hex(random_bytes(6));
+    mkdir($root, 0700, true);
+    file_put_contents($root . '/.env', "APP_ENV=testing\n");
+    $environment = 'FOUNDATION_TEST_ENV_RUNWIRE_KEY';
+    $key = (new KeyMaterialGenerator())->forSecretStream();
+    putenv($environment . '=' . $key);
+    $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
+    $request = \Infocyph\Runwire\RequestContext::create($runtime);
+    \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::bind($runtime);
+
+    try {
+        $protector = new EnvironmentFileProtector(Foundation::cli(['app' => ['base_path' => $root]]));
+        \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
+            $request,
+            null,
+            static function () use ($protector, $request, $environment): void {
+                $request->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
+                expect(fn() => $protector->encrypt(
+                    input: '.env',
+                    output: '.env.encrypted',
+                    keyEnvironment: $environment,
+                ))->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
+            },
+            $runtime,
+        );
+    } finally {
+        $request->complete();
+        \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::release($runtime);
+        putenv($environment);
+        expect(is_file($root . '/.env.encrypted'))->toBeFalse();
+        foundationEnvironmentProtectionRemove($root);
+    }
+});
