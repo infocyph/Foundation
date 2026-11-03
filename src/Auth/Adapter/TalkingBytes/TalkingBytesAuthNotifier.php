@@ -68,6 +68,7 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
 
         return $recipient;
     }
+
     private function isCriticalByDefault(AuthNotificationType $type): bool
     {
         return in_array($type, [
@@ -112,6 +113,7 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         return in_array($notification->type->value, $this->criticalTypes, true)
             || $this->isCriticalByDefault($notification->type);
     }
+
     private function storedAddress(AccountInterface $account): ?string
     {
         foreach ([$account->identifier(), $account->metadata()['email'] ?? null] as $candidate) {
