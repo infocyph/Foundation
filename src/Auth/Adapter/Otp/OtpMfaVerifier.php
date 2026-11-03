@@ -14,11 +14,11 @@ use Infocyph\Foundation\Auth\Mfa\MfaVerifierInterface;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\OTP\HOTP;
 use Infocyph\OTP\OCRA;
-use Infocyph\OTP\Support\RunwireState;
-use Infocyph\Runwire\Exception\CancelledException;
 use Infocyph\OTP\Result\VerificationResult;
+use Infocyph\OTP\Support\RunwireState;
 use Infocyph\OTP\TOTP;
 use Infocyph\OTP\ValueObjects\VerificationWindow;
+use Infocyph\Runwire\Exception\CancelledException;
 
 final readonly class OtpMfaVerifier implements MfaVerifierInterface
 {

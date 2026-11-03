@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\Otp;
 
-use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface;
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Auth\Mfa\MfaChallenge;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Mfa\MfaVerificationResult;
