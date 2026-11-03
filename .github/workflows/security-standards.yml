@@ -124,7 +124,7 @@ jobs:
             ],
             "require": {
               "infocyph/foundation": "*",
-              "infocyph/dblayer": "^6.1.2"
+              "infocyph/dblayer": "^6.1.4"
             }
           }
           JSON
@@ -165,14 +165,14 @@ jobs:
             ],
             "require": {
               "infocyph/foundation": "*",
-              "infocyph/dblayer": "^6.1.2",
-              "infocyph/epicrypt": "^3.2",
-              "infocyph/omnibus": "^3.0.2",
-              "infocyph/otp": "^7.0",
-              "infocyph/pathwise": "^4.2",
-              "infocyph/reqshield": "^3.3",
-              "infocyph/talkingbytes": "^2.3",
-              "web-auth/webauthn-lib": "^5.3.9"
+              "infocyph/dblayer": "^6.1.4",
+              "infocyph/epicrypt": "^3.3",
+              "infocyph/omnibus": "^3.0.3",
+              "infocyph/otp": "^7.0.1",
+              "infocyph/pathwise": "^4.2.1",
+              "infocyph/reqshield": "^3.3.1",
+              "infocyph/talkingbytes": "^2.3.1",
+              "web-auth/webauthn-lib": "^5.3.12"
             }
           }
           JSON

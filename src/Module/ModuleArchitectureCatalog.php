@@ -46,7 +46,7 @@ final class ModuleArchitectureCatalog
                 'database' => [
                     'description' => 'DBLayer connections, queries, migrations and persistence.',
                     'owner' => 'infocyph/dblayer',
-                    'packages' => ['infocyph/dblayer' => '^6.1.2'],
+                    'packages' => ['infocyph/dblayer' => '^6.1.4'],
                     'config' => ['database.php'],
                     'schemas' => [],
                     'platform' => ['extensions' => ['pdo'], 'optional_extensions' => []],
@@ -56,7 +56,7 @@ final class ModuleArchitectureCatalog
                 'filesystem' => [
                     'description' => 'Pathwise-backed filesystem and storage operations.',
                     'owner' => 'infocyph/pathwise',
-                    'packages' => ['infocyph/pathwise' => '^4.2'],
+                    'packages' => ['infocyph/pathwise' => '^4.2.1'],
                     'config' => ['filesystem.php'],
                     'schemas' => [],
                     'platform' => ['extensions' => ['fileinfo'], 'optional_extensions' => ['zip']],
@@ -71,7 +71,7 @@ final class ModuleArchitectureCatalog
                 'crypto' => [
                     'description' => 'Epicrypt cryptography and token/key primitives.',
                     'owner' => 'infocyph/epicrypt',
-                    'packages' => ['infocyph/epicrypt' => '^3.2'],
+                    'packages' => ['infocyph/epicrypt' => '^3.3'],
                     'config' => ['security.php'],
                     'schemas' => [],
                     'platform' => ['extensions' => [], 'optional_extensions' => ['sodium']],
@@ -81,7 +81,7 @@ final class ModuleArchitectureCatalog
                 'validation' => [
                     'description' => 'ReqShield request and input validation.',
                     'owner' => 'infocyph/reqshield',
-                    'packages' => ['infocyph/reqshield' => '^3.3'],
+                    'packages' => ['infocyph/reqshield' => '^3.3.1'],
                     'config' => ['validation.php'],
                     'schemas' => [],
                     'platform' => ['extensions' => ['fileinfo', 'hash', 'mbstring'], 'optional_extensions' => []],
@@ -96,7 +96,7 @@ final class ModuleArchitectureCatalog
                 'mfa' => [
                     'description' => 'Selected OTP MFA factors and recovery.',
                     'owner' => 'infocyph/otp',
-                    'packages' => ['infocyph/otp' => '^7.0'],
+                    'packages' => ['infocyph/otp' => '^7.0.1'],
                     'config' => [],
                     'schemas' => [],
                     'platform' => ['extensions' => ['ctype'], 'optional_extensions' => ['sodium']],
@@ -112,8 +112,8 @@ final class ModuleArchitectureCatalog
                     'description' => 'Selected WebAuthn passkeys; shares OTP package without enabling MFA.',
                     'owner' => 'infocyph/otp',
                     'packages' => [
-                        'infocyph/otp' => '^7.0',
-                        'web-auth/webauthn-lib' => '^5.3.9',
+                        'infocyph/otp' => '^7.0.1',
+                        'web-auth/webauthn-lib' => '^5.3.12',
                     ],
                     'config' => [],
                     'schemas' => [],
@@ -129,7 +129,7 @@ final class ModuleArchitectureCatalog
                 'messaging' => [
                     'description' => 'Omnibus events, queue transports and durable messaging.',
                     'owner' => 'infocyph/omnibus',
-                    'packages' => ['infocyph/omnibus' => '^3.0.2'],
+                    'packages' => ['infocyph/omnibus' => '^3.0.3'],
                     'config' => ['messaging.php'],
                     'schemas' => ['messaging'],
                     'platform' => ['extensions' => [], 'optional_extensions' => []],
@@ -144,7 +144,7 @@ final class ModuleArchitectureCatalog
                 'communication' => [
                     'description' => 'TalkingBytes HTTP, mail, webhook and gRPC integration.',
                     'owner' => 'infocyph/talkingbytes',
-                    'packages' => ['infocyph/talkingbytes' => '^2.3'],
+                    'packages' => ['infocyph/talkingbytes' => '^2.3.1'],
                     'config' => ['communication.php'],
                     'schemas' => [],
                     'platform' => ['extensions' => [], 'optional_extensions' => []],
