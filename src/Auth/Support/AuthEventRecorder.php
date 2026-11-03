@@ -63,7 +63,7 @@ final class AuthEventRecorder
             $sensitive = $name !== ''
                 && !in_array($name, ['token_id', 'credential_id'], true)
                 && preg_match('/(?:^|_)(?:password|passwd|secret|token|authorization|credential|signature|otp|cookie|recovery_code)(?:_|$)/', $name) === 1;
-            $sensitive ||= in_array($name, ['code', 'code_verifier', 'api_key', 'private_key', 'private_key_path', 'authenticator_data', 'attestation_object'], true);
+            $sensitive = $sensitive || in_array($name, ['code', 'code_verifier', 'api_key', 'private_key', 'private_key_path', 'authenticator_data', 'attestation_object'], true);
 
             $safe[$key] = match (true) {
                 $sensitive => '[REDACTED]',

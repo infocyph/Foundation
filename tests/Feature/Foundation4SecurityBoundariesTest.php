@@ -25,6 +25,7 @@ it('delivers account password resets only to the authoritative stored address', 
         $mailer,
         new AuthNotificationMapper(new NotificationTemplateRegistry(new ConfigRepository())),
         $accounts,
+        from: 'sender@example.test',
     );
 
     $notifier->send(new AuthNotification(
