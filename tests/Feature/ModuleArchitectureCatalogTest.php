@@ -24,7 +24,7 @@ it('installs selected feature packages only, with explicit OTP passkey co-owners
 
     expect($catalog->packages('data', []))->toBe([])
         ->and($catalog->packages('data', ['filesystem']))->toBe(['infocyph/pathwise' => '^4.2.1'])
-        ->and($catalog->packages('security', ['crypto']))->toBe(['infocyph/epicrypt' => '^3.3.1'])
+        ->and($catalog->packages('security', ['crypto']))->toBe(['infocyph/epicrypt' => '^3.3'])
         ->and($catalog->packages('security', ['passkey']))->toBe([
             'infocyph/otp' => '^7.0.1',
             'web-auth/webauthn-lib' => '^5.3.12',

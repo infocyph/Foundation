@@ -110,7 +110,7 @@ it('pins the complete seven-specialist module contract', function (): void {
         'database' => ['infocyph/dblayer' => '^6.1.4'],
         'filesystem' => ['infocyph/pathwise' => '^4.2.1'],
         'messaging' => ['infocyph/omnibus' => '^3.0.3'],
-        'security' => ['infocyph/epicrypt' => '^3.3.1'],
+        'security' => ['infocyph/epicrypt' => '^3.3'],
         'validation' => ['infocyph/reqshield' => '^3.3.1'],
     ])->and(array_map(
         static fn(array $definition): array => $definition['config'],

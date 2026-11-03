@@ -261,7 +261,7 @@ it('plans Epicrypt as a conditional OTP MFA prerequisite without coupling passke
     $otp = $planner->plan('install', ['security.mfa'], $context);
     expect($otp['required'])->toBe(['security.crypto', 'security.mfa'])
         ->and($otp['effects']['require'])->toBe([
-            'infocyph/epicrypt' => '^3.3.1',
+            'infocyph/epicrypt' => '^3.3',
             'infocyph/otp' => '^7.0.1',
         ])
         ->and($otp['effects']['activate'])->toBe([])
@@ -283,7 +283,7 @@ it('rejects OTP MFA enable until its selected Epicrypt prerequisite is active', 
     $context['config'] = ['auth' => ['drivers' => ['mfa' => 'otp']]];
     $context['root_requirements'] = [
         'infocyph/otp' => '^7.0.1',
-        'infocyph/epicrypt' => '^3.3.1',
+        'infocyph/epicrypt' => '^3.3',
     ];
     $context['installed'] = ['infocyph/otp' => '7.0.1', 'infocyph/epicrypt' => '3.3.0'];
     $withoutCrypto = $planner->plan('enable', ['security.mfa'], $context);
