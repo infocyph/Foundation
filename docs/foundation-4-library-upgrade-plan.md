@@ -6,14 +6,26 @@ Date: 2026-11-03 (Asia/Dhaka). Status: **implementation in progress; release gat
 
 Work is underway on PR #20 / `feature/foundation-3`; no merge, tag, publication, or Infbyte source changes have been made. The pre-implementation audit and version matrix below remain historical baseline evidence, not assertions about the current working branch.
 
-- **P0 partial:** hardened account-authoritative password-reset delivery, recursively sanitized authentication-audit metadata, made route presets fail closed, bound trusted config/worker artifacts to captured verified bytes, and supervised process stdin through the timeout/output pump. Added focused regression tests. Follow-up coverage is still needed for end-to-end notification delivery, adversarial artifact swapping, independent audit sinks, and process cancellation. The dedicated architecture coverage gap (A07) remains open.
+- **P0 partial:** hardened account-authoritative password-reset delivery, recursively sanitized authentication-audit metadata, made route presets fail closed, bound trusted config/worker artifacts to captured verified bytes, and supervised process stdin through the timeout/output pump. Added focused regression tests. Follow-up coverage is still needed for end-to-end notification delivery, adversarial artifact swapping, independent audit sinks, and process cancellation. A07 now has project-specific Deptrac classification and a negative app-dependency regression, verified in four lanes; broader graph review remains.
 - **P1 partial:** raised `composer.json` Core/optional release floors, added optional-package exclusion bounds, synchronized both module catalogs, production-consumer installation manifests, and selected fixture expectations. Runwire 3 replaces Runwire 2 without dual-version support. Published dependency resolution and consumer checks are validated through hosted CI, but all other migration gates require final-source verification.
-- **P2–P3 in progress:** preserved ordinary PHP and host-borrowed Runwire paths, updated native cancellation expectations and cross-request assertions; full specialist real-operation qualification and exact-source final QA are not yet complete.
-- **P4–P5 partial:** updated primary Foundation 4 release/migration/module/hosting documentation for the dependency baseline. Further API examples, compatibility cleanup and selected-specialist documentation need review.
-- **P6 open:** the strict paired host performance, retained-state upgrade/rollback, complete source-free generation, architecture enforcement, and all-green exact-commit CI remain required. Earlier partial CI results must not be treated as final release evidence.
+- **P2–P3 in progress:** preserved ordinary PHP and host-borrowed Runwire paths; OTP 7.0.1 challenge/verification/passkey operations now borrow the current context. Epicrypt file protection and Pathwise HTTP upload/chunk/finalization/download preparation pass operation-local context. Added cancellation and state-preservation regressions. Broader specialist/live-service qualification remains open.
+- **P4–P5 partial:** synchronized version labels in the migration/release/OTP/authentication/filesystem/operations documentation and native API test descriptions; documented operation-local Runwire forwarding, ordinary PHP fallback and response-stream ownership. Exhaustive documentation and compatibility review remain open.
+- **P6 open:** at `694aa480`, all four production consumers, both static-analysis lanes, both benchmark scripts, full Pest and Deptrac passed; four QA lanes failed only Pint formatting, corrected at `4fecb4a3`. Native-host run `41639644975` was green. Strict paired-host throughput, end-to-end dependency-upgrade comparison, retained-state rollback and an all-green exact-final-head run remain release blockers.
 - **Additional security improvement:** removed untrusted notification payload from TalkingBytes email message metadata, preventing reset tokens and caller context from leaking into transport-level metadata while preserving rendered message content. The privileged PHPForge release workflow is pinned to an immutable revision.
 
-The 90 implementation checkboxes below are acceptance criteria and remain open until each item is verified; this checkpoint records committed progress without claiming release completion.
+The 90 implementation checkboxes below are acceptance criteria. Mark only entries with implementation and focused test/CI evidence; unmarked entries remain release requirements, even when partially implemented.
+
+### Rolling batch tracker
+
+| Batch | Implemented source | Latest verified evidence | Remaining |
+| --- | --- | --- | --- |
+| Contract / dependency reconciliation | `1003e003`–`2118c7b2` | Previously failing 14 assertions resolved; current hosted four-lane Pest pass | Final exact-head CI |
+| Native OTP, Epicrypt, Pathwise operations | `556e5ea0`–`d8af04d1` | Borrowed context and cancellation regressions passed Pest on PHP 8.4/8.5, lowest/stable | Complete specialist/live-backend, soak, generation cases |
+| Architecture boundary | `694aa480` | Project Deptrac check and negative Foundation-to-Infbyte dependency fixture passed four QA lanes | Broader coverage review and architectural audit |
+| QA formatting and document parity | `4fecb4a3`, `79977e28` | Single remaining Pint blank-line failure corrected; old version labels and native-context docs synchronized | Verify newest commit and finish detailed documentation |
+| Hosting and packaging | `694aa480` | Host smoke run `41639644975` passed; four production consumers and both static-analysis lanes passed run `41639645706` | Strict paired-host and retained-state certification |
+
+
 
 ## Objective and agreed boundaries
 
@@ -108,7 +120,7 @@ Evidence: `src/Auth/Http/AuthActions.php:153` passes the nested context through 
 
 Reproduction: call `AuthActions::requestPasswordReset()` with `identifier=victim@example.test` and `context.email=attacker@example.test`; pass the resulting notification through the actual TalkingBytes notifier with an in-memory fake transport. The notification belongs to the victim, the selected recipient is the attacker, and its token changes the victim password. No external email was sent. Exposure requires an application to pass attacker-controlled fields/context into these helpers and use this notifier; Foundation does not automatically publish a reset route.
 
-- [ ] Separate HTTP-supplied context from trusted delivery policy. Resolve password-reset recipients from the target account; do not accept delivery-field overrides from request metadata.
+- [x] Separate HTTP-supplied context from trusted delivery policy. Resolve password-reset recipients from the target account; do not accept delivery-field overrides from request metadata.
 - [ ] Preserve explicit email-verification destination semantics through a validated, purpose-specific contract rather than a generic metadata override. Apply the same review to passwordless/MFA/security notifications.
 - [ ] Add end-to-end regressions for nested and top-level override fields, account lookup by identifier/ID, missing/invalid recipients and each security-notification purpose. Assert both the intended recipient and the account/purpose of the issued token.
 - [ ] Review public HTTP response mapping so issuance results containing tokens are never blindly exposed as an unauthenticated response. Keep low-level domain results useful without making request handlers disclose their secrets.
@@ -119,7 +131,7 @@ Evidence: `src/Release/FoundationReleaseConfig.php:22` hashes then requires at l
 
 Reproduction: a local deterministic stream fixture returns valid format-1 config/topology bytes on the hash read, then equivalent bytes with a harmless execution marker on the require read. Both loaders return successfully and execute the unverified marker (`opens=2`, `replacement_executed=true`). This models replacement between verification and use; filesystem exploitation requires concurrent write/replacement access to an artifact path. It is not evidence of an unauthenticated remote entrypoint.
 
-- [ ] Capture artifact bytes once, verify those bytes and evaluate only that authenticated private copy. Reuse a cohesive existing owner; preserve each payload's schema and dependency/generation validation.
+- [x] Capture artifact bytes once, verify those bytes and evaluate only that authenticated private copy. Reuse a cohesive existing owner; preserve each payload's schema and dependency/generation validation.
 - [ ] Apply the review to worker-generation manifest reloads, Webrick release manifests and JSON metadata verification/read pairs. Do not infer safety from a separate earlier hash check.
 - [ ] Add deterministic replacement regressions for config, topology and generation manifest loading; retain tamper rejection, valid source-free loading and cleanup/error-ordering coverage.
 
@@ -127,7 +139,7 @@ Reproduction: a local deterministic stream fixture returns valid format-1 config
 
 Evidence: `RoutePresetRegistrar::stack()` selects configured/built-in names and otherwise uses `[]`. A real application probe returned `['session','csrf','resolve-auth','auth']` for `web-auth` and `[]` for `web-aut`. `configuredGroups()` / `normalizeStack()` also silently discard malformed entries.
 
-- [ ] Throw an actionable configuration exception for unknown presets. Reject malformed names/stacks/middleware entries rather than filtering away intended protections.
+- [x] Throw an actionable configuration exception for unknown presets. Reject malformed names/stacks/middleware entries rather than filtering away intended protections.
 - [ ] Preserve deliberately declared custom groups, including an explicitly empty custom stack where the public contract permits it.
 - [ ] Prove a typo cannot publish an unprotected route in development or a compiled release. Verify existing valid presets/custom overrides still produce their exact intended stacks.
 
@@ -137,7 +149,7 @@ Evidence: `AuthActions::context()` returns a nonempty nested context verbatim; `
 
 Reproduction: a login with a valid ordinary password and nested `context.password=audit-secret-sentinel` records that sentinel unchanged in the final audit event. The probe prints only a boolean. This confirms retention of supplied credential-shaped data, not extraction of an unrelated server secret.
 
-- [ ] Establish reserved security/context fields and redact credential/token/authorization/private-key values recursively before recording audit events, including calls that bypass `AuthActions`.
+- [x] Establish reserved security/context fields and redact credential/token/authorization/private-key values recursively before recording audit events, including calls that bypass `AuthActions`.
 - [ ] Keep trusted actor/session/device/correlation identities distinct from request-provided display metadata. Preserve useful event type, outcome, account correlation and nonsecret token/request identifiers while redacting bearer credentials.
 - [ ] Add in-memory and DBLayer audit regressions with nested arrays and mixed-case sensitive keys; assert that login/reset/MFA/passkey secrets do not persist.
 
@@ -147,16 +159,16 @@ Evidence: `src/Process/Internal/ProcessCapture.php:25` calls `preparePipes()` be
 
 Reproduction: run a local PHP child that waits 600 ms before reading stdin; provide 1 MiB input and `timeoutSeconds=0.05`. Observed wall time was approximately 0.64 s, reported duration approximately 0.015 s, `timedOut=false`, reason `exited`. A child that writes enough output before reading input can also deadlock the opposing pipes; that case needs a bounded regression fixture.
 
-- [ ] Start elapsed/deadline accounting before pipe preparation; pump bounded stdin writes together with stdout/stderr reads and termination checks.
+- [x] Start elapsed/deadline accounting before pipe preparation; pump bounded stdin writes together with stdout/stderr reads and termination checks.
 - [ ] Preserve output limits, EOF handling, child-tree cleanup, primary exception ordering, cancellation/heartbeat and signal restoration.
 - [ ] Add bounded regressions for a non-reading child, output-before-input, partial writes, early child exit and cancellation during input. Verify resource cleanup on success and every termination path.
 
 #### A06–A07. Repair contract tests and architecture evidence
 
 - [ ] Replace DBLayer `ConnectionException` expectations only where published native behavior now propagates `Runwire\\Exception\\CancelledException`. Do not wrap cancellation merely to make stale tests pass. Recheck the same behavior with Runwire 3 after P1.
-- [ ] Move completed/cancelled-request assertions to the actual CacheLayer admission boundary; assert that user code and writes were never admitted, and bindings remain correctly restored.
-- [ ] Retain structured-child, Fiber isolation, primary-failure, no-second-dispatch and web/non-web operation assertions. The initial 33 failures include cascading assertions; do not count each one as an independent product bug.
-- [ ] Add meaningful Deptrac classification for the actual specialist/runtime graph while preserving the existing dedicated architecture tests. Demonstrate that a representative forbidden runtime-to-build or framework-to-application edge is rejected. Do not hide uncovered edges by excluding them or disabling the gate.
+- [x] Move completed/cancelled-request assertions to the actual CacheLayer admission boundary; assert that user code and writes were never admitted, and bindings remain correctly restored.
+- [x] Retain structured-child, Fiber isolation, primary-failure, no-second-dispatch and web/non-web operation assertions. The initial 33 failures include cascading assertions; do not count each one as an independent product bug.
+- [x] Add meaningful Deptrac classification for the actual specialist/runtime graph while preserving the existing dedicated architecture tests. Demonstrate that a representative forbidden runtime-to-build or framework-to-application edge is rejected. Do not hide uncovered edges by excluding them or disabling the gate.
 
 #### Additional improvements, separate from confirmed blockers
 
@@ -188,9 +200,9 @@ P0 acceptance: fix A01–A05 with adversarial regressions, reconcile A06, close 
 ### P1. Freeze the baseline and synchronize dependency policy
 
 - [ ] Refresh live published metadata for all direct and selected transitive packages. Record exact source refs, platform requirements and advisories. Preserve the pre-upgrade source, dependency manifest and lock for comparisons.
-- [ ] Apply the matrix to `composer.json`. Raise the existing DBLayer/Omnibus conflicts to `<6.1.4` / `<3.0.3`. Add lower-bound conflicts for the other optional specialists and WebAuthn matching the matrix. `require-dev` alone cannot enforce a production consumer's optional-package floor.
-- [ ] Synchronize package ranges in `src/Module/ModuleCatalog.php` and `src/Module/ModuleArchitectureCatalog.php`, including both OTP-backed MFA and passkey features. Update module installation/planning/doctor expectations and package-version fixtures.
-- [ ] Synchronize the embedded database-only/full-optional manifests in `.github/workflows/security-standards.yml`, documentation install commands and production-consumer fixtures. Keep optional package ownership explicit in application manifests.
+- [x] Apply the matrix to `composer.json`. Raise the existing DBLayer/Omnibus conflicts to `<6.1.4` / `<3.0.3`. Add lower-bound conflicts for the other optional specialists and WebAuthn matching the matrix. `require-dev` alone cannot enforce a production consumer's optional-package floor.
+- [x] Synchronize package ranges in `src/Module/ModuleCatalog.php` and `src/Module/ModuleArchitectureCatalog.php`, including both OTP-backed MFA and passkey features. Update module installation/planning/doctor expectations and package-version fixtures.
+- [x] Synchronize the embedded database-only/full-optional manifests in `.github/workflows/security-standards.yml`, documentation install commands and production-consumer fixtures. Keep optional package ownership explicit in application manifests.
 - [ ] Inspect dependency/API compatibility branches in touched integrations. Call the supported native API directly; remove old-version probes, aliases and alternate implementations whose only purpose is supporting excluded library versions. Retain explicit optional-feature availability diagnostics and security checks.
 - [ ] Resolve the complete graph with latest dependencies and run strict Composer validation, platform checks and audit. Preserve the exact new lock as evidence without changing the repository's lockfile tracking policy.
 
@@ -255,7 +267,7 @@ Owners: `src/Auth/Adapter/Otp/`, `src/Auth/Internal/AuthMfaGraphFactory.php`, `A
 
 - [ ] Resolve the current borrowed context at each stateful operation and pass it to the applicable OTP issue, verify, replay-cache and passkey begin/finish APIs. Preserve ordinary operation with a null context and native cooperative lock waits with a valid scope.
 - [ ] Keep context out of long-lived OTP/Passkey instances. Recheck Foundation-owned HOTP/OCRA counter CAS and recovery-code store operations at the mutation boundary; use native context arguments where supported and Foundation checkpoints where Foundation owns the mutation.
-- [ ] Audit `OtpMfaVerifier::verify()` / `verifyEnrollment()` broad `Throwable` catches so native cancellation cannot become an invalid-configuration result. Preserve legitimate invalid-code result contracts.
+- [x] Audit `OtpMfaVerifier::verify()` / `verifyEnrollment()` broad `Throwable` catches so native cancellation cannot become an invalid-configuration result. Preserve legitimate invalid-code result contracts.
 - [ ] Preserve atomic single-use state, exhaustion/tombstones, generation-specific factor binding, replay rejection and committed-mutation semantics. A successful committed consumption must not be reported as uncommitted merely because cancellation arrives afterward.
 - [ ] Re-run strict canonical Base32 acceptance/rejection, supported MFA factors, recovery-code races and full passkey ceremonies with the new WebAuthn baseline. Preserve RP/origin checks, credential revision CAS and opaque credential identity.
 - [ ] Document exact selected extensions, including sodium for AOTP and XMLWriter only for SVG QR output. Passkeys must not acquire an unnecessary sodium prerequisite.
@@ -264,7 +276,7 @@ Owners: `src/Auth/Adapter/Otp/`, `src/Auth/Internal/AuthMfaGraphFactory.php`, `A
 
 Owners: `src/Security/EnvironmentFileProtector.php`, `src/Auth/Adapter/Epicrypt/`, MFA protection and OAuth/OIDC graph composition.
 
-- [ ] Integrate operation-time native Epicrypt execution contexts into Foundation-invoked file/stream operations that support them. The environment file protector currently invokes `FileProtector` without its optional context; pass the current host context when present.
+- [x] Integrate operation-time native Epicrypt execution contexts into Foundation-invoked file/stream operations that support them. The environment file protector currently invokes `FileProtector` without its optional context; pass the current host context when present.
 - [ ] Requalify ES256/ES384/ES512 keys against the new exact EC-curve checks. Fix mismatched application configuration/fixtures rather than relaxing the library's security checks.
 - [ ] Verify remote JOSE resolver cancellation remains cancellation wherever a selected/custom resolver is used. Do not turn it into stale-key success or an ordinary resolution retry. Do not introduce remote discovery into the existing local-key configuration just to exercise a new API.
 - [ ] Preserve existing token formats, key purposes/AAD, password policy, OAuth/OIDC state and protected MFA secrets. Existing key rotation is a current security contract; older-library compatibility code is removed independently of key lifecycle policy.
@@ -275,7 +287,7 @@ Owners: `src/Filesystem/FilesystemTransferFactory.php`, `FilesystemUploadRequest
 
 **Confirmed integration gap:** Foundation's transfer construction/operation paths do not currently apply Pathwise's callback-scoped `withRunwire(RunwireExecutionContext, operation)` binding.
 
-- [ ] Bind the native Pathwise context around operations Foundation actually invokes: upload/chunk/finalization and applicable download preparation/file workflows. Restore the binding on completion/failure; use ordinary operations when no context exists.
+- [x] Bind the native Pathwise context around operations Foundation actually invokes: upload/chunk/finalization and applicable download preparation/file workflows. Restore the binding on completion/failure; use ordinary operations when no context exists.
 - [ ] Keep binding lifetime around the actual operation, not merely processor construction. A processor returned to application code remains a native Pathwise object; document its native explicit binding contract rather than retaining a request inside a shared service.
 - [ ] Keep actual response streaming and host cancellation with Webrick's response owner. A prepared response must not retain a completed Pathwise/Runwire scope.
 - [ ] Verify path containment, untrusted upload profiles, malware policy, atomic publication, chunk ownership, temporary-file cleanup and cancellation through the Foundation HTTP bridge. No replacement filesystem abstraction or Runwire async filesystem is required.
