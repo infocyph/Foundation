@@ -61,6 +61,35 @@ final class Foundation4HostUpgradeEvidence
     }
 
     /**
+     * Check an exact package/ref delta before spending time on host measurements.
+     *
+     * @param array<string,mixed> $baseline
+     * @param array<string,mixed> $candidate
+     * @param array<string,mixed> $allowed
+     * @return list<string>
+     */
+    public static function review(array $baseline, array $candidate, array $allowed): array
+    {
+        $before = self::manifest($baseline);
+        $after = self::manifest($candidate);
+        if ($before['sha256'] === $after['sha256']) {
+            throw new InvalidArgumentException('Dependency upgrade review requires distinct Composer locks.');
+        }
+
+        $changes = self::changes($before['packages'], $after['packages']);
+        if ($changes === []) {
+            throw new InvalidArgumentException('Reviewed, nonempty dependency changes are required.');
+        }
+
+        ksort($allowed);
+        if ($changes !== $allowed) {
+            throw new InvalidArgumentException('Unreviewed or mismatched dependency upgrade changes.');
+        }
+
+        return array_keys($changes);
+    }
+
+    /**
      * @param array<string,mixed> $baseline
      * @param array<string,mixed> $candidate
      * @param array<string,mixed> $evidence
@@ -99,35 +128,6 @@ final class Foundation4HostUpgradeEvidence
         }
 
         return self::review($before, $after, $allowed);
-    }
-
-    /**
-     * Check an exact package/ref delta before spending time on host measurements.
-     *
-     * @param array<string,mixed> $baseline
-     * @param array<string,mixed> $candidate
-     * @param array<string,mixed> $allowed
-     * @return list<string>
-     */
-    public static function review(array $baseline, array $candidate, array $allowed): array
-    {
-        $before = self::manifest($baseline);
-        $after = self::manifest($candidate);
-        if ($before['sha256'] === $after['sha256']) {
-            throw new InvalidArgumentException('Dependency upgrade review requires distinct Composer locks.');
-        }
-
-        $changes = self::changes($before['packages'], $after['packages']);
-        if ($changes === []) {
-            throw new InvalidArgumentException('Reviewed, nonempty dependency changes are required.');
-        }
-
-        ksort($allowed);
-        if ($changes !== $allowed) {
-            throw new InvalidArgumentException('Unreviewed or mismatched dependency upgrade changes.');
-        }
-
-        return array_keys($changes);
     }
 
     /**

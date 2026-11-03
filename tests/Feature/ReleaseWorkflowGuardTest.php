@@ -51,7 +51,8 @@ it('captures benchmark configuration using only options supported by its PHP ver
     $directory = sys_get_temp_dir() . '/foundation-ini-capture-' . bin2hex(random_bytes(8));
     mkdir($directory . '/bin', 0700, true);
     mkdir($directory . '/locked-dependencies', 0700);
-    file_put_contents($directory . '/locked-dependencies/composer.lock', '{}');
+    file_put_contents($directory . '/locked-dependencies/baseline.lock', '{"packages":[]}');
+    file_put_contents($directory . '/locked-dependencies/candidate.lock', '{"packages":[]}');
     $wrapper = "#!/bin/sh\n"
         . 'if [ "$1" = "-r" ]; then case "$2" in *PHP_VERSION_ID*) exit ' . ($php85 ? '0' : '1') . ';; esac; fi' . "\n"
         . 'if [ "$1" = "--ini=diff" ]; then ' . ($php85 ? 'echo enabled; exit 0;' : 'echo unsupported >&2; exit 64;') . ' fi' . "\n"
@@ -69,6 +70,9 @@ it('captures benchmark configuration using only options supported by its PHP ver
             ->and(file_exists($directory . '/evidence/php-ini-diff.txt'))->toBe($php85);
         $settings = json_decode((string) file_get_contents($directory . '/evidence/php-runtime-settings.json'), true, flags: JSON_THROW_ON_ERROR);
         expect($settings)->toHaveKeys(['opcache.enable_cli', 'opcache.validate_timestamps', 'memory_limit']);
+        $digests = (string) file_get_contents($directory . '/evidence/composer-lock.sha256');
+        expect($digests)->toContain('locked-dependencies/baseline.lock', 'locked-dependencies/candidate.lock');
+
     } finally {
         $files = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),

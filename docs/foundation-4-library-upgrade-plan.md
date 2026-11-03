@@ -34,6 +34,7 @@ The 90 implementation checkboxes below are acceptance criteria. Mark only entrie
 | Release evidence and source baseline | Pending verification | Updated module CLI fixture package requirements/installed-version metadata to DBLayer 6.1.4, Omnibus 3.0.3, OTP 7.0.1; selected a post-upgrade baseline for source-only host comparisons | Re-run release evidence and both paired-host modes |
 | Retired test-label cleanup | Pending verification | Renamed DBLayer 5/Omnibus 2.6/Pathwise 4.1-labelled test owners to version-neutral contract names; retained their behaviors | Verify all migrated tests and references in QA |
 | Whole-dependency-upgrade comparator contract | Pending verification | Explicit dependency-upgrade mode now resolves separate Composer locks, verifies a reviewed exact source/dist-ref change manifest before running the matrix, preserves the strict shared-lock default and produces distinct verdicts | Verify workflow, compare both full matrices and record host artifacts |
+| Performance-workflow QA reconciliation | Pending verification | Addressed `ReleaseWorkflowGuardTest` two-lock fixture drift and PHPForge ordered-public-methods policy after run `41651592843` reported 883 Pest passes / 2 fixture failures | Repeat all four QA lanes and native host on fixed exact source |
 
 
 
