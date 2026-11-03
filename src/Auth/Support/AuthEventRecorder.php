@@ -53,7 +53,7 @@ final class AuthEventRecorder
     private static function safeMetadata(array $metadata, int $depth = 0): array
     {
         if ($depth >= 8) {
-            return ['redacted' => '[REDACTED]'];
+            return array_map(static fn(mixed $value): string => '[REDACTED]', $metadata);
         }
 
         $safe = [];

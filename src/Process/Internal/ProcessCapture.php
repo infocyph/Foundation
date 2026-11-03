@@ -48,8 +48,6 @@ final readonly class ProcessCapture
                     $startedAt,
                     $lastActivityAt,
                     $interruptedSignal,
-                    $input,
-                    $inputOffset,
                 );
                 if ($reason !== null) {
                     break;
@@ -63,6 +61,8 @@ final readonly class ProcessCapture
                     $observedBytes,
                     $lastActivityAt,
                     $interruptedSignal,
+                    $input,
+                    $inputOffset,
                 );
                 if ($reason !== null) {
                     break;
