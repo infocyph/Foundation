@@ -22,12 +22,14 @@ final readonly class ProcessCapture
      */
     public function run($process, array $pipes, ProcessOptions $options, array $tree): ProcessResult
     {
+        $startedAt = ProcessOutcome::clock();
         $this->preparePipes($pipes, $options);
+        $input = $options->input ?? '';
+        $inputOffset = 0;
 
         $stdout = '';
         $stderr = '';
         $observedBytes = 0;
-        $startedAt = ProcessOutcome::clock();
         $lastActivityAt = $startedAt;
         $reason = null;
         $interruptedSignal = null;
@@ -46,6 +48,8 @@ final readonly class ProcessCapture
                     $startedAt,
                     $lastActivityAt,
                     $interruptedSignal,
+                    $input,
+                    $inputOffset,
                 );
                 if ($reason !== null) {
                     break;
@@ -245,15 +249,19 @@ final readonly class ProcessCapture
         int &$observedBytes,
         int &$lastActivityAt,
         ?int $interruptedSignal,
+        string $input,
+        int &$inputOffset,
     ): ?ProcessTerminationReason {
         $read = $this->readablePipes($pipes);
-        if ($read === []) {
+        $stdin = $pipes[0] ?? null;
+        $write = is_resource($stdin) && $inputOffset < strlen($input) ? [$stdin] : [];
+        if ($read === [] && $write === []) {
             usleep(10_000);
 
             return null;
         }
 
-        $ready = $this->select($read);
+        $ready = $this->select($read, $write);
         if ($ready === false) {
             return $interruptedSignal !== null
                 ? ProcessTerminationReason::Interrupted
@@ -263,7 +271,7 @@ final readonly class ProcessCapture
             return null;
         }
 
-        return $this->consumeReady(
+        $reason = $this->consumeReady(
             $read,
             $pipes,
             $options,
@@ -272,17 +280,36 @@ final readonly class ProcessCapture
             $observedBytes,
             $lastActivityAt,
         );
+        if ($reason !== null || $write === []) {
+            return $reason;
+        }
+
+        $written = @fwrite($stdin, substr($input, $inputOffset, 8192));
+        if ($written === false) {
+            return ProcessTerminationReason::IoError;
+        }
+        $inputOffset += $written;
+        if ($written > 0) {
+            $lastActivityAt = ProcessOutcome::clock();
+        }
+        if ($inputOffset >= strlen($input)) {
+            fclose($stdin);
+            unset($pipes[0]);
+        }
+
+        return null;
     }
 
     /** @param array<int, resource> $pipes */
     private function preparePipes(array &$pipes, ProcessOptions $options): void
     {
         if (isset($pipes[0]) && is_resource($pipes[0])) {
-            if ($options->input !== null && $options->input !== '') {
-                $this->writeInput($pipes[0], $options->input);
+            if ($options->input === null || $options->input === '') {
+                fclose($pipes[0]);
+                unset($pipes[0]);
+            } else {
+                stream_set_blocking($pipes[0], false);
             }
-            fclose($pipes[0]);
-            unset($pipes[0]);
         }
 
         foreach ([1, 2] as $index) {
@@ -336,10 +363,12 @@ final readonly class ProcessCapture
         return null;
     }
 
-    /** @param list<resource> $read */
-    private function select(array &$read): int|false
+    /**
+     * @param list<resource> $read
+     * @param list<resource> $write
+     */
+    private function select(array &$read, array &$write): int|false
     {
-        $write = [];
         $except = [];
 
         set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
@@ -351,16 +380,4 @@ final readonly class ProcessCapture
         }
     }
 
-    /** @param resource $stdin */
-    private function writeInput($stdin, string $input): void
-    {
-        $remaining = $input;
-        while ($remaining !== '') {
-            $written = fwrite($stdin, $remaining);
-            if ($written === false || $written === 0) {
-                throw new \RuntimeException('Unable to write process input.');
-            }
-            $remaining = substr($remaining, $written);
-        }
-    }
 }
