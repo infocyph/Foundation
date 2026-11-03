@@ -14,16 +14,16 @@ it('models managed feature and optional package roles without broadening install
         ->and($modules['auth']['packages']['infocyph/otp']['features'] ?? null)->toBe(['otp', 'passkey'])
         ->and($modules['auth']['packages']['web-auth/webauthn-lib']['features'] ?? null)->toBe(['passkey'])
         ->and($catalog->managedPackages($modules['auth']))->toBe([
-            'infocyph/otp' => '^7.0',
-            'web-auth/webauthn-lib' => '^5.3.9',
+            'infocyph/otp' => '^7.0.1',
+            'web-auth/webauthn-lib' => '^5.3.12',
         ])
         ->and($modules['communication']['packages']['grpc/grpc']['role'] ?? null)->toBe('optional')
         ->and($catalog->managedPackages($modules['communication']))->toBe([
-            'infocyph/talkingbytes' => '^2.3',
+            'infocyph/talkingbytes' => '^2.3.1',
         ])
         ->and($modules['messaging']['packages'])->not->toHaveKey('infocyph/runwire')
         ->and($catalog->managedPackages($modules['messaging']))->toBe([
-            'infocyph/omnibus' => '^3.0.2',
+            'infocyph/omnibus' => '^3.0.3',
         ]);
 });
 
@@ -52,12 +52,12 @@ it('keeps Composer core and specialist module floors on one supported generation
     expect($manifest)->toBeArray();
 
     $core = [
-        'infocyph/arraykit' => '^5.3.1',
-        'infocyph/cachelayer' => '^4.0.1',
-        'infocyph/intermix' => '^11.2',
-        'infocyph/runwire' => '^2.1.2',
-        'infocyph/uid' => '^6.0',
-        'infocyph/webrick' => '^6.0.3',
+        'infocyph/arraykit' => '^5.3.2',
+        'infocyph/cachelayer' => '^4.0.2',
+        'infocyph/intermix' => '^11.2.1',
+        'infocyph/runwire' => '^3.0',
+        'infocyph/uid' => '^6.0.1',
+        'infocyph/webrick' => '^6.0.4',
     ];
     foreach ($core as $package => $constraint) {
         expect($manifest['require'][$package] ?? null)->toBe($constraint);
@@ -106,12 +106,12 @@ it('pins the complete seven-specialist module contract', function (): void {
         $specialists,
     ))->toBe([
         'auth' => [],
-        'communication' => ['infocyph/talkingbytes' => '^2.3'],
-        'database' => ['infocyph/dblayer' => '^6.1.2'],
-        'filesystem' => ['infocyph/pathwise' => '^4.2'],
-        'messaging' => ['infocyph/omnibus' => '^3.0.2'],
-        'security' => ['infocyph/epicrypt' => '^3.2'],
-        'validation' => ['infocyph/reqshield' => '^3.3'],
+        'communication' => ['infocyph/talkingbytes' => '^2.3.1'],
+        'database' => ['infocyph/dblayer' => '^6.1.4'],
+        'filesystem' => ['infocyph/pathwise' => '^4.2.1'],
+        'messaging' => ['infocyph/omnibus' => '^3.0.3'],
+        'security' => ['infocyph/epicrypt' => '^3.3.1'],
+        'validation' => ['infocyph/reqshield' => '^3.3.1'],
     ])->and(array_map(
         static fn(array $definition): array => $definition['config'],
         $specialists,
@@ -140,11 +140,11 @@ it('resolves auth feature aliases without broadening the core module request', f
         ->and($passkey['requested_features'])->toBe(['passkey'])
         ->and($webAuthnPackage['requested_features'])->toBe(['passkey'])
         ->and($catalog->installationPackages($auth, ['otp']))->toBe([
-            'infocyph/otp' => '^7.0',
+            'infocyph/otp' => '^7.0.1',
         ])
         ->and($catalog->installationPackages($auth, ['passkey']))->toBe([
-            'infocyph/otp' => '^7.0',
-            'web-auth/webauthn-lib' => '^5.3.9',
+            'infocyph/otp' => '^7.0.1',
+            'web-auth/webauthn-lib' => '^5.3.12',
         ])
         ->and($catalog->resolve('infocyph/otp', ['otp'])['requested_features'])->toBe(['otp'])
         ->and($catalog->resolve('infocyph/otp', ['passkey'])['requested_features'])->toBe(['passkey'])

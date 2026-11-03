@@ -118,9 +118,9 @@ it('can repeat repair after Composer resolution without re-installing direct pac
     $path = moduleB3Dir();
     $restore = moduleB3ComposerStub($path);
     $context = moduleB3Context();
-    $context['root_requirements'] = ['infocyph/pathwise' => '^4.2'];
+    $context['root_requirements'] = ['infocyph/pathwise' => '^4.2.1'];
     $context['installed'] = ['infocyph/pathwise' => '4.2.0'];
-    file_put_contents($path . '/composer.json', '{"name":"test/app","require":{"infocyph/pathwise":"^4.2"}}');
+    file_put_contents($path . '/composer.json', '{"name":"test/app","require":{"infocyph/pathwise":"^4.2.1"}}');
     try {
         $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
         $runner = new ModuleFeatureLifecycleExecutor($app);
@@ -176,12 +176,12 @@ it('removes only unshared feature packages and never deletes persisted applicati
     $restore = moduleB3ComposerStub($path);
     $context = moduleB3Context();
     $context['root_requirements'] = [
-        'infocyph/otp' => '^7.0',
-        'web-auth/webauthn-lib' => '^5.3.9',
+        'infocyph/otp' => '^7.0.1',
+        'web-auth/webauthn-lib' => '^5.3.12',
     ];
     $context['installed'] = [
-        'infocyph/otp' => '7.0.0',
-        'web-auth/webauthn-lib' => '5.3.9',
+        'infocyph/otp' => '7.0.1',
+        'web-auth/webauthn-lib' => '5.3.12',
     ];
     $context['selected_features'] = ['security.mfa', 'security.passkey'];
     file_put_contents($path . '/composer.json', json_encode([
@@ -226,9 +226,9 @@ it('never permits Core or QA features to enter the optional lifecycle', function
 it('recovers a partially failed config phase with a repeatable repair', function (): void {
     $path = moduleB3Dir();
     $context = moduleB3Context();
-    $context['root_requirements'] = ['infocyph/pathwise' => '^4.2'];
+    $context['root_requirements'] = ['infocyph/pathwise' => '^4.2.1'];
     $context['installed'] = ['infocyph/pathwise' => '4.2.1'];
-    file_put_contents($path . '/composer.json', '{"name":"test/app","require":{"infocyph/pathwise":"^4.2"}}');
+    file_put_contents($path . '/composer.json', '{"name":"test/app","require":{"infocyph/pathwise":"^4.2.1"}}');
 
     try {
         $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);

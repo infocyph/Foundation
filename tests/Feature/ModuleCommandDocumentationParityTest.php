@@ -96,13 +96,13 @@ it('keeps Composer publication metadata and optional package roles consistent wi
     $core = [
         'php' => '^8.4',
         'composer-runtime-api' => '^2.0',
-        'infocyph/arraykit' => '^5.3.1',
-        'infocyph/cachelayer' => '^4.0.1',
-        'infocyph/intermix' => '^11.2',
-        'infocyph/runwire' => '^2.1.2',
-        'infocyph/uid' => '^6.0',
-        'infocyph/webrick' => '^6.0.3',
-        'psr/log' => '^3.0.2',
+        'infocyph/arraykit' => '^5.3.2',
+        'infocyph/cachelayer' => '^4.0.2',
+        'infocyph/intermix' => '^11.2.1',
+        'infocyph/runwire' => '^3.0',
+        'infocyph/uid' => '^6.0.1',
+        'infocyph/webrick' => '^6.0.4',
+        'psr/log' => '^3.0.3',
     ];
 
     expect($manifest['name'])->toBe('infocyph/foundation')

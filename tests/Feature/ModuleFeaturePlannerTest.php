@@ -43,7 +43,7 @@ it('creates a versioned pure installation plan without activating siblings or co
     expect($plan['schema_version'])->toBe(2)
         ->and($plan['requested'])->toBe(['security.passkey'])
         ->and($plan['required'])->toBe(['security.passkey'])
-        ->and($plan['effects']['require'])->toBe(['infocyph/otp' => '^7.0', 'web-auth/webauthn-lib' => '^5.3.9'])
+        ->and($plan['effects']['require'])->toBe(['infocyph/otp' => '^7.0.1', 'web-auth/webauthn-lib' => '^5.3.12'])
         ->and($plan['effects']['activate'])->toBe([])
         ->and($plan['applicable'])->toBeTrue()
         ->and(serialize($context))->toBe($snapshot)
@@ -57,7 +57,7 @@ it('preserves transitive package ownership and refuses unknown root ownership', 
 
     $plan = $planner->plan('install', ['data.filesystem'], $context);
     expect($plan['states']['data.filesystem']['packages']['infocyph/pathwise']['transitive'])->toBeTrue()
-        ->and($plan['effects']['require'])->toBe(['infocyph/pathwise' => '^4.2'])
+        ->and($plan['effects']['require'])->toBe(['infocyph/pathwise' => '^4.2.1'])
         ->and($plan['warnings'])->not->toBeEmpty();
 
     $context['root_known'] = false;
@@ -76,8 +76,8 @@ it('rejects incompatible root constraints and installed specialist versions', fu
     expect($plan['applicable'])->toBeFalse()
         ->and(count($plan['blockers']))->toBeGreaterThanOrEqual(2);
 
-    $context['root_requirements']['infocyph/dblayer'] = '^6.1.2';
-    $context['installed']['infocyph/dblayer'] = '6.1.2';
+    $context['root_requirements']['infocyph/dblayer'] = '^6.1.4';
+    $context['installed']['infocyph/dblayer'] = '6.1.4';
     expect($planner->plan('install', ['data.database'], $context)['applicable'])->toBeTrue();
 });
 
@@ -89,8 +89,8 @@ it('evaluates real conditional cross-module dependencies without enabling siblin
     $plan = $planner->plan('install', ['execution.messaging'], $ctx);
     expect($plan['required'])->toBe(['data.database', 'execution.messaging'])
         ->and($plan['effects']['require'])->toBe([
-            'infocyph/dblayer' => '^6.1.2',
-            'infocyph/omnibus' => '^3.0.2',
+            'infocyph/dblayer' => '^6.1.4',
+            'infocyph/omnibus' => '^3.0.3',
         ])
         ->and($plan['effects']['activate'])->toBe([]);
 
@@ -107,8 +107,8 @@ it('requires native packages and platform before enabling an explicitly allowed 
         ->and(implode(' ', $denied['blockers']))->toContain('Production capability policy');
 
     $ctx['allowlist'] = ['data.database'];
-    $ctx['installed']['infocyph/dblayer'] = '6.1.2';
-    $ctx['root_requirements']['infocyph/dblayer'] = '^6.1.2';
+    $ctx['installed']['infocyph/dblayer'] = '6.1.4';
+    $ctx['root_requirements']['infocyph/dblayer'] = '^6.1.4';
     expect($planner->plan('enable', ['data.database'], $ctx)['applicable'])->toBeTrue();
 
     $ctx['extensions'] = [];
@@ -118,8 +118,8 @@ it('requires native packages and platform before enabling an explicitly allowed 
 it('checks enabled dependents and shared OTP ownership before removal', function (): void {
     $planner = new ModuleFeaturePlanner();
     $ctx = f4FeatureFixture();
-    $ctx['root_requirements']['infocyph/otp'] = '^7.0';
-    $ctx['installed']['infocyph/otp'] = '7.0.0';
+    $ctx['root_requirements']['infocyph/otp'] = '^7.0.1';
+    $ctx['installed']['infocyph/otp'] = '7.0.1';
     $ctx['enabled'] = ['security.passkey'];
 
     $plan = $planner->plan('remove', ['security.mfa'], $ctx);
@@ -137,7 +137,7 @@ it('preserves root content and emits stable repeatable effects for repair', func
 
     expect($plan['effects']['publish'])->toBe(['messaging.php'])
         ->and($plan['effects']['schemas'])->toBe(['messaging'])
-        ->and($plan['effects']['require'])->toBe(['infocyph/omnibus' => '^3.0.2'])
+        ->and($plan['effects']['require'])->toBe(['infocyph/omnibus' => '^3.0.3'])
         ->and($plan['effects']['remove'])->toBe([])
         ->and($plan['effects']['activate'])->toBe([]);
 });
@@ -162,8 +162,8 @@ it('plans each of the eight independent features without pulling unrelated sibli
 it('preserves disabled but explicitly selected feature ownership when removing shared packages', function (): void {
     $planner = new ModuleFeaturePlanner();
     $context = f4FeatureFixture();
-    $context['root_requirements']['infocyph/otp'] = '^7.0';
-    $context['installed']['infocyph/otp'] = '7.0.0';
+    $context['root_requirements']['infocyph/otp'] = '^7.0.1';
+    $context['installed']['infocyph/otp'] = '7.0.1';
     $context['selected_features'] = ['security.passkey'];
 
     expect($planner->plan('remove', ['security.mfa'], $context)['effects']['remove'])->toBe([]);
@@ -206,15 +206,15 @@ it('checks conditional prerequisite readiness when enabling durable messaging', 
     $context = f4FeatureFixture();
     $context['config'] = ['messaging' => ['durable' => ['enabled' => true]]];
     $context['enabled'] = ['data.database'];
-    $context['root_requirements']['infocyph/omnibus'] = '^3.0.2';
-    $context['installed']['infocyph/omnibus'] = '3.0.2';
+    $context['root_requirements']['infocyph/omnibus'] = '^3.0.3';
+    $context['installed']['infocyph/omnibus'] = '3.0.3';
 
     $missing = $planner->plan('enable', ['execution.messaging'], $context);
     expect($missing['applicable'])->toBeFalse()
         ->and(implode(' ', $missing['blockers']))->toContain('infocyph/dblayer');
 
-    $context['root_requirements']['infocyph/dblayer'] = '^6.1.2';
-    $context['installed']['infocyph/dblayer'] = '6.1.2';
+    $context['root_requirements']['infocyph/dblayer'] = '^6.1.4';
+    $context['installed']['infocyph/dblayer'] = '6.1.4';
     expect($planner->plan('enable', ['execution.messaging'], $context)['applicable'])->toBeTrue();
 });
 
@@ -240,12 +240,12 @@ it('removes jointly selected shared packages only once', function (): void {
     $context = f4FeatureFixture();
     $context['selected_features'] = ['security.mfa', 'security.passkey'];
     $context['root_requirements'] = [
-        'infocyph/otp' => '^7.0',
-        'web-auth/webauthn-lib' => '^5.3.9',
+        'infocyph/otp' => '^7.0.1',
+        'web-auth/webauthn-lib' => '^5.3.12',
     ];
     $context['installed'] = [
-        'infocyph/otp' => '7.0.0',
-        'web-auth/webauthn-lib' => '5.3.9',
+        'infocyph/otp' => '7.0.1',
+        'web-auth/webauthn-lib' => '5.3.12',
     ];
 
     $plan = $planner->plan('remove', ['security.passkey', 'security.mfa'], $context);
@@ -261,8 +261,8 @@ it('plans Epicrypt as a conditional OTP MFA prerequisite without coupling passke
     $otp = $planner->plan('install', ['security.mfa'], $context);
     expect($otp['required'])->toBe(['security.crypto', 'security.mfa'])
         ->and($otp['effects']['require'])->toBe([
-            'infocyph/epicrypt' => '^3.2',
-            'infocyph/otp' => '^7.0',
+            'infocyph/epicrypt' => '^3.3.1',
+            'infocyph/otp' => '^7.0.1',
         ])
         ->and($otp['effects']['activate'])->toBe([])
         ->and($otp['applicable'])->toBeTrue();
@@ -274,7 +274,7 @@ it('plans Epicrypt as a conditional OTP MFA prerequisite without coupling passke
     $context['config']['auth']['drivers']['mfa'] = 'simple';
     $simple = $planner->plan('install', ['security.mfa'], $context);
     expect($simple['required'])->toBe(['security.mfa'])
-        ->and($simple['effects']['require'])->toBe(['infocyph/otp' => '^7.0']);
+        ->and($simple['effects']['require'])->toBe(['infocyph/otp' => '^7.0.1']);
 });
 
 it('rejects OTP MFA enable until its selected Epicrypt prerequisite is active', function (): void {
@@ -282,10 +282,10 @@ it('rejects OTP MFA enable until its selected Epicrypt prerequisite is active', 
     $context = f4FeatureFixture();
     $context['config'] = ['auth' => ['drivers' => ['mfa' => 'otp']]];
     $context['root_requirements'] = [
-        'infocyph/otp' => '^7.0',
-        'infocyph/epicrypt' => '^3.2',
+        'infocyph/otp' => '^7.0.1',
+        'infocyph/epicrypt' => '^3.3.1',
     ];
-    $context['installed'] = ['infocyph/otp' => '7.0.0', 'infocyph/epicrypt' => '3.2.0'];
+    $context['installed'] = ['infocyph/otp' => '7.0.1', 'infocyph/epicrypt' => '3.3.0'];
     $withoutCrypto = $planner->plan('enable', ['security.mfa'], $context);
     expect($withoutCrypto['applicable'])->toBeFalse()
         ->and(implode(' ', $withoutCrypto['blockers']))->toContain('Enable required feature security.crypto');

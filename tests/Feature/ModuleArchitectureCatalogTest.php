@@ -23,20 +23,20 @@ it('installs selected feature packages only, with explicit OTP passkey co-owners
     $catalog = new ModuleArchitectureCatalog();
 
     expect($catalog->packages('data', []))->toBe([])
-        ->and($catalog->packages('data', ['filesystem']))->toBe(['infocyph/pathwise' => '^4.2'])
-        ->and($catalog->packages('security', ['crypto']))->toBe(['infocyph/epicrypt' => '^3.2'])
+        ->and($catalog->packages('data', ['filesystem']))->toBe(['infocyph/pathwise' => '^4.2.1'])
+        ->and($catalog->packages('security', ['crypto']))->toBe(['infocyph/epicrypt' => '^3.3.1'])
         ->and($catalog->packages('security', ['passkey']))->toBe([
-            'infocyph/otp' => '^7.0',
-            'web-auth/webauthn-lib' => '^5.3.9',
+            'infocyph/otp' => '^7.0.1',
+            'web-auth/webauthn-lib' => '^5.3.12',
         ])
-        ->and($catalog->packages('security', ['mfa']))->toBe(['infocyph/otp' => '^7.0'])
+        ->and($catalog->packages('security', ['mfa']))->toBe(['infocyph/otp' => '^7.0.1'])
         ->and($catalog->packages('security', ['mfa', 'passkey']))->toBe([
-            'infocyph/otp' => '^7.0',
-            'web-auth/webauthn-lib' => '^5.3.9',
+            'infocyph/otp' => '^7.0.1',
+            'web-auth/webauthn-lib' => '^5.3.12',
         ])
-        ->and($catalog->packages('execution', ['messaging']))->toBe(['infocyph/omnibus' => '^3.0.2'])
+        ->and($catalog->packages('execution', ['messaging']))->toBe(['infocyph/omnibus' => '^3.0.3'])
         ->and(fn() => $catalog->packages('execution', ['runtime']))->toThrow(InvalidArgumentException::class)
-        ->and($catalog->packages('execution', ['communication']))->toBe(['infocyph/talkingbytes' => '^2.3']);
+        ->and($catalog->packages('execution', ['communication']))->toBe(['infocyph/talkingbytes' => '^2.3.1']);
 });
 
 it('does not make core, PHPForge, or external developer packages installable modules', function (): void {
@@ -60,7 +60,7 @@ it('does not make core, PHPForge, or external developer packages installable mod
         ->and($owned)->not->toHaveKey('infocyph/runwire')
         ->and($owned)->not->toHaveKey('psr/log')
         ->and($owned)->not->toHaveKey('opis/closure')
-        ->and($manifest['require']['psr/log'] ?? null)->toBe('^3.0.2')
+        ->and($manifest['require']['psr/log'] ?? null)->toBe('^3.0.3')
         ->and($manifest['require-dev']['infocyph/phpforge'] ?? null)->toBe('dev-main@dev');
 });
 
@@ -90,7 +90,7 @@ it('rejects foreign modules, package ownership collisions, undeclared dependenci
     expect(fn() => $catalog->validate($extra))->toThrow(LogicException::class);
 
     $shared = $modules;
-    $shared['execution']['features']['messaging']['packages']['infocyph/pathwise'] = '^4.2';
+    $shared['execution']['features']['messaging']['packages']['infocyph/pathwise'] = '^4.2.1';
     expect(fn() => $catalog->validate($shared))->toThrow(LogicException::class, 'multiple unrelated feature owners');
 
     $unknown = $modules;
@@ -101,7 +101,7 @@ it('rejects foreign modules, package ownership collisions, undeclared dependenci
     $cycle['data']['features']['database']['dependencies'][] = ['target' => 'execution.messaging'];
     expect(fn() => $catalog->validate($cycle))->toThrow(LogicException::class, 'Cyclic optional feature dependencies');
 
-    foreach (['infocyph/cachelayer' => '^4.0', 'infocyph/runwire' => '^2.1.2'] as $package => $constraint) {
+    foreach (['infocyph/cachelayer' => '^4.0', 'infocyph/runwire' => '^3.0'] as $package => $constraint) {
         $core = $modules;
         $core['execution']['features']['messaging']['packages'][$package] = $constraint;
         expect(fn() => $catalog->validate($core))->toThrow(LogicException::class, 'Invalid optional package owner');
@@ -144,7 +144,7 @@ it('rejects invalid schema ownership, unsafe config paths, platform names and sh
     expect(fn() => $catalog->validate($platform))->toThrow(LogicException::class, 'Invalid platform extension');
 
     $shared = $definitions;
-    $shared['security']['features']['passkey']['packages']['infocyph/otp'] = '^6.0';
+    $shared['security']['features']['passkey']['packages']['infocyph/otp'] = '^6.0.1';
     expect(fn() => $catalog->validate($shared))->toThrow(LogicException::class, 'Conflicting shared constraints');
 
     $missing = $definitions;

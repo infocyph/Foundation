@@ -12,12 +12,12 @@ function featureActivationContext(): array
     return [
         'root_known' => true,
         'root_requirements' => [
-            'infocyph/otp' => '^7.0',
-            'web-auth/webauthn-lib' => '^5.3.9',
+            'infocyph/otp' => '^7.0.1',
+            'web-auth/webauthn-lib' => '^5.3.12',
         ],
         'installed' => [
-            'infocyph/otp' => '7.0.0',
-            'web-auth/webauthn-lib' => '5.3.9',
+            'infocyph/otp' => '7.0.1',
+            'web-auth/webauthn-lib' => '5.3.12',
         ],
         'enabled' => [],
         'config' => [],

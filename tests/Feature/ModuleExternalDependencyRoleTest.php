@@ -14,20 +14,20 @@ it('keeps external runtime and developer requirements in their correct Composer 
     $development = $manifest['require-dev'];
     $features = new ModuleArchitectureCatalog();
 
-    expect($runtime['psr/log'] ?? null)->toBe('^3.0.2')
-        ->and($runtime['infocyph/runwire'] ?? null)->toBe('^2.1.2')
+    expect($runtime['psr/log'] ?? null)->toBe('^3.0.3')
+        ->and($runtime['infocyph/runwire'] ?? null)->toBe('^3.0')
         ->and($development)->not->toHaveKey('infocyph/runwire')
         ->and($manifest['suggest'])->not->toHaveKey('infocyph/runwire')
         ->and($development['opis/closure'] ?? null)->toBe('^4.5')
         ->and($runtime)->not->toHaveKey('opis/closure')
         ->and($runtime)->not->toHaveKey('web-auth/webauthn-lib')
         ->and($runtime)->not->toHaveKey('infocyph/phpforge')
-        ->and($development['web-auth/webauthn-lib'] ?? null)->toBe('^5.3.9')
+        ->and($development['web-auth/webauthn-lib'] ?? null)->toBe('^5.3.12')
         ->and($features->feature('security', 'passkey')['packages'])->toBe([
-            'infocyph/otp' => '^7.0',
-            'web-auth/webauthn-lib' => '^5.3.9',
+            'infocyph/otp' => '^7.0.1',
+            'web-auth/webauthn-lib' => '^5.3.12',
         ])
-        ->and($features->feature('security', 'mfa')['packages'])->toBe(['infocyph/otp' => '^7.0']);
+        ->and($features->feature('security', 'mfa')['packages'])->toBe(['infocyph/otp' => '^7.0.1']);
 });
 
 it('pins required feature extensions without making optional accelerators Core dependencies', function (): void {
@@ -43,7 +43,7 @@ it('pins required feature extensions without making optional accelerators Core d
         ->and($catalog->feature('security', 'validation')['platform']['extensions'])->toBe(['fileinfo', 'hash', 'mbstring'])
         ->and($catalog->feature('security', 'mfa')['platform']['extensions'])->toBe(['ctype'])
         ->and($catalog->feature('security', 'passkey')['platform']['optional_extensions'])->toContain('sodium')
-        ->and($manifest['require']['infocyph/runwire'])->toBe('^2.1.2')
+        ->and($manifest['require']['infocyph/runwire'])->toBe('^3.0')
         ->and($manifest['require'])->not->toHaveKey('ext-sodium')
         ->and($manifest['require'])->not->toHaveKey('ext-pcntl')
         ->and($manifest['require'])->not->toHaveKey('ext-posix');

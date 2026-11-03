@@ -102,7 +102,7 @@ it('executes only selected passkey packages in a Composer dry-run without applic
 
         expect($result->successful())->toBeTrue()
             ->and(f4ComposerCommands($root))->toBe([[
-                'require', 'infocyph/otp:^7.0', 'web-auth/webauthn-lib:^5.3.9',
+                'require', 'infocyph/otp:^7.0.1', 'web-auth/webauthn-lib:^5.3.12',
                 '--with-all-dependencies', '--no-interaction', '--dry-run',
             ]])
             ->and(file_get_contents($root . '/composer.json'))->toBe($composerBefore)
@@ -115,7 +115,7 @@ it('executes only selected passkey packages in a Composer dry-run without applic
 });
 
 it('respects shared feature ownership when removing packages and skips Composer for no-op', function (): void {
-    $requirements = ['infocyph/otp' => '^7.0', 'web-auth/webauthn-lib' => '^5.3.9'];
+    $requirements = ['infocyph/otp' => '^7.0.1', 'web-auth/webauthn-lib' => '^5.3.12'];
     $root = f4ComposerFixture($requirements);
     $restore = f4ComposerStub($root);
 
@@ -123,7 +123,7 @@ it('respects shared feature ownership when removing packages and skips Composer 
         $application = Foundation::cli(['base_path' => $root, '_config_cache' => false]);
         $executor = new ModuleFeatureComposerExecutor($application);
         $context = f4ComposerContext($requirements);
-        $context['installed'] = ['infocyph/otp' => '7.0.0', 'web-auth/webauthn-lib' => '5.3.9'];
+        $context['installed'] = ['infocyph/otp' => '7.0.1', 'web-auth/webauthn-lib' => '5.3.12'];
         $context['selected_features'] = ['security.passkey'];
 
         expect($executor->applyPackages('remove', ['security.mfa'], $context)->successful())->toBeTrue()
@@ -143,7 +143,7 @@ it('respects shared feature ownership when removing packages and skips Composer 
 });
 
 it('refuses stale root ownership and invalid operations before executing Composer', function (): void {
-    $root = f4ComposerFixture(['infocyph/otp' => '^7.0']);
+    $root = f4ComposerFixture(['infocyph/otp' => '^7.0.1']);
     $restore = f4ComposerStub($root);
 
     try {

@@ -13,7 +13,7 @@ it('separates direct module ownership from transitive package availability', fun
     $basePath = moduleStateBasePath('ownership');
 
     try {
-        moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1.2']);
+        moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1.4']);
         $directApp = Foundation::cli([
             'base_path' => $basePath,
             '_config_cache' => false,
@@ -95,7 +95,7 @@ it('accepts exact supported pins and fails closed on unsupported consumer constr
         'exact' => [$exact, true],
         'tilde' => ['~5.1', null],
         'range' => ['>=5.1 <6.0', null],
-        'union' => ['^5.1 || ^6.0', null],
+        'union' => ['^5.1 || ^6.0.1', null],
         'alias' => ['dev-main as 5.1.x-dev', null],
     ];
 
@@ -182,7 +182,7 @@ it('reports unknown Composer ownership instead of silently treating packages as 
 
 it('separates effective configuration publication and explicit activation state', function (): void {
     $basePath = moduleStateBasePath('activation');
-    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1.2']);
+    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1.4']);
 
     try {
         $inferredApp = Foundation::cli([
@@ -227,7 +227,7 @@ it('keeps core auth ready while tracking OTP and passkey feature state independe
     $basePath = moduleStateBasePath('auth-features');
 
     try {
-        moduleStateWriteComposer($basePath, ['infocyph/otp' => '^7.0']);
+        moduleStateWriteComposer($basePath, ['infocyph/otp' => '^7.0.1']);
         $otpApp = Foundation::cli([
             'base_path' => $basePath,
             '_config_cache' => false,
@@ -253,8 +253,8 @@ it('keeps core auth ready while tracking OTP and passkey feature state independe
             ->and($otp['features']['passkey']['installed'] ?? null)->toBeFalse();
 
         moduleStateWriteComposer($basePath, [
-            'infocyph/otp' => '^7.0',
-            'web-auth/webauthn-lib' => '^5.3.9',
+            'infocyph/otp' => '^7.0.1',
+            'web-auth/webauthn-lib' => '^5.3.12',
         ]);
         $passkeyApp = Foundation::cli([
             'base_path' => $basePath,
@@ -283,7 +283,7 @@ it('keeps core auth ready while tracking OTP and passkey feature state independe
 
 it('reports optional integrations separately from managed module ownership', function (): void {
     $basePath = moduleStateBasePath('optional-integrations');
-    moduleStateWriteComposer($basePath, ['infocyph/talkingbytes' => '^2.3']);
+    moduleStateWriteComposer($basePath, ['infocyph/talkingbytes' => '^2.3.1']);
 
     try {
         $application = Foundation::cli([
@@ -309,7 +309,7 @@ it('reports optional integrations separately from managed module ownership', fun
 
 it('keeps ordinary Omnibus messaging portable without PCNTL or POSIX requirements', function (): void {
     $basePath = moduleStateBasePath('portable-messaging');
-    moduleStateWriteComposer($basePath, ['infocyph/omnibus' => '^3.0.2']);
+    moduleStateWriteComposer($basePath, ['infocyph/omnibus' => '^3.0.3']);
 
     try {
         $application = Foundation::cli([
@@ -350,8 +350,8 @@ it('keeps ordinary Omnibus messaging portable without PCNTL or POSIX requirement
 it('evaluates conditional specialist module dependencies against explicit topology', function (): void {
     $basePath = moduleStateBasePath('dependencies');
     moduleStateWriteComposer($basePath, [
-        'infocyph/omnibus' => '^3.0.2',
-        'infocyph/dblayer' => '^6.1.2',
+        'infocyph/omnibus' => '^3.0.3',
+        'infocyph/dblayer' => '^6.1.4',
     ]);
 
     try {
@@ -392,7 +392,7 @@ it('evaluates conditional specialist module dependencies against explicit topolo
 
 it('evaluates selected auth feature dependencies against core capabilities', function (): void {
     $basePath = moduleStateBasePath('core-dependencies');
-    moduleStateWriteComposer($basePath, ['infocyph/otp' => '^7.0']);
+    moduleStateWriteComposer($basePath, ['infocyph/otp' => '^7.0.1']);
 
     try {
         $blockedApp = Foundation::cli([
@@ -434,7 +434,7 @@ it('evaluates selected auth feature dependencies against core capabilities', fun
 
 it('reports runtime platform readiness and hard-blocks missing required extensions', function (): void {
     $basePath = moduleStateBasePath('platform');
-    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1.2']);
+    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1.4']);
 
     try {
         $application = Foundation::cli([
@@ -488,7 +488,7 @@ it('keeps specialist catalog package floors aligned with the tested dependency s
         }
     }
 
-    expect($composer['require']['infocyph/cachelayer'] ?? null)->toBe('^4.0.1');
+    expect($composer['require']['infocyph/cachelayer'] ?? null)->toBe('^4.0.2');
 });
 
 /**
