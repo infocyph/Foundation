@@ -1,6 +1,19 @@
 # Foundation 4: latest-library integration and full-library audit plan
 
-Date: 2026-11-03 (Asia/Dhaka). Status: **planning only; implementation pending**.
+Date: 2026-11-03 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
+
+## Implementation checkpoint — 2026-11-03
+
+Work is underway on PR #20 / `feature/foundation-3`; no merge, tag, publication, or Infbyte source changes have been made. The pre-implementation audit and version matrix below remain historical baseline evidence, not assertions about the current working branch.
+
+- **P0 partial:** hardened account-authoritative password-reset delivery, recursively sanitized authentication-audit metadata, made route presets fail closed, bound trusted config/worker artifacts to captured verified bytes, and supervised process stdin through the timeout/output pump. Added focused regression tests. Follow-up coverage is still needed for end-to-end notification delivery, adversarial artifact swapping, independent audit sinks, and process cancellation. The dedicated architecture coverage gap (A07) remains open.
+- **P1 partial:** raised `composer.json` Core/optional release floors, added optional-package exclusion bounds, synchronized both module catalogs, production-consumer installation manifests, and selected fixture expectations. Runwire 3 replaces Runwire 2 without dual-version support. Published dependency resolution and consumer checks are validated through hosted CI, but all other migration gates require final-source verification.
+- **P2–P3 in progress:** preserved ordinary PHP and host-borrowed Runwire paths, updated native cancellation expectations and cross-request assertions; full specialist real-operation qualification and exact-source final QA are not yet complete.
+- **P4–P5 partial:** updated primary Foundation 4 release/migration/module/hosting documentation for the dependency baseline. Further API examples, compatibility cleanup and selected-specialist documentation need review.
+- **P6 open:** the strict paired host performance, retained-state upgrade/rollback, complete source-free generation, architecture enforcement, and all-green exact-commit CI remain required. Earlier partial CI results must not be treated as final release evidence.
+- **Additional security improvement:** removed untrusted notification payload from TalkingBytes email message metadata, preventing reset tokens and caller context from leaking into transport-level metadata while preserving rendered message content. The privileged PHPForge release workflow is pinned to an immutable revision.
+
+The 90 implementation checkboxes below are acceptance criteria and remain open until each item is verified; this checkpoint records committed progress without claiming release completion.
 
 ## Objective and agreed boundaries
 

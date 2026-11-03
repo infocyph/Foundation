@@ -42,6 +42,12 @@ it('delivers account password resets only to the authoritative stored address', 
 
     $mailer->assertable()->assertSentCount(1);
     $mailer->assertable()->assertSentTo('victim@example.test');
+    $metadata = $mailer->assertable()->lastMessage()?->metadata();
+    expect($metadata)->toBe([
+        'account_id' => 'victim',
+        'auth_notification_type' => 'password_reset_requested',
+    ]);
+
     expect(fn() => $mailer->assertable()->assertSentTo('attacker@example.test'))->toThrow(RuntimeException::class);
 
     expect(fn() => $notifier->send(new AuthNotification(

@@ -35,7 +35,7 @@ final readonly class AuthNotificationMapper
             ->withMetadata([
                 'account_id' => $notification->accountId,
                 'auth_notification_type' => $notification->type->value,
-            ] + $notification->payload);
+            ]);
 
         if ($from === null || $from === '') {
             return $message;
