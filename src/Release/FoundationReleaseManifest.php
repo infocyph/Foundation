@@ -106,12 +106,27 @@ final class FoundationReleaseManifest
      */
     public static function loadTrusted(string $path, string $sha256): array
     {
-        $contents = file_get_contents($path);
+        $manifest = self::loadTrustedArray($path, $sha256);
+        self::assertValid($manifest);
+
+        return $manifest;
+    }
+
+    /**
+     * Evaluate only captured, authenticated PHP bytes in a private staging file.
+     * Callers validate their own schema after evaluation.
+     *
+     * @return array<string,mixed>
+     */
+    public static function loadTrustedArray(string $path, string $sha256): array
+    {
+        self::digest($sha256, 64, 'artifact_sha256');
+        $contents = @file_get_contents($path);
         if (!is_string($contents) || !hash_equals($sha256, hash('sha256', $contents))) {
-            throw new \RuntimeException('Foundation generation manifest trust identity mismatch.');
+            throw new \RuntimeException('Foundation release artifact trust identity mismatch.');
         }
 
-        $temporary = tempnam(sys_get_temp_dir(), 'foundation-trusted-manifest-');
+        $temporary = tempnam(sys_get_temp_dir(), 'foundation-trusted-');
         if ($temporary === false) {
             throw new \RuntimeException('Unable to stage authenticated Foundation release manifest.');
         }
@@ -121,7 +136,12 @@ final class FoundationReleaseManifest
                 throw new \RuntimeException('Unable to write authenticated Foundation release manifest.');
             }
 
-            return self::load($temporary);
+            $value = require $temporary;
+            if (!is_array($value)) {
+                throw new \UnexpectedValueException('Authenticated Foundation release artifact must return an array.');
+            }
+
+            return $value;
         } finally {
             if (is_file($temporary)) {
                 unlink($temporary);

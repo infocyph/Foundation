@@ -42,3 +42,25 @@ it('does not evaluate an untrusted executable release manifest in prevalidated b
         rmdir($root);
     }
 });
+
+it('refuses to execute mismatched trusted config bytes', function (): void {
+    $file = tempnam(sys_get_temp_dir(), 'foundation-config-auth-');
+    expect($file)->toBeString();
+    $marker = $file . '.executed';
+
+    try {
+        file_put_contents(
+            $file,
+            '<?php file_put_contents(' . var_export($marker, true)
+            . ", 'untrusted'); return ['format' => 1, 'config' => []];",
+        );
+        expect(fn() => \Infocyph\Foundation\Release\FoundationReleaseConfig::load(
+            $file,
+            str_repeat('0', 64),
+        ))->toThrow(RuntimeException::class, 'trust identity mismatch');
+        expect(is_file($marker))->toBeFalse();
+    } finally {
+        @unlink($file);
+        @unlink($marker);
+    }
+});

@@ -59,12 +59,7 @@ final class WorkerTopology
         if (!is_file($artifactPath) || !is_readable($artifactPath)) {
             throw new \RuntimeException(sprintf('Foundation worker topology is not readable: "%s".', $artifactPath));
         }
-        $actualSha256 = hash_file('sha256', $artifactPath);
-        if (!is_string($actualSha256) || !hash_equals($expectedSha256, $actualSha256)) {
-            throw new \RuntimeException('Foundation worker topology trust identity mismatch.');
-        }
-
-        $payload = require $artifactPath;
+        $payload = FoundationReleaseManifest::loadTrustedArray($artifactPath, $expectedSha256);
         if (!is_array($payload) || ($payload['format'] ?? null) !== self::FORMAT) {
             throw new \UnexpectedValueException('Foundation worker topology format is invalid.');
         }
@@ -86,16 +81,9 @@ final class WorkerTopology
             . DIRECTORY_SEPARATOR . $release->generation;
         $manifestPath = $directory . DIRECTORY_SEPARATOR . 'foundation.php';
 
-        if ($release->trustedFoundationManifestSha256 !== null) {
-            $actualManifestSha256 = is_file($manifestPath) ? hash_file('sha256', $manifestPath) : false;
-            if (!is_string($actualManifestSha256)
-                || !hash_equals($release->trustedFoundationManifestSha256, $actualManifestSha256)
-            ) {
-                throw new \RuntimeException('Foundation generation manifest trust identity mismatch.');
-            }
-        }
-
-        $manifest = FoundationReleaseManifest::load($manifestPath);
+        $manifest = $release->trustedFoundationManifestSha256 !== null
+            ? FoundationReleaseManifest::loadTrusted($manifestPath, $release->trustedFoundationManifestSha256)
+            : FoundationReleaseManifest::load($manifestPath);
         if (($manifest['generation'] ?? null) !== $release->generation) {
             throw new \RuntimeException('Loaded Foundation worker topology belongs to a different release generation.');
         }

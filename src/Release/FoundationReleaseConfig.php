@@ -19,12 +19,7 @@ final class FoundationReleaseConfig
             throw new \RuntimeException(sprintf('Foundation release config is not readable: "%s".', $path));
         }
 
-        $actualSha256 = hash_file('sha256', $path);
-        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
-            throw new \RuntimeException('Foundation release config trust identity mismatch.');
-        }
-
-        $payload = require $path;
+        $payload = FoundationReleaseManifest::loadTrustedArray($path, $trustedSha256);
         if (!is_array($payload)
             || ($payload['format'] ?? null) !== self::FORMAT
             || !is_array($payload['config'] ?? null)
