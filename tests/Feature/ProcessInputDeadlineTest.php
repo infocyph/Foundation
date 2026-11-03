@@ -39,3 +39,42 @@ it('simultaneously drains child output and supplies stdin without deadlock', fun
         ->and($result->exitCode)->toBe(0)
         ->and($result->stdout)->toEndWith('131072');
 });
+
+it('observes cancellation while a child blocks stdin consumption', function (): void {
+    $checks = 0;
+    $started = hrtime(true);
+    $result = new ProcessRunner()->run(
+        [PHP_BINARY, '-r', 'usleep(750000);'],
+        new ProcessOptions(
+            timeoutSeconds: 2.0,
+            input: str_repeat('I', 1_048_576),
+            cancelled: static function () use (&$checks): bool {
+                return ++$checks >= 4;
+            },
+            terminationGraceSeconds: 0.05,
+            handleSignals: false,
+        ),
+    );
+    $wallSeconds = (hrtime(true) - $started) / 1_000_000_000;
+
+    expect($result->reason)->toBe(ProcessTerminationReason::Cancelled)
+        ->and($result->timedOut)->toBeFalse()
+        ->and($wallSeconds)->toBeLessThan(0.5);
+});
+
+it('cleans up when a child exits before consuming all standard input', function (): void {
+    $started = hrtime(true);
+    $result = new ProcessRunner()->run(
+        [PHP_BINARY, '-r', 'echo "done";'],
+        new ProcessOptions(
+            timeoutSeconds: 1.0,
+            input: str_repeat('I', 1_048_576),
+            terminationGraceSeconds: 0.05,
+            handleSignals: false,
+        ),
+    );
+
+    expect($result->timedOut)->toBeFalse()
+        ->and($result->stdout)->toContain('done')
+        ->and((hrtime(true) - $started) / 1_000_000_000)->toBeLessThan(1.0);
+});

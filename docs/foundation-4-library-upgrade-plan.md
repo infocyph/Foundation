@@ -28,6 +28,8 @@ The 90 implementation checkboxes below are acceptance criteria. Mark only entrie
 | ReqShield file and cancellation boundary | `5e6e5ba7` | New regression fixtures; current four-lane QA was green for prior tested source | Exact-commit QA and MIME/host cancellation results |
 | Auth notification recipient hardening | `da1aa9b7`–`2828e444` | Purpose-specific recipient identity and negative override regressions implemented; resolved PHPStan complexity finding | Exact-commit security/QA result and wider auth flow review |
 | Authentication audit persistence | Pending verification | Added direct DBLayer/SQLite persistence regression for nested mixed-case MFA, recovery, assertion, token and key material; extended redaction while retaining nonsecret IDs | Confirm PHP 8.4/8.5 QA before checking A04 criteria |
+| Captured release-artifact bytes | Pending verification | Added an authenticated private-copy execution proof and tamper-after-signing rejection without executing the substituted payload | Verify stable/lowest PHP 8.4/8.5 tests before closing trust edge |
+| Process stdin cancellation and early exit | Pending verification | Added active cancellation during blocked writes plus early child exit checks; existing no-read and output-before-input regressions retained | Verify timings and termination across both PHP lanes |
 | Sustained performance contract | `2790750c` | Comparator and fixture enforce 120-second trials rather than 60 | Full matched-host execution and separate dependency-upgrade evidence |
 
 

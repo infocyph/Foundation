@@ -68,3 +68,33 @@ it('refuses to execute mismatched trusted config bytes', function (): void {
         }
     }
 });
+
+it('evaluates captured authenticated bytes from a cleaned private copy', function (): void {
+    $path = tempnam(sys_get_temp_dir(), 'foundation-trusted-copy-');
+    expect($path)->toBeString();
+    $marker = $path . '.executed';
+    $trusted = "<?php return ['format' => 1, 'source_file' => __FILE__];";
+    $sha256 = hash('sha256', $trusted);
+
+    try {
+        file_put_contents($path, $trusted);
+        $loaded = \Infocyph\Foundation\Release\FoundationReleaseManifest::loadTrustedArray($path, $sha256);
+        expect($loaded['source_file'])->not->toBe($path)
+            ->and(is_file($loaded['source_file']))->toBeFalse();
+
+        file_put_contents(
+            $path,
+            '<?php file_put_contents(' . var_export($marker, true) . ", 'tampered'); return ['format' => 1];",
+        );
+        expect(fn() => \Infocyph\Foundation\Release\FoundationReleaseManifest::loadTrustedArray($path, $sha256))
+            ->toThrow(RuntimeException::class, 'trust identity mismatch');
+        expect(is_file($marker))->toBeFalse();
+    } finally {
+        if (is_file($path)) {
+            unlink($path);
+        }
+        if (is_file($marker)) {
+            unlink($marker);
+        }
+    }
+});
