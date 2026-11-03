@@ -80,7 +80,7 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
     }
 
     /**
-     * Security notifications resolve the recipient from authoritative account
+     * Account-linked notifications resolve the recipient from authoritative account
      * state; only verification uses its validated, purpose-specific new address.
      */
     private function passwordlessRecipient(AuthNotification $notification): ?string
