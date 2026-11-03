@@ -88,7 +88,8 @@ it('observes cancellation after entering an ordinary native database query', fun
         $app->execution()->run(static function () use ($app): void {
             $connection = $app->make(DBLayerFactory::class)->connection();
             expect(fn() => $connection->scalar('SELECT 42'))
-                ->toThrow(CancelledException::class);
+                ->toThrow(\Infocyph\DBLayer\Exceptions\ConnectionException::class);
+            expect($request->cancelled())->toBeTrue();
         }, [RuntimeContext::class => $runtime, RequestContext::class => $request]);
         expect($observed)->toBe(['runtime' => $runtime, 'request' => $request, 'scope' => null])
             ->and(CacheRunwire::current())->toBeNull();

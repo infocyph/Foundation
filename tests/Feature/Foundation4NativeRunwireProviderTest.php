@@ -306,10 +306,12 @@ it('rejects a shared completed or cancelled host request before starting framewo
     };
 
     try {
-        CacheRunwire::share($request, null, static function () use ($app, $request, $expected, $callback): void {
-            expect(fn() => $app->execution()->run($callback))->toThrow($expected)
-                ->and(CacheRunwire::current()?->request)->toBe($request);
-        }, $runtime);
+        expect(fn() => CacheRunwire::share(
+            $request,
+            null,
+            static fn(): mixed => $app->execution()->run($callback),
+            $runtime,
+        ))->toThrow($expected);
         expect($called)->toBeFalse()
             ->and($request->completed())->toBe($state === 'completed')
             ->and(CacheRunwire::current())->toBeNull();

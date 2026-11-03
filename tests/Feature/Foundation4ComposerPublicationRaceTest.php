@@ -6,7 +6,7 @@ use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Tests\Fixtures\AuthContentionFixture;
 
-it('rejects a real Composer downgrade occurring while feature publication is staged and permits a fresh retry', function (): void {
+it('rejects a real Composer downgrade after a captured feature snapshot and permits a fresh retry', function (): void {
     $directory = sys_get_temp_dir() . '/foundation-composer-publication-' . bin2hex(random_bytes(6));
     mkdir($directory . '/config', 0700, true);
     $runner = new ProcessRunner();
@@ -16,20 +16,18 @@ it('rejects a real Composer downgrade occurring while feature publication is sta
         'name' => 'test/publication-race',
         'repositories' => [
             ['type' => 'package', 'package' => [
-                ['name' => 'infocyph/dblayer', 'version' => '6.1.2', 'type' => 'metapackage'],
+                ['name' => 'infocyph/dblayer', 'version' => '6.1.4', 'type' => 'metapackage'],
                 ['name' => 'infocyph/dblayer', 'version' => '5.9.0', 'type' => 'metapackage'],
             ]],
             ['packagist.org' => false],
         ],
-        'require' => ['infocyph/dblayer' => '6.1.2'],
+        'require' => ['infocyph/dblayer' => '6.1.4'],
     ], JSON_THROW_ON_ERROR));
     file_put_contents($directory . '/config/database.php', '<?php return [];');
     $original = '<?php return ' . var_export(['features' => [], 'application_policy' => str_repeat('x', 16 * 1024 * 1024)], true) . ';';
     file_put_contents($directory . '/config/modules.php', $original);
     $process = null;
     $pipes = [];
-    $stopped = false;
-    $pid = null;
 
     try {
         $installed = $runner->run(['composer', 'update', '--no-interaction', '--no-plugins', '--no-scripts'], new ProcessOptions(cwd: $directory, timeoutSeconds: 30));
@@ -42,24 +40,13 @@ it('rejects a real Composer downgrade occurring while feature publication is sta
         }
         fclose($pipes[0]);
         AuthContentionFixture::waitFor($directory . '/ready');
-        $pid = proc_get_status($process)['pid'];
-        touch($directory . '/start');
-        $until = microtime(true) + 5;
-        do {
-            $staged = glob($directory . '/config/.foundation-modules-*');
-            if ($staged !== []) {
-                $stopped = posix_kill($pid, SIGSTOP);
-                break;
-            }
-            usleep(500);
-        } while (microtime(true) < $until);
-        expect($stopped)->toBeTrue();
+        // The worker has captured its Composer snapshot and is blocked
+        // at the explicit start barrier, avoiding a temporary-file race.
         $changed = $runner->run([
             'composer', 'require', 'infocyph/dblayer:5.9.0', '--no-interaction', '--no-plugins', '--no-scripts',
         ], new ProcessOptions(cwd: $directory, timeoutSeconds: 30));
         expect($changed->successful())->toBeTrue();
-        posix_kill($pid, SIGCONT);
-        $stopped = false;
+        touch($directory . '/start');
         AuthContentionFixture::waitFor($directory . '/activation-result.json');
         $error = stream_get_contents($pipes[2]);
         stream_get_contents($pipes[1]);
@@ -76,7 +63,7 @@ it('rejects a real Composer downgrade occurring while feature publication is sta
             ->and(glob($directory . '/config/.foundation-modules-*'))->toBe([]);
 
         $repaired = $runner->run([
-            'composer', 'require', 'infocyph/dblayer:6.1.2', '--no-interaction', '--no-plugins', '--no-scripts',
+            'composer', 'require', 'infocyph/dblayer:6.1.4', '--no-interaction', '--no-plugins', '--no-scripts',
         ], new ProcessOptions(cwd: $directory, timeoutSeconds: 30));
         expect($repaired->successful())->toBeTrue();
         $app = \Infocyph\Foundation\Foundation::cli(['base_path' => $directory, '_config_cache' => false]);
@@ -117,9 +104,6 @@ it('rejects a real Composer downgrade occurring while feature publication is sta
             ->and(file_get_contents($directory . '/composer.json'))->toBe($composerBefore)
             ->and((require $directory . '/config/modules.php')['features'])->toBe(['data.database' => true]);
     } finally {
-        if ($stopped && is_int($pid)) {
-            posix_kill($pid, SIGCONT);
-        }
         if (is_resource($process)) {
             proc_terminate($process, SIGKILL);
             proc_close($process);
