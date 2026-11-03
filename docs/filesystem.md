@@ -1,6 +1,6 @@
 # Filesystem and storage
 
-Foundation composes application storage policy; Pathwise 4.1 owns filesystem mechanics.
+Foundation composes application storage policy; Pathwise 4.2.1 owns filesystem mechanics.
 
 Install the optional filesystem module when the application needs configured storage, uploads, downloads, or the Webrick file-transfer bridge:
 
@@ -43,7 +43,7 @@ Relative roots of local disks are resolved against the Foundation base path befo
 
 For Webrick requests, `FilesystemUploadRequestHandler` adapts an `UploadedFile` directly with `UploadSource::fromMover()`. Foundation does not create `foundation-upload-*` staging files or own generic upload cleanup. Pathwise materializes the source privately, validates/scans it, and cleans staging deterministically on success or failure.
 
-Normal and chunked Webrick uploads always use Pathwise 4.1 `UploadTrustProfile::UNTRUSTED_DATA`. Foundation may configure stricter extension/type/size/image and finite chunk limits, but it does not expose knobs that downgrade server-generated hash naming or strict content validation. Defaults are bounded to 1,000 chunks and 8 MiB per chunk; an explicit zero is converted back to Pathwise's bounded strict-profile default rather than meaning unlimited.
+Normal and chunked Webrick uploads always use Pathwise 4.2.1 `UploadTrustProfile::UNTRUSTED_DATA`. Foundation may configure stricter extension/type/size/image and finite chunk limits, but it does not expose knobs that downgrade server-generated hash naming or strict content validation. Defaults are bounded to 1,000 chunks and 8 MiB per chunk; an explicit zero is converted back to Pathwise's bounded strict-profile default rather than meaning unlimited.
 
 ### Malware scanning
 
@@ -61,7 +61,7 @@ Custom, ICAP, AMWScan, cloud, or other scanners should implement Pathwise `Malwa
 
 ## Public/static files
 
-Foundation selects the application public root and symlink policy, then delegates path trust to Pathwise 4.1 `PublicFileResolver`. `FilesystemResponseFactory::publicFile()` accepts only a relative candidate below that configured root. Traversal, absolute/drive/UNC input and root escape fail closed; the default symlink policy is `reject`. The resolved local artifact then flows through the existing Pathwise download policy and Webrick `FileBody` response path, so Foundation does not create a second static-file resolver or emit response bytes directly.
+Foundation selects the application public root and symlink policy, then delegates path trust to Pathwise 4.2.1 `PublicFileResolver`. `FilesystemResponseFactory::publicFile()` accepts only a relative candidate below that configured root. Traversal, absolute/drive/UNC input and root escape fail closed; the default symlink policy is `reject`. The resolved local artifact then flows through the existing Pathwise download policy and Webrick `FileBody` response path, so Foundation does not create a second static-file resolver or emit response bytes directly.
 
 `filesystem.public_files.root` defaults to the Foundation `public/` directory. `filesystem.public_files.symlink_policy` accepts `reject` or `allow_within_root`; allowing links still requires canonical containment inside the trusted root.
 
@@ -72,6 +72,19 @@ Foundation creates a fresh Pathwise `DownloadProcessor`, injects the same applic
 Pathwise owns validation, exact range positioning, seek/discard behavior, byte iteration, and resource closure. Foundation/Webrick retain HTTP conditionals, status/headers, `FileBody` selection for eligible local files, iterable response bodies, HEAD handling, and native output.
 
 This keeps full, single-range, suffix/open-ended, invalid, and unsatisfiable range semantics in one lower-layer implementation while preserving Webrick as the HTTP owner.
+
+## Borrowed Runwire context
+
+Foundation binds Pathwise 4.2.1 `withRunwire()` only while its Webrick bridge
+performs an upload, chunk write, chunk finalization or download preparation.
+The host-owned context is resolved for each operation and restored on success
+and failure. Ordinary PHP uses the native synchronous path.
+
+`FilesystemTransferFactory` returns independent native processors. Applications
+calling them directly must wrap the actual operation with the Pathwise
+`withRunwire()` API and a borrowed `RunwireExecutionContext`; constructing a
+processor does not bind later work. Webrick retains ownership of response
+streaming and must not retain a completed Pathwise/request scope.
 
 ## Server offload
 

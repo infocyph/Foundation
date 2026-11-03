@@ -194,7 +194,7 @@ The registry is observational metadata, not process-supervision authority:
 - stale heartbeats are reported as not running; Foundation does not use PID
   probing as cross-platform supervision truth.
 
-Omnibus 2.4 single messaging workers use native `WorkerLifecycle` callbacks for
+Omnibus 3.0.3 single messaging workers use native `WorkerLifecycle` callbacks for
 heartbeat and graceful generation checks, so Foundation does not require
 `pcntl` simply to observe restart requests. Omnibus `WorkerPool` remains a
 Unix/pcntl process-pool feature and retains the corresponding Unix watchdog.

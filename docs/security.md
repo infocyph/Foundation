@@ -111,6 +111,11 @@ protection is an independent external-only key domain,
 `foundation.environment.file.v1`; it is not derived from or shared with the
 auth token, MFA, recovery-code, OAuth, or signed-URL roots.
 
+During a live Runwire operation, Foundation forwards the borrowed Epicrypt
+`RunwireExecutionContext` to the actual file protect/unprotect call. A cancelled
+host is not retried as an ordinary synchronous operation; the context is never
+retained on the protector.
+
 ## MFA secret protection and migration
 
 Durable OTP factor secrets are protected at the DBLayer persistence boundary with

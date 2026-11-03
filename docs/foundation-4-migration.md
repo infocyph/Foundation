@@ -17,7 +17,7 @@ operation requires them. Custom direct construction must pass that container;
 no legacy constructor overload is retained. Keep execution-scoped services in
 their active scope. Unused integrations remain cold through scope cleanup.
 
-Published DBLayer 6.1.2 and Omnibus 3.0.2 provide the native deferred cache,
+Published DBLayer 6.1.4 and Omnibus 3.0.3 provide the native deferred cache,
 transport and failure-store contracts. Their Composer floors, feature catalogs,
 worker diagnostics and package tables are aligned. Foundation requires these
 patches when the corresponding optional feature is selected.
@@ -33,7 +33,7 @@ only the backends it actually uses.
 
 Foundation 4 requires 64-bit PHP 8.4+ and Composer 2. The candidate's direct production
 dependencies are ArrayKit `^5.3.2`, CacheLayer `^4.0.2`, InterMix `^11.2.1`,
-Runwire `^3.0`, UID `^6.0.1`, Webrick `^6.0.4`, and PSR Log `^3.0.3`.
+Runwire `^3.0`, UID `^6.0.1`, Webrick `^6.0.4`, and PSR Log `^3.0.2`.
 
 Select only the optional **feature IDs** needed by this application, grouped into the three public modules `data`, `security`, and `execution`. The following packages are installed only for selected features:
 
@@ -55,7 +55,7 @@ with native capability checks and normal synchronous execution when no active co
 
 **Before installing Foundation 4**, confirm all required
 published versions are resolvable by Composer/Packagist. In particular,
-Webrick 6.0.3 requires InterMix 11.2 and its compiled ABI 3; generate a fresh trusted InterMix/Webrick release from the current 4.0 source. Do not work
+Webrick 6.0.4 requires InterMix 11.2.1 and its compiled ABI 3; generate a fresh trusted InterMix/Webrick release from the current 4.0 source. Do not work
 around missing package-index versions with transient dev aliases for release QA.
 
 ## Explicit runtime and provider ownership
@@ -164,7 +164,7 @@ Production may not fall back to project provider, route, config or source
 discovery when an artifact is missing or invalid. Reject corrupt, tampered,
 stale or mismatched manifests; never silently accept an unsupported Webrick release manifest.
 
-InterMix 11.2 provides native source-free compiled scoped inputs (ABI 3).
+InterMix 11.2.1 provides native source-free compiled scoped inputs (ABI 3).
 Foundation's generated web, CLI, worker and scheduler release identity, scoped
 seed isolation and prevalidated loaders must still pass exact-release QA
 before production deployment is certified.

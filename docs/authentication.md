@@ -97,8 +97,8 @@ php infbyte module:install security.crypto
 php infbyte module:install security.passkey
 ```
 
-OTP-driver MFA uses OTP 7.0 and requires the selected Epicrypt-backed
-`security.crypto` feature. Passkeys require OTP 7.0 and WebAuthn 5.3.9 independently
+OTP-driver MFA uses OTP 7.0.1 and requires the selected Epicrypt-backed
+`security.crypto` feature. Passkeys require OTP 7.0.1 and WebAuthn 5.3.12 independently
 of MFA. Install `data.database` for DBLayer persistence and
 `execution.communication` for TalkingBytes delivery. CacheLayer is required Core
 infrastructure. See [module selection](modules.md).
@@ -137,7 +137,7 @@ See [Security boundaries](security.md).
 ## OTP-backed MFA
 
 When `auth.drivers.mfa=otp`, Foundation owns factor/challenge persistence and
-maps application state to OTP 7.0 primitives. OTP owns TOTP, HOTP, OCRA,
+maps application state to OTP 7.0.1 primitives. OTP owns TOTP, HOTP, OCRA,
 provisioning payloads, verification semantics, and recovery-code cryptography.
 
 Replay/counter state is coordinated according to the OTP mode and Foundation's
