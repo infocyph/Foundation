@@ -119,7 +119,7 @@ it('can repeat repair after Composer resolution without re-installing direct pac
     $restore = moduleB3ComposerStub($path);
     $context = moduleB3Context();
     $context['root_requirements'] = ['infocyph/pathwise' => '^4.2.1'];
-    $context['installed'] = ['infocyph/pathwise' => '4.2.0'];
+    $context['installed'] = ['infocyph/pathwise' => '4.2.1'];
     file_put_contents($path . '/composer.json', '{"name":"test/app","require":{"infocyph/pathwise":"^4.2.1"}}');
     try {
         $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);

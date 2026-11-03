@@ -14,7 +14,7 @@ it('keeps external runtime and developer requirements in their correct Composer 
     $development = $manifest['require-dev'];
     $features = new ModuleArchitectureCatalog();
 
-    expect($runtime['psr/log'] ?? null)->toBe('^3.0.3')
+    expect($runtime['psr/log'] ?? null)->toBe('^3.0.2')
         ->and($runtime['infocyph/runwire'] ?? null)->toBe('^3.0')
         ->and($development)->not->toHaveKey('infocyph/runwire')
         ->and($manifest['suggest'])->not->toHaveKey('infocyph/runwire')

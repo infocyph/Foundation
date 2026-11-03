@@ -437,7 +437,7 @@ final class ModuleCatalog
         'security' => [
             'packages' => [
                 'infocyph/epicrypt' => [
-                    'constraint' => '^3.3.1',
+                    'constraint' => '^3.3',
                     'role' => 'required',
                     'features' => [],
                 ],
@@ -472,7 +472,7 @@ final class ModuleCatalog
         'validation' => [
             'packages' => [
                 'infocyph/reqshield' => [
-                    'constraint' => '^3.3',
+                    'constraint' => '^3.3.1',
                     'role' => 'required',
                     'features' => [],
                 ],

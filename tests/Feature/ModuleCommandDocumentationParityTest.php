@@ -102,7 +102,7 @@ it('keeps Composer publication metadata and optional package roles consistent wi
         'infocyph/runwire' => '^3.0',
         'infocyph/uid' => '^6.0.1',
         'infocyph/webrick' => '^6.0.4',
-        'psr/log' => '^3.0.3',
+        'psr/log' => '^3.0.2',
     ];
 
     expect($manifest['name'])->toBe('infocyph/foundation')
