@@ -49,6 +49,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         }
 
         RunwireState::checkpoint(CacheRunwire::current());
+
         try {
             return match ($factor->type) {
                 MfaFactorType::AOTP->value => $this->challengeFactors->verifyAotp($factor, $challenge, $code),
@@ -69,6 +70,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
     public function verifyEnrollment(MfaFactor $factor, string $code): MfaVerificationResult
     {
         RunwireState::checkpoint(CacheRunwire::current());
+
         try {
             return match ($factor->type) {
                 MfaFactorType::MOBILE_OTP->value => $this->challengeFactors->verifyLegacyMobile($factor, $code),
