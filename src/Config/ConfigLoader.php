@@ -40,9 +40,7 @@ final class ConfigLoader
         $cached = $cacheDirectory === null
             ? null
             : $this->loadCacheManifest($cacheDirectory);
-        if ($cacheDirectory !== null && $cached !== null && $cached['type'] === self::TYPE_SINGLE
-            && isset($cached['file'])
-        ) {
+        if ($cacheDirectory !== null && $cached !== null && $cached['type'] === self::TYPE_SINGLE) {
             $single = $this->loadSingleCache(
                 $cacheDirectory . DIRECTORY_SEPARATOR . $cached['file'],
                 $overrides,
@@ -52,13 +50,11 @@ final class ConfigLoader
             }
         }
 
-        if ($cacheDirectory !== null && $cached !== null && $cached['type'] === self::TYPE_SHARDED
-            && isset($cached['namespaces'])
-        ) {
+        if ($cacheDirectory !== null && $cached !== null && $cached['type'] === self::TYPE_SHARDED) {
             return ConfigRepository::fromLazyFiles(
                 directory: $cacheDirectory,
                 cacheDirectory: $cacheDirectory,
-                fallback: ($cached['complete'] ?? false) === true ? [] : $this->defaults(),
+                fallback: $cached['complete'] ? [] : $this->defaults(),
                 overrides: $overrides,
                 namespaces: $cached['namespaces'],
                 compiled: true,
