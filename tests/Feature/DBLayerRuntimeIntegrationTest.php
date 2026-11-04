@@ -233,3 +233,53 @@ it('rejects stale MFA and passkey credential replacements through DBLayer single
 
     $state->cleanup();
 });
+
+it('reuses a pooled DBLayer connection after failed SQL with retained exception and rolled-back work', function (): void {
+    $file = sys_get_temp_dir() . '/foundation-dblayer-failure-' . bin2hex(random_bytes(6)) . '.sqlite';
+    $pool = new Pool([
+        'min_connections' => 1,
+        'max_connections' => 1,
+        'idle_timeout' => 0,
+        'max_lifetime' => 0,
+        'health_check_interval' => 0,
+    ]);
+    $pool->addConfig('default', foundationDbLayerRuntimeConfig($file));
+    $manager = new PoolManager($pool);
+    $failure = null;
+
+    try {
+        $setup = $manager->checkout('default');
+        $setup->connection()->statement('CREATE TABLE rollback_probe (id INTEGER PRIMARY KEY, note TEXT)');
+        $setup->release();
+
+        $first = new RuntimeExecutionState();
+        $connection = $first->leasedConnection('default', $manager);
+        $connection->beginTransaction();
+        $connection->statement('INSERT INTO rollback_probe (id, note) VALUES (?, ?)', [1, 'pending']);
+        try {
+            $connection->statement('INSERT INTO rollback_probe (id, note) VALUES (?, ?)', [1, 'duplicate']);
+        } catch (\Infocyph\DBLayer\Exceptions\ConnectionException $exception) {
+            $failure = $exception;
+        }
+        expect($failure)->toBeInstanceOf(\Infocyph\DBLayer\Exceptions\ConnectionException::class);
+        $first->cleanup();
+
+        $next = new RuntimeExecutionState();
+        $reused = $next->leasedConnection('default', $manager);
+        expect((int) $reused->scalar('SELECT COUNT(*) FROM rollback_probe'))->toBe(0)
+            ->and($pool->getStats()['active_connections'])->toBe(1);
+
+        $reused->statement('INSERT INTO rollback_probe (id, note) VALUES (?, ?)', [2, 'committed']);
+        expect((int) $reused->scalar('SELECT COUNT(*) FROM rollback_probe'))->toBe(1);
+        $next->cleanup();
+
+        expect($pool->getStats()['active_connections'])->toBe(0)
+            ->and($pool->getStats()['idle_connections'])->toBe(1)
+            ->and($failure)->toBeInstanceOf(\Infocyph\DBLayer\Exceptions\ConnectionException::class);
+    } finally {
+        $pool->closeAll();
+        if (is_file($file)) {
+            unlink($file);
+        }
+    }
+});

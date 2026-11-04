@@ -212,3 +212,64 @@ it('detaches a throwing native child and reuses InterMix for the next host-owned
 
     expect(CacheRunwireIntegration::runtime())->toBeNull();
 });
+
+it('runs Foundation execution cleanup while Runwire owns the live scheduler and preserves primary failures', function (): void {
+    $app = \Infocyph\Foundation\Foundation::worker([
+        'app' => ['env' => 'testing', 'capabilities' => ['runwire' => true]],
+    ])->boot();
+    $runtime = RuntimeContext::fromCapabilities(
+        new RuntimeCapabilities(
+            RuntimeDriver::NATIVE,
+            runwireLoopAvailable: true,
+            supportsRunwireCoroutines: true,
+        ),
+        'foundation-cleanup-order',
+    );
+    $request = RequestContext::create($runtime);
+    $events = [];
+
+    try {
+        $result = (new CoroutineRuntime())->runRequest(
+            $request,
+            static function (CoroutineScope $scope) use ($app, $runtime, $request, &$events): string {
+                expect(fn() => $app->execution()->run(
+                    static function () use ($app, $scope, &$events): void {
+                        $state = $app->make(\Infocyph\Foundation\Runtime\RuntimeExecutionState::class);
+                        $state->deferCleanup(static function () use ($scope, &$events): void {
+                            $scope->hasLocal(new \Infocyph\Runwire\Coroutine\TaskLocal());
+                            $events[] = 'cleanup-ok';
+                        });
+                        $state->deferCleanup(static function () use (&$events): void {
+                            $events[] = 'cleanup-error';
+
+                            throw new RuntimeException('secondary cleanup error');
+                        });
+                        $events[] = 'primary-error';
+
+                        throw new DomainException('primary operation error');
+                    },
+                    seeds: [
+                        RuntimeContext::class => $runtime,
+                        RequestContext::class => $request,
+                        CoroutineScope::class => $scope,
+                    ],
+                ))->toThrow(DomainException::class, 'primary operation error');
+
+                $scope->hasLocal(new \Infocyph\Runwire\Coroutine\TaskLocal());
+                $events[] = 'host-owns-scope';
+
+                return 'host-alive';
+            },
+        );
+
+        expect($result)->toBe('host-alive')
+            ->and($events)->toBe([
+                'primary-error',
+                'cleanup-error',
+                'cleanup-ok',
+                'host-owns-scope',
+            ]);
+    } finally {
+        $request->complete();
+    }
+});
