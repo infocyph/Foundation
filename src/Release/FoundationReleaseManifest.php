@@ -147,30 +147,6 @@ final class FoundationReleaseManifest
         return $value;
     }
 
-    /**
-     * Execute exactly the bytes captured by the caller, without reopening the
-     * original path. An independently trusted caller verifies the digest first.
-     */
-    private static function evaluateCapturedBytes(string $contents): mixed
-    {
-        $temporary = tempnam(sys_get_temp_dir(), 'foundation-manifest-');
-        if ($temporary === false) {
-            throw new \RuntimeException('Unable to stage Foundation release manifest.');
-        }
-
-        try {
-            if (file_put_contents($temporary, $contents, LOCK_EX) !== strlen($contents)) {
-                throw new \RuntimeException('Unable to write captured Foundation release manifest.');
-            }
-
-            return require $temporary;
-        } finally {
-            if (is_file($temporary)) {
-                unlink($temporary);
-            }
-        }
-    }
-
     public static function nonEmptyString(mixed $value, string $field): string
     {
         if (!is_string($value) || trim($value) === '') {
@@ -236,6 +212,30 @@ final class FoundationReleaseManifest
         }
 
         return $path;
+    }
+
+    /**
+     * Execute exactly the bytes captured by the caller, without reopening the
+     * original path. An independently trusted caller verifies the digest first.
+     */
+    private static function evaluateCapturedBytes(string $contents): mixed
+    {
+        $temporary = tempnam(sys_get_temp_dir(), 'foundation-manifest-');
+        if ($temporary === false) {
+            throw new \RuntimeException('Unable to stage Foundation release manifest.');
+        }
+
+        try {
+            if (file_put_contents($temporary, $contents, LOCK_EX) !== strlen($contents)) {
+                throw new \RuntimeException('Unable to write captured Foundation release manifest.');
+            }
+
+            return require $temporary;
+        } finally {
+            if (is_file($temporary)) {
+                unlink($temporary);
+            }
+        }
     }
 
     private static function identifier(mixed $value, string $field): string

@@ -107,6 +107,8 @@ final class FoundationManifestChangingStream
     public static string $replacement = '';
     public static int $opens = 0;
 
+    public mixed $context = null;
+
     private string $contents = '';
     private int $offset = 0;
 
