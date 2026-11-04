@@ -64,6 +64,58 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
     }
 
     /**
+     * Compare the original database row at the update boundary. The email may
+     * live in a username account's JSON metadata, so a separate email-column
+     * comparison is insufficient.
+     *
+     * @throws \RuntimeException
+     */
+    #[\Override]
+    public function markVerifiedForEmail(string $accountId, string $email, int $verifiedAt): bool
+    {
+        $row = $this->first(
+            sprintf('SELECT identifier, status, metadata FROM %s WHERE id = ?', $this->table('accounts')),
+            [$accountId],
+        );
+        if ($row === null) {
+            return false;
+        }
+
+        $identifier = $this->string($row['identifier'] ?? null);
+        $originalMetadata = $row['metadata'] ?? null;
+        $metadata = DBLayerJson::decode($originalMetadata);
+        $storedEmail = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false
+            ? $identifier
+            : ($metadata['email'] ?? null);
+        if (!is_string($storedEmail)
+            || filter_var($storedEmail, FILTER_VALIDATE_EMAIL) === false
+            || strcasecmp($storedEmail, $email) !== 0
+        ) {
+            return false;
+        }
+
+        $status = AccountStatus::from($this->string($row['status'] ?? null));
+        $metadata['verified_at'] = $verifiedAt;
+        $where = 'id = ? AND identifier = ? AND status = ?';
+        $bindings = [$accountId, $identifier, $status->value];
+        if ($originalMetadata === null) {
+            $where .= ' AND metadata IS NULL';
+        } elseif (is_string($originalMetadata)) {
+            $where .= ' AND metadata = ?';
+            $bindings[] = $originalMetadata;
+        } else {
+            return false;
+        }
+
+        return $this->query('accounts')->whereRaw($where, $bindings)->update([
+            'status' => $status === AccountStatus::PENDING_VERIFICATION
+                ? AccountStatus::ACTIVE->value
+                : $status->value,
+            'metadata' => DBLayerJson::encode($metadata),
+        ]) === 1;
+    }
+
+    /**
      * @throws \RuntimeException
      */
     #[\Override]

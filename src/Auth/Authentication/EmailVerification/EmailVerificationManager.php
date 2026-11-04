@@ -101,10 +101,28 @@ final readonly class EmailVerificationManager
      */
     private function completeVerification(EmailVerificationRequest $request, array $context): EmailVerificationResult
     {
-        if (!$this->store->consumeAndApply(
-            $request->id,
-            fn() => $this->accounts->markVerified($request->accountId, $this->clock->now()),
-        )) {
+        // An address change between the read and write must rollback the
+        // one-time token consumption together with the account mutation.
+        $destinationChanged = new \RuntimeException('Verification destination changed before account mutation.');
+
+        try {
+            $consumed = $this->store->consumeAndApply(
+                $request->id,
+                function () use ($request, $destinationChanged): void {
+                    if (!$this->accounts->markVerifiedForEmail($request->accountId, $request->email, $this->clock->now())) {
+                        throw $destinationChanged;
+                    }
+                },
+            );
+        } catch (\RuntimeException $exception) {
+            if ($exception !== $destinationChanged) {
+                throw $exception;
+            }
+
+            return $this->invalidVerificationResult('email_destination_untrusted', $context);
+        }
+
+        if (!$consumed) {
             return $this->consumedVerificationResult($request, $context);
         }
         $this->recordEvent(

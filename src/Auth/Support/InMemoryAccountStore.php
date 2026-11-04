@@ -51,6 +51,36 @@ final class InMemoryAccountStore implements AccountProviderInterface, AccountSto
     }
 
     #[\Override]
+    public function markVerifiedForEmail(string $accountId, string $email, int $verifiedAt): bool
+    {
+        $account = $this->accounts[$accountId] ?? null;
+        if (!$account instanceof Account) {
+            return false;
+        }
+
+        $identifier = $account->identifier();
+        $storedEmail = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false
+            ? $identifier
+            : ($account->metadata()['email'] ?? null);
+        if (!is_string($storedEmail)
+            || filter_var($storedEmail, FILTER_VALIDATE_EMAIL) === false
+            || strcasecmp($storedEmail, $email) !== 0
+        ) {
+            return false;
+        }
+
+        $metadata = $account->metadata();
+        $metadata['verified_at'] = $verifiedAt;
+        $this->accounts[$accountId] = $account
+            ->withMetadata($metadata)
+            ->withStatus($account->status() === AccountStatus::PENDING_VERIFICATION
+                ? AccountStatus::ACTIVE
+                : $account->status());
+
+        return true;
+    }
+
+    #[\Override]
     public function save(AccountInterface $account): void
     {
         $this->accounts[$account->id()] = $account;
