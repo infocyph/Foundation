@@ -102,9 +102,9 @@ final readonly class WebReleaseRuntime
         ?RuntimeAdapterInterface $adapter = null,
         array $foundationCapabilities = [],
     ): self {
-        self::assertTrustedManifest($releaseManifestPath, $trustedManifestSha256);
+        $trustedManifest = self::loadTrustedManifest($releaseManifestPath, $trustedManifestSha256);
 
-        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities);
+        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities, trustedManifest: $trustedManifest);
     }
 
     /**
@@ -124,9 +124,9 @@ final readonly class WebReleaseRuntime
         ?string $matcherCachePath = null,
     ): self {
         self::assertCompiledConfig($config);
-        self::assertTrustedManifest($releaseManifestPath, $trustedManifestSha256);
+        $trustedManifest = self::loadTrustedManifest($releaseManifestPath, $trustedManifestSha256);
 
-        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities, $matcherCachePath);
+        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities, $matcherCachePath, $trustedManifest);
     }
 
     /**
@@ -247,10 +247,11 @@ final readonly class WebReleaseRuntime
     }
 
     /**
+     * @return array<string,mixed>
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
      */
-    private static function assertTrustedManifest(string $releaseManifestPath, string $trustedSha256): void
+    private static function loadTrustedManifest(string $releaseManifestPath, string $trustedSha256): array
     {
         $trustedSha256 = strtolower(trim($trustedSha256));
         if (preg_match('/^[a-f0-9]{64}$/D', $trustedSha256) !== 1) {
@@ -258,20 +259,47 @@ final readonly class WebReleaseRuntime
         }
 
         $runtimePath = WebrickReleaseCompiler::runtimeManifestPath($releaseManifestPath);
-        $selectedPath = is_file($runtimePath) ? $runtimePath : $releaseManifestPath;
+        $useRuntime = is_file($runtimePath);
+        $selectedPath = $useRuntime ? $runtimePath : $releaseManifestPath;
         if (!is_file($selectedPath)) {
             throw new \RuntimeException('Foundation web release manifest is missing.');
         }
 
-        $actualSha256 = hash_file('sha256', $selectedPath);
-        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
+        // Verify the captured bytes, not a path that Webrick can reopen later.
+        $contents = file_get_contents($selectedPath);
+        if (!is_string($contents) || !hash_equals($trustedSha256, hash('sha256', $contents))) {
             throw new \RuntimeException('Foundation web release manifest trust identity mismatch.');
+        }
+
+        // Preserve Webrick's native release-schema validation using a private,
+        // short-lived copy. The original path must never be read a second time.
+        $directory = sys_get_temp_dir() . '/foundation-web-trust-' . bin2hex(random_bytes(12));
+        if (!mkdir($directory, 0700)) {
+            throw new \RuntimeException('Unable to stage the trusted Webrick release manifest.');
+        }
+        $privateManifestPath = $directory . '/release.json';
+        $privatePath = $useRuntime
+            ? WebrickReleaseCompiler::runtimeManifestPath($privateManifestPath)
+            : $privateManifestPath;
+
+        try {
+            if (file_put_contents($privatePath, $contents, LOCK_EX) !== strlen($contents)) {
+                throw new \RuntimeException('Unable to write the trusted Webrick manifest copy.');
+            }
+
+            return new ReleaseManifestLoader()->load($privateManifestPath);
+        } finally {
+            if (is_file($privatePath)) {
+                unlink($privatePath);
+            }
+            rmdir($directory);
         }
     }
 
     /**
      * @param array<string, mixed>|ConfigRepository $config
      * @param array<int|string, mixed> $foundationCapabilities
+     * @param array<string,mixed>|null $trustedManifest
      * @throws \LogicException
      * @throws \RuntimeException
      */
@@ -282,6 +310,7 @@ final readonly class WebReleaseRuntime
         bool $prevalidated,
         array $foundationCapabilities,
         ?string $matcherCachePath = null,
+        ?array $trustedManifest = null,
     ): self {
         $graph = $prevalidated
             ? null
@@ -291,7 +320,7 @@ final readonly class WebReleaseRuntime
         $settings = new WebReleaseConfiguration($context, $sourceConfig, $graph?->application->paths());
         $settings->assertArtifactSafeMiddleware();
         $releaseManifestPath = $settings->resolvePath($releaseManifestPath);
-        $manifest = new ReleaseManifestLoader()->load($releaseManifestPath);
+        $manifest = $trustedManifest ?? new ReleaseManifestLoader()->load($releaseManifestPath);
 
         $environment = $settings->environment();
         $configFingerprint = $settings->configFingerprint();

@@ -214,3 +214,65 @@ it('evaluates one captured manifest source even when the original stream changes
         }
     }
 });
+
+it('does not reopen the original trusted Webrick manifest when its PHP source changes', function (): void {
+    $project = sys_get_temp_dir() . '/foundation-web-capture-' . bin2hex(random_bytes(8));
+    mkdir($project . '/routes', 0700, true);
+    mkdir($project . '/bootstrap/cache', 0700, true);
+    file_put_contents($project . '/routes/web.php', <<<'PHP'
+<?php
+
+use Infocyph\Webrick\Router\Facade\Router;
+
+Router::get('/captured', static fn(): string => 'captured');
+PHP);
+
+    $config = [
+        'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
+        '_config_cache' => false,
+        'router' => [
+            'files' => ['web.php'],
+            'matcher' => 'fused',
+            'middleware' => ['globals' => ['pre' => [], 'post' => []]],
+        ],
+    ];
+    $manifestPath = $project . '/bootstrap/cache/release.json';
+    $scheme = 'foundationwebcaptured';
+    $marker = $project . '/replaced.txt';
+    $registered = false;
+
+    try {
+        $release = new \Infocyph\Foundation\Routing\WebReleaseCompiler()->compile(
+            $config,
+            $project . '/bootstrap/cache/intermix.php',
+            $project . '/bootstrap/cache/router.php',
+            $manifestPath,
+            capabilities: [],
+        );
+        $original = file_get_contents(
+            \Infocyph\Webrick\Router\Build\ReleaseCompiler::runtimeManifestPath($manifestPath),
+        );
+        expect($original)->toBeString();
+        FoundationManifestChangingStream::$original = $original;
+        FoundationManifestChangingStream::$replacement = '<?php file_put_contents('
+            . var_export($marker, true) . ", 'unverified'); return [];";
+        FoundationManifestChangingStream::$opens = 0;
+        $registered = stream_wrapper_register($scheme, FoundationManifestChangingStream::class);
+        expect($registered)->toBeTrue();
+
+        $runtime = \Infocyph\Foundation\Routing\WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $scheme . '://release.json',
+            (string) $release['release_runtime_manifest_sha256'],
+            foundationCapabilities: [],
+        );
+        expect($runtime)->toBeInstanceOf(\Infocyph\Foundation\Routing\WebReleaseRuntime::class)
+            ->and(FoundationManifestChangingStream::$opens)->toBe(1)
+            ->and(is_file($marker))->toBeFalse();
+    } finally {
+        if ($registered) {
+            stream_wrapper_unregister($scheme);
+        }
+        new \Symfony\Component\Filesystem\Filesystem()->remove($project);
+    }
+});

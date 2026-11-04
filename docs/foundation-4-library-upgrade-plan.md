@@ -4,6 +4,9 @@ Date: 2026-11-04 (Asia/Dhaka). Status: **implementation in progress; release gat
 
 ## Implementation checkpoint — 2026-11-04
 
+- **P0 A02 Webrick trusted-runtime verification/evaluation fix (2026-11-04; pending QA):** Replaced Webrick runtime manifest path-hash/read-again behavior with capture-once SHA-256 verification, private staged native-schema validation and one immutable manifest array passed into trusted boot. The nontrusted path continues to use Webrick's normal loader. Added a changing-stream regression that must prove the original trusted PHP bytes are opened once and a replacement execution marker never runs. This addresses the reported Webrick read-after-check boundary without weakening the trust identity; keep A02 open until hosted QA proves it, and continue reviewing JSON metadata boundaries. Formal acceptance remains **29/90**.
+
+
 - **A05 PHPStan/Psalm reconcile (2026-11-04; pending exact-head QA):** The first A05 test-backed run [41809633105](https://github.com/infocyph/Foundation/actions/runs/41809633105) reduced Psalm to 1,648 errors but introduced three PHPStan type-shape failures in `ProcessCapture` due to a too-wide by-reference pipe annotation and stream-select's reindexed readiness arrays. Keep the original typed pipe contract and broaden only `consumeReady()`'s ready-stream argument (which iterates values without assuming a list). No runtime branching changed. Exact-head PHPForge validation required before acceptance.
 
 
