@@ -110,6 +110,10 @@ final readonly class RoutePresetRegistrar
      */
     private function normalizeStack(array $stack): array
     {
+        if (!array_is_list($stack)) {
+            throw new \InvalidArgumentException('Route middleware stacks must be lists of middleware names.');
+        }
+
         $normalized = [];
         foreach ($stack as $middleware) {
             if (!is_string($middleware) || trim($middleware) === '') {

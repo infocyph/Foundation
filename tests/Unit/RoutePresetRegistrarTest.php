@@ -37,6 +37,8 @@ it('rejects configured middleware stacks that could remove security middleware',
         ['groups' => ['web-auth' => ['session', 14, 'auth']]],
         ['groups' => ['web-auth' => ['session', '', 'auth']]],
         ['groups' => ['web-auth' => 'session']],
+        ['groups' => ['web-auth' => ['csrf' => 'session']]],
+        ['groups' => ['web-auth' => [0 => 'session', 2 => 'csrf']]],
     ] as $middleware) {
         $presets = new RoutePresetRegistrar(
             $application->make(RouteMiddlewareRegistrar::class),

@@ -1,8 +1,8 @@
 # Foundation 4: latest-library integration and full-library audit plan
 
-Date: 2026-11-03 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
+Date: 2026-11-04 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
-## Implementation checkpoint — 2026-11-03
+## Implementation checkpoint — 2026-11-04
 
 Work is underway on PR #20 / `feature/foundation-3`; no merge, tag, publication, or Infbyte source changes have been made. The pre-implementation audit and version matrix below remain historical baseline evidence, not assertions about the current working branch.
 
@@ -10,31 +10,32 @@ Work is underway on PR #20 / `feature/foundation-3`; no merge, tag, publication,
 - **P1 partial:** raised `composer.json` Core/optional release floors, added optional-package exclusion bounds, synchronized both module catalogs, production-consumer installation manifests, and selected fixture expectations. Runwire 3 replaces Runwire 2 without dual-version support. Published dependency resolution and consumer checks are validated through hosted CI, but all other migration gates require final-source verification.
 - **P2–P3 in progress:** preserved ordinary PHP and host-borrowed Runwire paths; OTP 7.0.1 challenge/verification/passkey operations now borrow the current context. Epicrypt file protection and Pathwise HTTP upload/chunk/finalization/download preparation pass operation-local context. Added cancellation and state-preservation regressions. Broader specialist/live-service qualification remains open.
 - **P4–P5 partial:** synchronized version labels in the migration/release/OTP/authentication/filesystem/operations documentation and native API test descriptions; documented operation-local Runwire forwarding, ordinary PHP fallback and response-stream ownership. Exhaustive documentation and compatibility review remain open.
-- **P6 open:** at `694aa480`, all four production consumers, both static-analysis lanes, both benchmark scripts, full Pest and Deptrac passed; four QA lanes failed only Pint formatting, corrected at `4fecb4a3`. Native-host run `41639644975` was green. Strict paired-host throughput, end-to-end dependency-upgrade comparison, retained-state rollback and an all-green exact-final-head run remain release blockers.
+- **P6 open:** the pre-batch source `27ded8d61fd9bb20b3561cb5b7f6af04eb95ad62` passed all four stable/lowest PHP 8.4/8.5 QA and production-consumer lanes, both static-analysis and benchmark lanes, and release evidence in [Security & Standards 41652684379](https://github.com/infocyph/Foundation/actions/runs/41652684379). [Native host 41652683685](https://github.com/infocyph/Foundation/actions/runs/41652683685) passed Swoole/OpenSwoole PHP 8.4/8.5 and ordinary smoke; paired-host jobs were skipped because they require explicit workflow dispatch. New edits need their own exact-source QA. Strict source-only and whole-dependency-upgrade paired-host throughput, retained-state rollback, specialist/live-backend qualification, and final release evidence remain blockers.
 - **Additional security improvement:** removed untrusted notification payload from TalkingBytes email message metadata, preventing reset tokens and caller context from leaking into transport-level metadata while preserving rendered message content. The privileged PHPForge release workflow is pinned to an immutable revision.
-- **Latest rolling implementation (verification pending):** added Foundation ReqShield upload/MIME/path and `FormRequest` cancellation regressions (`5e6e5ba7`); bound passwordless delivery to the actual identifier's stored account and MFA/security notifications to trusted account addresses, while keeping purpose-specific email-verification destinations (`da1aa9b7`, `2828e444`); corrected the host throughput comparator to reject trials shorter than 120 seconds (`2790750c`). These do not close the full real-backend or performance-upgrade gates.
+- **Latest verified rolling implementation:** ReqShield upload/MIME/path and `FormRequest` cancellation regressions (`5e6e5ba7`), account-authoritative passwordless/MFA/security notification recipients (`da1aa9b7`, `2828e444`), 120-second host comparator (`2790750c`), audited credential persistence, captured release artifact loads and bounded process cancellation are included in the four-lane green pre-batch CI. These do not certify full real backends or paired-host performance.
 
 The 90 implementation checkboxes below are acceptance criteria. Mark only entries with implementation and focused test/CI evidence; unmarked entries remain release requirements, even when partially implemented.
 
 ### Rolling batch tracker
 
 | Batch | Implemented source | Latest verified evidence | Remaining |
-| --- | --- | --- | --- |
-| Contract / dependency reconciliation | `1003e003`–`2118c7b2` | Previously failing 14 assertions resolved; current hosted four-lane Pest pass | Final exact-head CI |
+| --- | --- | --- |
+| Route-preset list integrity and host timing guard (2026-11-04) | Current batch: reject associative/sparse middleware stack maps; assert workflow minimum >=120 seconds | Previous HEAD `27ded8d` green, new source verification pending | Exact new-head PHP 8.4/8.5 stable/lowest QA, host smoke; compiled-route security proof |
+| Contract / dependency reconciliation | `1003e003`–`2118c7b2` | Previously failing 14 assertions resolved; `27ded8d` hosted four-lane QA pass | Final revision after additional batches |
 | Native OTP, Epicrypt, Pathwise operations | `556e5ea0`–`d8af04d1` | Borrowed context and cancellation regressions passed Pest on PHP 8.4/8.5, lowest/stable | Complete specialist/live-backend, soak, generation cases |
 | Architecture boundary | `694aa480` | Project Deptrac check and negative Foundation-to-Infbyte dependency fixture passed four QA lanes | Broader coverage review and architectural audit |
-| QA formatting and document parity | `4fecb4a3`, `79977e28` | Single remaining Pint blank-line failure corrected; old version labels and native-context docs synchronized | Verify newest commit and finish detailed documentation |
-| Hosting and packaging | `694aa480` | Host smoke run `41639644975` passed; four production consumers and both static-analysis lanes passed run `41639645706` | Strict paired-host and retained-state certification |
+| QA formatting and document parity | `4fecb4a3`, `79977e28` | `27ded8d` four-lane QA green; version labels and native-context docs synchronized | Finish detailed documentation |
+| Hosting and packaging | `694aa480` | `41652683685` host smoke and `41652684379` four consumers/static-analysis/benchmarks passed on `27ded8d` | Strict paired-host and retained-state certification |
 | ReqShield file and cancellation boundary | `5e6e5ba7` | New regression fixtures; current four-lane QA was green for prior tested source | Exact-commit QA and MIME/host cancellation results |
 | Auth notification recipient hardening | `da1aa9b7`–`2828e444` | Purpose-specific recipient identity and negative override regressions implemented; resolved PHPStan complexity finding | Exact-commit security/QA result and wider auth flow review |
-| Authentication audit persistence | Pending verification | Added direct DBLayer/SQLite persistence regression for nested mixed-case MFA, recovery, assertion, token and key material; extended redaction while retaining nonsecret IDs | Confirm PHP 8.4/8.5 QA before checking A04 criteria |
-| Captured release-artifact bytes | Pending verification | Added an authenticated private-copy execution proof and tamper-after-signing rejection without executing the substituted payload | Verify stable/lowest PHP 8.4/8.5 tests before closing trust edge |
-| Process stdin cancellation and early exit | Pending verification | Added active cancellation during blocked writes plus early child exit checks; existing no-read and output-before-input regressions retained | Verify timings and termination across both PHP lanes |
+| Authentication audit persistence | `27ded8d` green four-lane QA | Added direct DBLayer/SQLite persistence regression for nested mixed-case MFA, recovery, assertion, token and key material; extended redaction while retaining nonsecret IDs | Confirm PHP 8.4/8.5 QA before checking A04 criteria |
+| Captured release-artifact bytes | `27ded8d` green four-lane QA | Added an authenticated private-copy execution proof and tamper-after-signing rejection without executing the substituted payload | Verify stable/lowest PHP 8.4/8.5 tests before closing trust edge |
+| Process stdin cancellation and early exit | `27ded8d` green four-lane QA | Added active cancellation during blocked writes plus early child exit checks; existing no-read and output-before-input regressions retained | Verify timings and termination across both PHP lanes |
 | Sustained performance contract | `2790750c` | Comparator and fixture enforce 120-second trials rather than 60 | Full matched-host execution and separate dependency-upgrade evidence |
-| Release evidence and source baseline | Pending verification | Updated module CLI fixture package requirements/installed-version metadata to DBLayer 6.1.4, Omnibus 3.0.3, OTP 7.0.1; selected a post-upgrade baseline for source-only host comparisons | Re-run release evidence and both paired-host modes |
-| Retired test-label cleanup | Pending verification | Renamed DBLayer 5/Omnibus 2.6/Pathwise 4.1-labelled test owners to version-neutral contract names; retained their behaviors | Verify all migrated tests and references in QA |
-| Whole-dependency-upgrade comparator contract | Pending verification | Explicit dependency-upgrade mode now resolves separate Composer locks, verifies a reviewed exact source/dist-ref change manifest before running the matrix, preserves the strict shared-lock default and produces distinct verdicts | Verify workflow, compare both full matrices and record host artifacts |
-| Performance-workflow QA reconciliation | Pending verification | Addressed `ReleaseWorkflowGuardTest` two-lock fixture drift and PHPForge ordered-public-methods policy after run `41651592843` reported 883 Pest passes / 2 fixture failures | Repeat all four QA lanes and native host on fixed exact source |
+| Release evidence and source baseline | `27ded8d` green release evidence | Updated module CLI fixture package requirements/installed-version metadata to DBLayer 6.1.4, Omnibus 3.0.3, OTP 7.0.1; selected a post-upgrade baseline for source-only host comparisons | Re-run release evidence and both paired-host modes |
+| Retired test-label cleanup | `27ded8d` green four-lane QA | Renamed DBLayer 5/Omnibus 2.6/Pathwise 4.1-labelled test owners to version-neutral contract names; retained their behaviors | Verify all migrated tests and references in QA |
+| Whole-dependency-upgrade comparator contract | `27ded8d` green four-lane QA | Explicit dependency-upgrade mode now resolves separate Composer locks, verifies a reviewed exact source/dist-ref change manifest before running the matrix, preserves the strict shared-lock default and produces distinct verdicts | Verify workflow, compare both full matrices and record host artifacts |
+| Performance-workflow QA reconciliation | `27ded8d` green four-lane QA and host smoke | Addressed `ReleaseWorkflowGuardTest` two-lock fixture drift and PHPForge ordered-public-methods policy after run `41651592843` reported 883 Pest passes / 2 fixture failures | Repeat all four QA lanes and native host on fixed exact source |
 
 
 
@@ -113,7 +114,7 @@ Inspect transitive updates with a complete `composer update --with-all-dependenc
 
 The 2026-11-03 audit covered the repository's 668 source files and 229 test/fixture files through repository-wide PHPForge checks, dependency/advisory inspection and targeted source review. Manual review concentrated on authentication/authorization, OAuth, session/CSRF, executable release artifacts, HTTP middleware, filesystem policy, database/cache state, messaging/worker/scheduler ownership, process execution, module operations, configuration/secrets, logging, packaging and CI. Automated checks and sampled source review do not prove the absence of further vulnerabilities.
 
-All findings below are **open**. No runtime fix has been applied. Severity describes the observed impact under the stated preconditions; these are local audit findings, not assigned CVEs.
+At initial audit, all findings below were **open** and no fixes had yet been applied; the current implementation checkpoint and checked criteria above/below supersede that historical status. Severity describes impact under stated preconditions; these are local findings, not assigned CVEs.
 
 | ID | Priority / category | Confirmed finding | Required owner / work |
 | --- | --- | --- | --- |
@@ -151,7 +152,7 @@ Reproduction: a local deterministic stream fixture returns valid format-1 config
 Evidence: `RoutePresetRegistrar::stack()` selects configured/built-in names and otherwise uses `[]`. A real application probe returned `['session','csrf','resolve-auth','auth']` for `web-auth` and `[]` for `web-aut`. `configuredGroups()` / `normalizeStack()` also silently discard malformed entries.
 
 - [x] Throw an actionable configuration exception for unknown presets. Reject malformed names/stacks/middleware entries rather than filtering away intended protections.
-- [ ] Preserve deliberately declared custom groups, including an explicitly empty custom stack where the public contract permits it.
+- [x] Preserve deliberately declared custom groups, including an explicitly empty custom stack where the public contract permits it. Existing `RoutePresetRegistrarTest` exercises both on pre-batch four-lane green QA.
 - [ ] Prove a typo cannot publish an unprotected route in development or a compiled release. Verify existing valid presets/custom overrides still produce their exact intended stacks.
 
 #### A04. Keep credentials out of audit metadata
@@ -375,7 +376,7 @@ Existing suites to extend include `RunwireSelectedNativeBoundaryTest`, `Foundati
 
 #### Performance comparison must account for the dependency migration
 
-The current `.github/workflows/foundation4-host-certification.yml` copies one candidate lock into both revisions. `benchmarks/Support/Foundation4HostComparison.php` requires matching `composer_lock_sha256`. The current baseline requires Runwire 2; the candidate will require Runwire 3. Copying the new lock into the old manifest is not a valid end-to-end upgrade comparison.
+The historical workflow copied the candidate lock into both revisions. It now offers explicit `source-only` shared-lock and `dependency-upgrade` independent-lock modes, with reviewed exact package/ref changes. The pre-upgrade baseline requires Runwire 2 while Foundation 4 requires Runwire 3; copying the new lock into that old manifest would be invalid upgrade evidence. The implementation has four-lane unit/fixture evidence, but neither sustained paired-host matrix has been certified.
 
 - [ ] Retain the existing shared-lock comparison for source/integration attribution using a valid Foundation 4 baseline that accepts the new dependency baseline. Validate both manifests and runtime behavior before measuring it.
 - [ ] Add an explicit dependency-upgrade comparison contract for the pre-upgrade stack versus the final stack. Record both immutable locks, package/source-reference manifests and a reviewed dependency-delta allowlist. Reject unexplained package changes and mismatches in host/tooling/workload/data/INI identity. Keep the ordinary comparator's same-lock rejection intact.
