@@ -180,7 +180,9 @@ it('reaps a noninteractive child when an output callback fails with pending stdi
         $options = new ProcessOptions(
             input: str_repeat('I', 1_048_576),
             onStdout: static function (string $output): void {
-                throw new LogicException('Output observer failed.');
+                if ($output !== '') {
+                    throw new LogicException('Output observer failed.');
+                }
             },
             terminationGraceSeconds: 0.1,
             handleSignals: false,

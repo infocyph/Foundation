@@ -363,12 +363,14 @@ it('rejects verified email tokens whose subject or destination differs from the 
 
             public function issue(string $accountId, string $email, array $context = []): string
             {
-                return 'test-token';
+                return $accountId . ':' . $email . ':' . count($context);
             }
 
             public function verify(string $token): TokenVerificationResult
             {
-                return $this->verification;
+                return $token === 'test-token'
+                    ? $this->verification
+                    : new TokenVerificationResult(false, failureReason: 'invalid_token');
             }
         };
 
@@ -399,13 +401,13 @@ it('rejects a verified password reset token for another stored account', functio
     $tokens = new class implements PasswordResetTokenServiceInterface {
         public function issue(string $accountId, array $context = []): string
         {
-            return 'test-token';
+            return $accountId . ':' . count($context);
         }
 
         public function verify(string $token): TokenVerificationResult
         {
             return new TokenVerificationResult(
-                true,
+                $token === 'test-token',
                 'attacker',
                 claims: ['request_id' => 'reset-request'],
             );
