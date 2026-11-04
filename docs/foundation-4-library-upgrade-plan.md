@@ -4,6 +4,9 @@ Date: 2026-11-04 (Asia/Dhaka). Status: **implementation in progress; release gat
 
 ## Implementation checkpoint — 2026-11-04
 
+- **Public entrypoint reachability batch (2026-11-04; pending exact-head QA):** Explicitly identify `ConfigLoader` (including cache publication), `ScheduledCommand` (fluent scheduling), `OAuthManager` (returned by `AuthServices::oauth()`), `OtpManager` (documented OTP enrollment/challenges), and `Gate` (returned by `AuthServices::gate()`) as application-facing public `@api` owners. Removed the outdated `OTP 6.1` ownership label from `OtpManager` while retaining the supported native OTP 7 integration. This allows Psalm to analyze their public entrypoints instead of mistaking dependent private members for dead code; no suppression, analyzer threshold change, or runtime behavior change. Retain unused-code analysis for truly private classes. Do not accept without exact-head PHPForge validation; formal acceptance remains **32/90**.
+
+
 - **Analyzer reconciliation on the 32/90 acceptance batch (2026-11-04; exact-head QA pending):** The first pushed revision `34cd06e` failed [PHPForge Security & Standards 41850396232](https://github.com/infocyph/Foundation/actions/runs/41850396232) because redundant defensive cache-key conditions exceeded the project's class/method complexity limits and triggered PHPStan's nullable-offset certainty rules. Restore the original verified runtime flow and add precise Psalm-only discriminated manifest shapes in the two already-validated branches. Quote the reserved `as` key in the Webrick group annotation to satisfy Psalm's parser. No analyzer policy or runtime fallback behavior changed. This corrective revision requires exact-head validation; formal acceptance remains **32/90**, Psalm was 1,585 on the failed batch.
 
 

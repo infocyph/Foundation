@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Config;
 use Infocyph\ArrayKit\Config\ConfigMerge;
 use Infocyph\ArrayKit\Config\Support\Environment;
 
+/** @api */
 final class ConfigLoader
 {
     public const string MANIFEST_FILE = '__manifest.php';

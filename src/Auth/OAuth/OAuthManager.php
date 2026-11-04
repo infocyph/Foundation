@@ -36,6 +36,7 @@ use Infocyph\Foundation\Auth\OAuth\Token\OAuthTokenManager;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthTokenResponse;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 
+/** @api */
 final readonly class OAuthManager
 {
     public function __construct(

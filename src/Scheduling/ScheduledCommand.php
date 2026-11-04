@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Scheduling;
 
+/** @api */
 final class ScheduledCommand
 {
     /** @var list<string> */

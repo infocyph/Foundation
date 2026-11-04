@@ -26,9 +26,11 @@ use Infocyph\OTP\ValueObjects\GridChallenge;
 /**
  * Foundation-owned OTP enrollment and application challenge workflow.
  *
- * OTP 6.1 owns algorithms, native challenge payloads, verification windows and
+ * The native OTP library owns algorithms, native challenge payloads, verification windows and
  * replay protection. Foundation owns account/factor persistence, activation,
  * recovery codes, audit, notifications and MFA satisfaction policy.
+ *
+ * @api
  */
 final readonly class OtpManager
 {
