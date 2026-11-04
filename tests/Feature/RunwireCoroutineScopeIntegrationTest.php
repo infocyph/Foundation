@@ -242,11 +242,11 @@ it('runs Foundation execution cleanup while Runwire owns the live scheduler and 
                             });
                             $state->deferCleanup(static function () use (&$events): void {
                                 $events[] = 'cleanup-error';
-    
+
                                 throw new RuntimeException('secondary cleanup error');
                             });
                             $events[] = 'primary-error';
-    
+
                             throw new DomainException('primary operation error');
                         },
                         seeds: [
