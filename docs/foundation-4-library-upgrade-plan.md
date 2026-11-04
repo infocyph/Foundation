@@ -23,6 +23,7 @@ The 90 implementation checkboxes below are acceptance criteria. Mark only entrie
 
 | Batch | Implemented source | Latest verified evidence | Remaining |
 | --- | --- | --- | --- |
+| Security batch PHPStan annotation repair (2026-11-04) | Restored `AuthActions::int()` typed-array PHPDoc after inserting `emailVerificationDestination()`; no behavior change | `41762779421` PHP 8.4 analysis caught `missingType.iterableValue`; correction committed | New SHA needs PHP 8.4/8.5 analysis and all QA |
 | Verified email destination and audit identity boundary (2026-11-04) | Require HTTP verification destination to match stored account email; stop promoting arbitrary audit metadata into canonical session/device fields; add adversarial regression and documentation | Previous `0902665b` full QA and native host green; new source verification pending | Verify all QA; inspect other callers that pass untrusted IDs explicitly, and trusted direct-domain email-change flows |
 
 | Durable messaging test-name parity (2026-11-04) | Renamed Omnibus 2.6-labelled test owner and fixture symbols to version-neutral terms; preserved encoded durable-message alias `foundation.omnibus26.durable-message.v1` with an explicit regression | Prior `0902665b` four-lane QA and native-host smoke green; new source verification pending | Continue P4 source/doc compatibility audit and rerun new revision |

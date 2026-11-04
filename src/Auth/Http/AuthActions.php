@@ -423,9 +423,6 @@ final readonly class AuthActions
     }
 
     /**
-     * @param array<string, mixed> $payload
-     */
-    /**
      * Only a stored account destination may activate its verified status.
      * Arbitrary address changes require a separate authorized account-change flow.
      *
@@ -446,6 +443,9 @@ final readonly class AuthActions
         return $requested === null || strcasecmp($requested, $email) === 0 ? $email : null;
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function int(array $payload, string $key, int $default = 0): int
     {
         $value = $payload[$key] ?? null;
