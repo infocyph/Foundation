@@ -177,15 +177,16 @@ final readonly class ProcessRunner
         $startedAt = ProcessOutcome::clock();
         $reason = null;
         $interruptedSignal = null;
-        $signalState = $this->signals->register(
-            $options,
-            static function (int $signal) use (&$interruptedSignal): void {
-                $interruptedSignal = $signal;
-            },
-        );
-        $status = proc_get_status($process);
+        $signalState = null;
 
         try {
+            $signalState = $this->signals->register(
+                $options,
+                static function (int $signal) use (&$interruptedSignal): void {
+                    $interruptedSignal = $signal;
+                },
+            );
+
             while (($status = proc_get_status($process))['running']) {
                 $reason = $this->interactiveTermination($options, $startedAt, $interruptedSignal);
                 if ($reason !== null) {

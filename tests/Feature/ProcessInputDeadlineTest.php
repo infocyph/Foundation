@@ -202,3 +202,108 @@ it('reaps a noninteractive child when an output callback fails with pending stdi
         }
     }
 });
+
+it('retries deterministic zero and partial stdin writes without skipping bytes', function (): void {
+    $wrapper = new class {
+        public $context;
+
+        public static string $captured = '';
+
+        private int $calls = 0;
+
+        public function stream_open(string $path, string $mode, int $options, ?string &$openedPath): bool
+        {
+            unset($path, $mode, $options, $openedPath);
+
+            return true;
+        }
+
+        public function stream_write(string $data): int
+        {
+            if (++$this->calls % 2 !== 0) {
+                return 0;
+            }
+
+            $partial = substr($data, 0, 3);
+            self::$captured .= $partial;
+
+            return strlen($partial);
+        }
+
+        public function stream_close(): void {}
+    };
+    $scheme = 'foundation-stdin-' . bin2hex(random_bytes(5));
+    $class = $wrapper::class;
+    expect(stream_wrapper_register($scheme, $class))->toBeTrue();
+
+    try {
+        $stream = fopen($scheme . '://stdin', 'w');
+        expect($stream)->toBeResource();
+
+        $capture = new \Infocyph\Foundation\Process\Internal\ProcessCapture(
+            new \Infocyph\Foundation\Process\Internal\ProcessTree(),
+            new \Infocyph\Foundation\Process\Internal\ProcessSignals(),
+        );
+        $method = new ReflectionMethod($capture, 'writeReadyInput');
+        $input = 'abcdefgh';
+        $offset = 0;
+        $lastActivityAt = hrtime(true);
+        $pipes = [0 => $stream];
+        $offsets = [];
+        for ($i = 0; $i < 6; ++$i) {
+            expect($method->invokeArgs($capture, [
+                $stream, $input, &$offset, &$lastActivityAt, &$pipes,
+            ]))->toBeNull();
+            $offsets[] = $offset;
+        }
+
+        expect($offsets)->toBe([0, 3, 3, 6, 6, 8])
+            ->and($class::$captured)->toBe($input)
+            ->and($pipes)->not->toHaveKey(0)
+            ->and(is_resource($stream))->toBeFalse();
+    } finally {
+        stream_wrapper_unregister($scheme);
+    }
+});
+
+it('restores caller signal handlers and async mode after normal and failed process capture', function (): void {
+    if (!function_exists('pcntl_async_signals')
+        || !function_exists('pcntl_signal_get_handler')
+        || !function_exists('pcntl_signal')
+    ) {
+        return;
+    }
+
+    $async = pcntl_async_signals();
+    $interrupt = pcntl_signal_get_handler(SIGINT);
+    $terminate = pcntl_signal_get_handler(SIGTERM);
+
+    try {
+        $runner = new ProcessRunner();
+        $result = $runner->run(
+            [PHP_BINARY, '-r', 'echo "normal";'],
+            new ProcessOptions(handleSignals: true),
+        );
+        expect($result->stdout)->toBe('normal');
+
+        expect(fn() => $runner->run(
+            [PHP_BINARY, '-r', 'echo "failed";'],
+            new ProcessOptions(
+                onStdout: static function (string $chunk): void {
+                    if ($chunk !== '') {
+                        throw new LogicException('Signal restoration probe.');
+                    }
+                },
+                handleSignals: true,
+            ),
+        ))->toThrow(LogicException::class, 'Signal restoration probe.');
+
+        expect(pcntl_async_signals())->toBe($async)
+            ->and(pcntl_signal_get_handler(SIGINT))->toBe($interrupt)
+            ->and(pcntl_signal_get_handler(SIGTERM))->toBe($terminate);
+    } finally {
+        pcntl_signal(SIGINT, $interrupt);
+        pcntl_signal(SIGTERM, $terminate);
+        pcntl_async_signals($async);
+    }
+});

@@ -23,7 +23,6 @@ final readonly class ProcessCapture
     public function run($process, array $pipes, ProcessOptions $options, array $tree): ProcessResult
     {
         $startedAt = ProcessOutcome::clock();
-        $this->preparePipes($pipes, $options);
         $input = $options->input ?? '';
         $inputOffset = 0;
 
@@ -33,15 +32,17 @@ final readonly class ProcessCapture
         $lastActivityAt = $startedAt;
         $reason = null;
         $interruptedSignal = null;
-        $signalState = $this->signals->register(
-            $options,
-            static function (int $signal) use (&$interruptedSignal): void {
-                $interruptedSignal = $signal;
-            },
-        );
-        $status = proc_get_status($process);
+        $signalState = null;
 
         try {
+            $this->preparePipes($pipes, $options);
+            $signalState = $this->signals->register(
+                $options,
+                static function (int $signal) use (&$interruptedSignal): void {
+                    $interruptedSignal = $signal;
+                },
+            );
+
             while (($status = proc_get_status($process))['running']) {
                 $reason = $this->requestedTermination(
                     $options,
