@@ -232,7 +232,8 @@ it('runs Foundation execution cleanup while Runwire owns the live scheduler and 
         $result = (new CoroutineRuntime())->runRequest(
             $request,
             static function (CoroutineScope $scope) use ($app, $runtime, $request, &$events): string {
-                expect(fn() => $app->execution()->run(
+                expect(static function () use ($app, $runtime, $request, $scope, &$events): void {
+                    $app->execution()->run(
                     static function () use ($app, $scope, &$events): void {
                         $state = $app->make(\Infocyph\Foundation\Runtime\RuntimeExecutionState::class);
                         $state->deferCleanup(static function () use ($scope, &$events): void {
@@ -253,7 +254,8 @@ it('runs Foundation execution cleanup while Runwire owns the live scheduler and 
                         RequestContext::class => $request,
                         CoroutineScope::class => $scope,
                     ],
-                ))->toThrow(DomainException::class, 'primary operation error');
+                    );
+                })->toThrow(DomainException::class, 'primary operation error');
 
                 $scope->hasLocal(new \Infocyph\Runwire\Coroutine\TaskLocal());
                 $events[] = 'host-owns-scope';
