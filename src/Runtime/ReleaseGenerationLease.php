@@ -68,9 +68,10 @@ final class ReleaseGenerationLease
             return;
         }
 
-        flock($this->handle, LOCK_UN);
-        fclose($this->handle);
+        $handle = $this->handle;
         $this->handle = null;
+        flock($handle, LOCK_UN);
+        fclose($handle);
     }
 
     /** @param int<0, 7> $operation */

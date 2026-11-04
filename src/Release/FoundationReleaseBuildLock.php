@@ -41,8 +41,9 @@ final class FoundationReleaseBuildLock
             return;
         }
 
-        flock($this->handle, LOCK_UN);
-        fclose($this->handle);
+        $handle = $this->handle;
         $this->handle = null;
+        flock($handle, LOCK_UN);
+        fclose($handle);
     }
 }
