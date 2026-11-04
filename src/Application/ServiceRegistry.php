@@ -15,6 +15,9 @@ final class ServiceRegistry
 
     private bool $sealed = false;
 
+    /**
+     * @throws \LogicException
+     */
     public function add(ServiceProviderInterface $provider): void
     {
         if ($this->sealed) {
@@ -37,6 +40,9 @@ final class ServiceRegistry
         return array_keys($this->providers);
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if ($this->contributedContext !== null && $this->contributedContext !== $context) {

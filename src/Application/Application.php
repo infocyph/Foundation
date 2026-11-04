@@ -36,7 +36,12 @@ final class Application
         private readonly RuntimeMode $runtimeMode,
     ) {}
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     */
     public static function create(array $config, RuntimeMode $runtimeMode): self
     {
         $sourceConfig = new ConfigLoader()->load($config);
@@ -69,6 +74,9 @@ final class Application
         return $this->paths()->app($path);
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function attachLoadedReleaseGeneration(LoadedReleaseGeneration $release): self
     {
         $current = $this->loadedReleaseGeneration;
@@ -125,7 +133,10 @@ final class Application
         return $this->paths()->config($path);
     }
 
-    /** Mutable container access is development-only. */
+    /**
+     * Mutable container access is development-only.
+     * @throws \LogicException
+     */
     public function container(): Container
     {
         if (!$this->container instanceof Container) {
@@ -164,6 +175,9 @@ final class Application
         return $this->container->has($id);
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function http(): HttpKernel
     {
         if (!$this->runningInWeb()) {
@@ -195,6 +209,7 @@ final class Application
      * @template T of object
      * @param string|class-string<T> $id
      * @return ($id is class-string<T> ? T : mixed)
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     public function make(string $id): mixed
     {
@@ -242,6 +257,8 @@ final class Application
      * TestKit owns this restricted boundary; compiled and production runtimes reject it.
      *
      * @internal
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function replaceForTesting(string $id, object $service): void
     {

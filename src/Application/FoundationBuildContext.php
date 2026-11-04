@@ -99,6 +99,7 @@ final readonly class FoundationBuildContext
     /**
      * @param array<int|string, mixed>|null $capabilities
      * @return array<int|string, mixed>|null
+     * @throws \UnexpectedValueException
      */
     private static function configuredCapabilities(ConfigRepository $config, ?array $capabilities): ?array
     {
@@ -114,7 +115,10 @@ final readonly class FoundationBuildContext
         return $configured;
     }
 
-    /** @return array<string,bool> */
+    /**
+     * @return array<string,bool>
+     * @throws \UnexpectedValueException
+     */
     private static function moduleCapabilityOverrides(ConfigRepository $config): array
     {
         $configured = $config->get('modules.capabilities', []);
@@ -165,6 +169,7 @@ final readonly class FoundationBuildContext
      *
      * @param array<string,bool>|null $features
      * @return array<string,mixed>
+     * @throws \UnexpectedValueException
      */
     private static function normalizedSourceConfig(ConfigRepository $config, ?array $features): array
     {

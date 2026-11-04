@@ -47,6 +47,9 @@ final readonly class ProviderFileLoader
         ]));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
+     */
     private function assertGroup(string $file, int|string $group, mixed $configured): void
     {
         if (!is_string($group) || !in_array($group, self::GROUPS, true)) {
@@ -65,7 +68,10 @@ final readonly class ProviderFileLoader
         }
     }
 
-    /** @return array<array-key, mixed> */
+    /**
+     * @return array<array-key, mixed>
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
+     */
     private function providerConfig(string $file): array
     {
         $providers = require $file;
