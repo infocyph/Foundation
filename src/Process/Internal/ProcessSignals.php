@@ -28,10 +28,8 @@ final class ProcessSignals
 
         $handlers = [];
         foreach ([self::SIGNAL_INTERRUPT, self::SIGNAL_TERMINATE] as $signal) {
+            /** @var callable|int $handler */
             $handler = pcntl_signal_get_handler($signal);
-            if (!is_int($handler) && !is_callable($handler)) {
-                throw new \RuntimeException('Unable to capture a valid POSIX signal handler.');
-            }
             $handlers[$signal] = $handler;
         }
 
