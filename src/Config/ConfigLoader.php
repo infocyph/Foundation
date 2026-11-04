@@ -116,6 +116,9 @@ final class ConfigLoader
             : $basePath . DIRECTORY_SEPARATOR . trim($path, DIRECTORY_SEPARATOR);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function cacheType(ConfigRepository $config, ?string $type): string
     {
         $configured = $type ?? $config->getString('app.config_cache.type', self::TYPE_SHARDED);
@@ -184,6 +187,9 @@ final class ConfigLoader
         return $this->mergeConfigLayers([FoundationDefaults::all(), AuthDefaults::all()]);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function ensureCacheDirectory(string $directory): void
     {
         if (is_link($directory)) {
@@ -407,7 +413,10 @@ final class ConfigLoader
         return is_string($schema) && hash_equals($this->schemaFingerprint(), $schema);
     }
 
-    /** @param array<string,mixed> $payload */
+    /**
+     * @param array<string,mixed> $payload
+     * @throws \RuntimeException
+     */
     private function writeManifest(string $directory, array $payload): void
     {
         $target = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::MANIFEST_FILE;

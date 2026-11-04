@@ -197,6 +197,9 @@ final class MessagingSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function monitor(): int
     {
         $transport = $this->transport();
@@ -215,6 +218,9 @@ final class MessagingSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function positiveIntOption(string $name, int $default, int $maximum): int
     {
         $value = $this->option($name);

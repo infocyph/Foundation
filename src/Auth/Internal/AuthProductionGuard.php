@@ -18,6 +18,9 @@ final readonly class AuthProductionGuard
 {
     public function __construct(private ConfigRepository $config) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function guard(AuthDriverResolver $drivers): void
     {
         if (!$this->config->isProduction()) {
@@ -55,6 +58,9 @@ final readonly class AuthProductionGuard
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function guardTalkingBytesNotifications(): void
     {
         $sender = $this->config->get('notifications.auth.sender', 'auth');

@@ -24,6 +24,9 @@ final readonly class SessionManager
         return $this->config;
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function current(): BrowserSession
     {
         $active = $this->state()->active;
@@ -41,6 +44,9 @@ final readonly class SessionManager
         $state->active[] = $session;
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function leave(BrowserSession $session): void
     {
         $state = $this->state();
@@ -77,6 +83,11 @@ final readonly class SessionManager
         $this->state()->reset();
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function state(): SessionExecutionState
     {
         $state = $this->container->get(SessionExecutionState::class);

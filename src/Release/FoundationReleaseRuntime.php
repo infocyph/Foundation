@@ -165,7 +165,10 @@ final readonly class FoundationReleaseRuntime
         );
     }
 
-    /** @return array{0:string,1:array<string,mixed>,2:string,3:string,4:ReleaseGenerationLease} */
+    /**
+     * @return array{0:string,1:array<string,mixed>,2:string,3:string,4:ReleaseGenerationLease}
+     * @throws \Throwable
+     */
     private function activeManifest(string $releaseRoot): array
     {
         $current = $this->active->currentPointer($releaseRoot);
@@ -197,6 +200,9 @@ final readonly class FoundationReleaseRuntime
         return [$generation, $manifest, dirname($manifestPath), $manifestPath, $lease];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function assertNonWeb(RuntimeMode $runtime): void
     {
         if ($runtime === RuntimeMode::Web) {
@@ -273,6 +279,8 @@ final readonly class FoundationReleaseRuntime
 
     /**
      * @return array{0:string,1:array<string,mixed>,2:string,3:string,4:ReleaseGenerationLease}
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
      */
     private function trustedActiveManifestWithLease(string $releaseRoot, string $trustedSha256): array
     {

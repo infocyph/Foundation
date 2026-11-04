@@ -17,6 +17,9 @@ use Infocyph\OTP\Passkey;
 
 final class AuthPasskeyGraphFactory
 {
+    /**
+     * @throws \LogicException
+     */
     public static function passkey(
         WebAuthnConfigResolver $config,
         CacheManager $cache,

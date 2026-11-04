@@ -29,6 +29,9 @@ use UnexpectedValueException;
 
 final readonly class AuthAuthorizationRegistrar extends AbstractAuthRegistrar
 {
+    /**
+     * @throws \UnexpectedValueException
+     */
     public static function gate(ContainerInterface $container, PermissionAuthorizer $fallback): Gate
     {
         $policy = $container->has(PolicyResolverInterface::class)

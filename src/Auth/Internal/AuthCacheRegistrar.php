@@ -19,6 +19,9 @@ use Infocyph\Foundation\Config\SharedStateTopology;
 
 final readonly class AuthCacheRegistrar extends AbstractAuthRegistrar
 {
+    /**
+     * @throws \LogicException
+     */
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->cache() === AuthCacheDriver::CACHE) {

@@ -15,6 +15,7 @@ final readonly class WorkerRuntime
     /**
      * @param null|Closure():void $heartbeat
      * @param null|Closure():bool $stopRequested
+     * @throws \LogicException
      */
     public function __construct(
         private Application $application,
@@ -47,6 +48,7 @@ final readonly class WorkerRuntime
     /**
      * Refresh provider-level singleton ownership during long-running work and
      * terminate cleanly when Foundation has requested a runtime/worker reload.
+     * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
      */
     public function heartbeat(): void
     {

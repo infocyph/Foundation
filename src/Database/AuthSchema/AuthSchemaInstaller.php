@@ -111,6 +111,9 @@ final readonly class AuthSchemaInstaller
         $this->runner($connection)->reset(true);
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function oauthSchema(): Migration
     {
         if (!$this->oauthRevisionSchema instanceof AuthOAuthRevisionSchema) {
@@ -120,6 +123,9 @@ final readonly class AuthSchemaInstaller
         return $this->oauthRevisionSchema;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function personalAccessTokenSchema(): Migration
     {
         if (!$this->personalAccessTokenSchema instanceof AuthPersonalAccessTokenSchema) {

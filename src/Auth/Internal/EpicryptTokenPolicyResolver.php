@@ -14,6 +14,9 @@ final readonly class EpicryptTokenPolicyResolver
         private ConfigRepository $config,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function algorithm(): SymmetricJwtAlgorithm
     {
         $configured = $this->config->get('security.jwt.algorithm', SymmetricJwtAlgorithm::HS256->value);
@@ -54,6 +57,9 @@ final readonly class EpicryptTokenPolicyResolver
         };
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function nonNegativeInt(string $key, int $default): int
     {
         $value = $this->config->get('security.jwt.' . $key, $default);
@@ -67,6 +73,9 @@ final readonly class EpicryptTokenPolicyResolver
         throw new ConfigurationException(sprintf('security.jwt.%s must be a non-negative integer.', $key));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function positiveInt(string $key, int $default): int
     {
         $value = $this->config->get('security.jwt.' . $key, $default);
@@ -80,6 +89,9 @@ final readonly class EpicryptTokenPolicyResolver
         throw new ConfigurationException(sprintf('security.jwt.%s must be a positive integer.', $key));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function requiredValue(string $key): string
     {
         $value = $this->config->get('security.jwt.' . $key);

@@ -62,6 +62,9 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
         return is_array($row) ? $this->intOrNull($row['last_used_at'] ?? null) : null;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function listForSubject(string $subject, int $limit = 100): array
     {
@@ -185,6 +188,9 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
         );
     }
 
+    /**
+     * @throws \Throwable
+     */
     private function serializeSubject(Connection $connection, string $subject): void
     {
         $hash = $this->subjectHash($subject);

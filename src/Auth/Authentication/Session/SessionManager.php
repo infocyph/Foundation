@@ -61,6 +61,9 @@ final readonly class SessionManager
         $this->sessions->revokeAllForAccount($accountId, $exceptSessionId);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\Exception\SessionException
+     */
     public function rotate(string $sessionId): AuthSession
     {
         $existing = $this->sessions->find($sessionId);

@@ -77,6 +77,9 @@ final class InMemoryAccountStore implements AccountProviderInterface, AccountSto
         $this->accounts[$accountId] = $account->withStatus($status);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\Exception\StorageException
+     */
     private function requireAccount(string $accountId): AccountInterface
     {
         $account = $this->accounts[$accountId] ?? null;
@@ -88,6 +91,9 @@ final class InMemoryAccountStore implements AccountProviderInterface, AccountSto
         return $account;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\Exception\StorageException
+     */
     private function requireConcreteAccount(string $accountId): Account
     {
         $account = $this->requireAccount($accountId);

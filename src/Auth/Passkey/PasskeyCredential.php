@@ -67,6 +67,9 @@ final readonly class PasskeyCredential
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function withCredentialRecord(
         string $credentialRecordJson,
         int $timestamp,

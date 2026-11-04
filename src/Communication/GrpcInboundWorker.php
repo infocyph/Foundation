@@ -96,6 +96,9 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function heartbeatIntervalMilliseconds(): int
     {
         $milliseconds = ValueNormalizer::int(
@@ -111,6 +114,9 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         return $milliseconds;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function idleSleepMilliseconds(): int
     {
         $milliseconds = ValueNormalizer::int(
@@ -126,6 +132,9 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         return $milliseconds;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function source(string $service): GrpcInboundSource
     {
         try {
@@ -147,6 +156,9 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         return $source;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function sourceService(): string
     {
         $service = $this->config->get('communication.grpc.inbound.source_service');

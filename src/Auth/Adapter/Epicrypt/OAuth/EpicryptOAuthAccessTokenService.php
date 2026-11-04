@@ -18,6 +18,9 @@ final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessToken
 {
     private AsymmetricJwt $issuer;
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         private OAuthSigningKeySet $keys,
         private int $maximumLifetimeSeconds = 300,
@@ -35,6 +38,9 @@ final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessToken
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException
+     */
     #[\Override]
     public function issue(OAuthAccessTokenClaims $claims): string
     {
@@ -68,6 +74,9 @@ final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessToken
         ));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException
+     */
     #[\Override]
     public function verify(string $token, string $expectedAudience): OAuthAccessTokenClaims
     {
@@ -114,7 +123,10 @@ final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessToken
         );
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException
+     */
     private function audiences(mixed $value): array
     {
         if (is_string($value) && $value !== '') {
@@ -140,7 +152,10 @@ final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessToken
         return is_string($value) && $value !== '' ? $value : null;
     }
 
-    /** @param array<string, mixed> $claims */
+    /**
+     * @param array<string, mixed> $claims
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException
+     */
     private function requiredInt(array $claims, string $name): int
     {
         $value = $claims[$name] ?? null;
@@ -151,7 +166,10 @@ final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessToken
         return $value;
     }
 
-    /** @param array<string, mixed> $claims */
+    /**
+     * @param array<string, mixed> $claims
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException
+     */
     private function requiredString(array $claims, string $name): string
     {
         $value = $claims[$name] ?? null;
@@ -162,7 +180,10 @@ final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessToken
         return $value;
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException
+     */
     private function scopes(mixed $value): array
     {
         if ($value === null || $value === '') {

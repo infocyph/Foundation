@@ -83,7 +83,10 @@ final readonly class FilesystemResponseFactory
         );
     }
 
-    /** @param array<string, string|list<string>> $headers */
+    /**
+     * @param array<string, string|list<string>> $headers
+     * @throws \InvalidArgumentException
+     */
     public function xAccelRedirect(
         Request $request,
         string $internalPath,
@@ -139,6 +142,9 @@ final readonly class FilesystemResponseFactory
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function assertOffloadEnabled(string $driver, string $label): void
     {
         if (ValueNormalizer::bool(
@@ -200,6 +206,9 @@ final readonly class FilesystemResponseFactory
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function localPath(string $path, ?string $disk): string
     {
         if ($path !== '' && PathHelper::hasScheme($path)) {
@@ -264,6 +273,11 @@ final readonly class FilesystemResponseFactory
         return $response;
     }
 
+    /**
+     * @throws \Infocyph\Pathwise\Exceptions\DownloadException
+     * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
+     * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     */
     private function prepareDownloadWithRunwire(
         DownloadProcessor $processor,
         string $path,

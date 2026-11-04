@@ -17,6 +17,7 @@ final class WorkerTopology
     /**
      * @param array<string,mixed> $config
      * @return array{path:string,sha256:string,providers:int}
+     * @throws \RuntimeException
      */
     public function compile(
         array $config,
@@ -53,6 +54,8 @@ final class WorkerTopology
 
     /**
      * @return array<string,array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public function load(string $artifactPath, string $expectedSha256): array
     {
@@ -73,6 +76,7 @@ final class WorkerTopology
 
     /**
      * @return array<string,array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
+     * @throws \RuntimeException
      */
     public function loadGeneration(LoadedReleaseGeneration $release): array
     {
@@ -106,6 +110,7 @@ final class WorkerTopology
 
     /**
      * @return array<string,array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
+     * @throws \UnexpectedValueException
      */
     public function source(string $routePath, mixed $defaultWait = null, mixed $defaultLease = null): array
     {
@@ -128,6 +133,9 @@ final class WorkerTopology
         );
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function floatValue(mixed $value, float $default, string $key): float
     {
         if ($value === null || $value === '') {
@@ -140,6 +148,9 @@ final class WorkerTopology
         throw new \UnexpectedValueException(sprintf('Worker %s must be numeric.', $key));
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function nonNegativeFloat(mixed $value, float $default, string $key): float
     {
         $resolved = $this->floatValue($value, $default, $key);
@@ -200,6 +211,9 @@ final class WorkerTopology
             : rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . trim($path, DIRECTORY_SEPARATOR);
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function positiveFloat(mixed $value, float $default, string $key): float
     {
         $resolved = $this->floatValue($value, $default, $key);
@@ -210,7 +224,10 @@ final class WorkerTopology
         return $resolved;
     }
 
-    /** @param array<string,mixed> $payload */
+    /**
+     * @param array<string,mixed> $payload
+     * @throws \RuntimeException
+     */
     private function write(string $artifactPath, array $payload): void
     {
         $directory = dirname($artifactPath);

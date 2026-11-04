@@ -46,6 +46,9 @@ abstract class AbstractPrincipalResolver implements PrincipalResolverInterface
      * @template T of object
      * @param class-string<T> $id
      * @return T
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     protected function service(string $id): object
     {

@@ -9,6 +9,9 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerStore;
 
 final readonly class DBLayerEpicryptJwtReplayStore extends DBLayerStore implements JwtReplayStoreInterface
 {
+    /**
+     * @throws \Throwable
+     */
     #[\Override]
     public function consume(string $namespace, string $tokenId, int $expiresAt): bool
     {

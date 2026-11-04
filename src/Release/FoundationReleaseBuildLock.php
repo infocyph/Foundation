@@ -15,6 +15,9 @@ final class FoundationReleaseBuildLock
         $this->handle = $handle;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public static function acquire(string $releaseRoot): self
     {
         if (!is_dir($releaseRoot) && !mkdir($releaseRoot, 0775, true) && !is_dir($releaseRoot)) {

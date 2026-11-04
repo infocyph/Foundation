@@ -98,7 +98,10 @@ final readonly class FilesystemUploadRequestHandler
         return $file->getClientFilename() ?? $field;
     }
 
-    /** @param list<mixed> $candidates */
+    /**
+     * @param list<mixed> $candidates
+     * @throws \InvalidArgumentException
+     */
     private function resolveInt(?int $value, array $candidates, string $label): int
     {
         if (is_int($value)) {
@@ -120,7 +123,10 @@ final readonly class FilesystemUploadRequestHandler
         ));
     }
 
-    /** @param list<mixed> $candidates */
+    /**
+     * @param list<mixed> $candidates
+     * @throws \InvalidArgumentException
+     */
     private function resolveString(?string $value, array $candidates, string $label): string
     {
         if (is_string($value) && trim($value) !== '') {
@@ -152,6 +158,9 @@ final readonly class FilesystemUploadRequestHandler
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function uploadedFile(Request $request, string $field): UploadedFile
     {
         $file = $request->file($field);

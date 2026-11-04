@@ -16,6 +16,9 @@ final readonly class EnvironmentSecretManager
         private ConfigCacheManager $configCache,
     ) {}
 
+    /**
+     * @throws \LogicException
+     */
     public function generate(bool $force = false): string
     {
         $path = $this->application->basePath('.env');
@@ -31,6 +34,9 @@ final readonly class EnvironmentSecretManager
         return $path;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public function install(): string
     {
         $path = $this->application->basePath('.env');
@@ -53,6 +59,9 @@ final readonly class EnvironmentSecretManager
         return $path;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function read(string $path, string $label): string
     {
         if (!is_file($path) || !is_readable($path)) {
@@ -66,6 +75,9 @@ final readonly class EnvironmentSecretManager
         return $contents;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function withGeneratedSecret(string $contents, bool $force, bool $preserveExisting): ?string
     {
         $pattern = '/^' . self::VARIABLE . '=(.*)$/m';
@@ -100,6 +112,9 @@ final readonly class EnvironmentSecretManager
         return rtrim($contents, "\r\n") . PHP_EOL . $line . PHP_EOL;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function write(string $path, string $contents): void
     {
         $temporary = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';

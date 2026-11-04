@@ -31,6 +31,9 @@ final readonly class OpenIdMetadataProvider
         )->toArray();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function endpoint(): string
     {
         $issuer = $this->config->get('auth.oauth.issuer');
@@ -52,7 +55,10 @@ final readonly class OpenIdMetadataProvider
         return $origin . $route;
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function stringList(string $key): array
     {
         $values = $this->config->get($key, []);

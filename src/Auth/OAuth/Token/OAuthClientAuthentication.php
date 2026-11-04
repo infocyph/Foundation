@@ -8,6 +8,9 @@ use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
 
 final readonly class OAuthClientAuthentication
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         public OAuthClientAuthenticationMethod $method,
         public string $clientId,
@@ -28,6 +31,9 @@ final readonly class OAuthClientAuthentication
         };
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function assertAssertion(): void
     {
         if ($this->secret !== null
@@ -39,6 +45,9 @@ final readonly class OAuthClientAuthentication
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function assertNone(): void
     {
         if ($this->secret !== null || $this->assertion !== null) {
@@ -46,6 +55,9 @@ final readonly class OAuthClientAuthentication
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function assertSecret(): void
     {
         if (!is_string($this->secret)

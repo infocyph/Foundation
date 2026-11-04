@@ -23,6 +23,9 @@ final class WebGraphFactory
      *
      * @param array<string, mixed>|ConfigRepository $config
      * @param array<int|string, mixed>|null $capabilities
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     public function compose(array|ConfigRepository $config, ?array $capabilities = null, ?WebProductionGraph $production = null): WebGraphComposition
     {

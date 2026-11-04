@@ -33,6 +33,7 @@ final class CommandExecutionCoordinator
     /**
      * @param list<string> $argv
      * @param callable(ExecutionId):int $inline
+     * @throws \Throwable
      */
     public function run(
         CommandDescriptor $descriptor,
@@ -138,7 +139,10 @@ final class CommandExecutionCoordinator
         };
     }
 
-    /** @param list<string> $argv */
+    /**
+     * @param list<string> $argv
+     * @throws \LogicException
+     */
     private function isolated(
         CommandDescriptor $descriptor,
         array $argv,
@@ -212,7 +216,10 @@ final class CommandExecutionCoordinator
         );
     }
 
-    /** @param callable(ExecutionId):int $inline */
+    /**
+     * @param callable(ExecutionId):int $inline
+     * @throws \Throwable
+     */
     private function runInline(
         ExecutionHistory $history,
         ExecutionId $executionId,

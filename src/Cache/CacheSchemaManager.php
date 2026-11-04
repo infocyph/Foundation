@@ -191,6 +191,9 @@ final readonly class CacheSchemaManager
         ];
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function ensureDirectory(string $directory): void
     {
         if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {

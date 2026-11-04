@@ -41,6 +41,9 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
         $this->revokeTokenFamily('rememberTokens', $familyId);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function rotate(string $recordId, RememberTokenRecord $replacement): void
     {

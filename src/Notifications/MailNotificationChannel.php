@@ -10,6 +10,10 @@ final readonly class MailNotificationChannel implements NotificationChannel
 {
     public function __construct(private Mailer $mailer) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     #[\Override]
     public function send(
         NotificationRecipient $recipient,

@@ -86,6 +86,9 @@ final readonly class RuntimeControl
         return is_string($store) && $store !== '' ? $store : null;
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function driver(): string
     {
         $driver = strtolower(ValueNormalizer::string(
@@ -99,6 +102,9 @@ final readonly class RuntimeControl
         return $driver;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function ensureDirectory(string $path): void
     {
         $directory = dirname($path);
@@ -107,6 +113,9 @@ final readonly class RuntimeControl
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function key(string $scope, ?string $name): string
     {
         $scope = strtolower(trim($scope));
@@ -130,7 +139,10 @@ final readonly class RuntimeControl
         return is_string($key) && $key !== '' ? $key : 'foundation:runtime-control';
     }
 
-    /** @param callable(array<string,mixed>):array<string,mixed> $mutation */
+    /**
+     * @param callable(array<string,mixed>):array<string,mixed> $mutation
+     * @throws \RuntimeException
+     */
     private function mutate(callable $mutation): void
     {
         if ($this->driver() === 'cache') {
@@ -194,7 +206,11 @@ final readonly class RuntimeControl
             : $this->application->basePath(trim($configured, DIRECTORY_SEPARATOR));
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * @return array<string,mixed>
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function read(): array
     {
         if ($this->driver() === 'cache') {
@@ -219,7 +235,11 @@ final readonly class RuntimeControl
         return ValueNormalizer::associativeArray($decoded);
     }
 
-    /** @param array<string,mixed> $state */
+    /**
+     * @param array<string,mixed> $state
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function write(array $state): void
     {
         if ($this->driver() === 'cache') {

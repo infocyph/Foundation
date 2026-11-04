@@ -92,6 +92,11 @@ final readonly class OmnibusDurableFactory
         return is_string($connection) && $connection !== '' ? $connection : null;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function database(): DBLayerFactory
     {
         $database = $this->services->get(DBLayerFactory::class);
@@ -102,7 +107,10 @@ final readonly class OmnibusDurableFactory
         return $database;
     }
 
-    /** @return list<MessageCodec> */
+    /**
+     * @return list<MessageCodec>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function messageCodecs(): array
     {
         $configured = $this->config->get('messaging.serialization.message_codecs', []);
@@ -124,7 +132,10 @@ final readonly class OmnibusDurableFactory
         return $codecs;
     }
 
-    /** @return list<StampCodec> */
+    /**
+     * @return list<StampCodec>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function stampCodecs(): array
     {
         $configured = $this->config->get('messaging.serialization.stamp_codecs', []);

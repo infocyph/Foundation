@@ -15,6 +15,9 @@ final readonly class JsonDispatchResponseFactory
 {
     public const string SPECIFICATION_VERSION = '3.0.0';
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         private string $vendor = 'infocyph',
         private string $applicationVersion = '1.0.0',
@@ -50,6 +53,9 @@ final readonly class JsonDispatchResponseFactory
         return $this->problem('fail', $issues, $status, $message);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function failureFromValidation(
         ValidationResult $validation,
         int $status = 422,
@@ -113,6 +119,9 @@ final readonly class JsonDispatchResponseFactory
         ], $status);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function success(
         mixed $data = null,
         int $status = 200,
@@ -183,6 +192,7 @@ final readonly class JsonDispatchResponseFactory
 
     /**
      * @param list<Issue> $issues
+     * @throws \InvalidArgumentException
      */
     private function problem(string $type, array $issues, int $status, ?string $message): Response
     {

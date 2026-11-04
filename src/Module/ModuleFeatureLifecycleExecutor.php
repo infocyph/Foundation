@@ -51,6 +51,7 @@ final readonly class ModuleFeatureLifecycleExecutor
      * @phpstan-param Context $context
      * @phpstan-param Closure():Context|null $refresh
      * @phpstan-return Outcome
+     * @throws \RuntimeException
      */
     public function apply(
         string $operation,
@@ -111,6 +112,7 @@ final readonly class ModuleFeatureLifecycleExecutor
      * @phpstan-param Context $context
      * @phpstan-param Closure():Context|null $refresh
      * @phpstan-return Outcome
+     * @throws \RuntimeException
      */
     private function applyInstallOrRepair(
         string $operation,

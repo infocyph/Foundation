@@ -222,6 +222,9 @@ final class OperationsSystemCommand extends SystemCommand
         return new ExecutionHistory($this->application);
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function logTail(): int
     {
         if ($this->application->config()->get('logging.driver', 'null') !== 'file') {
@@ -290,6 +293,9 @@ final class OperationsSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function nonNegativeIntOption(string $name, int $default): int
     {
         $value = $this->option($name);
@@ -310,6 +316,9 @@ final class OperationsSystemCommand extends SystemCommand
         return $value === null ? null : $this->positiveInt($name, $value);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function positiveInt(string $name, string $value): int
     {
         if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1) {
@@ -319,6 +328,9 @@ final class OperationsSystemCommand extends SystemCommand
         return (int) $value;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function positiveIntOption(string $name, int $default, int $maximum): int
     {
         $value = $this->option($name);
@@ -347,6 +359,9 @@ final class OperationsSystemCommand extends SystemCommand
         return $this->emit(['scope' => 'schedule', 'token' => $token], 'Scheduler interrupt requested.');
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function workerRestart(): int
     {
         $name = $this->argument(0);
@@ -361,6 +376,9 @@ final class OperationsSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function workerStatus(): int
     {
         $name = $this->argument(0);

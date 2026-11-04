@@ -34,6 +34,9 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         return $this->challengeFactors;
     }
 
+    /**
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     #[\Override]
     public function verify(MfaChallenge $challenge, string $code): MfaVerificationResult
     {
@@ -68,6 +71,9 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         }
     }
 
+    /**
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     public function verifyEnrollment(MfaFactor $factor, string $code): MfaVerificationResult
     {
         RunwireState::checkpoint(CacheRunwire::current());
@@ -117,7 +123,10 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         return null;
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \InvalidArgumentException
+     */
     private function integerOption(array $config, string $key, int $default): int
     {
         if (!array_key_exists($key, $config)) {
@@ -143,7 +152,10 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         return !$counterEnabled || ($nextCounter !== null && $this->advanceCounter($factor, $nextCounter));
     }
 
-    /** @return array{algorithm:string,counter:int,digits:int,look_ahead:int,period:int,secret:?string,suite:?string,window:int} */
+    /**
+     * @return array{algorithm:string,counter:int,digits:int,look_ahead:int,period:int,secret:?string,suite:?string,window:int}
+     * @throws \InvalidArgumentException
+     */
     private function otpConfig(MfaFactor $factor): array
     {
         $otp = ValueNormalizer::associativeArray($factor->metadata['otp'] ?? null);
@@ -179,7 +191,10 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         );
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \InvalidArgumentException
+     */
     private function stringOption(array $config, string $key): ?string
     {
         if (!array_key_exists($key, $config) || $config[$key] === null) {

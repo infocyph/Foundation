@@ -35,6 +35,9 @@ final class FilesystemServiceProvider extends ServiceProvider
         return $transfers->upload();
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {

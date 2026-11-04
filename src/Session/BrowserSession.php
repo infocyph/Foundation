@@ -44,6 +44,9 @@ final class BrowserSession
         private readonly SessionConfig $config,
     ) {}
 
+    /**
+     * @throws \LogicException
+     */
     public static function fromRequest(Request $request): self
     {
         $session = $request->getAttribute(self::REQUEST_ATTRIBUTE);
@@ -62,6 +65,9 @@ final class BrowserSession
         return $this->data;
     }
 
+    /**
+     * @throws \LengthException
+     */
     public function commit(int $now): SessionCommit
     {
         $this->assertOpen();
@@ -203,6 +209,9 @@ final class BrowserSession
         return $value;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function put(string $key, mixed $value): void
     {
         if ($key === '') {
@@ -260,6 +269,10 @@ final class BrowserSession
         return bin2hex(random_bytes(32));
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     private function acquireLock(string $id): void
     {
         if (!$this->config->lockEnabled) {
@@ -286,6 +299,9 @@ final class BrowserSession
         $this->lock = $lock;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function assertLockOwned(): void
     {
         if (
@@ -296,6 +312,9 @@ final class BrowserSession
         }
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function assertOpen(): void
     {
         if ($this->released) {

@@ -27,6 +27,9 @@ final class ScheduledCommand
 
     private bool $withoutOverlap = false;
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(private readonly string $command)
     {
         if ($command === '') {
@@ -70,7 +73,10 @@ final class ScheduledCommand
         return $command;
     }
 
-    /** @param list<string> $arguments */
+    /**
+     * @param list<string> $arguments
+     * @throws \InvalidArgumentException
+     */
     public function arguments(array $arguments): self
     {
         if (array_any($arguments, static fn(string $argument): bool => $argument === '')) {
@@ -99,6 +105,9 @@ final class ScheduledCommand
         return $this;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function dailyAt(string $time): self
     {
         if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time) !== 1) {
@@ -134,6 +143,9 @@ final class ScheduledCommand
         ], JSON_THROW_ON_ERROR));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function key(string $key): self
     {
         if ($key === '' || strlen($key) > 128 || preg_match('/^[A-Za-z0-9._:-]+$/D', $key) !== 1) {
@@ -144,6 +156,9 @@ final class ScheduledCommand
         return $this;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function memoryLimit(int $megabytes): self
     {
         if ($megabytes < 1) {
@@ -189,6 +204,9 @@ final class ScheduledCommand
         return $this->onOneServer;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function timeout(float $seconds): self
     {
         if (!is_finite($seconds) || $seconds <= 0) {
@@ -298,6 +316,9 @@ final class ScheduledCommand
         return is_string($value) ? $value : $default;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function assertLockTiming(float $leaseSeconds, float $waitSeconds): void
     {
         if (!is_finite($leaseSeconds) || !is_finite($waitSeconds) || $leaseSeconds <= 0 || $waitSeconds < 0) {

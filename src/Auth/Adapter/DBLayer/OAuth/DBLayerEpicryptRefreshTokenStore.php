@@ -17,6 +17,9 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
 {
     private const int ROTATION_TRANSACTION_ATTEMPTS = 3;
 
+    /**
+     * @throws \Throwable
+     */
     #[\Override]
     public function create(#[\SensitiveParameter] RefreshTokenRecord $record): bool
     {

@@ -23,6 +23,9 @@ final readonly class CacheLayerWebhookReplayStore implements WebhookReplayStore
             : self::atomic($cache);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function claim(string $namespace, string $deliveryId, int $ttlSeconds): bool
     {
@@ -38,6 +41,9 @@ final readonly class CacheLayerWebhookReplayStore implements WebhookReplayStore
         return $atomic->setIfAbsent($key, 1, $ttlSeconds);
     }
 
+    /**
+     * @throws \LogicException
+     */
     private static function atomic(CacheInterface $cache): AtomicCacheInterface
     {
         if (!$cache instanceof AtomicCacheProviderInterface || ($atomic = $cache->atomic()) === null) {

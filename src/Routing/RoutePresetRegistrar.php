@@ -61,7 +61,10 @@ final readonly class RoutePresetRegistrar
         $this->middleware->register($requirements);
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \InvalidArgumentException
+     */
     public function stack(string $preset): array
     {
         $groups = $this->configuredGroups() + $this->builtInGroups();
@@ -84,7 +87,10 @@ final readonly class RoutePresetRegistrar
         return $groups;
     }
 
-    /** @return array<string, list<string>> */
+    /**
+     * @return array<string, list<string>>
+     * @throws \InvalidArgumentException
+     */
     private function configuredGroups(): array
     {
         $configured = $this->config->get('router.middleware.groups', []);
@@ -107,6 +113,7 @@ final readonly class RoutePresetRegistrar
     /**
      * @param array<mixed> $stack
      * @return list<string>
+     * @throws \InvalidArgumentException
      */
     private function normalizeStack(array $stack): array
     {

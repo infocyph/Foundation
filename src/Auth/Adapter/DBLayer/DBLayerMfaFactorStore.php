@@ -21,6 +21,9 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
         parent::__construct($services, $tables, $connection);
     }
 
+    /**
+     * @throws \Throwable
+     */
     #[\Override]
     public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool
     {

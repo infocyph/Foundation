@@ -35,7 +35,10 @@ final readonly class ExecutionHistory
         return $this->application->config()->getBool('operations.history.enabled', false) ?? false;
     }
 
-    /** @return list<array<string,mixed>> */
+    /**
+     * @return list<array<string,mixed>>
+     * @throws \InvalidArgumentException
+     */
     public function find(string $executionId): array
     {
         if ($executionId === '') {
@@ -60,7 +63,10 @@ final readonly class ExecutionHistory
         return $this->recent(1, $kind, $name)[0] ?? null;
     }
 
-    /** @return array<string,mixed>|null */
+    /**
+     * @return array<string,mixed>|null
+     * @throws \InvalidArgumentException
+     */
     public function latestByMetadata(string $kind, string $key, string $value): ?array
     {
         if ($kind === '' || $key === '' || $value === '') {
@@ -95,7 +101,10 @@ final readonly class ExecutionHistory
             : $this->application->basePath(trim($configured, DIRECTORY_SEPARATOR));
     }
 
-    /** @return list<array<string, mixed>> */
+    /**
+     * @return list<array<string, mixed>>
+     * @throws \InvalidArgumentException
+     */
     public function recent(int $limit = 100, ?string $kind = null, ?string $name = null): array
     {
         if ($limit < 1 || $limit > 1000) {
@@ -154,6 +163,9 @@ final readonly class ExecutionHistory
         $this->withLock(true, fn() => $this->append($line));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function append(string $line): void
     {
         $path = $this->path();
@@ -190,6 +202,9 @@ final readonly class ExecutionHistory
         return is_int($value) && $value > 0 ? $value : self::DEFAULT_MAX_BYTES;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function removeCurrentHistory(string $path): void
     {
         if (is_file($path) && !unlink($path)) {
@@ -197,6 +212,9 @@ final readonly class ExecutionHistory
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function removeOldestHistory(string $path, int $retained): void
     {
         $oldest = $path . '.' . $retained;
@@ -212,6 +230,9 @@ final readonly class ExecutionHistory
         return is_int($value) && $value >= 0 ? min(100, $value) : self::DEFAULT_RETAINED_FILES;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function rotate(): void
     {
         $path = $this->path();
@@ -248,6 +269,7 @@ final readonly class ExecutionHistory
      * @template T
      * @param callable():T $callback
      * @return T
+     * @throws \RuntimeException
      */
     private function withLock(bool $exclusive, callable $callback): mixed
     {

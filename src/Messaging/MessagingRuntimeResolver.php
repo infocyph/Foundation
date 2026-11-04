@@ -17,6 +17,9 @@ final readonly class MessagingRuntimeResolver
 {
     public function __construct(private ContainerInterface $container) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function callable(mixed $definition): callable
     {
         if (is_callable($definition)) {
@@ -34,7 +37,10 @@ final readonly class MessagingRuntimeResolver
         return $service;
     }
 
-    /** @return list<HandlerMiddleware> */
+    /**
+     * @return list<HandlerMiddleware>
+     * @throws \InvalidArgumentException
+     */
     public function handlerMiddleware(mixed $configured, mixed $configuredJobs): array
     {
         if (!is_array($configured)) {
@@ -79,7 +85,10 @@ final readonly class MessagingRuntimeResolver
         return $handlers;
     }
 
-    /** @return list<JobMiddleware> */
+    /**
+     * @return list<JobMiddleware>
+     * @throws \InvalidArgumentException
+     */
     public function jobMiddleware(mixed $configured): array
     {
         if (!is_array($configured)) {
@@ -145,6 +154,9 @@ final readonly class MessagingRuntimeResolver
         return $messages;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function service(mixed $definition): object
     {
         if (is_object($definition)) {
@@ -168,6 +180,11 @@ final readonly class MessagingRuntimeResolver
         return is_array($value) ? $value : [];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function resolveService(string $id): mixed
     {
         if ($this->container->has($id)) {

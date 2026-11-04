@@ -10,6 +10,10 @@ final class ActiveGeneration
 
     private const string POINTER = 'active.json';
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function activate(string $releaseRoot, string $generation): string
     {
         if (preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*$/D', $generation) !== 1) {
@@ -54,6 +58,9 @@ final class ActiveGeneration
         return $pointerPath;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public function clear(string $releaseRoot): bool
     {
         $pointerPath = $this->root($releaseRoot) . DIRECTORY_SEPARATOR . self::POINTER;
@@ -67,7 +74,10 @@ final class ActiveGeneration
         return true;
     }
 
-    /** @return array{generation:string,manifest:string} */
+    /**
+     * @return array{generation:string,manifest:string}
+     * @throws \RuntimeException
+     */
     public function current(string $releaseRoot): array
     {
         $current = $this->currentPointer($releaseRoot);
@@ -107,7 +117,11 @@ final class ActiveGeneration
         return !hash_equals($loadedGeneration, $pointer['generation']);
     }
 
-    /** @return array{generation:string,manifest:string} */
+    /**
+     * @return array{generation:string,manifest:string}
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     private function pointer(string $releaseRoot): array
     {
         $pointerPath = $releaseRoot . DIRECTORY_SEPARATOR . self::POINTER;
@@ -136,6 +150,9 @@ final class ActiveGeneration
         return ['generation' => $generation, 'manifest' => $manifest];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function root(string $releaseRoot): string
     {
         $releaseRoot = rtrim($releaseRoot, DIRECTORY_SEPARATOR);

@@ -19,6 +19,9 @@ use Psr\Container\ContainerInterface;
 
 final class ValidationServiceProvider extends ServiceProvider
 {
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {

@@ -152,7 +152,10 @@ final readonly class OtpChallengeFactorService
         );
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \InvalidArgumentException
+     */
     private function integer(array $config, string $key, int $default): int
     {
         $value = $config[$key] ?? $default;
@@ -168,7 +171,10 @@ final readonly class OtpChallengeFactorService
         return new MfaVerificationResult(false, factorId: $factor->id, reason: $reason);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function otpMetadata(MfaFactor $factor): array
     {
         $config = ValueNormalizer::associativeArray($factor->metadata['otp'] ?? null);
@@ -179,7 +185,10 @@ final readonly class OtpChallengeFactorService
         return $config;
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \InvalidArgumentException
+     */
     private function requiredString(array $config, string $key): string
     {
         $value = $config[$key] ?? null;

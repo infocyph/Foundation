@@ -20,6 +20,10 @@ final class NonWebGraphFactory
     /**
      * @param array<string, mixed>|ConfigRepository $config
      * @param array<int|string, mixed> $capabilities
+     * @throws \Exception
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     public function compose(
         array|ConfigRepository $config,

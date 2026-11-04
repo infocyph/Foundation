@@ -160,11 +160,17 @@ final class Application
         return is_string($environment) && $environment !== '' ? $environment : null;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function execution(): ExecutionScope
     {
         return $this->make(ExecutionScope::class);
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function handle(Request $request): Response
     {
         return $this->http()->handle($request);
@@ -177,6 +183,7 @@ final class Application
 
     /**
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     public function http(): HttpKernel
     {
@@ -237,6 +244,9 @@ final class Application
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function paths(): PathManager
     {
         return $this->make(PathManager::class);

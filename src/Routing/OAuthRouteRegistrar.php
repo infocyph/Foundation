@@ -74,6 +74,9 @@ final readonly class OAuthRouteRegistrar
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function openIdPath(string $name): string
     {
         $key = 'auth.oauth.oidc.' . $name;
@@ -85,6 +88,9 @@ final readonly class OAuthRouteRegistrar
         return $path;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function path(string $endpoint): string
     {
         $key = 'auth.oauth.routes.' . $endpoint;

@@ -33,6 +33,9 @@ final readonly class WebReleaseConfiguration
         private ?PathManager $paths = null,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function assertArtifactSafeMiddleware(): void
     {
         $aliases = $this->config()->get('router.middleware.aliases', []);
@@ -125,6 +128,9 @@ final readonly class WebReleaseConfiguration
         ];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function resolvePath(string $path): string
     {
         if ($path === '') {

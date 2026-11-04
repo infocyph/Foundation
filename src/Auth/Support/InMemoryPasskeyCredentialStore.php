@@ -83,6 +83,9 @@ final class InMemoryPasskeyCredentialStore implements PasskeyCredentialCompareAn
         $this->credentials[$credential->id] = $credential;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function updateUsage(string $credentialId, int $signCount, int $usedAt): void
     {

@@ -51,7 +51,10 @@ final readonly class OAuthHttpInput
         return $parameters;
     }
 
-    /** @param array<string, string> $parameters */
+    /**
+     * @param array<string, string> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function clientAuthentication(Request $request, array $parameters): OAuthClientAuthentication
     {
         $headers = $request->getHeader('Authorization');
@@ -67,7 +70,10 @@ final readonly class OAuthHttpInput
         return $this->bodyAuthentication($parameters);
     }
 
-    /** @return array<string, string> */
+    /**
+     * @return array<string, string>
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function form(Request $request): array
     {
         $query = $this->parseEncoded($request->getUri()->getQuery(), $this->maximumQueryBytes);
@@ -83,7 +89,10 @@ final readonly class OAuthHttpInput
         return $this->parseEncoded((string) $request->getBody(), $this->maximumFormBytes);
     }
 
-    /** @return array<string, string> */
+    /**
+     * @return array<string, string>
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function parseEncoded(string $encoded, int $maximumBytes): array
     {
         if (strlen($encoded) > $maximumBytes) {
@@ -124,7 +133,10 @@ final readonly class OAuthHttpInput
         return $parameters;
     }
 
-    /** @param array<string, string> $parameters */
+    /**
+     * @param array<string, string> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function basicAuthentication(string $authorization, array $parameters): OAuthClientAuthentication
     {
         if (array_key_exists('client_id', $parameters) || $this->containsBodyCredentials($parameters)) {
@@ -156,7 +168,10 @@ final readonly class OAuthHttpInput
         );
     }
 
-    /** @param array<string, string> $parameters */
+    /**
+     * @param array<string, string> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function bodyAuthentication(array $parameters): OAuthClientAuthentication
     {
         $clientId = $parameters['client_id'] ?? null;
@@ -197,6 +212,9 @@ final readonly class OAuthHttpInput
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function decodeComponent(string $value): string
     {
         if (preg_match('/%(?![0-9A-Fa-f]{2})/', $value) === 1) {
@@ -206,6 +224,9 @@ final readonly class OAuthHttpInput
         return rawurldecode(str_replace('+', ' ', $value));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function privateKeyJwtAuthentication(
         string $clientId,
         ?string $assertion,

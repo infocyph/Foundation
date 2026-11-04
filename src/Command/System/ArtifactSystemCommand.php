@@ -11,6 +11,9 @@ final class ArtifactSystemCommand extends SystemCommand
 {
     public function __construct(private readonly ArtifactGenerator $generator) {}
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     protected function handle(): int
     {

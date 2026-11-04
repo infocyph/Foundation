@@ -27,6 +27,7 @@ final readonly class ModuleFeatureSchemaExecutor
      * @param list<string> $features
      * @phpstan-param Context $context
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
+     * @throws \RuntimeException
      */
     public function install(array $features, array $context, ?string $connection = null, bool $dryRun = false): array
     {

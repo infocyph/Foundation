@@ -14,6 +14,9 @@ final class MaintenanceRuntimeState implements MaintenanceStateInterface
 
     private int $nextRefreshNs = 0;
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         private readonly MaintenanceManager $manager,
         private readonly int $refreshMilliseconds = 1000,

@@ -13,6 +13,7 @@ final class MemcachedConnector
     /**
      * @param array<string,mixed> $store
      * @param array<string,mixed> $lock
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public static function client(array $store, array $lock): \Memcached
     {

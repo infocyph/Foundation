@@ -193,6 +193,9 @@ final class DatabaseSystemCommand extends SystemCommand
         return $this->emit($data);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function positiveInt(string $name, string $value): int
     {
         if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1) {
@@ -297,6 +300,9 @@ final class DatabaseSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function showTable(): int
     {
         $table = $this->argument(0);

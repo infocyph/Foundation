@@ -24,6 +24,7 @@ final class GeneratedRuntimeCompiler
      *   metadata_sha256:string,
      *   capabilities:array<string,bool>
      * }
+     * @throws \RuntimeException
      */
     public function compile(
         array $config,
@@ -71,7 +72,10 @@ final class GeneratedRuntimeCompiler
         ];
     }
 
-    /** @param array<string,string> $skipped */
+    /**
+     * @param array<string,string> $skipped
+     * @throws \RuntimeException
+     */
     private function assertNoSkippedDefinitions(array $skipped): void
     {
         if ($skipped === []) {

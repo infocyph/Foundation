@@ -94,6 +94,7 @@ final readonly class AuthDriverResolver
      * @return BackedEnum Resolved enum value.
      * @phpstan-return T
      * @psalm-return T
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     private static function enumConfig(
         ConfigRepository $config,

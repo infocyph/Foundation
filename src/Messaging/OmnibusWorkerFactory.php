@@ -18,7 +18,10 @@ final readonly class OmnibusWorkerFactory
         private ContainerInterface $container,
     ) {}
 
-    /** @return array<string, array<string, mixed>> */
+    /**
+     * @return array<string, array<string, mixed>>
+     * @throws \UnexpectedValueException
+     */
     public function all(): array
     {
         $configured = $this->config->get('messaging.workers', []);
@@ -142,6 +145,11 @@ final readonly class OmnibusWorkerFactory
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function consumers(): ConsumerFactory
     {
         $factory = $this->container->get(ConsumerFactory::class);
@@ -161,6 +169,9 @@ final readonly class OmnibusWorkerFactory
         ));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function floatValue(mixed $value, float $default, string $key): float
     {
         if ($value === null || $value === '') {
@@ -173,6 +184,9 @@ final readonly class OmnibusWorkerFactory
         throw new \InvalidArgumentException(sprintf('messaging.workers.%s must be numeric.', $key));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function intValue(mixed $value, int $default, string $key): int
     {
         if ($value === null || $value === '') {

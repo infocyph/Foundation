@@ -105,6 +105,9 @@ final class RuntimeSystemCommand extends SystemCommand
         return $this->positiveInt($name, $value);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function positiveFloatOption(string $name, float $default): float
     {
         $value = $this->option($name);
@@ -118,6 +121,9 @@ final class RuntimeSystemCommand extends SystemCommand
         return (float) $value;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function positiveInt(string $name, string $value, ?int $maximum = null): int
     {
         if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1) {

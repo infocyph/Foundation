@@ -33,6 +33,8 @@ final readonly class ModuleFeatureComposerExecutor
     /**
      * @param list<string> $features
      * @phpstan-param Context $context
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function applyPackages(
         string $operation,
@@ -89,6 +91,7 @@ final readonly class ModuleFeatureComposerExecutor
 
     /**
      * @phpstan-param Context $context
+     * @throws \RuntimeException
      */
     private function assertRootRequirements(array $context): void
     {

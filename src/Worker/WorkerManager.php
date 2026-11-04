@@ -61,6 +61,11 @@ final readonly class WorkerManager
         return $workers;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Throwable
+     */
     public function run(string $name, string $routes = 'routes/workers.php'): ?int
     {
         if (!$this->application->runningInWorker()) {
@@ -124,6 +129,7 @@ final readonly class WorkerManager
     /**
      * @param array<string, array<string, mixed>> $providers
      * @param array<string, array<string, mixed>> $messaging
+     * @throws \UnexpectedValueException
      */
     private function assertDistinctNames(array $providers, array $messaging): void
     {
@@ -142,6 +148,9 @@ final readonly class WorkerManager
         $this->assertForkSafeValue($config, 'config');
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function assertForkSafeValue(mixed $value, string $path): void
     {
         if ($value === null || is_scalar($value)) {
@@ -162,6 +171,11 @@ final readonly class WorkerManager
         ));
     }
 
+    /**
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     */
     private function assertPoolParentClean(): void
     {
         if ($this->application->booted()) {
@@ -210,7 +224,10 @@ final readonly class WorkerManager
         return $this->watchGeneration($selected->releaseRoot, $selected->generation);
     }
 
-    /** @return array<string, array<string, mixed>> */
+    /**
+     * @return array<string, array<string, mixed>>
+     * @throws \UnexpectedValueException
+     */
     private function messagingDefinitions(): array
     {
         $configured = $this->application->config()->get('messaging.workers', []);
@@ -300,6 +317,8 @@ final readonly class WorkerManager
      * @param array<string, mixed> $definition
      * @param callable():bool $stopRequested
      * @param callable():void $processHeartbeat
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
      */
     private function runMessaging(
         string $name,
@@ -369,6 +388,8 @@ final readonly class WorkerManager
      * @param array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float} $definition
      * @param callable():bool $stopRequested
      * @param callable():void $processHeartbeat
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Throwable
      */
     private function runProvider(
         string $name,
@@ -426,6 +447,9 @@ final readonly class WorkerManager
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function selectedGeneration(FoundationReleaseBootstrap $bootstrap): LoadedReleaseGeneration
     {
         $current = new ActiveGeneration()->current($bootstrap->releaseRoot);

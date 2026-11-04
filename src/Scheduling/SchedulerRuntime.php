@@ -10,6 +10,9 @@ use Infocyph\Foundation\Runtime\ExecutionId;
 
 final readonly class SchedulerRuntime
 {
+    /**
+     * @throws \LogicException
+     */
     public function __construct(private Application $application)
     {
         if ($application->runtimeMode() !== RuntimeMode::Scheduler) {

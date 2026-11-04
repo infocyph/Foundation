@@ -18,6 +18,10 @@ final readonly class MaintenanceManager
         private ContainerInterface $container,
     ) {}
 
+    /**
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function disable(): bool
     {
         if ($this->driver() === 'cache') {
@@ -35,7 +39,10 @@ final readonly class MaintenanceManager
         return true;
     }
 
-    /** @return array{enabled:bool,enabled_at:?string,retry_after:?int,message:?string,driver:string} */
+    /**
+     * @return array{enabled:bool,enabled_at:?string,retry_after:?int,message:?string,driver:string}
+     * @throws \InvalidArgumentException
+     */
     public function enable(?int $retryAfter = null, ?string $message = null): array
     {
         if ($retryAfter !== null && $retryAfter < 1) {
@@ -67,6 +74,11 @@ final readonly class MaintenanceManager
         ];
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function cache(): \Infocyph\CacheLayer\Cache\CacheInterface
     {
         if (!$this->container->has(CacheManager::class)) {
@@ -92,6 +104,9 @@ final readonly class MaintenanceManager
         return is_string($key) && $key !== '' ? $key : 'foundation:maintenance';
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function driver(): string
     {
         $driver = strtolower(ValueNormalizer::string(
@@ -118,7 +133,11 @@ final readonly class MaintenanceManager
             : $this->paths->base(trim($configured, DIRECTORY_SEPARATOR));
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * @return array<string,mixed>
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function read(): array
     {
         if ($this->driver() === 'cache') {
@@ -143,7 +162,11 @@ final readonly class MaintenanceManager
         return ValueNormalizer::associativeArray($decoded);
     }
 
-    /** @param array<string,mixed> $state */
+    /**
+     * @param array<string,mixed> $state
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function write(array $state): void
     {
         if ($this->driver() === 'cache') {

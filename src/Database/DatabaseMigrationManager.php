@@ -47,7 +47,10 @@ final readonly class DatabaseMigrationManager
         );
     }
 
-    /** @return list<class-string> */
+    /**
+     * @return list<class-string>
+     * @throws \InvalidArgumentException
+     */
     private function definitions(string $key): array
     {
         $configured = $this->config->get($key, []);
@@ -73,6 +76,9 @@ final readonly class DatabaseMigrationManager
         return is_numeric($value) ? (float) $value : $default;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function locks(): ?LockProviderInterface
     {
         $store = ValueNormalizer::nullableString($this->config->get('database.migrations.lock_store'));
@@ -107,6 +113,9 @@ final readonly class DatabaseMigrationManager
         return $migrations;
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function resolve(string $definition): object
     {
         $resolved = $this->services instanceof RuntimeContainerInterface

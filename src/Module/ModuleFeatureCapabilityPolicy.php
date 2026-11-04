@@ -30,6 +30,7 @@ final class ModuleFeatureCapabilityPolicy
      * A present map is an explicit selection, including an empty map.
      *
      * @return array<string,bool>|null
+     * @throws \UnexpectedValueException
      */
     public static function fromConfig(ConfigRepository $config): ?array
     {

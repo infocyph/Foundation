@@ -24,6 +24,9 @@ final class CacheSystemCommand extends SystemCommand
         };
     }
 
+    /**
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     */
     private function forget(): int
     {
         $key = $this->argument(0)

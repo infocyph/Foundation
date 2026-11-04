@@ -50,6 +50,9 @@ final readonly class ModuleConfigPublisher
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function ensureDirectory(string $directory): void
     {
         if (is_link($directory)) {
@@ -66,6 +69,7 @@ final readonly class ModuleConfigPublisher
     /**
      * @param list<string> $existing
      * @return array{publish:bool,backup:?string}
+     * @throws \RuntimeException
      */
     private function prepareTarget(string $target, string $temporary, array &$existing, bool $force): array
     {
@@ -104,6 +108,8 @@ final readonly class ModuleConfigPublisher
      * @param array<string,string> $sources
      * @param list<string> $existing
      * @return list<string>
+     * @throws \RuntimeException
+     * @throws \Throwable
      */
     private function publishFiles(string $directory, array $sources, array &$existing, bool $force): array
     {
@@ -197,6 +203,9 @@ final readonly class ModuleConfigPublisher
         return $errors;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function source(string $filename): string
     {
         $source = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'config'
@@ -249,7 +258,10 @@ final readonly class ModuleConfigPublisher
         }
     }
 
-    /** @param list<string> $existing */
+    /**
+     * @param list<string> $existing
+     * @throws \RuntimeException
+     */
     private function targetAlreadyExists(string $target, array &$existing, bool $force): bool
     {
         if (is_link($target)) {
@@ -272,6 +284,9 @@ final readonly class ModuleConfigPublisher
         return false;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function unlink(string $path, string $kind): void
     {
         if (is_file($path) && !unlink($path)) {

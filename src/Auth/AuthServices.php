@@ -96,6 +96,9 @@ final readonly class AuthServices
         return $this->resolve(MfaManager::class);
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function oauth(): OAuthManager
     {
         if ($this->config->get('auth.oauth.enabled', false) !== true) {
@@ -179,6 +182,9 @@ final readonly class AuthServices
      * @template T of object
      * @param class-string<T> $id
      * @return T
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     private function resolve(string $id): object
     {

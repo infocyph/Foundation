@@ -17,6 +17,10 @@ use Infocyph\OTP\TOTP;
 
 final class AuthOtpServiceProvider extends ServiceProvider
 {
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     */
     #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {

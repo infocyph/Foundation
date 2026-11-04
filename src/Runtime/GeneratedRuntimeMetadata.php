@@ -15,7 +15,10 @@ final class GeneratedRuntimeMetadata
 {
     private const int SCHEMA_VERSION = 2;
 
-    /** @param array<string,mixed> $metadata */
+    /**
+     * @param array<string,mixed> $metadata
+     * @throws \RuntimeException
+     */
     public static function assertMatches(
         array $metadata,
         NonWebGraphComposition $graph,
@@ -42,6 +45,8 @@ final class GeneratedRuntimeMetadata
      *
      * @param array<string,mixed> $metadata
      * @param array<int|string,mixed> $capabilities
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public static function assertPrevalidatedIdentity(
         array $metadata,
@@ -107,7 +112,11 @@ final class GeneratedRuntimeMetadata
         return $artifactPath . '.foundation.json';
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * @return array<string,mixed>
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     public static function read(string $artifactPath): array
     {
         $path = self::path($artifactPath);
@@ -140,6 +149,9 @@ final class GeneratedRuntimeMetadata
         return $metadata;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function resolvePath(Application $application, string $path): string
     {
         if ($path === '') {
@@ -152,7 +164,10 @@ final class GeneratedRuntimeMetadata
         return $application->basePath($path);
     }
 
-    /** @param array<string,mixed> $metadata */
+    /**
+     * @param array<string,mixed> $metadata
+     * @throws \RuntimeException
+     */
     public static function write(string $artifactPath, array $metadata): string
     {
         $path = self::path($artifactPath);

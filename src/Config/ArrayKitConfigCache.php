@@ -65,7 +65,10 @@ final class ArrayKitConfigCache
         return $namespaces;
     }
 
-    /** @param array<string,mixed> $config */
+    /**
+     * @param array<string,mixed> $config
+     * @throws \RuntimeException
+     */
     public function writeSingle(array $config, string $directory): void
     {
         $this->assertPublicationRoot($directory);
@@ -99,6 +102,9 @@ final class ArrayKitConfigCache
         $this->retireNativeGenerationPointer($directory);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function activeCacheDirectory(string $directory): string
     {
         $root = rtrim($directory, DIRECTORY_SEPARATOR);
@@ -120,6 +126,9 @@ final class ArrayKitConfigCache
         return $active;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function assertNativeGenerationDirectory(string $generation): void
     {
         if (is_link($generation) || !is_dir($generation)) {
@@ -143,6 +152,9 @@ final class ArrayKitConfigCache
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function assertNativeGenerationPointer(string $root): void
     {
         $pointer = $root . DIRECTORY_SEPARATOR . '.arraykit-generation';
@@ -164,6 +176,9 @@ final class ArrayKitConfigCache
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function assertPublicationRoot(string $directory): void
     {
         if (is_link($directory)) {
@@ -194,6 +209,7 @@ final class ArrayKitConfigCache
      * Existing readers may be pinned to an older ArrayKit generation. Never
      * delete those directories during an in-place cache mode transition.
      * Release-owned generation garbage collection follows the host's lease.
+     * @throws \RuntimeException
      */
     private function retireNativeGenerationPointer(string $directory): void
     {
@@ -203,6 +219,9 @@ final class ArrayKitConfigCache
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function validateNamespace(string $directory, string $namespace): void
     {
         $file = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $namespace . '.php';

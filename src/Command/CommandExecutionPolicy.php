@@ -6,6 +6,9 @@ namespace Infocyph\Foundation\Command;
 
 final readonly class CommandExecutionPolicy
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         public bool $isolated = false,
         public OverlapMode $overlap = OverlapMode::Allow,
@@ -35,7 +38,10 @@ final readonly class CommandExecutionPolicy
         }
     }
 
-    /** @param array<string, mixed> $manifest */
+    /**
+     * @param array<string, mixed> $manifest
+     * @throws \UnexpectedValueException
+     */
     public static function fromManifest(array $manifest): self
     {
         $isolated = $manifest['isolated'] ?? false;

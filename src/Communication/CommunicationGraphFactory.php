@@ -21,6 +21,9 @@ use Psr\Container\ContainerInterface;
 
 final class CommunicationGraphFactory
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function grpcInbound(
         CommunicationProfiles $profiles,
         ContainerInterface $services,
@@ -54,6 +57,9 @@ final class CommunicationGraphFactory
         return $profiles->httpConfig();
     }
 
+    /**
+     * @throws \LogicException
+     */
     public static function protectedWebhookReceiver(
         CommunicationProfiles $profiles,
         ConfigRepository $config,
@@ -103,6 +109,11 @@ final class CommunicationGraphFactory
         return $profiles->webhookVerifier();
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private static function invokeGrpcHandler(
         ContainerInterface $services,
         string $service,

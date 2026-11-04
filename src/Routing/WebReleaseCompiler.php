@@ -29,6 +29,8 @@ final readonly class WebReleaseCompiler
      * @param array<string, mixed>|ConfigRepository $config
      * @param array<int|string, mixed> $capabilities Explicit production capability topology; [] is minimal.
      * @return array<string, mixed>
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public function compile(
         array|ConfigRepository $config,
@@ -94,6 +96,8 @@ final readonly class WebReleaseCompiler
 
     /**
      * @param array<string, mixed> $release
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     private function assertNoSkippedDefinitions(array $release): void
     {
@@ -121,6 +125,9 @@ final readonly class WebReleaseCompiler
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function compileMatcherCache(WebReleaseConfiguration $settings, string $routerPath): ?string
     {
         $cachePath = match ($settings->matcherName()) {

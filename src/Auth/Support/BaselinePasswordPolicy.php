@@ -9,6 +9,9 @@ use Infocyph\Foundation\Auth\Contract\Security\PasswordPolicyResult;
 
 final readonly class BaselinePasswordPolicy implements PasswordPolicyInterface
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         private int $minimumLength = 12,
         private int $maximumLength = 1024,

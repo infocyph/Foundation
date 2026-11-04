@@ -37,7 +37,10 @@ final readonly class OAuthHttpThrottleFactory
         return new OAuthRateLimitMiddleware($endpoint, $throttle, $this->audit);
     }
 
-    /** @return array{max:int,window:int,scope:string} */
+    /**
+     * @return array{max:int,window:int,scope:string}
+     * @throws \InvalidArgumentException
+     */
     public function policy(string $endpoint): array
     {
         if (!in_array($endpoint, self::ENDPOINTS, true)) {
@@ -53,6 +56,9 @@ final readonly class OAuthHttpThrottleFactory
         ];
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function positiveInt(string $key): int
     {
         $value = $this->config->get($key);

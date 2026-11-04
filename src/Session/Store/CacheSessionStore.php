@@ -16,12 +16,18 @@ final readonly class CacheSessionStore implements SessionStoreInterface
         private string $prefix = 'foundation.session.',
     ) {}
 
+    /**
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     */
     #[\Override]
     public function delete(string $id): void
     {
         $this->cache->delete($this->key($id));
     }
 
+    /**
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     */
     #[\Override]
     public function load(string $id, int $now): ?SessionPayload
     {
@@ -45,6 +51,10 @@ final readonly class CacheSessionStore implements SessionStoreInterface
         return 0;
     }
 
+    /**
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function save(string $id, SessionPayload $payload): void
     {

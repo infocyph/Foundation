@@ -89,6 +89,11 @@ final class CacheGraphFactory
         return $manager->store();
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private static function database(ContainerInterface $container): DBLayerFactory
     {
         $database = $container->get(DBLayerFactory::class);

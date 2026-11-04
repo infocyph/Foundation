@@ -67,7 +67,10 @@ final readonly class OAuthManager
         return $issue;
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function authorizationProtocolResult(array $parameters): AuthorizationProtocolResult
     {
         try {
@@ -85,7 +88,10 @@ final readonly class OAuthManager
         return $this->authorizationRedirectContextFor($parameters, $this->authorizationProtocolResult($parameters));
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function authorizationRedirectContextFor(
         array $parameters,
         AuthorizationProtocolResult $result,
@@ -119,7 +125,10 @@ final readonly class OAuthManager
         );
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function exchange(
         array $parameters,
         OAuthClientAuthentication $authentication,
@@ -199,6 +208,10 @@ final readonly class OAuthManager
         return $this->metadata->toArray();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     * @throws \LogicException
+     */
     public function openIdInteraction(
         AuthorizationRequest $request,
         ?PrincipalInterface $principal,
@@ -225,7 +238,10 @@ final readonly class OAuthManager
             ?? throw new \LogicException('OpenID interaction returned no requirement.');
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \LogicException
+     */
     public function openIdMetadata(): array
     {
         if (!$this->openIdMetadata instanceof OpenIdMetadataProvider) {
@@ -257,7 +273,11 @@ final readonly class OAuthManager
         return $count;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     * @throws \LogicException
+     */
     public function userInfo(
         #[\SensitiveParameter]
         string $token,
@@ -304,7 +324,10 @@ final readonly class OAuthManager
         );
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function validateAuthorizationRequest(array $parameters): AuthorizationRequest
     {
         try {
@@ -317,6 +340,9 @@ final readonly class OAuthManager
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function validateAuthorizationResult(AuthorizationProtocolResult $result): AuthorizationRequest
     {
         try {

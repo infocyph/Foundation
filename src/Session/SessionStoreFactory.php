@@ -35,6 +35,11 @@ final class SessionStoreFactory
         };
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function cacheStore(): CacheSessionStore
     {
         $cache = $this->container->get(CacheManager::class);
@@ -45,6 +50,11 @@ final class SessionStoreFactory
         return new CacheSessionStore($cache->store($this->config->cacheStore));
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function databaseStore(): DatabaseSessionStore
     {
         $database = $this->container->get(DBLayerFactory::class);

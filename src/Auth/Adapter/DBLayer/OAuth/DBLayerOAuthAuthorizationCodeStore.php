@@ -14,6 +14,9 @@ use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAuthorizationCodeStoreInterface
 
 final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore implements OAuthAuthorizationCodeStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function consume(
         string $codeHash,
@@ -90,7 +93,10 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
         return is_array($row) ? $this->mapCode($row) : null;
     }
 
-    /** @param array<string, mixed> $row */
+    /**
+     * @param array<string, mixed> $row
+     * @throws \RuntimeException
+     */
     private function mapCode(array $row): OAuthAuthorizationCode
     {
         if ($this->string($row['pkce_method'] ?? '') !== 'S256') {

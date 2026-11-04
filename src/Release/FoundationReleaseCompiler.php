@@ -100,6 +100,7 @@ final readonly class FoundationReleaseCompiler
      * Explicit housekeeping; never called from request/job hot paths.
      *
      * @return list<string>
+     * @throws \InvalidArgumentException
      */
     public function prune(string $releaseRoot, int $keep = 2): array
     {
@@ -191,6 +192,9 @@ final readonly class FoundationReleaseCompiler
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function assertGeneration(string $generation): void
     {
         if (preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*$/D', $generation) !== 1) {
@@ -273,6 +277,7 @@ final readonly class FoundationReleaseCompiler
      * @param array<string,mixed> $config
      * @param array<int|string,mixed> $capabilities
      * @return array<string,mixed>
+     * @throws \RuntimeException
      */
     private function compileNonWebSection(
         array $config,
@@ -317,7 +322,10 @@ final readonly class FoundationReleaseCompiler
         return FoundationReleaseManifest::digest($source[$field] ?? null, $length, $field);
     }
 
-    /** @return array{0:string,1:string} */
+    /**
+     * @return array{0:string,1:string}
+     * @throws \RuntimeException
+     */
     private function generationPaths(string $releaseRoot, string $generation): array
     {
         $generations = $releaseRoot . DIRECTORY_SEPARATOR . 'generations';
@@ -347,7 +355,11 @@ final readonly class FoundationReleaseCompiler
         return $entries;
     }
 
-    /** @param array<string,mixed> $web */
+    /**
+     * @param array<string,mixed> $web
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     private function matcherCacheRelativePath(array $web, string $stage): ?string
     {
         $path = $web['foundation_matcher_cache_path'] ?? null;
@@ -366,6 +378,9 @@ final readonly class FoundationReleaseCompiler
         return str_replace(DIRECTORY_SEPARATOR, '/', substr($path, strlen($prefix)));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function mkdir(string $directory): void
     {
         if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
@@ -373,6 +388,9 @@ final readonly class FoundationReleaseCompiler
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function publishStage(string $stage, string $final, string $generation): void
     {
         // InterMix publishes absolute activation symlinks. The Foundation-owned
@@ -414,6 +432,10 @@ final readonly class FoundationReleaseCompiler
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     private function rebaseWebReleaseManifest(string $stage, string $final): string
     {
         $releasePath = $stage . '/web/release.json';
@@ -457,6 +479,7 @@ final readonly class FoundationReleaseCompiler
     /**
      * @param array<string,mixed> $web
      * @return array{path:string,sha256:string}
+     * @throws \UnexpectedValueException
      */
     private function releaseConfig(array $web, string $stage): array
     {
@@ -499,6 +522,9 @@ final readonly class FoundationReleaseCompiler
         rmdir($directory);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function root(string $releaseRoot): string
     {
         $releaseRoot = rtrim($releaseRoot, DIRECTORY_SEPARATOR);
@@ -509,6 +535,9 @@ final readonly class FoundationReleaseCompiler
         return $releaseRoot;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function sha256(string $path, string $artifact): string
     {
         $sha256 = hash_file('sha256', $path);
@@ -525,7 +554,10 @@ final readonly class FoundationReleaseCompiler
         return FoundationReleaseManifest::nonEmptyString($source[$field] ?? null, $field);
     }
 
-    /** @param array<string,mixed> $manifest */
+    /**
+     * @param array<string,mixed> $manifest
+     * @throws \RuntimeException
+     */
     private function verifyStage(string $stage, array $manifest): void
     {
         FoundationReleaseManifest::assertValid($manifest);
@@ -599,6 +631,9 @@ final readonly class FoundationReleaseCompiler
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function writeAtomic(string $path, string $contents): void
     {
         $temporary = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';

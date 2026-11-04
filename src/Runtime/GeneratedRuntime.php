@@ -42,6 +42,7 @@ final readonly class GeneratedRuntime
      * Load from an already-normalized compiled release config without source discovery.
      *
      * @param array<int|string,mixed> $capabilities Must match the compile-time topology.
+     * @throws \InvalidArgumentException
      */
     public static function loadCompiled(
         ConfigRepository $config,
@@ -63,6 +64,7 @@ final readonly class GeneratedRuntime
      *
      * @param array<string,mixed> $config Used only to resolve a relative artifact path.
      * @param array<int|string,mixed> $capabilities
+     * @throws \InvalidArgumentException
      */
     public static function loadPrevalidated(
         array $config,
@@ -111,6 +113,7 @@ final readonly class GeneratedRuntime
      * The generated artifact is still fully hash-validated by InterMix.
      *
      * @param array<int|string,mixed> $capabilities
+     * @throws \InvalidArgumentException
      */
     public static function loadRelease(
         RuntimeMode $runtime,
@@ -142,7 +145,11 @@ final readonly class GeneratedRuntime
         );
     }
 
-    /** @param array<string,mixed> $metadata */
+    /**
+     * @param array<string,mixed> $metadata
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private static function assertReleaseMetadata(
         array $metadata,
         ?string $expectedEnvironment,
@@ -165,6 +172,9 @@ final readonly class GeneratedRuntime
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private static function assertTrustedMetadata(string $artifactPath, string $trustedSha256): void
     {
         $metadataPath = GeneratedRuntimeMetadata::path($artifactPath);
@@ -180,6 +190,7 @@ final readonly class GeneratedRuntime
     /**
      * @param array<string,mixed>|ConfigRepository $config
      * @param array<int|string,mixed> $capabilities
+     * @throws \InvalidArgumentException
      */
     private static function bootValidated(
         array|ConfigRepository $config,
@@ -211,7 +222,10 @@ final readonly class GeneratedRuntime
         );
     }
 
-    /** @param array<string,mixed> $metadata */
+    /**
+     * @param array<string,mixed> $metadata
+     * @throws \LogicException
+     */
     private static function finishBoot(
         RuntimeMode $runtime,
         ProductionContainer $container,
@@ -244,7 +258,10 @@ final readonly class GeneratedRuntime
         );
     }
 
-    /** @param array<string,mixed> $metadata */
+    /**
+     * @param array<string,mixed> $metadata
+     * @throws \UnexpectedValueException
+     */
     private static function providerRegistry(array $metadata): ServiceRegistry
     {
         $classes = $metadata['provider_boot_order'] ?? null;
@@ -272,7 +289,10 @@ final readonly class GeneratedRuntime
         return $registry;
     }
 
-    /** @param array<string,mixed> $config */
+    /**
+     * @param array<string,mixed> $config
+     * @throws \InvalidArgumentException
+     */
     private static function resolvePrevalidatedPath(array $config, string $path): string
     {
         if ($path === '') {

@@ -22,6 +22,9 @@ final readonly class CurrentPrincipalContext implements CurrentPrincipalProvider
         return $this->state()->principal;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\Exception\AuthenticationException
+     */
     #[\Override]
     public function require(): PrincipalInterface
     {
@@ -38,6 +41,11 @@ final readonly class CurrentPrincipalContext implements CurrentPrincipalProvider
         $this->state()->principal = $principal;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function state(): CurrentPrincipalState
     {
         $state = $this->container->get(CurrentPrincipalState::class);

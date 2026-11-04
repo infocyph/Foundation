@@ -68,6 +68,9 @@ final readonly class FilesystemTransferFactory
         return $processor;
     }
 
+    /**
+     * @throws \Infocyph\Pathwise\Exceptions\UploadException
+     */
     public function upload(?string $directory = null, ?string $disk = null): UploadProcessor
     {
         $this->malware->assertReady();

@@ -50,6 +50,7 @@ final readonly class ModuleFeatureCommandCatalog
      *
      * @param list<string> $features
      * @return list<string>
+     * @throws \InvalidArgumentException
      */
     public function selection(string $module, array $features = []): array
     {

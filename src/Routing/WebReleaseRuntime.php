@@ -128,6 +128,8 @@ final readonly class WebReleaseRuntime
      *
      * @param null|callable(HttpRequest):?CoroutineScope $coroutineScope
      * @param null|callable(HttpRequest):?ScopeContext $scopeContext
+     * @throws \LogicException
+     * @throws \Throwable
      */
     public function runwireApplication(
         RuntimeContext $runtime,
@@ -206,6 +208,9 @@ final readonly class WebReleaseRuntime
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function assertCompiledConfig(ConfigRepository $config): void
     {
         if (!$config->isCompiled()) {
@@ -213,7 +218,10 @@ final readonly class WebReleaseRuntime
         }
     }
 
-    /** @param array<string, mixed> $manifest */
+    /**
+     * @param array<string, mixed> $manifest
+     * @throws \RuntimeException
+     */
     private static function assertManifestIdentity(
         array $manifest,
         string $environment,
@@ -227,6 +235,10 @@ final readonly class WebReleaseRuntime
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private static function assertTrustedManifest(string $releaseManifestPath, string $trustedSha256): void
     {
         $trustedSha256 = strtolower(trim($trustedSha256));
@@ -249,6 +261,8 @@ final readonly class WebReleaseRuntime
     /**
      * @param array<string, mixed>|ConfigRepository $config
      * @param array<int|string, mixed> $foundationCapabilities
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     private static function boot(
         array|ConfigRepository $config,
@@ -350,6 +364,7 @@ final readonly class WebReleaseRuntime
     /**
      * @param array<string, mixed> $manifest
      * @return array{array<array-key, mixed>, array<array-key, mixed>}
+     * @throws \UnexpectedValueException
      */
     private static function manifestArtifacts(array $manifest): array
     {
@@ -362,6 +377,10 @@ final readonly class WebReleaseRuntime
         return [$intermix, $webrick];
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     private static function runtimeSettings(FoundationBuildContext $context, ProductionContainer $container): WebReleaseConfiguration
     {
         if ($container->get('foundation.web.capabilities') !== $context->capabilities) {
@@ -378,7 +397,10 @@ final readonly class WebReleaseRuntime
         return $settings;
     }
 
-    /** @param array<array-key, mixed> $source */
+    /**
+     * @param array<array-key, mixed> $source
+     * @throws \UnexpectedValueException
+     */
     private static function stringField(array $source, string $field): string
     {
         $value = $source[$field] ?? null;

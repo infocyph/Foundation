@@ -70,6 +70,9 @@ final readonly class MfaSecretProtector
         return $this->unprotectResult($factor)->factor;
     }
 
+    /**
+     * @throws \Infocyph\Epicrypt\Exception\Crypto\DecryptionException
+     */
     public function unprotectResult(MfaFactor $factor): MfaSecretProtectionResult
     {
         $metadata = $factor->metadata;
@@ -159,7 +162,10 @@ final readonly class MfaSecretProtector
         return $normalized;
     }
 
-    /** @param array<string,mixed> $otp */
+    /**
+     * @param array<string,mixed> $otp
+     * @throws \Infocyph\Epicrypt\Exception\Crypto\DecryptionException
+     */
     private function unprotectOtpField(
         MfaFactor $factor,
         string $field,

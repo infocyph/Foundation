@@ -25,6 +25,9 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
         $this->revokeTokenFamily('refreshTokens', $familyId);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function rotate(string $tokenId, RefreshTokenRecord $replacement): void
     {

@@ -26,6 +26,9 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         private ?string $from = null,
     ) {}
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function send(AuthNotification $notification): void
     {
@@ -51,6 +54,9 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function accountRecipient(AuthNotification $notification): ?string
     {
         $account = $notification->accountId === null ? null : $this->accounts->findById($notification->accountId);
@@ -132,6 +138,9 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         return null;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function verificationRecipient(AuthNotification $notification): string
     {
         $email = $notification->payload['email'] ?? null;

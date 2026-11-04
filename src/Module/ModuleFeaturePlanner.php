@@ -35,6 +35,7 @@ final readonly class ModuleFeaturePlanner
      * @param list<string> $features
      * @phpstan-param Context $context
      * @phpstan-return FeaturePlan
+     * @throws \InvalidArgumentException
      */
     public function plan(string $operation, array $features, array $context): array
     {

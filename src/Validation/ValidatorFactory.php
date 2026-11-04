@@ -219,6 +219,9 @@ final readonly class ValidatorFactory
         return $options;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function positiveInt(mixed $value, int $default, string $name): int
     {
         if ($value === null) {
@@ -236,7 +239,10 @@ final readonly class ValidatorFactory
         return $resolved;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function rules(string $schema): array
     {
         $rules = $this->schemas->schema($schema);

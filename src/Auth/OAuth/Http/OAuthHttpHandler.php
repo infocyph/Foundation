@@ -178,6 +178,9 @@ final readonly class OAuthHttpHandler
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function dpopProof(Request $request): ?string
     {
         $values = $request->getHeader('DPoP');
@@ -196,6 +199,9 @@ final readonly class OAuthHttpHandler
         return $proof;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function issuer(): string
     {
         $issuer = $this->oauth->metadata()['issuer'] ?? null;
@@ -213,6 +219,9 @@ final readonly class OAuthHttpHandler
         return is_string($audience) && $audience !== '' ? $audience : $fallback;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function openIdUserInfoUri(): string
     {
         $issuer = $this->oauth->metadata()['issuer'] ?? null;
@@ -244,7 +253,10 @@ final readonly class OAuthHttpHandler
         return $this->requiredString($parameters, $name, $maximumBytes);
     }
 
-    /** @param array<string, string> $parameters */
+    /**
+     * @param array<string, string> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function requiredString(array $parameters, string $name, int $maximumBytes): string
     {
         $value = $parameters[$name] ?? null;
@@ -255,6 +267,9 @@ final readonly class OAuthHttpHandler
         return $value;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function resourceToken(Request $request): string
     {
         $values = $request->getHeader('Authorization');

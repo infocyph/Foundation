@@ -18,7 +18,10 @@ final readonly class ModuleFeatureCommandSnapshot
 {
     public function __construct(private Application $application) {}
 
-    /** @phpstan-param Context $context */
+    /**
+     * @phpstan-param Context $context
+     * @throws \RuntimeException
+     */
     public function assertCurrent(array $context, bool $includingActivation = true): void
     {
         if (isset($context['composer_fingerprint']) && $context['composer_fingerprint'] !== $this->composerFingerprint()) {
@@ -35,7 +38,10 @@ final readonly class ModuleFeatureCommandSnapshot
         }
     }
 
-    /** @phpstan-return Context */
+    /**
+     * @phpstan-return Context
+     * @throws \RuntimeException
+     */
     public function capture(): array
     {
         $configuration = $this->configurationFingerprint();
@@ -106,7 +112,10 @@ final readonly class ModuleFeatureCommandSnapshot
         return $parts;
     }
 
-    /** @return array{sources:string,activation:string} */
+    /**
+     * @return array{sources:string,activation:string}
+     * @throws \RuntimeException
+     */
     private function configurationFingerprint(): array
     {
         $directory = $this->application->configPath();

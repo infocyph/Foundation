@@ -15,6 +15,10 @@ final readonly class CommandDescriptor
         $definition->assertComplete();
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \UnexpectedValueException
+     */
     public static function fromClass(string $handler, ?string $routeName = null): self
     {
         if (!is_a($handler, CommandHandlerInterface::class, true)) {
@@ -44,7 +48,10 @@ final readonly class CommandDescriptor
         return new self($definition, $handler);
     }
 
-    /** @param array<string, mixed> $manifest */
+    /**
+     * @param array<string, mixed> $manifest
+     * @throws \UnexpectedValueException
+     */
     public static function fromManifest(array $manifest): self
     {
         $definition = $manifest['definition'] ?? null;

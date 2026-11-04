@@ -22,6 +22,7 @@ final readonly class CacheTierDescriptorResolver
     /**
      * @param array<string,mixed> $store
      * @return list<array<string,mixed>>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function resolve(string $name, array $store): array
     {
@@ -124,7 +125,10 @@ final readonly class CacheTierDescriptorResolver
             . ltrim($path, DIRECTORY_SEPARATOR);
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * @return array<string,mixed>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function resolveTier(string $name, int|string $index, mixed $tier): array
     {
         if (!is_array($tier)) {

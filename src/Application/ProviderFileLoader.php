@@ -15,6 +15,7 @@ final readonly class ProviderFileLoader
 
     /**
      * @return array{common:list<class-string<ServiceProviderInterface>>,web:list<class-string<ServiceProviderInterface>>,cli:list<class-string<ServiceProviderInterface>>,worker:list<class-string<ServiceProviderInterface>>,scheduler:list<class-string<ServiceProviderInterface>>}
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
      */
     public function groups(): array
     {

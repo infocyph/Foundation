@@ -79,7 +79,10 @@ final class MessagingServiceProvider extends ServiceProvider
         return is_array($value) ? $value : [];
     }
 
-    /** @param array<array-key, mixed> $messaging */
+    /**
+     * @param array<array-key, mixed> $messaging
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function assertDurableConfiguration(
         FoundationBuildContext $context,
         array $messaging,

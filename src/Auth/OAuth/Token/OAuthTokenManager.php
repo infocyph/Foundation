@@ -26,7 +26,10 @@ final readonly class OAuthTokenManager
         private ?OAuthAuditRecorder $audit = null,
     ) {}
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function exchange(
         array $parameters,
         OAuthClientAuthentication $authentication,
@@ -63,7 +66,10 @@ final readonly class OAuthTokenManager
         );
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function clientCredentials(
         array $parameters,
         OAuthClientAuthentication $authentication,
@@ -90,6 +96,7 @@ final readonly class OAuthTokenManager
     /**
      * @param array<string, mixed> $parameters
      * @return list<string>|null
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
      */
     private function optionalSpaceList(array $parameters, string $name): ?array
     {
@@ -109,7 +116,10 @@ final readonly class OAuthTokenManager
         return $values;
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function refresh(
         array $parameters,
         OAuthClientAuthentication $authentication,
@@ -159,7 +169,10 @@ final readonly class OAuthTokenManager
         return $result;
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function requiredString(array $parameters, string $name, int $maximumBytes, bool $trim = true): string
     {
         $value = $parameters[$name] ?? null;
@@ -182,6 +195,9 @@ final readonly class OAuthTokenManager
         return $value;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function response(OAuthTokenResult $result): OAuthTokenResponse
     {
         if (!$result->successful() || $result->response === null) {

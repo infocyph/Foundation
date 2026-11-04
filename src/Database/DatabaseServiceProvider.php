@@ -31,6 +31,9 @@ final class DatabaseServiceProvider extends ServiceProvider
         return $factory->connection();
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {

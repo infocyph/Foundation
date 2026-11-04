@@ -10,6 +10,9 @@ final readonly class CommandCacheManager
 {
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \RuntimeException
+     */
     public function clear(string $path = 'bootstrap/cache/commands.php'): bool
     {
         $path = $this->absolute($path);
@@ -23,6 +26,9 @@ final readonly class CommandCacheManager
         return true;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public function write(
         string $path = 'bootstrap/cache/commands.php',
         ?CommandRegistry $registry = null,
@@ -61,6 +67,9 @@ final readonly class CommandCacheManager
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function registry(): CommandRegistry
     {
         $path = $this->application->routesPath('console.php');

@@ -11,6 +11,9 @@ final readonly class CommandResolver
 {
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \LogicException
+     */
     public function run(
         CommandDescriptor $descriptor,
         ParsedInput $input,

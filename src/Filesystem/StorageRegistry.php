@@ -89,7 +89,10 @@ final readonly class StorageRegistry
         return $candidate;
     }
 
-    /** @return array<string, array<string, mixed>> */
+    /**
+     * @return array<string, array<string, mixed>>
+     * @throws \InvalidArgumentException
+     */
     private function loadConfigurations(ConfigRepository $config, PathManager $paths): array
     {
         $configured = $config->get('filesystem.disks', []);

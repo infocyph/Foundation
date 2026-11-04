@@ -65,6 +65,9 @@ final readonly class OAuthProtectionKeyResolver
         ], new EpicryptClockAdapter($this->clock));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function issuer(): string
     {
         $issuer = $this->config->get('auth.oauth.issuer');
@@ -75,7 +78,10 @@ final readonly class OAuthProtectionKeyResolver
         return trim($issuer);
     }
 
-    /** @param array<array-key,mixed> $item */
+    /**
+     * @param array<array-key,mixed> $item
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function keyRingEntry(
         array $item,
         string $configKey,
@@ -125,6 +131,9 @@ final readonly class OAuthProtectionKeyResolver
         return is_int($value) && $value > 0 ? $value : null;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function resolve(string $configKey, KeyPurpose $purpose, string $label): KeyRing
     {
         $configured = $this->config->get($configKey, []);

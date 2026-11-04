@@ -13,6 +13,9 @@ use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration;
  */
 final readonly class NativeRunwireOperation
 {
+    /**
+     * @throws \LogicException
+     */
     public static function current(): ?RunwireExecutionContext
     {
         $context = RunwireIntegration::current();

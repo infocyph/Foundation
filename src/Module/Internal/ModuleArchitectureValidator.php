@@ -30,6 +30,7 @@ final class ModuleArchitectureValidator
     /**
      * @phpstan-param array<string,ArchitectureModule> $modules
      * @param array<string,list<string>> $expected
+     * @throws \LogicException
      */
     public function validate(array $modules, array $expected): void
     {
@@ -80,7 +81,10 @@ final class ModuleArchitectureValidator
         }
     }
 
-    /** @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string}|null $when */
+    /**
+     * @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string}|null $when
+     * @throws \LogicException
+     */
     private function assertCondition(string $id, ?array $when): void
     {
         if ($when === null) {
@@ -115,6 +119,7 @@ final class ModuleArchitectureValidator
      * @param array<string,string> $configOwners
      * @param array<string,string> $schemaOwners
      * @param array<string,list<string>> $edges
+     * @throws \LogicException
      */
     private function assertFeature(
         string $id,
@@ -137,6 +142,9 @@ final class ModuleArchitectureValidator
         $edges[$id] = $this->resolveDependencies($id, $definition['dependencies'], $modules);
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function assertPackageRole(string $id, string $package, string $constraint): void
     {
         if ($package === '' || $constraint === '' || in_array($package, self::CORE_OR_DEVELOPMENT_PACKAGES, true)) {
@@ -161,7 +169,10 @@ final class ModuleArchitectureValidator
         }
     }
 
-    /** @param list<array{id:string,constraint:string}> $owners */
+    /**
+     * @param list<array{id:string,constraint:string}> $owners
+     * @throws \LogicException
+     */
     private function assertPackageSharing(string $id, string $package, string $constraint, array $owners): void
     {
         if ($owners !== [] && $package !== 'infocyph/otp') {
@@ -200,6 +211,9 @@ final class ModuleArchitectureValidator
         }
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function assertSelectionKey(string $id, ?string $key): void
     {
         if ($key !== null && !in_array($id, ['security.mfa', 'security.passkey'], true)) {

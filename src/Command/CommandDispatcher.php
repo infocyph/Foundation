@@ -28,6 +28,8 @@ final readonly class CommandDispatcher
      * incompatible manifests fall back to the source route file.
      *
      * @param array<string, mixed> $config
+     * @throws \InvalidArgumentException
+     * @throws \UnexpectedValueException
      */
     public static function project(
         array $config = [],
@@ -175,6 +177,10 @@ final readonly class CommandDispatcher
         return $normalized;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \UnexpectedValueException
+     */
     private function application(RuntimeMode $runtime, ParsedInput $input): Application
     {
         $config = $this->config;

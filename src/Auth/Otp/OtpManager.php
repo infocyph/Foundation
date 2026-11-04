@@ -385,6 +385,9 @@ final readonly class OtpManager
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function requireFactor(string $accountId, string $factorId, MfaFactorType $type): MfaFactor
     {
         $factor = $this->findFactor($accountId, $factorId);

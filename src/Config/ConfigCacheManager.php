@@ -98,7 +98,10 @@ final readonly class ConfigCacheManager
         return $compiled;
     }
 
-    /** @return class-string<ServiceProviderInterface> */
+    /**
+     * @return class-string<ServiceProviderInterface>
+     * @throws \RuntimeException
+     */
     private function providerClass(string $group, int|string $index, mixed $provider): string
     {
         $path = sprintf('providers.%s.%s', $group, (string) $index);
@@ -121,6 +124,9 @@ final readonly class ConfigCacheManager
         return $provider;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function publish(string $directory, string $staging, string $backup): void
     {
         $parent = dirname($directory);
@@ -142,6 +148,9 @@ final readonly class ConfigCacheManager
         throw new \RuntimeException(sprintf('Unable to publish config cache "%s".', $directory));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function removeDirectory(string $directory): void
     {
         if (is_link($directory) || is_file($directory)) {

@@ -86,6 +86,7 @@ final readonly class OAuthScopeResolver
      * @param list<string> $requested
      * @param list<string> $allowed
      * @return list<string>
+     * @throws \InvalidArgumentException
      */
     private function subset(array $requested, array $allowed, int $maximum, string $name): array
     {

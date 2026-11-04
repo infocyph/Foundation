@@ -16,6 +16,9 @@ final readonly class SimpleRememberTokenService implements RememberTokenServiceI
 {
     private EpicryptRememberToken $native;
 
+    /**
+     * @throws \RuntimeException
+     */
     public function __construct(
         private RememberTokenStoreInterface $store,
         private ClockInterface $clock,

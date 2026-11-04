@@ -29,6 +29,9 @@ final readonly class ConsumerFactory
         private RunwireBinding $runwire,
     ) {}
 
+    /**
+     * @throws \LogicException
+     */
     public function make(?string $transport = null): Consumer
     {
         $name = $transport ?? ValueNormalizer::string(
@@ -76,6 +79,11 @@ final readonly class ConsumerFactory
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function failureStore(): FailureStore
     {
         $failures = $this->services->get(FailureStore::class);

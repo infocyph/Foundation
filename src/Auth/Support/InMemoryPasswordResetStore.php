@@ -15,6 +15,9 @@ final class InMemoryPasswordResetStore extends AbstractInMemoryConsumableStore i
         $this->consumeStored($requestId);
     }
 
+    /**
+     * @throws \Throwable
+     */
     #[\Override]
     public function consumeAndApply(string $requestId, callable $apply): bool
     {

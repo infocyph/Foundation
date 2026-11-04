@@ -20,6 +20,9 @@ final readonly class SimpleAccessTokenService implements AccessTokenServiceInter
         private ClockInterface $clock,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function issue(AccessTokenClaims $claims): string
     {

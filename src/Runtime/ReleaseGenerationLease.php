@@ -29,6 +29,9 @@ final class ReleaseGenerationLease
         $this->release();
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public static function acquireShared(string $releaseRoot, string $generation): self
     {
         $lease = self::acquire($releaseRoot, $generation, LOCK_SH | LOCK_NB);
@@ -42,6 +45,9 @@ final class ReleaseGenerationLease
         return $lease;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public static function initialize(string $generationDirectory): void
     {
         if (!is_dir($generationDirectory)) {
@@ -74,7 +80,10 @@ final class ReleaseGenerationLease
         fclose($handle);
     }
 
-    /** @param int<0, 7> $operation */
+    /**
+     * @param int<0, 7> $operation
+     * @throws \RuntimeException
+     */
     private static function acquire(string $releaseRoot, string $generation, int $operation): ?self
     {
         $path = self::path($releaseRoot, $generation);
@@ -114,6 +123,9 @@ final class ReleaseGenerationLease
             . self::MARKER;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function validateGeneration(string $generation): void
     {
         if (preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*$/D', $generation) !== 1) {

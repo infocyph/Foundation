@@ -15,6 +15,7 @@ final readonly class ProgressIndicator
      * feedback when it is not. The callback receives ($item, $zeroBasedIndex).
      *
      * @param iterable<mixed> $items
+     * @throws \Throwable
      */
     public function iterate(
         iterable $items,
@@ -46,6 +47,8 @@ final readonly class ProgressIndicator
      * @template T
      * @param callable():T $task
      * @return T
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
      */
     public function task(string $label, callable $task): mixed
     {
@@ -71,6 +74,9 @@ final readonly class ProgressIndicator
         return $result;
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function assertProducedTotal(int $count, ?int $total, bool $render): void
     {
         if ($total === null || $count === $total) {
@@ -87,6 +93,9 @@ final readonly class ProgressIndicator
         ));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function assertTotal(?int $total): void
     {
         if ($total !== null && $total < 0) {

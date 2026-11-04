@@ -14,6 +14,11 @@ final readonly class ResolvingJobMiddleware implements JobMiddleware
         private string $service,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function process(Job $job, JobContext $context, callable $next): mixed
     {

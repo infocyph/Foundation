@@ -6,7 +6,11 @@ namespace Infocyph\Foundation\Logging;
 
 final readonly class LogTailer
 {
-    /** @param callable(string):void $consumer */
+    /**
+     * @param callable(string):void $consumer
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function follow(string $path, callable $consumer, int $sleepMicros = 250_000): void
     {
         if ($sleepMicros < 10_000 || $sleepMicros > 5_000_000) {
@@ -35,7 +39,11 @@ final readonly class LogTailer
         }
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function tail(string $path, int $lines = 100): array
     {
         if ($lines < 1 || $lines > 10_000) {
@@ -105,7 +113,10 @@ final readonly class LogTailer
             && ($streamInode !== $pathInode || $streamDevice !== $pathDevice);
     }
 
-    /** @return resource */
+    /**
+     * @return resource
+     * @throws \RuntimeException
+     */
     private function open(string $path)
     {
         $stream = fopen($path, 'rb');

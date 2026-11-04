@@ -27,6 +27,9 @@ final readonly class FilesystemPublicFileResolver
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function root(): string
     {
         $configured = $this->config->get('filesystem.public_files.root', 'public');

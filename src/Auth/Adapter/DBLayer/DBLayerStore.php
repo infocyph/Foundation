@@ -38,6 +38,11 @@ abstract readonly class DBLayerStore
         return array_map($mapper, $this->all($sql, $bindings));
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     protected function connection(): Connection
     {
         $database = $this->services->get(DBLayerFactory::class);
@@ -129,6 +134,9 @@ abstract readonly class DBLayerStore
         return is_string($value) && $value !== '' ? $value : null;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     protected function table(string $name): string
     {
         if (!method_exists($this->tables, $name)) {
@@ -165,6 +173,7 @@ abstract readonly class DBLayerStore
 
     /**
      * @param array<string, mixed> $record
+     * @throws \InvalidArgumentException
      */
     protected function upsertRecord(string $table, string $keyColumn, array $record): void
     {

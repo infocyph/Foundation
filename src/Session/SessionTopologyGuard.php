@@ -18,6 +18,9 @@ final readonly class SessionTopologyGuard
         $this->state = new SharedStateTopology($config);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function assert(SessionConfig $session): void
     {
         if (!$this->config->isProduction()) {

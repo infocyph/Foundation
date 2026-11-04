@@ -39,7 +39,10 @@ final class CommandRegistry
         }
     }
 
-    /** @param array<string, mixed> $manifest */
+    /**
+     * @param array<string, mixed> $manifest
+     * @throws \UnexpectedValueException
+     */
     public static function fromManifest(array $manifest): self
     {
         $version = $manifest['version'] ?? null;
@@ -86,6 +89,9 @@ final class CommandRegistry
         return isset($this->commands[$name]) || isset($this->aliases[$name]);
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     public function register(CommandDescriptor $descriptor): void
     {
         $name = $descriptor->definition->commandName();

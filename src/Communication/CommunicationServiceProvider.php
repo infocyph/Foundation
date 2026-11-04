@@ -22,6 +22,9 @@ use Psr\Container\ContainerInterface;
 
 final class CommunicationServiceProvider extends ServiceProvider
 {
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
@@ -102,6 +105,9 @@ final class CommunicationServiceProvider extends ServiceProvider
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function registerWebhookReceiver(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $communication = $context->config['communication'] ?? null;

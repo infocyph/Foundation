@@ -17,6 +17,9 @@ final readonly class EpicryptAsymmetricSigningKeyResolver
 {
     public function __construct(private ConfigRepository $config) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function resolve(string $prefix, string $issuer, KeyPurpose $purpose): AsymmetricSigningKeySet
     {
         if ($issuer === '') {
@@ -69,6 +72,7 @@ final readonly class EpicryptAsymmetricSigningKeyResolver
 
     /**
      * @return list<KeyRingEntry>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     private function publicKeys(
         string $prefix,
@@ -121,6 +125,9 @@ final readonly class EpicryptAsymmetricSigningKeyResolver
         return $entries;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function readKey(mixed $locator): string
     {
         if (!is_string($locator) || trim($locator) === '') {
@@ -142,6 +149,9 @@ final readonly class EpicryptAsymmetricSigningKeyResolver
             : throw new ConfigurationException('Epicrypt signing key material is unavailable.');
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function requiredKeyId(string $key): string
     {
         $value = $this->config->get($key);

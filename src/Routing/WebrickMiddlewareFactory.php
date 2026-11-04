@@ -79,6 +79,7 @@ final readonly class WebrickMiddlewareFactory
 
     /**
      * @param array<string, mixed> $definition
+     * @throws \RuntimeException
      */
     private function aliasMiddleware(array $definition, string ...$parameters): object|string
     {
@@ -105,6 +106,11 @@ final readonly class WebrickMiddlewareFactory
         return $resolved;
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     private function cacheStore(mixed $name): CacheInterface
     {
         $store = ValueNormalizer::nullableString($name);

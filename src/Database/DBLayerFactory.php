@@ -116,6 +116,11 @@ final class DBLayerFactory
         return $connection;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function executionState(): RuntimeExecutionState
     {
         $state = $this->container->get(RuntimeExecutionState::class);
@@ -145,6 +150,11 @@ final class DBLayerFactory
         return $this->poolManager ??= new PoolManager(new Pool($this->resolver->poolOptions()));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function queryCache(): CacheInterface
     {
         if (!$this->container->has(CacheManager::class)) {

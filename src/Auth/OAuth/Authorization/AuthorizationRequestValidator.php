@@ -40,7 +40,10 @@ final readonly class AuthorizationRequestValidator
         return $this->redirectContextFor($parameters, $this->protocolResult($parameters));
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function redirectContextFor(
         array $parameters,
         AuthorizationProtocolResult $result,
@@ -73,6 +76,9 @@ final readonly class AuthorizationRequestValidator
         return $this->validateResult($this->protocolResult($parameters));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function validateResult(AuthorizationProtocolResult $result): AuthorizationRequest
     {
         if ($result->request === null) {
@@ -178,6 +184,9 @@ final readonly class AuthorizationRequestValidator
         return new AuthorizationProtocolResult($result->request, null, $result->error);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function redirectFromAccepted(AuthorizationProtocolResult $result): AuthorizationRedirectContext
     {
         $request = $result->request

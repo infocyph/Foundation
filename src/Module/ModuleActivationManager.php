@@ -23,6 +23,8 @@ final readonly class ModuleActivationManager
      *
      * @param list<string> $features
      * @phpstan-param Context $context
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function applyFeatures(string $operation, array $features, array $context): string
     {
@@ -69,6 +71,7 @@ final readonly class ModuleActivationManager
      * @phpstan-param Context $context
      * @param array<string,bool> $flags
      * @param list<string> $features
+     * @throws \RuntimeException
      */
     private function assertFeatureGraph(array $flags, array $context, string $operation, array $features): void
     {
@@ -101,6 +104,7 @@ final readonly class ModuleActivationManager
      * @phpstan-param Context $context
      * @param array<string,mixed> $config
      * @return array<string,bool>
+     * @throws \RuntimeException
      */
     private function assertFreshFeatureFlags(array $config, array $context): array
     {
@@ -129,7 +133,10 @@ final readonly class ModuleActivationManager
         return $flags;
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * @return array<string,mixed>
+     * @throws \RuntimeException
+     */
     private function load(string $path): array
     {
         if (!is_file($path)) {
@@ -157,6 +164,7 @@ final readonly class ModuleActivationManager
     /**
      * @param Closure(array<string,mixed>):array<string,mixed> $change
      * @phpstan-param Context $context
+     * @throws \RuntimeException
      */
     private function mutate(Closure $change, array $context): string
     {
@@ -190,6 +198,9 @@ final readonly class ModuleActivationManager
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function restoreConfig(string $path, string $temporary, ?string $original, \Throwable $failure): void
     {
         if ($original === null) {
@@ -229,6 +240,8 @@ final readonly class ModuleActivationManager
     /**
      * @param Closure(array<string,mixed>):array<string,mixed> $change
      * @phpstan-param Context $context
+     * @throws \RuntimeException
+     * @throws \Throwable
      */
     private function writeUnderLock(string $path, Closure $change, array $context): string
     {

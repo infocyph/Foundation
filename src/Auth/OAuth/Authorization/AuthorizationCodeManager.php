@@ -21,6 +21,9 @@ use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 
 final readonly class AuthorizationCodeManager
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         private OAuthAuthorizationCodeIssuer $issuer,
         private OAuthAuthorizationCodeConsumer $consumer,
@@ -34,6 +37,9 @@ final readonly class AuthorizationCodeManager
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function consume(
         #[\SensitiveParameter]
         string $code,
@@ -66,6 +72,9 @@ final readonly class AuthorizationCodeManager
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function issue(AuthorizationRequest $request, PrincipalInterface $principal): OAuthAuthorizationCodeIssue
     {
         $accountId = $principal->accountId();

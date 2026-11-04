@@ -12,6 +12,9 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerStore;
 
 final readonly class DBLayerEpicryptOAuthAuthorizationStore extends DBLayerStore implements OAuthAuthorizationStoreInterface
 {
+    /**
+     * @throws \Throwable
+     */
     #[\Override]
     public function create(OAuthAuthorizationRecord $record): bool
     {

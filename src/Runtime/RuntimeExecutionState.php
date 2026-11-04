@@ -40,6 +40,9 @@ final class RuntimeExecutionState
         $this->cleanup(false);
     }
 
+    /**
+     * @throws \Throwable
+     */
     public function cleanup(bool $throw = true): void
     {
         if ($this->cleaned) {
@@ -121,6 +124,9 @@ final class RuntimeExecutionState
         return $lease->connection();
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function assertOpen(): void
     {
         if ($this->cleaned) {

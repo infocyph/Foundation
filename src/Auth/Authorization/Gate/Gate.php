@@ -36,6 +36,9 @@ final class Gate implements AuthorizerInterface
         return $this;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\Exception\AuthorizationException
+     */
     #[\Override]
     public function authorize(
         PrincipalInterface $principal,

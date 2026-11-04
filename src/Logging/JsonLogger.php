@@ -23,6 +23,7 @@ final class JsonLogger extends AbstractLogger
 
     /**
      * @param list<string> $redactedKeys
+     * @throws \InvalidArgumentException
      */
     public function __construct(
         private readonly string $driver,
@@ -45,6 +46,7 @@ final class JsonLogger extends AbstractLogger
 
     /**
      * @param array<string, mixed> $context
+     * @throws \RuntimeException
      */
     #[\Override]
     public function log($level, string|\Stringable $message, array $context = []): void

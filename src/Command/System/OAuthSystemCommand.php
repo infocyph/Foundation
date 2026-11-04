@@ -42,6 +42,9 @@ final class OAuthSystemCommand extends SystemCommand
         };
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function assertOAuthEnabled(): void
     {
         if ($this->application->config()->get('auth.oauth.enabled', false) !== true) {
@@ -130,6 +133,9 @@ final class OAuthSystemCommand extends SystemCommand
         return $this->io()->confirm($question, false);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function clientCreate(): int
     {
         $type = OAuthClientType::tryFrom($this->option('type', OAuthClientType::Confidential->value) ?? '');
@@ -258,6 +264,9 @@ final class OAuthSystemCommand extends SystemCommand
             ?? throw new \InvalidArgumentException(sprintf('Unsupported OAuth grant "%s".', $value));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function keyCheck(): int
     {
         try {
@@ -291,6 +300,9 @@ final class OAuthSystemCommand extends SystemCommand
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function positiveLimit(): int
     {
         $value = $this->option('limit');

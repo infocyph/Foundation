@@ -49,6 +49,9 @@ use Psr\Container\ContainerInterface;
 
 final class AuthServiceProvider extends ServiceProvider
 {
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {

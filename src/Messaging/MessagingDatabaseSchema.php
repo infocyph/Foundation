@@ -19,6 +19,9 @@ final readonly class MessagingDatabaseSchema
         private DBLayerFactory $database,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function install(?string $connection = null): void
     {
         $state = $this->readiness($connection);

@@ -14,6 +14,9 @@ final readonly class NotificationChannelRegistry
         private ContainerInterface $container,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function channel(string $name): NotificationChannel
     {
         $name = trim($name);
@@ -24,6 +27,11 @@ final readonly class NotificationChannelRegistry
         return $this->resolve($name);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function normalize(string $name, mixed $definition): NotificationChannel
     {
         if ($definition instanceof NotificationChannel) {
@@ -50,6 +58,10 @@ final readonly class NotificationChannelRegistry
         return $channel;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function resolve(string $name): NotificationChannel
     {
         $configured = $this->config->get('notifications.channels', []);

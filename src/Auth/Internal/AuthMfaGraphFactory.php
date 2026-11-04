@@ -18,6 +18,9 @@ use Infocyph\OTP\RecoveryCodes;
 
 final class AuthMfaGraphFactory
 {
+    /**
+     * @throws \LogicException
+     */
     public static function challengeFactors(
         CacheManager $cache,
         ?string $storeName,
@@ -42,6 +45,9 @@ final class AuthMfaGraphFactory
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     public static function recoveryCodeStore(MfaFactorStoreInterface $factors): RecoveryCodeStoreInterface
     {
         if (!$factors instanceof MfaFactorCompareAndSwapStoreInterface) {
@@ -63,6 +69,9 @@ final class AuthMfaGraphFactory
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     public static function verifier(
         MfaFactorStoreInterface $factors,
         OtpChallengeFactorService $challengeFactors,

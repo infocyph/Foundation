@@ -30,6 +30,9 @@ final readonly class TerminalIO implements CommandIO
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
@@ -136,6 +139,9 @@ final readonly class TerminalIO implements CommandIO
         $this->semantic('NOTE', $message);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function password(string $question): string
     {
@@ -178,6 +184,9 @@ final readonly class TerminalIO implements CommandIO
         $this->semantic('OK', $message);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function table(array $headers, array $rows): void
     {
@@ -261,6 +270,9 @@ final readonly class TerminalIO implements CommandIO
         };
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function assertInteractive(): void
     {
         if (!$this->interactiveMode) {
@@ -296,6 +308,9 @@ final readonly class TerminalIO implements CommandIO
         return is_string($selected) ? $selected : null;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function readRaw(string $prompt): string
     {
         fwrite(STDOUT, $prompt);

@@ -53,6 +53,9 @@ final class SessionServiceProvider extends ServiceProvider
 
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function registerManager(ContainerBuilder $builder, FoundationBuildContext $context, bool $lockEnabled): void
     {
         if ($lockEnabled) {
@@ -113,6 +116,9 @@ final class SessionServiceProvider extends ServiceProvider
         ));
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function registerStore(ContainerBuilder $builder, FoundationBuildContext $context, string $driver): void
     {
         if ($driver === 'cache' && !$context->permitsCapability('cache')) {

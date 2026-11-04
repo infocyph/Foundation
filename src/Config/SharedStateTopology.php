@@ -25,6 +25,9 @@ final readonly class SharedStateTopology
 
     public function __construct(private ConfigRepository $config) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function assertCacheStore(
         ?string $name,
         string $purpose,

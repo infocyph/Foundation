@@ -35,6 +35,8 @@ final readonly class ExecutionScope
      * @param callable(ExecutionId):T $callback
      * @param array<string, mixed> $seeds
      * @return T
+     * @throws \LogicException
+     * @throws \Throwable
      */
     public function run(callable $callback, array $seeds = [], ?ExecutionId $executionId = null): mixed
     {
@@ -116,6 +118,7 @@ final readonly class ExecutionScope
      * @template T
      * @param callable(ExecutionId):T $callback
      * @return T
+     * @throws \LogicException
      */
     public function withinBorrowedScope(ScopeContext $context, callable $callback): mixed
     {
@@ -150,7 +153,10 @@ final readonly class ExecutionScope
         );
     }
 
-    /** @param array<string, mixed> $seeds */
+    /**
+     * @param array<string, mixed> $seeds
+     * @throws \InvalidArgumentException
+     */
     private static function assertRuntimeModeSeed(array $seeds): void
     {
         if (array_key_exists(RuntimeMode::class, $seeds)) {
@@ -164,6 +170,7 @@ final readonly class ExecutionScope
      * No runtime, request or coroutine scope is generated or owned here.
      *
      * @param array<string, mixed> $seeds
+     * @throws \LogicException
      */
     private static function hostRunwireContext(array $seeds): ?RunwireExecutionContext
     {
@@ -209,6 +216,7 @@ final readonly class ExecutionScope
 
     /**
      * @param array<string, mixed> $seeds
+     * @throws \LogicException
      */
     private static function runwireScopeSeed(array $seeds, RuntimeContext $runtime): ?CoroutineScope
     {
@@ -246,6 +254,7 @@ final readonly class ExecutionScope
     /**
      * @param callable(ContainerInterface):mixed $callback
      * @param array<string, mixed> $seeds
+     * @throws \LogicException
      */
     private function withinScope(
         string $scope,

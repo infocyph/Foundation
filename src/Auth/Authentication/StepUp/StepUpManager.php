@@ -61,6 +61,9 @@ final readonly class StepUpManager
         return $this->evaluate($session, $ability, $context)->required;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function duration(mixed $seconds): int
     {
         if (!is_int($seconds) || $seconds < 1 || $seconds > self::MAX_STEP_UP_SECONDS) {

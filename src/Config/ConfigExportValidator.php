@@ -47,6 +47,9 @@ final class ConfigExportValidator
             || ($allowDelayed && ($value instanceof EnvReference || $value instanceof \Closure));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private static function walk(
         mixed $value,
         string $path,

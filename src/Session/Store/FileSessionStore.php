@@ -12,6 +12,9 @@ final readonly class FileSessionStore implements SessionStoreInterface
 {
     public function __construct(private string $directory) {}
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function delete(string $id): void
     {
@@ -64,6 +67,9 @@ final readonly class FileSessionStore implements SessionStoreInterface
         return $pruned;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function save(string $id, SessionPayload $payload): void
     {
@@ -113,6 +119,9 @@ final readonly class FileSessionStore implements SessionStoreInterface
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function ensureDirectory(): void
     {
         if (is_dir($this->directory)) {

@@ -26,7 +26,11 @@ final readonly class ProcessRunner
         $this->capture = new ProcessCapture($this->tree, $this->signals);
     }
 
-    /** @param list<string>|string $command Prefer an argument list to bypass the shell. */
+    /**
+     * @param list<string>|string $command Prefer an argument list to bypass the shell.
+     * @throws \RuntimeException
+     * @throws \Throwable
+     */
     public function run(array|string $command, ?ProcessOptions $options = null): ProcessResult
     {
         $options ??= new ProcessOptions();
@@ -67,7 +71,10 @@ final readonly class ProcessRunner
         }
     }
 
-    /** @param list<string>|string $command */
+    /**
+     * @param list<string>|string $command
+     * @throws \InvalidArgumentException
+     */
     private function assertCommand(array|string $command): void
     {
         if (is_string($command)) {
@@ -144,7 +151,11 @@ final readonly class ProcessRunner
         return $options;
     }
 
-    /** @param list<string>|string $command */
+    /**
+     * @param list<string>|string $command
+     * @throws \RuntimeException
+     * @throws \Throwable
+     */
     private function runInteractive(array|string $command, ProcessOptions $options): ProcessResult
     {
         $process = proc_open(

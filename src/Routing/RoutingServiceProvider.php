@@ -98,7 +98,10 @@ final class RoutingServiceProvider extends ServiceProvider
         $builder->alias('foundation.router', Registrar::class);
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function routeFiles(mixed $value): array
     {
         if (!is_array($value)) {

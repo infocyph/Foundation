@@ -51,6 +51,9 @@ final readonly class CacheLayerFactory
         $this->database = Closure::fromCallable($database);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function cluster(string $name): ClusterRuntime
     {
         $cluster = $this->named('cache.clusters')[$name] ?? null;
@@ -80,6 +83,9 @@ final readonly class CacheLayerFactory
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function counters(string $name): AtomicCounterStoreInterface
     {
         $counter = $this->named('cache.counters')[$name] ?? null;
@@ -101,6 +107,9 @@ final readonly class CacheLayerFactory
         };
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function lock(
         ?string $storeName = null,
         CacheInterface|Closure|null $resolvedStore = null,
@@ -155,6 +164,9 @@ final readonly class CacheLayerFactory
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function nodeMaintenance(string $name): NodeCacheMaintenance
     {
         $store = $this->stores()[$name] ?? null;
@@ -165,6 +177,9 @@ final readonly class CacheLayerFactory
         return NodeCache::maintenance($this->nodeConfig($name, $store));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function pruneCluster(string $name, int $retentionSeconds, int $limit = 5_000): int
     {
         if ($retentionSeconds < 0) {
@@ -205,6 +220,9 @@ final readonly class CacheLayerFactory
         return $cache->setLockProvider($this->lockProvider($lockStore, $lock, $lockDriver));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function assertNodePath(string $file, string $name): void
     {
         $directory = rtrim(str_replace('\\', '/', $this->paths->cache()), '/');
@@ -423,7 +441,10 @@ final readonly class CacheLayerFactory
             ?? CacheNamespace::derive($this->stringConfig('cache.prefix', 'foundation:'), $name);
     }
 
-    /** @param array<string,mixed> $store */
+    /**
+     * @param array<string,mixed> $store
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function nodeConfig(string $name, array $store): NodeCacheConfig
     {
         $file = $this->sqliteFile($store);
@@ -480,7 +501,10 @@ final readonly class CacheLayerFactory
         );
     }
 
-    /** @param array<string,mixed> $store */
+    /**
+     * @param array<string,mixed> $store
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function pdoClient(array $store, CacheDriver $driver): \PDO
     {
         if (($store['client'] ?? null) instanceof \PDO) {
@@ -541,7 +565,10 @@ final readonly class CacheLayerFactory
             : Cache::redis($namespace, $connection['dsn'], $connection['client'], $options);
     }
 
-    /** @param array<string,mixed> $definition */
+    /**
+     * @param array<string,mixed> $definition
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function redisClient(array $definition, string $driver): \Redis
     {
         $connection = $this->redisConnection($definition, $driver);
@@ -590,6 +617,7 @@ final readonly class CacheLayerFactory
      * @param array<string,mixed> $global
      * @param array<string,mixed> $local
      * @return array{array<string,mixed>,CacheDriver}
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     private function resolveLockStore(
         array $fallbackStore,
@@ -658,6 +686,9 @@ final readonly class CacheLayerFactory
         return is_string($value) && $value !== '' ? $value : null;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function transport(string $name): InvalidationTransportInterface
     {
         $transport = $this->named('cache.transports')[$name] ?? null;

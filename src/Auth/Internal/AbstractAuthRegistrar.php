@@ -60,7 +60,10 @@ abstract readonly class AbstractAuthRegistrar
         return new ServiceReference($id);
     }
 
-    /** @param class-string $class */
+    /**
+     * @param class-string $class
+     * @throws \LogicException
+     */
     protected function requirePackage(string $class, string $package, string $module): void
     {
         if (class_exists($class) || interface_exists($class)) {

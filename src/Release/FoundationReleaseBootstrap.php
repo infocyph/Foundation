@@ -19,6 +19,9 @@ final readonly class FoundationReleaseBootstrap implements RuntimeApplicationFac
 
     public const string RELEASE_ROOT_ENV = 'INFOCYPH_FOUNDATION_RELEASE_ROOT';
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         public string $releaseRoot,
         public string $trustedFoundationManifestSha256,

@@ -163,6 +163,7 @@ final class ModuleArchitectureCatalog
 
     /**
      * @phpstan-return ArchitectureFeature
+     * @throws \InvalidArgumentException
      */
     public function feature(string $module, string $feature): array
     {
@@ -180,6 +181,7 @@ final class ModuleArchitectureCatalog
      *
      * @return array<string,string>
      * @param list<string> $features
+     * @throws \InvalidArgumentException
      */
     public function packages(string $module, array $features): array
     {
@@ -205,6 +207,7 @@ final class ModuleArchitectureCatalog
      * invalid because it is also a historical Core operations alias.
      *
      * @phpstan-return array{module:string,feature:string,definition:ArchitectureFeature}
+     * @throws \InvalidArgumentException
      */
     public function resolve(string $id): array
     {

@@ -21,6 +21,9 @@ final readonly class DBLayerOAuthAuthorizationStore extends DBLayerStore impleme
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function recent(int $limit = 100, ?string $clientId = null): array
     {

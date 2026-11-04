@@ -10,7 +10,10 @@ use Infocyph\Webrick\Response\Response;
 
 final readonly class OAuthScopeMiddleware
 {
-    /** @param list<string> $requiredScopes */
+    /**
+     * @param list<string> $requiredScopes
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         private CurrentPrincipalContext $principals,
         private array $requiredScopes,

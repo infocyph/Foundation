@@ -62,6 +62,9 @@ final readonly class ConsentManager
         return $this->consents->revoke($this->accountId($principal), $clientId, $this->clock->now());
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function accountId(PrincipalInterface $principal): string
     {
         $accountId = $principal->accountId();
@@ -72,6 +75,9 @@ final readonly class ConsentManager
         return $accountId;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function assertPermissions(PrincipalInterface $principal, AuthorizationRequest $request): void
     {
         if (!$this->permissionsAllowed($principal, $request)) {

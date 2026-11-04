@@ -37,6 +37,7 @@ final readonly class FoundationBuildContext
      * makes the capability topology explicit.
      *
      * @param array<int|string, mixed>|null $capabilities
+     * @throws \UnexpectedValueException
      */
     public static function fromConfig(
         ConfigRepository $config,

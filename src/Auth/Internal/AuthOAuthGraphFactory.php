@@ -21,6 +21,9 @@ final class AuthOAuthGraphFactory
         return $resolver->authorizationCodeKeys();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function endpointUri(ConfigRepository $config, string $route): string
     {
         $issuer = $config->get('auth.oauth.issuer');
@@ -50,6 +53,9 @@ final class AuthOAuthGraphFactory
         return $keys->epicrypt;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function openIdSigningKeySet(ConfigRepository $config): AsymmetricSigningKeySet
     {
         $issuer = $config->get('auth.oauth.issuer');

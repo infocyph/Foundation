@@ -9,6 +9,9 @@ use Throwable;
 /** Runs best-effort cleanup without allowing cleanup failures to replace primary work failures. */
 final class CleanupGuard
 {
+    /**
+     * @throws \Throwable
+     */
     public static function run(?Throwable $primaryFailure, callable ...$callbacks): ?Throwable
     {
         $cleanupFailure = null;

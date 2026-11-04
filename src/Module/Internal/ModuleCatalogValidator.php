@@ -78,6 +78,7 @@ final class ModuleCatalogValidator
     /**
      * @phpstan-param ModuleDependency $dependency
      * @phpstan-param array<string,ModuleDefinition> $modules
+     * @throws \LogicException
      */
     private function assertDependencyTarget(
         string $scope,
@@ -141,6 +142,7 @@ final class ModuleCatalogValidator
     /**
      * @phpstan-param PackageRequirement $requirement
      * @phpstan-param array<string,ModuleFeature> $features
+     * @throws \LogicException
      */
     private function assertPackageRequirement(
         string $module,
@@ -202,7 +204,10 @@ final class ModuleCatalogValidator
         }
     }
 
-    /** @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string|null} $predicate */
+    /**
+     * @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string|null} $predicate
+     * @throws \LogicException
+     */
     private function assertPredicate(string $scope, array $predicate): void
     {
         if ($predicate['key'] === '') {
@@ -239,7 +244,10 @@ final class ModuleCatalogValidator
         return $graph;
     }
 
-    /** @param array<string,string> $owners */
+    /**
+     * @param array<string,string> $owners
+     * @throws \LogicException
+     */
     private function registerAlias(array &$owners, string $alias, string $module): void
     {
         $normalized = strtolower(trim($alias));
@@ -286,6 +294,7 @@ final class ModuleCatalogValidator
      * @param array<string,list<string>> $graph
      * @param array<string,bool> $visiting
      * @param array<string,bool> $visited
+     * @throws \LogicException
      */
     private function visit(string $module, array $graph, array &$visiting, array &$visited): void
     {

@@ -12,6 +12,10 @@ final class FoundationReleaseConfig
 {
     private const int FORMAT = 1;
 
+    /**
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     public static function load(string $path, string $trustedSha256): ConfigRepository
     {
         $trustedSha256 = FoundationReleaseManifest::digest($trustedSha256, 64, 'config_sha256');
@@ -32,7 +36,10 @@ final class FoundationReleaseConfig
         return new ConfigRepository($config, compiled: true);
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \RuntimeException
+     */
     public static function write(string $path, array $config): string
     {
         ConfigExportValidator::assertExportable($config);

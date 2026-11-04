@@ -16,6 +16,9 @@ final class InMemoryEmailVerificationStore extends AbstractInMemoryConsumableSto
         $this->consumeStored($storedRequestId);
     }
 
+    /**
+     * @throws \Throwable
+     */
     #[\Override]
     public function consumeAndApply(string $requestId, callable $apply): bool
     {

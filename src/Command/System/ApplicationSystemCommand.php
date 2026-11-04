@@ -147,6 +147,9 @@ final class ApplicationSystemCommand extends SystemCommand
         return $this->emit(['removed' => $removed], $removed ? 'Configuration cache cleared.' : 'Configuration cache is already clear.');
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function configShow(): int
     {
         $key = $this->argument(0);
@@ -181,6 +184,9 @@ final class ApplicationSystemCommand extends SystemCommand
         return $this->emit(['path' => $path], 'Application secret updated in ' . $path . '.');
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function install(): int
     {
         foreach (['cache', 'logs', 'sessions', 'uploads'] as $directory) {
@@ -258,6 +264,9 @@ final class ApplicationSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function positivePort(string $value): int
     {
         if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1 || (int) $value > 65535) {
@@ -283,7 +292,11 @@ final class ApplicationSystemCommand extends SystemCommand
         return $report['ready'] ? ExitCode::SUCCESS : ExitCode::FAILURE;
     }
 
-    /** @return array<string, array<string, bool>> */
+    /**
+     * @return array<string, array<string, bool>>
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     private function releaseCapabilities(): array
     {
         if (!$this->application->config()->has('app.capabilities')) {
@@ -324,6 +337,9 @@ final class ApplicationSystemCommand extends SystemCommand
         return $config;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function serve(): int
     {
         $options = $this->serveOptions();
@@ -379,6 +395,9 @@ final class ApplicationSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function serveOptions(): RuntimeOptions
     {
         $host = $this->option('host', '127.0.0.1') ?? '127.0.0.1';
@@ -411,6 +430,9 @@ final class ApplicationSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function serveServer(string $address, RuntimeOptions $options, RuntimeSelection $selection): ?Server
     {
         $policy = AdaptivePolicyMode::tryFrom($this->option('protocol-policy') ?? AdaptivePolicyMode::FIXED->value)

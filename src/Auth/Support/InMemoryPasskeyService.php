@@ -53,6 +53,9 @@ final class InMemoryPasskeyService implements PasskeyServiceInterface
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function finishRegistration(PasskeyRegistrationResult $result): PasskeyCredential
     {

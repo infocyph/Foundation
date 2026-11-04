@@ -521,6 +521,7 @@ final class ModuleCatalog
     /**
      * @phpstan-param ModuleDefinition $definition
      * @return array<string,string>
+     * @throws \InvalidArgumentException
      */
     public function featurePackages(array $definition, string $feature): array
     {
@@ -599,6 +600,7 @@ final class ModuleCatalog
     /**
      * @param list<string> $features
      * @phpstan-return ResolvedModule
+     * @throws \InvalidArgumentException
      */
     public function resolve(string $module, array $features = []): array
     {
@@ -698,6 +700,7 @@ final class ModuleCatalog
      * @phpstan-param PackageRequirement $requirement
      * @phpstan-param ModuleDefinition $definition
      * @param list<string> $requestedFeatures
+     * @throws \InvalidArgumentException
      */
     private function resolvePackageFeature(
         string $package,

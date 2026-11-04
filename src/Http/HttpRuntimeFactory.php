@@ -35,6 +35,11 @@ final class HttpRuntimeFactory
         return $factory->kernel($errorHandler);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     private static function logger(ContainerInterface $container): LoggerInterface
     {
         $logger = $container->get(HttpExceptionLogger::class);
@@ -45,6 +50,11 @@ final class HttpRuntimeFactory
         return $logger;
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     private static function renderer(ContainerInterface $container): ExceptionRenderer
     {
         $renderer = $container->get(ExceptionRenderer::class);

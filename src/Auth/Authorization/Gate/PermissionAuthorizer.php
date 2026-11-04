@@ -22,6 +22,9 @@ final readonly class PermissionAuthorizer implements AuthorizerInterface
         private bool $allowGuests = false,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\Exception\AuthorizationException
+     */
     #[\Override]
     public function authorize(
         PrincipalInterface $principal,

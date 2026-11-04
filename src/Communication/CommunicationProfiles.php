@@ -72,6 +72,9 @@ final readonly class CommunicationProfiles
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function http(?string $profile = null): HttpClient
     {
         $array = $this->httpConfigArray($profile);
@@ -116,6 +119,9 @@ final readonly class CommunicationProfiles
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function webhookSender(?string $profile = null): WebhookSender
     {
         $config = $this->webhookOutboundConfig($profile);
@@ -173,7 +179,10 @@ final readonly class CommunicationProfiles
         return $this->profile('http.clients', 'http.default_client', $profile);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function profile(string $collectionKey, string $defaultKey, ?string $profile): array
     {
         $name = is_string($profile) && trim($profile) !== ''
@@ -203,7 +212,11 @@ final readonly class CommunicationProfiles
         return $this->profile('webhooks.outbound', 'webhooks.default_outbound', $profile);
     }
 
-    /** @return string|list<string> */
+    /**
+     * @return string|list<string>
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function webhookSecret(mixed $secret): string|array
     {
         $single = is_string($secret);

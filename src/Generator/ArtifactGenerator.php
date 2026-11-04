@@ -79,7 +79,10 @@ final readonly class ArtifactGenerator
         return ['class' => implode('\\', array_filter([$namespace, $class])), 'path' => $path];
     }
 
-    /** @param array{directory:string,namespace:string,suffix:string,stub:string,requires?:class-string,install?:string} $definition */
+    /**
+     * @param array{directory:string,namespace:string,suffix:string,stub:string,requires?:class-string,install?:string} $definition
+     * @throws \LogicException
+     */
     private function assertRequirement(string $artifact, array $definition): void
     {
         $required = $definition['requires'] ?? null;
@@ -105,7 +108,11 @@ final readonly class ArtifactGenerator
         ));
     }
 
-    /** @return array{class:string,path:string} */
+    /**
+     * @return array{class:string,path:string}
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function createConfig(string $name, bool $force): array
     {
         $name = trim(str_replace('\\', '/', $name), '/');
@@ -151,7 +158,10 @@ final readonly class ArtifactGenerator
         return gmdate('YmdHis') . '_' . $name;
     }
 
-    /** @param list<string> $parents */
+    /**
+     * @param list<string> $parents
+     * @throws \RuntimeException
+     */
     private function render(string $stub, string $namespace, string $class, array $parents, ?string $table): string
     {
         $path = dirname(__DIR__, 2) . '/resources/stubs/create/' . $stub;
@@ -167,7 +177,10 @@ final readonly class ArtifactGenerator
         );
     }
 
-    /** @return non-empty-list<non-falsy-string> */
+    /**
+     * @return non-empty-list<non-falsy-string>
+     * @throws \InvalidArgumentException
+     */
     private function segments(string $name): array
     {
         if ($name === '' || str_contains($name, "\0") || preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $name) === 1) {
@@ -190,6 +203,9 @@ final readonly class ArtifactGenerator
         return $segments;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function table(string $class, ?string $configured): string
     {
         if ($configured !== null && $configured !== '') {
@@ -211,6 +227,9 @@ final readonly class ArtifactGenerator
         return $name . 's';
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function write(string $path, string $contents, bool $force): void
     {
         if ((is_file($path) || is_link($path)) && !$force) {

@@ -19,6 +19,9 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
 
     public function __construct(private MfaFactorCompareAndSwapStoreInterface $factors) {}
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function consume(string $binding, string $hashedCode, DateTimeImmutable $usedAt): array
     {
@@ -80,6 +83,9 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
         ];
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function replace(string $binding, array $hashedCodes, DateTimeImmutable $issuedAt): array
     {
@@ -121,6 +127,9 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
         throw new RuntimeException('Unable to atomically replace recovery state after concurrent updates.');
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function accountId(string $binding): string
     {
         if (!str_starts_with($binding, 'account:')) {
@@ -190,6 +199,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
      *     lastUsedAt:DateTimeImmutable|null,
      *     total:int
      * }
+     * @throws \RuntimeException
      */
     private function state(MfaFactor $factor): array
     {

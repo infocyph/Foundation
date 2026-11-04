@@ -37,6 +37,9 @@ final readonly class EpicryptOAuthClientAuthenticationAdapter
         };
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function tokenEndpointUri(): string
     {
         $issuer = $this->config->get('auth.oauth.issuer');

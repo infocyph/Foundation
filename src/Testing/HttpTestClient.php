@@ -15,6 +15,9 @@ final class HttpTestClient
         'Host' => 'localhost',
     ];
 
+    /**
+     * @throws \LogicException
+     */
     public function __construct(private readonly Application $application)
     {
         if (!$application->runningInWeb()) {

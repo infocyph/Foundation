@@ -25,6 +25,9 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function list(int $limit = 100): array
     {
@@ -155,7 +158,10 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         }
     }
 
-    /** @param array<string, mixed> $row */
+    /**
+     * @param array<string, mixed> $row
+     * @throws \RuntimeException
+     */
     private function mapClient(array $row): OAuthClient
     {
         $type = OAuthClientType::tryFrom($this->string($row['client_type'] ?? ''));

@@ -32,6 +32,9 @@ final readonly class SessionConfig
         public ?string $csrfOrigin,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function fromRepository(ConfigRepository $config, string $defaultFilePath): self
     {
         $driver = self::oneOf($config->get('session.driver', 'file'), ['array', 'file', 'cache', 'database'], 'session.driver');
@@ -71,6 +74,9 @@ final readonly class SessionConfig
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function bool(mixed $value, string $key): bool
     {
         if (!is_bool($value)) {
@@ -97,6 +103,9 @@ final readonly class SessionConfig
             . trim($configured, '/\\');
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function identifier(mixed $value, string $key): string
     {
         $value = self::nonEmptyString($value, $key);
@@ -107,6 +116,9 @@ final readonly class SessionConfig
         return $value;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function nonEmptyString(mixed $value, string $key): string
     {
         if (!is_string($value) || $value === '') {
@@ -116,6 +128,9 @@ final readonly class SessionConfig
         return $value;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function nonNegativeFloat(mixed $value, string $key): float
     {
         if ((!is_int($value) && !is_float($value)) || !is_finite((float) $value) || $value < 0) {
@@ -130,7 +145,10 @@ final readonly class SessionConfig
         return is_string($value) && $value !== '' ? $value : null;
     }
 
-    /** @param list<string> $allowed */
+    /**
+     * @param list<string> $allowed
+     * @throws \InvalidArgumentException
+     */
     private static function oneOf(mixed $value, array $allowed, string $key): string
     {
         $value = self::nonEmptyString($value, $key);
@@ -145,6 +163,9 @@ final readonly class SessionConfig
         return $value;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function positiveFloat(mixed $value, string $key): float
     {
         if ((!is_int($value) && !is_float($value)) || !is_finite((float) $value) || $value <= 0) {
@@ -154,6 +175,9 @@ final readonly class SessionConfig
         return (float) $value;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function positiveInt(mixed $value, string $key): int
     {
         if (!is_int($value) || $value <= 0) {

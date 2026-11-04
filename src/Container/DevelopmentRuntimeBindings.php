@@ -42,6 +42,9 @@ final class DevelopmentRuntimeBindings
         return $bindings;
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function attach(Application $application): void
     {
         if ($this->application !== null) {

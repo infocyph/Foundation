@@ -11,6 +11,7 @@ final readonly class Issue implements JsonSerializable
     /**
      * @param array{pointer?:string,parameter?:string,header?:string,resource?:string} $source
      * @param array<string, mixed> $meta
+     * @throws \InvalidArgumentException
      */
     public function __construct(
         public string $code,

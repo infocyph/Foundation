@@ -9,6 +9,9 @@ final readonly class CronExpression
     /** @var list<string> */
     private array $parts;
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(string $expression)
     {
         $parts = preg_split('/\s+/', trim($expression));
@@ -125,6 +128,9 @@ final readonly class CronExpression
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function validateRangeOrder(string $base): void
     {
         if (!str_contains($base, '-')) {
@@ -136,7 +142,10 @@ final readonly class CronExpression
         }
     }
 
-    /** @param array{int,int} $range */
+    /**
+     * @param array{int,int} $range
+     * @throws \InvalidArgumentException
+     */
     private function validateSegment(string $segment, array $range): void
     {
         if (preg_match('/^(\*|\d+(?:-\d+)?)(?:\/\d+)?$/', $segment) !== 1) {
@@ -151,6 +160,9 @@ final readonly class CronExpression
         $this->validateValues($segment, $range);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function validateStep(?string $step): void
     {
         if ($step !== null && (int) $step < 1) {

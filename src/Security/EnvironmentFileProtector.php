@@ -52,6 +52,9 @@ final readonly class EnvironmentFileProtector
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function assertAvailable(): void
     {
         if (!class_exists(FileProtector::class)) {
@@ -61,6 +64,9 @@ final readonly class EnvironmentFileProtector
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function assertSource(string $path): void
     {
         if (!is_file($path) || !is_readable($path)) {
@@ -68,6 +74,9 @@ final readonly class EnvironmentFileProtector
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function key(?string $keyFile, string $keyEnvironment): string
     {
         if ($keyFile !== null && $keyFile !== '') {
@@ -91,6 +100,9 @@ final readonly class EnvironmentFileProtector
         return $key;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function path(string $path): string
     {
         if ($path === '' || str_contains($path, "\0")) {
@@ -102,6 +114,9 @@ final readonly class EnvironmentFileProtector
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function prepareTarget(string $path, bool $force): void
     {
         if (is_link($path)) {

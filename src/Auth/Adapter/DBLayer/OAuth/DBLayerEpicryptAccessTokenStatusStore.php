@@ -11,6 +11,9 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerStore;
 
 final readonly class DBLayerEpicryptAccessTokenStatusStore extends DBLayerStore implements OAuthAccessTokenStatusStoreInterface
 {
+    /**
+     * @throws \Throwable
+     */
     #[\Override]
     public function create(OAuthAccessTokenStatusRecord $record): bool
     {

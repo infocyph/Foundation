@@ -164,6 +164,7 @@ final readonly class ParsedInput
      * @param array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool} $metadata
      * @param list<string> $tokens
      * @param array<string, string|bool|list<string>> $options
+     * @throws \InvalidArgumentException
      */
     private static function consumeDefinedLongOption(
         array $tokens,
@@ -196,7 +197,10 @@ final readonly class ParsedInput
         return $inlineValue === null ? $index + 1 : $index;
     }
 
-    /** @param array<string, string|bool|list<string>> $options */
+    /**
+     * @param array<string, string|bool|list<string>> $options
+     * @throws \InvalidArgumentException
+     */
     private static function consumeLongFlag(
         int $index,
         array &$options,
@@ -221,6 +225,7 @@ final readonly class ParsedInput
     /**
      * @param list<string> $tokens
      * @param array<string, string|bool|list<string>> $options
+     * @throws \InvalidArgumentException
      */
     private static function consumeLongOption(
         array $tokens,
@@ -360,7 +365,10 @@ final readonly class ParsedInput
         return [$candidate, $candidateMetadata, true];
     }
 
-    /** @param list<string> $tokens */
+    /**
+     * @param list<string> $tokens
+     * @throws \InvalidArgumentException
+     */
     private static function resolveShortOptionValue(
         array $tokens,
         int &$index,
@@ -417,6 +425,9 @@ final readonly class ParsedInput
         return [$name, $value];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function validateArguments(self $input, CommandDefinition $definition): void
     {
         $declared = $definition->arguments();

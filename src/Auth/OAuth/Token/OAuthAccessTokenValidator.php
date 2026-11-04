@@ -28,6 +28,9 @@ final readonly class OAuthAccessTokenValidator
         return $this->verifyResource($token, $expectedAudience, 'GET', $expectedAudience);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException
+     */
     public function verifyResource(
         #[\SensitiveParameter]
         string $token,
@@ -79,7 +82,10 @@ final readonly class OAuthAccessTokenValidator
         return new OAuthVerifiedAccessToken($mapped, $client, $authorization, $account);
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException
+     */
     private static function audiences(mixed $value): array
     {
         if (is_string($value) && $value !== '') {
@@ -122,7 +128,10 @@ final readonly class OAuthAccessTokenValidator
             : throw new OAuthTokenException('OAuth access token state is invalid.');
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException
+     */
     private static function scopes(mixed $value): array
     {
         if ($value === null || $value === '') {
@@ -144,6 +153,9 @@ final readonly class OAuthAccessTokenValidator
         throw new OAuthTokenException('OAuth access token scope claim is invalid.');
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException
+     */
     private function authorization(OAuthAccessTokenClaims $claims): OAuthAuthorization
     {
         if ($claims->authorizationId === null) {

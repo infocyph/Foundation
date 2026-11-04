@@ -47,6 +47,9 @@ final readonly class EpicryptPurposeTokenFactory
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function domain(string $purpose): string
     {
         if (preg_match('/\A[a-z][a-z0-9_-]{0,63}\z/D', $purpose) !== 1) {

@@ -117,6 +117,9 @@ final class Bootstrapper
         $registry->contribute($builder, $context);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
+     */
     private function assertProviderGroup(int|string $group, mixed $entries): void
     {
         if (!is_string($group) || !in_array($group, self::PROVIDER_GROUPS, true)) {
@@ -133,7 +136,10 @@ final class Bootstrapper
         }
     }
 
-    /** @return list<ServiceProviderInterface> */
+    /**
+     * @return list<ServiceProviderInterface>
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
+     */
     private function configuredProviders(FoundationBuildContext $context): array
     {
         $configured = $context->config['providers'] ?? [];
@@ -165,6 +171,9 @@ final class Bootstrapper
         return array_values($providers);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
+     */
     private function instantiateProvider(mixed $provider): ServiceProviderInterface
     {
         if ($provider instanceof ServiceProviderInterface) {

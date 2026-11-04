@@ -147,7 +147,10 @@ final readonly class EmailProfiles
         return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function profile(string $collectionKey, string $profile): array
     {
         $name = trim($profile);
@@ -166,7 +169,10 @@ final readonly class EmailProfiles
         return ValueNormalizer::associativeArray($profiles[$name]);
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \InvalidArgumentException
+     */
     private function requiredString(array $config, string $key): string
     {
         $value = $config[$key] ?? null;

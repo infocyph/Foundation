@@ -99,6 +99,9 @@ final readonly class FreshModuleSchemaRunner
         return $command;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function launcher(): string
     {
         foreach ([

@@ -42,6 +42,7 @@ final readonly class RuntimeProcessRegistry
     /**
      * @param array<int|string, mixed> $record
      * @return array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:true}
+     * @throws \InvalidArgumentException
      */
     public function heartbeat(array $record): array
     {
@@ -56,7 +57,10 @@ final readonly class RuntimeProcessRegistry
         return [...$normalized, 'running' => true];
     }
 
-    /** @return array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:true} */
+    /**
+     * @return array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:true}
+     * @throws \RuntimeException
+     */
     public function register(string $kind, string $name): array
     {
         $this->assertIdentity($kind, $name);
@@ -78,7 +82,10 @@ final readonly class RuntimeProcessRegistry
         return [...$record, 'running' => true];
     }
 
-    /** @param array<int|string, mixed> $record */
+    /**
+     * @param array<int|string, mixed> $record
+     * @throws \RuntimeException
+     */
     public function unregister(array $record): void
     {
         $id = $record['id'] ?? null;
@@ -91,6 +98,9 @@ final readonly class RuntimeProcessRegistry
         }
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     public function visibility(): string
     {
         $visibility = strtolower(ValueNormalizer::string(
@@ -106,6 +116,9 @@ final readonly class RuntimeProcessRegistry
         return $visibility;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function assertIdentity(string $kind, string $name): void
     {
         if (!in_array($kind, ['worker', 'schedule'], true)) {
@@ -215,7 +228,10 @@ final readonly class RuntimeProcessRegistry
         return is_array($record) ? $this->normalizeRecord($record) : null;
     }
 
-    /** @param array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string} $record */
+    /**
+     * @param array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string} $record
+     * @throws \RuntimeException
+     */
     private function write(array $record): void
     {
         $directory = $this->directory();

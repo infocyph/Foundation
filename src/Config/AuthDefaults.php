@@ -111,7 +111,10 @@ final class AuthDefaults
         ];
     }
 
-    /** @return list<mixed> */
+    /**
+     * @return list<mixed>
+     * @throws \UnexpectedValueException
+     */
     private static function jsonListEnvironment(string $name, string $message): array
     {
         $encoded = env($name);

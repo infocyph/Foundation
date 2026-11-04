@@ -99,7 +99,10 @@ final readonly class StorageLinkManager
             : $this->paths->base(trim($path, '/\\'));
     }
 
-    /** @return list<array{link:string,target:string}> */
+    /**
+     * @return list<array{link:string,target:string}>
+     * @throws \RuntimeException
+     */
     private function configured(): array
     {
         $configured = $this->config->get('filesystem.links', []);

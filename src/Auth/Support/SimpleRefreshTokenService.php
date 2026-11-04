@@ -21,6 +21,10 @@ final readonly class SimpleRefreshTokenService implements RefreshTokenServiceInt
         private ClockInterface $clock,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     #[\Override]
     public function issue(RefreshTokenClaims $claims): IssuedRefreshToken
     {

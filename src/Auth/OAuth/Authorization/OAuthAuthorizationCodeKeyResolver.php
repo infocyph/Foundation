@@ -23,6 +23,9 @@ final readonly class OAuthAuthorizationCodeKeyResolver
 
     public function __construct(private ConfigRepository $config) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function issuer(): string
     {
         $issuer = $this->config->get('auth.oauth.issuer');
@@ -33,6 +36,9 @@ final readonly class OAuthAuthorizationCodeKeyResolver
         return trim($issuer);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function resolve(): KeyRing
     {
         $configured = $this->config->get('auth.oauth.authorization_code_protection.keys', []);
@@ -90,6 +96,9 @@ final readonly class OAuthAuthorizationCodeKeyResolver
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function derive(#[\SensitiveParameter] string $master, string $id): string
     {
         if (strlen($master) < 32) {
@@ -112,6 +121,9 @@ final readonly class OAuthAuthorizationCodeKeyResolver
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function entry(mixed $definition, string $issuer): KeyRingEntry
     {
         if (!is_array($definition)) {
@@ -148,6 +160,9 @@ final readonly class OAuthAuthorizationCodeKeyResolver
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function environmentName(mixed $value): string
     {
         if (!is_string($value) || preg_match('/\A[A-Z][A-Z0-9_]{1,127}\z/D', $value) !== 1) {
@@ -170,6 +185,9 @@ final readonly class OAuthAuthorizationCodeKeyResolver
         };
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function timestamp(mixed $value): ?int
     {
         if ($value === null) {

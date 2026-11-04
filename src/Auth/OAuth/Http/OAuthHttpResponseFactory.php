@@ -109,7 +109,10 @@ final readonly class OAuthHttpResponseFactory
         ]);
     }
 
-    /** @param array<string, string> $parameters */
+    /**
+     * @param array<string, string> $parameters
+     * @throws \LogicException
+     */
     private function appendQuery(string $redirectUri, array $parameters): string
     {
         if (str_contains($redirectUri, '#')) {

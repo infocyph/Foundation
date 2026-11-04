@@ -25,6 +25,9 @@ final readonly class AuditingAuthorizer implements AuthorizerInterface
         private ClockInterface $clock = new SystemClock(),
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\Exception\AuthorizationException
+     */
     #[\Override]
     public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void
     {

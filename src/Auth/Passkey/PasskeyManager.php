@@ -136,6 +136,8 @@ final readonly class PasskeyManager
 
     /**
      * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function revokeCredential(string $accountId, string $credentialId, array $context = []): void
     {

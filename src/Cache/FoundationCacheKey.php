@@ -37,6 +37,9 @@ final class FoundationCacheKey
         return self::physical($prefix, $encoded);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function material(string $domain, string $logicalKey): string
     {
         if ($domain === '') {
@@ -46,6 +49,10 @@ final class FoundationCacheKey
         return $domain . "\0" . $logicalKey;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private static function physical(string $prefix, string $encoded): string
     {
         if (

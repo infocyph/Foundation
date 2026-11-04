@@ -28,6 +28,9 @@ final class InMemoryRefreshTokenStore extends AbstractInMemoryFamilyTokenStore i
         $this->revokeStoredFamily($revokedFamilyId);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function rotate(string $tokenId, RefreshTokenRecord $replacement): void
     {

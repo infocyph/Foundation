@@ -23,6 +23,7 @@ final readonly class SessionMiddleware
 
     /**
      * @param callable(Request): Response $next
+     * @throws \Throwable
      */
     public function __invoke(Request $request, callable $next): Response
     {

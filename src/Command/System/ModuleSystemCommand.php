@@ -68,6 +68,9 @@ final class ModuleSystemCommand extends SystemCommand
         return new ModuleFeatureCommandCatalog();
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function inspect(): int
     {
         $catalog = $this->catalog();
@@ -227,6 +230,9 @@ final class ModuleSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function schemas(): int
     {
         $name = $this->canonicalName();

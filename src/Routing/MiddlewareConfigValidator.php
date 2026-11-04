@@ -42,6 +42,7 @@ final readonly class MiddlewareConfigValidator
     /**
      * @param array<array-key,mixed> $definition
      * @param array<string,array<array-key,mixed>> $presets
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     private function arrayDefinition(array $definition, string $key, array $presets): void
     {
@@ -60,7 +61,10 @@ final readonly class MiddlewareConfigValidator
         }
     }
 
-    /** @param array<string,array<array-key,mixed>> $presets */
+    /**
+     * @param array<string,array<array-key,mixed>> $presets
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function definition(mixed $definition, string $key, array $presets): void
     {
         if (is_string($definition)) {
@@ -77,7 +81,10 @@ final readonly class MiddlewareConfigValidator
         throw new ConfigurationException($key . ' must be a middleware driver string or configuration array.');
     }
 
-    /** @return array<string,array<array-key,mixed>> */
+    /**
+     * @return array<string,array<array-key,mixed>>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function definitions(mixed $definitions): array
     {
         if (!is_array($definitions)) {
@@ -97,6 +104,9 @@ final readonly class MiddlewareConfigValidator
         return $validated;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function driver(string $driver, string $key): void
     {
         if (isset(self::BUILTIN_DRIVERS[$driver]) || class_exists($driver)) {
@@ -117,7 +127,10 @@ final readonly class MiddlewareConfigValidator
             && !array_any($keys, static fn(mixed $value): bool => !is_string($value) || $value === '');
     }
 
-    /** @return array<array-key,mixed> */
+    /**
+     * @return array<array-key,mixed>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function middleware(): array
     {
         $middleware = $this->config->get('router.middleware', []);
@@ -128,6 +141,9 @@ final readonly class MiddlewareConfigValidator
         return $middleware;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function stringDefinition(string $definition, string $key): void
     {
         $driver = trim($definition);
@@ -137,7 +153,10 @@ final readonly class MiddlewareConfigValidator
         $this->driver($driver, $key);
     }
 
-    /** @param array<string,array<array-key,mixed>> $presets */
+    /**
+     * @param array<string,array<array-key,mixed>> $presets
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function validateAliases(mixed $aliases, array $presets): void
     {
         if (!is_array($aliases)) {
@@ -154,6 +173,7 @@ final readonly class MiddlewareConfigValidator
     /**
      * @param array<array-key,mixed> $definition
      * @param array<string,array<array-key,mixed>> $presets
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     private function validateCookieEncryption(array $definition, string $key, array $presets): void
     {
@@ -172,7 +192,10 @@ final readonly class MiddlewareConfigValidator
         }
     }
 
-    /** @param array<string,array<array-key,mixed>> $presets */
+    /**
+     * @param array<string,array<array-key,mixed>> $presets
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function validateGlobalPhase(mixed $entries, string $phase, array $presets): void
     {
         if (!is_array($entries)) {
@@ -190,7 +213,10 @@ final readonly class MiddlewareConfigValidator
         }
     }
 
-    /** @param array<string,array<array-key,mixed>> $presets */
+    /**
+     * @param array<string,array<array-key,mixed>> $presets
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function validateGlobals(mixed $globals, array $presets): void
     {
         if (!is_array($globals)) {

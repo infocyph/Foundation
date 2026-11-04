@@ -56,6 +56,9 @@ final readonly class AuthorizationServerMetadata
         return $metadata;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function endpoint(string $name): string
     {
         $parts = parse_url($this->issuer());
@@ -71,7 +74,10 @@ final readonly class AuthorizationServerMetadata
         return $origin . $this->string('auth.oauth.routes.' . $name);
     }
 
-    /** @return list<EpicryptGrantType> */
+    /**
+     * @return list<EpicryptGrantType>
+     * @throws \LogicException
+     */
     private function grantTypes(): array
     {
         $configured = $this->config->get('auth.oauth.grants', []);
@@ -99,6 +105,9 @@ final readonly class AuthorizationServerMetadata
         return $this->string('auth.oauth.issuer');
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function string(string $key): string
     {
         $value = $this->config->get($key);

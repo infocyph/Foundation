@@ -27,6 +27,9 @@ final readonly class ScheduleManager
 
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \RuntimeException
+     */
     public function clear(string $manifest = 'bootstrap/cache/schedule.php'): bool
     {
         $path = $this->path($manifest);
@@ -68,6 +71,9 @@ final readonly class ScheduleManager
         return $runs;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function runNamed(
         string $name,
         string $routes = 'routes/schedule.php',
@@ -104,6 +110,9 @@ final readonly class ScheduleManager
         throw new \InvalidArgumentException(sprintf('Scheduled entry "%s" is not defined.', $name));
     }
 
+    /**
+     * @throws \Throwable
+     */
     public function work(
         int $sleepSeconds = 60,
         string $routes = 'routes/schedule.php',
@@ -150,6 +159,9 @@ final readonly class ScheduleManager
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public function write(string $routes = 'routes/schedule.php', string $manifest = 'bootstrap/cache/schedule.php'): string
     {
         $path = $this->path($manifest);
@@ -274,6 +286,9 @@ final readonly class ScheduleManager
         }
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function loadRoutes(string $routePath): Schedule
     {
         if (!is_file($routePath)) {
@@ -402,6 +417,9 @@ final readonly class ScheduleManager
         );
     }
 
+    /**
+     * @throws \Throwable
+     */
     private function runScopedEntry(ScheduledCommand $entry, ExecutionId $executionId): ScheduleRun
     {
         $history = new ExecutionHistory($this->application);

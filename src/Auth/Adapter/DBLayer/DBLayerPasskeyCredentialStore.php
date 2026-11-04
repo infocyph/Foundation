@@ -9,6 +9,9 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialCompareAndSwapStoreInterfa
 
 final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore implements PasskeyCredentialCompareAndSwapStoreInterface
 {
+    /**
+     * @throws \Throwable
+     */
     #[\Override]
     public function compareAndSwap(?PasskeyCredential $expected, PasskeyCredential $updated): bool
     {
@@ -82,6 +85,9 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
         $this->upsertRecord('passkeyCredentials', 'id', $this->record($credential));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function updateUsage(string $credentialId, int $signCount, int $usedAt): void
     {

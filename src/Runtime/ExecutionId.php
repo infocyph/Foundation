@@ -8,6 +8,9 @@ use Infocyph\UID\Id;
 
 final readonly class ExecutionId implements \Stringable
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(public string $value)
     {
         if ($value === '') {

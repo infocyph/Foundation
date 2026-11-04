@@ -13,6 +13,9 @@ final readonly class WebAuthnConfigResolver
         private ConfigRepository $config,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function resolve(): WebAuthnConfig
     {
         $configured = $this->config->get('auth.webauthn', []);
