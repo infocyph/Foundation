@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Application\RuntimeMode;
+use Infocyph\Foundation\Release\FoundationReleaseManifest;
 use Infocyph\Foundation\Release\FoundationReleaseRuntime;
 use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
 
@@ -93,6 +94,119 @@ it('evaluates captured authenticated bytes from a cleaned private copy', functio
         if (is_file($path)) {
             unlink($path);
         }
+        if (is_file($marker)) {
+            unlink($marker);
+        }
+    }
+});
+
+/** Test-only stream that changes PHP source on its second open. */
+final class FoundationManifestChangingStream
+{
+    public static string $original = '';
+    public static string $replacement = '';
+    public static int $opens = 0;
+
+    private string $contents = '';
+    private int $offset = 0;
+
+    public function stream_eof(): bool
+    {
+        return $this->offset >= strlen($this->contents);
+    }
+
+    public function stream_open(string $path, string $mode, int $options, ?string &$openedPath): bool
+    {
+        unset($path, $mode, $options, $openedPath);
+        $this->contents = ++self::$opens === 1 ? self::$original : self::$replacement;
+        $this->offset = 0;
+
+        return true;
+    }
+
+    public function stream_read(int $count): string
+    {
+        $chunk = substr($this->contents, $this->offset, $count);
+        $this->offset += strlen($chunk);
+
+        return $chunk;
+    }
+
+    public function stream_seek(int $offset, int $whence = SEEK_SET): bool
+    {
+        $position = match ($whence) {
+            SEEK_CUR => $this->offset + $offset,
+            SEEK_END => strlen($this->contents) + $offset,
+            default => $offset,
+        };
+        if ($position < 0 || $position > strlen($this->contents)) {
+            return false;
+        }
+        $this->offset = $position;
+
+        return true;
+    }
+
+    /** @return array{mode:int,size:int} */
+    public function stream_stat(): array
+    {
+        return $this->url_stat('', 0);
+    }
+
+    public function stream_tell(): int
+    {
+        return $this->offset;
+    }
+
+    /** @return array{mode:int,size:int} */
+    public function url_stat(string $path, int $flags): array
+    {
+        unset($path, $flags);
+
+        return ['mode' => 0100644, 'size' => strlen(self::$original)];
+    }
+}
+
+it('evaluates one captured manifest source even when the original stream changes on reopen', function (): void {
+    $manifest = [
+        'format' => FoundationReleaseManifest::FORMAT,
+        'generation' => 'probe',
+        'environment' => 'testing',
+        'config_fingerprint' => str_repeat('a', 32),
+        'dependency_fingerprint' => str_repeat('b', 32),
+        'config_path' => 'config.php',
+        'config_sha256' => str_repeat('c', 64),
+        'web' => [
+            'release_manifest' => 'web/release.json',
+            'runtime_manifest_sha256' => str_repeat('d', 64),
+            'capabilities' => [],
+        ],
+    ];
+    foreach (['cli', 'worker', 'scheduler'] as $mode) {
+        $manifest[$mode] = [
+            'intermix_path' => $mode . '/intermix.php',
+            'digest' => str_repeat('e', 32),
+            'metadata_path' => $mode . '/metadata.json',
+            'metadata_sha256' => str_repeat('f', 64),
+            'capabilities' => [],
+        ];
+    }
+    FoundationReleaseManifest::assertValid($manifest);
+    $marker = sys_get_temp_dir() . '/foundation-manifest-swap-' . bin2hex(random_bytes(8));
+    FoundationManifestChangingStream::$original = '<?php return ' . var_export($manifest, true) . ';';
+    FoundationManifestChangingStream::$replacement = '<?php file_put_contents('
+        . var_export($marker, true) . ", 'replaced'); return " . var_export($manifest, true) . ';';
+    FoundationManifestChangingStream::$opens = 0;
+
+    $scheme = 'foundationmanifesttest';
+    expect(stream_wrapper_register($scheme, FoundationManifestChangingStream::class))->toBeTrue();
+    try {
+        $result = FoundationReleaseManifest::load($scheme . '://release.php');
+        expect($result['generation'])->toBe('probe')
+            ->and(FoundationManifestChangingStream::$opens)->toBe(1)
+            ->and(is_file($marker))->toBeFalse();
+    } finally {
+        stream_wrapper_unregister($scheme);
         if (is_file($marker)) {
             unlink($marker);
         }

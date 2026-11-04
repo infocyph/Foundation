@@ -88,7 +88,11 @@ final class FoundationReleaseManifest
             throw new \RuntimeException(sprintf('Foundation release manifest is not readable: "%s".', $path));
         }
 
-        $loaded = require $path;
+        $contents = file_get_contents($path);
+        if (!is_string($contents)) {
+            throw new \RuntimeException('Unable to capture Foundation release manifest bytes.');
+        }
+        $loaded = self::evaluateCapturedBytes($contents);
         if (!is_array($loaded)) {
             throw new \UnexpectedValueException('Foundation release manifest must return an array.');
         }
@@ -134,23 +138,32 @@ final class FoundationReleaseManifest
             throw new \RuntimeException(sprintf('Foundation %s trust identity mismatch.', $artifact));
         }
 
-        $temporary = tempnam(sys_get_temp_dir(), 'foundation-trusted-');
+        $value = self::evaluateCapturedBytes($contents);
+        if (!is_array($value)) {
+            throw new \UnexpectedValueException('Authenticated Foundation release artifact must return an array.');
+        }
+
+        /** @var array<string,mixed> $value */
+        return $value;
+    }
+
+    /**
+     * Execute exactly the bytes captured by the caller, without reopening the
+     * original path. An independently trusted caller verifies the digest first.
+     */
+    private static function evaluateCapturedBytes(string $contents): mixed
+    {
+        $temporary = tempnam(sys_get_temp_dir(), 'foundation-manifest-');
         if ($temporary === false) {
-            throw new \RuntimeException('Unable to stage authenticated Foundation release manifest.');
+            throw new \RuntimeException('Unable to stage Foundation release manifest.');
         }
 
         try {
             if (file_put_contents($temporary, $contents, LOCK_EX) !== strlen($contents)) {
-                throw new \RuntimeException('Unable to write authenticated Foundation release manifest.');
+                throw new \RuntimeException('Unable to write captured Foundation release manifest.');
             }
 
-            $value = require $temporary;
-            if (!is_array($value)) {
-                throw new \UnexpectedValueException('Authenticated Foundation release artifact must return an array.');
-            }
-
-            /** @var array<string,mixed> $value */
-            return $value;
+            return require $temporary;
         } finally {
             if (is_file($temporary)) {
                 unlink($temporary);
