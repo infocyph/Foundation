@@ -89,7 +89,7 @@ final readonly class FilesystemResponseFactory
     /**
      * @param array<string, string|list<string>> $headers
      * @throws \InvalidArgumentException
-      * @throws \LogicException
+     * @throws \LogicException
      */
     public function xAccelRedirect(
         Request $request,
@@ -310,9 +310,9 @@ final readonly class FilesystemResponseFactory
     /**
      * @param array<string, string|list<string>> $headers
      * @return array{0:DownloadProcessor,1:string,2:DownloadPreparation,3:?Response}
-      * @throws \Infocyph\Pathwise\Exceptions\DownloadException
-      * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
-      * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     * @throws \Infocyph\Pathwise\Exceptions\DownloadException
+     * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
+     * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
      */
     private function prepareInitialDownload(
         Request $request,

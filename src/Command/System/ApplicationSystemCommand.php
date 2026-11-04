@@ -105,6 +105,9 @@ final class ApplicationSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function clearCache(): int
     {
         $store = $this->application->make(CacheManager::class)->store($this->option('store'));
@@ -119,6 +122,9 @@ final class ApplicationSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function commandCache(): int
     {
         $path = new CommandCacheManager($this->application)->write();
@@ -126,6 +132,9 @@ final class ApplicationSystemCommand extends SystemCommand
         return $this->emit(['path' => $path], 'Command manifest cached: ' . $path);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function commandClear(): int
     {
         $removed = new CommandCacheManager($this->application)->clear();
@@ -176,6 +185,9 @@ final class ApplicationSystemCommand extends SystemCommand
         return $this->emit(['environment' => $environment], $environment);
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function generateSecret(): int
     {
         $manager = new EnvironmentSecretManager($this->application, new ConfigCacheManager($this->application));
@@ -208,6 +220,11 @@ final class ApplicationSystemCommand extends SystemCommand
         return $this->emit(['environment' => $path], 'Application runtime structure installed.');
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     private function optimize(): int
     {
         $config = $this->releaseConfig();
@@ -230,6 +247,10 @@ final class ApplicationSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function optimizeClear(): int
     {
         $releaseRoot = FoundationReleaseBootstrap::resolveReleaseRoot($this->releaseConfig());
@@ -243,6 +264,10 @@ final class ApplicationSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function optimizeReport(): int
     {
         $releaseRoot = FoundationReleaseBootstrap::resolveReleaseRoot($this->releaseConfig());
@@ -339,6 +364,7 @@ final class ApplicationSystemCommand extends SystemCommand
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function serve(): int
     {

@@ -31,6 +31,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function finishPasskeyAuthentication(array $payload): PasskeyAuthenticationOutcome
     {
@@ -42,6 +45,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function finishPasskeyRegistration(array $payload): PasskeyRegistrationOutcome
     {
@@ -62,6 +68,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function login(array $payload): LoginResult
     {
@@ -73,6 +82,11 @@ final readonly class AuthActions
         ));
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function logout(?string $sessionId = null): LogoutResult
     {
         $principals = $this->services->principals();
@@ -94,6 +108,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function requestEmailVerification(array $payload): EmailVerificationResult
     {
@@ -124,6 +141,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function requestMfa(array $payload): MfaChallengeResult
     {
@@ -146,6 +166,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function requestPasswordless(array $payload): PasswordlessResult
     {
@@ -157,6 +180,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function requestPasswordReset(array $payload): PasswordResetResult
     {
@@ -177,6 +203,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function resetPassword(array $payload): PasswordResetResult
     {
@@ -191,6 +220,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function startPasskeyAuthentication(array $payload): PasskeyAuthenticationOutcome
     {
@@ -202,6 +234,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function startPasskeyRegistration(array $payload): PasskeyRegistrationOutcome
     {
@@ -222,6 +257,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function verifyEmail(array $payload): EmailVerificationResult
     {
@@ -233,6 +271,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function verifyMfa(array $payload): MfaChallengeResult
     {
@@ -265,6 +306,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function verifyPasswordless(array $payload): PasswordlessResult
     {
@@ -588,6 +632,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     private function resolveAccount(array $payload): ?AccountInterface
     {

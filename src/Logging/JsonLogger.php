@@ -45,7 +45,6 @@ final class JsonLogger extends AbstractLogger
     }
 
     /**
-     * @param mixed $level
      * @param array<string, mixed> $context
      * @throws \RuntimeException
      */

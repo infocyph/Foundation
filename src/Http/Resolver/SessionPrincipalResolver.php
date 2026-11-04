@@ -31,6 +31,11 @@ final class SessionPrincipalResolver extends AbstractPrincipalResolver
         return 'session';
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function resolve(Request $request): ?PrincipalInterface
     {

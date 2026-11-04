@@ -36,6 +36,11 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function inspect(#[\SensitiveParameter] RefreshTokenRecord $record, int $now): RefreshTokenInspectionStatus
     {
@@ -60,6 +65,12 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         return RefreshTokenInspectionStatus::ACTIVE;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function revokeAuthorization(string $authorizationId, int $revokedAt): int
     {
@@ -86,6 +97,12 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         return count($families);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function revokeFamily(string $tokenId, int $revokedAt): bool
     {
@@ -105,6 +122,11 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         return true;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function rotate(
         #[\SensitiveParameter]
@@ -143,6 +165,9 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         return is_array($row) ? $row : null;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function insert(Connection $connection, RefreshTokenRecord $record): void
     {
         $grant = $record->grant;
@@ -190,6 +215,9 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function revokeFamilyUsing(Connection $connection, string $familyId, int $revokedAt): void
     {
         $connection->execute(
@@ -201,6 +229,9 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function rotateTransaction(
         Connection $transaction,
         RefreshTokenRecord $current,

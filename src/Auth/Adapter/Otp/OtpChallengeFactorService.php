@@ -23,6 +23,9 @@ final readonly class OtpChallengeFactorService
 {
     public function __construct(private AuthenticationStateCacheInterface $stateCache) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function issueAotp(MfaFactor $factor, string $context, int $ttlSeconds = 120): AotpChallenge
     {
         $config = $this->otpMetadata($factor);
@@ -70,6 +73,9 @@ final readonly class OtpChallengeFactorService
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function verifyAotpResponse(
         MfaFactor $factor,
         AotpChallenge $challenge,
@@ -111,6 +117,9 @@ final readonly class OtpChallengeFactorService
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function verifyLegacyMobile(MfaFactor $factor, string $code): MfaVerificationResult
     {
         $config = $this->otpMetadata($factor);
@@ -139,6 +148,9 @@ final readonly class OtpChallengeFactorService
         return $this->verification($factor, $result);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function grid(MfaFactor $factor): GridOTP
     {
         $config = $this->otpMetadata($factor);

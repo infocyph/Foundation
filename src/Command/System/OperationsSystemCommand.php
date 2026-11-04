@@ -85,6 +85,11 @@ final class OperationsSystemCommand extends SystemCommand
         return $this->io()->confirm($question, false);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function authPrune(): int
     {
         $retention = $this->nonNegativeIntOption('retention-hours', 24);
@@ -181,6 +186,9 @@ final class OperationsSystemCommand extends SystemCommand
         return $this->emit(['removed' => $removed], $removed ? 'Execution history cleared.' : 'Execution history is already empty.');
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function executionList(): int
     {
         $records = $this->history()->recent(
@@ -204,6 +212,9 @@ final class OperationsSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function executionShow(): int
     {
         $id = $this->argument(0) ?? throw new \LogicException('Validated execution id is unavailable.');
@@ -224,6 +235,7 @@ final class OperationsSystemCommand extends SystemCommand
 
     /**
      * @throws \LogicException
+     * @throws \RuntimeException
      */
     private function logTail(): int
     {
@@ -250,11 +262,18 @@ final class OperationsSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function maintenance(): MaintenanceManager
     {
         return $this->application->make(MaintenanceManager::class);
     }
 
+    /**
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function maintenanceDisable(): int
     {
         $removed = $this->maintenance()->disable();
@@ -265,6 +284,9 @@ final class OperationsSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function maintenanceEnable(): int
     {
         $retry = $this->nullablePositiveIntOption('retry');
@@ -378,6 +400,7 @@ final class OperationsSystemCommand extends SystemCommand
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \UnexpectedValueException
      */
     private function workerStatus(): int
     {

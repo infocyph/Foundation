@@ -28,6 +28,7 @@ final readonly class GeneratedRuntime
     /**
      * @param array<string,mixed> $config
      * @param array<int|string,mixed> $capabilities Must match the compile-time topology.
+     * @throws \InvalidArgumentException
      */
     public static function load(
         array $config,
@@ -65,6 +66,9 @@ final readonly class GeneratedRuntime
      * @param array<string,mixed> $config Used only to resolve a relative artifact path.
      * @param array<int|string,mixed> $capabilities
      * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public static function loadPrevalidated(
         array $config,
@@ -114,6 +118,9 @@ final readonly class GeneratedRuntime
      *
      * @param array<int|string,mixed> $capabilities
      * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public static function loadRelease(
         RuntimeMode $runtime,
@@ -191,6 +198,11 @@ final readonly class GeneratedRuntime
      * @param array<string,mixed>|ConfigRepository $config
      * @param array<int|string,mixed> $capabilities
      * @throws \InvalidArgumentException
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     private static function bootValidated(
         array|ConfigRepository $config,

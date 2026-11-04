@@ -37,8 +37,8 @@ final readonly class FoundationReleaseCompiler
      *   active_pointer:string,
      *   release:array<string,mixed>
      * }
-      * @throws \InvalidArgumentException
-      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function buildAndActivate(
         array $config,
@@ -107,7 +107,7 @@ final readonly class FoundationReleaseCompiler
      *
      * @return list<string>
      * @throws \InvalidArgumentException
-      * @throws \RuntimeException
+     * @throws \RuntimeException
      */
     public function prune(string $releaseRoot, int $keep = 2): array
     {
@@ -165,8 +165,8 @@ final readonly class FoundationReleaseCompiler
      *   manifest:?string,
      *   manifest_sha256:?string
      * }
-      * @throws \InvalidArgumentException
-      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function status(string $releaseRoot): array
     {
@@ -215,8 +215,8 @@ final readonly class FoundationReleaseCompiler
      * @param array<string,mixed> $config
      * @param array<string,array<int|string,mixed>> $capabilities
      * @return array<string,mixed>
-      * @throws \RuntimeException
-      * @throws \UnexpectedValueException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     private function compileGeneration(
         array $config,
@@ -494,7 +494,7 @@ final readonly class FoundationReleaseCompiler
      * @param array<string,mixed> $web
      * @return array{path:string,sha256:string}
      * @throws \UnexpectedValueException
-      * @throws \RuntimeException
+     * @throws \RuntimeException
      */
     private function releaseConfig(array $web, string $stage): array
     {

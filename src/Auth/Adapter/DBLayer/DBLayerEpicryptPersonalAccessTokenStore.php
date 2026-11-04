@@ -15,6 +15,11 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
 {
     private const int TRANSACTION_ATTEMPTS = 3;
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function create(PersonalAccessTokenRecord $record): bool
     {
@@ -42,12 +47,20 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
         return $result === true;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function find(string $tokenId): ?PersonalAccessTokenRecord
     {
         return $this->findUsing($this->connection(), $tokenId);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function lastUsedAt(string $tokenId, string $subject): ?int
     {
@@ -64,6 +77,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     #[\Override]
     public function listForSubject(string $subject, int $limit = 100): array
@@ -84,6 +98,11 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
         return array_map($this->map(...), $rows);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function revoke(string $tokenId, string $subject, int $revokedAt): ?PersonalAccessTokenRecord
     {
@@ -106,6 +125,11 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
         return $result instanceof PersonalAccessTokenRecord ? $result : null;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function revokeAll(string $subject, int $revokedAt): int
     {
@@ -124,6 +148,11 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
         return is_int($result) ? $result : 0;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function touch(
         string $tokenId,

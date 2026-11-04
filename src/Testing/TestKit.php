@@ -29,16 +29,25 @@ final readonly class TestKit
 {
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function auth(): AuthServices
     {
         return $this->application->make(AuthServices::class);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function cache(): CacheManager
     {
         return $this->application->make(CacheManager::class);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function database(): DatabaseTestManager
     {
         return new DatabaseTestManager(
@@ -55,6 +64,10 @@ final readonly class TestKit
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function fakeHttp(?FakeHttpTransport $transport = null): HttpClient
     {
         $client = HttpClient::fake($transport);
@@ -63,6 +76,11 @@ final readonly class TestKit
         return $client;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function fakeMessaging(): RecordingSender
     {
         $sender = new RecordingSender();
@@ -83,6 +101,10 @@ final readonly class TestKit
         return $sender;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function fakeNotifications(): Emailer
     {
         $emailer = Emailer::fake();
@@ -91,11 +113,18 @@ final readonly class TestKit
         return $emailer;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function files(): FilesystemOperator
     {
         return $this->application->make(FilesystemOperator::class);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function freezeTime(?int $timestamp = null): FrozenClock
     {
         $clock = new FrozenClock($timestamp ?? time());
@@ -104,16 +133,25 @@ final readonly class TestKit
         return $clock;
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function http(): HttpTestClient
     {
         return new HttpTestClient($this->application);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function messaging(): MessageBus
     {
         return $this->application->make(MessageBus::class);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function sessions(): SessionManager
     {
         return $this->application->make(SessionManager::class);

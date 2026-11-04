@@ -30,6 +30,11 @@ use Psr\Container\ContainerInterface;
 
 final class MessagingGraphFactory
 {
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public static function afterCommit(
         OmnibusDurableFactory $factory,
         MessageBus $bus,
@@ -37,11 +42,19 @@ final class MessagingGraphFactory
         return $factory->afterCommit($bus);
     }
 
+    /**
+     * @throws \LogicException
+     */
     public static function consumer(ConsumerFactory $factory): Consumer
     {
         return $factory->make();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public static function durableFailureStore(
         OmnibusDurableFactory $factory,
         EnvelopeSerializer $serializer,
@@ -49,11 +62,19 @@ final class MessagingGraphFactory
         return $factory->failureStore($serializer);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function durableSerializer(OmnibusDurableFactory $factory): JsonEnvelopeSerializer
     {
         return $factory->serializer();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public static function durableTransport(
         OmnibusDurableFactory $factory,
         EnvelopeSerializer $serializer,
@@ -61,6 +82,11 @@ final class MessagingGraphFactory
         return $factory->transport($serializer);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public static function durableWorkflowStore(
         OmnibusDurableFactory $factory,
         EnvelopeSerializer $serializer,
@@ -68,6 +94,9 @@ final class MessagingGraphFactory
         return $factory->workflowStore($serializer);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function handlerInvoker(
         MessagingRuntimeResolver $resolver,
         HandlerMap $handlers,
