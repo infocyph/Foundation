@@ -68,7 +68,7 @@ final class ModulePackageStateResolver
         if ($state['direct_constraint_compatible'] === false) {
             return [sprintf(
                 'Direct Composer constraint %s for %s is outside the supported module range %s.',
-                $state['direct_constraint'],
+                $state['direct_constraint'] ?? 'unknown',
                 $package,
                 $state['constraint'],
             )];

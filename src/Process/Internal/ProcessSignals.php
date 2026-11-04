@@ -14,7 +14,7 @@ final class ProcessSignals
 
     /**
      * @param callable(int):void $interrupt
-     * @return array{async:bool,handlers:array<int,callable|int>}|null
+     * @return array{async:bool,handlers:array<int,callable|int|string>}|null
      */
     public function register(ProcessOptions $options, callable $interrupt): ?array
     {
@@ -46,7 +46,7 @@ final class ProcessSignals
         return ['async' => $async, 'handlers' => $handlers];
     }
 
-    /** @param array{async:bool,handlers:array<int,callable|int>}|null $state */
+    /** @param array{async:bool,handlers:array<int,callable|int|string>}|null $state */
     public function restore(?array $state): void
     {
         if ($state === null || !function_exists('pcntl_signal')) {

@@ -124,7 +124,7 @@ final class CommandExecutionCoordinator
             return null;
         }
 
-        $interval = max(100_000_000, (int) round($policy->leaseSeconds * 1_000_000_000 / 3));
+        $interval = max(100_000_000, (int) round($policy->leaseSeconds * (1_000_000_000.0 / 3.0)));
         $nextRefresh = hrtime(true) + $interval;
 
         return static function () use ($handle, $interval, $lock, $policy, &$nextRefresh): bool {

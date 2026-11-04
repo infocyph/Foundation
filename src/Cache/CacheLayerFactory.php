@@ -673,7 +673,7 @@ final readonly class CacheLayerFactory
                 ValueNormalizer::bool($transport['allow_sqlite_for_testing'] ?? null, false),
             ),
             'redis_stream', 'redis-stream', 'stream', 'valkey_stream', 'valkey-stream' => new RedisStreamInvalidationTransport(
-                $this->redisClient($transport, str_contains($driver, 'valkey') ? 'valkey' : 'redis'),
+                $this->redisClient($transport, ($driver === 'valkey_stream' || $driver === 'valkey-stream') ? 'valkey' : 'redis'),
                 ValueNormalizer::string($transport['prefix'] ?? null, 'cachelayer:invalidation:'),
                 max(1, ValueNormalizer::int($transport['max_length'] ?? null, 100_000)),
             ),

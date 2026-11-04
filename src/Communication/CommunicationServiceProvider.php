@@ -77,10 +77,14 @@ final class CommunicationServiceProvider extends ServiceProvider
 
     private function registerGrpcDispatcher(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $communication = is_array($context->config['communication'] ?? null) ? $context->config['communication'] : [];
-        $grpc = is_array($communication['grpc'] ?? null) ? $communication['grpc'] : [];
-        $inbound = is_array($grpc['inbound'] ?? null) ? $grpc['inbound'] : [];
-        $handlers = is_array($inbound['handlers'] ?? null) ? $inbound['handlers'] : [];
+        $communication = $context->config['communication'] ?? null;
+        $communication = is_array($communication) ? $communication : [];
+        $grpc = $communication['grpc'] ?? null;
+        $grpc = is_array($grpc) ? $grpc : [];
+        $inbound = $grpc['inbound'] ?? null;
+        $inbound = is_array($inbound) ? $inbound : [];
+        $handlers = $inbound['handlers'] ?? null;
+        $handlers = is_array($handlers) ? $handlers : [];
 
         $builder->factory(
             GrpcInboundDispatcher::class,
@@ -99,11 +103,14 @@ final class CommunicationServiceProvider extends ServiceProvider
 
     private function registerWebhookReceiver(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $communication = is_array($context->config['communication'] ?? null) ? $context->config['communication'] : [];
-        $webhooks = is_array($communication['webhooks'] ?? null) ? $communication['webhooks'] : [];
+        $communication = $context->config['communication'] ?? null;
+        $communication = is_array($communication) ? $communication : [];
+        $webhooks = $communication['webhooks'] ?? null;
+        $webhooks = is_array($webhooks) ? $webhooks : [];
         $profile = $webhooks['default_inbound'] ?? 'default';
         $profile = is_string($profile) && trim($profile) !== '' ? trim($profile) : 'default';
-        $inbound = is_array($webhooks['inbound'] ?? null) ? $webhooks['inbound'] : [];
+        $inbound = $webhooks['inbound'] ?? null;
+        $inbound = is_array($inbound) ? $inbound : [];
         $profileConfig = is_array($inbound[$profile] ?? null) ? $inbound[$profile] : [];
         $replay = ValueNormalizer::associativeArray($profileConfig['replay'] ?? []);
         $app = is_array($context->config['app'] ?? null) ? $context->config['app'] : [];

@@ -315,7 +315,8 @@ final class ApplicationSystemCommand extends SystemCommand
         $config = $this->application->config()->all();
         $config['_config_cache'] = false;
         $config['base_path'] = $this->application->basePath();
-        $app = is_array($config['app'] ?? null) ? $config['app'] : [];
+        $app = $config['app'] ?? null;
+        $app = is_array($app) ? $app : [];
         $app['base_path'] = $this->application->basePath();
         $config['app'] = $app;
 

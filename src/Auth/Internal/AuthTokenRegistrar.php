@@ -66,7 +66,10 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
         $this->registerSimpleTokens();
     }
 
-    /** @param class-string<object> $implementation @param class-string<object> $dependency */
+    /**
+     * @param class-string<object> $implementation
+     * @param class-string<object> $dependency
+     */
     private function bindClockedToken(string $service, string $implementation, string $dependency): void
     {
         $this->recipe($service, $implementation, [
@@ -85,13 +88,19 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
         ]);
     }
 
-    /** @param class-string<object> $implementation @param class-string<object> $dependency */
+    /**
+     * @param class-string<object> $implementation
+     * @param class-string<object> $dependency
+     */
     private function bindSingleDependencyToken(string $service, string $implementation, string $dependency): void
     {
         $this->recipe($service, $implementation, [$this->ref($dependency)]);
     }
 
-    /** @param class-string<object> $implementation @param class-string<object> $dependency */
+    /**
+     * @param class-string<object> $implementation
+     * @param class-string<object> $dependency
+     */
     private function bindTimedSingleDependencyToken(
         string $service,
         string $implementation,

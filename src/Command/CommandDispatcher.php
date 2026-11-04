@@ -232,7 +232,7 @@ final readonly class CommandDispatcher
         }
 
         $profile = [
-            'duration_ms' => round((hrtime(true) - $startedAt) / 1_000_000, 3),
+            'duration_ms' => round(((float) hrtime(true) - (float) $startedAt) / 1_000_000.0, 3),
             'peak_memory_bytes' => memory_get_peak_usage(true),
             'peak_memory_growth_bytes' => max(0, memory_get_peak_usage(true) - $baselinePeak),
             'verbosity' => $input->verbosity(),

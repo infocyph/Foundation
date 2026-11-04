@@ -8,9 +8,9 @@ use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
 
 final class NativePasswordHasher implements PasswordHasherInterface
 {
-    public function hash(string $plainPassword, array $_context = []): string
+    public function hash(string $plainPassword, array $context = []): string
     {
-        unset($_context);
+        unset($context);
 
         return password_hash($plainPassword, PASSWORD_DEFAULT);
     }

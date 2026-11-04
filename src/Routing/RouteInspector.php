@@ -20,7 +20,8 @@ final readonly class RouteInspector
         $config['_config_cache'] = false;
 
         if ($routes !== null && trim($routes) !== '') {
-            $router = is_array($config['router'] ?? null) ? $config['router'] : [];
+            $router = $config['router'] ?? null;
+            $router = is_array($router) ? $router : [];
             $router['files'] = self::routeFiles($routes);
             $config['router'] = $router;
         }

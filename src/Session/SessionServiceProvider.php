@@ -24,9 +24,12 @@ final class SessionServiceProvider extends ServiceProvider
 {
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $session = is_array($context->config['session'] ?? null) ? $context->config['session'] : [];
-        $driver = is_string($session['driver'] ?? null) ? $session['driver'] : 'file';
-        $lock = is_array($session['lock'] ?? null) ? $session['lock'] : [];
+        $session = $context->config['session'] ?? null;
+        $session = is_array($session) ? $session : [];
+        $driver = $session['driver'] ?? null;
+        $driver = is_string($driver) ? $driver : 'file';
+        $lock = $session['lock'] ?? null;
+        $lock = is_array($lock) ? $lock : [];
 
         $this->registerCore($builder);
         $this->registerStore($builder, $context, $driver);

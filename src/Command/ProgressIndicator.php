@@ -130,7 +130,7 @@ final readonly class ProgressIndicator
     private function render(string $label, int $current, ?int $total): void
     {
         if ($total === null) {
-            $frame = self::SPINNER[$current % count(self::SPINNER)];
+            $frame = self::SPINNER[max(0, $current) % count(self::SPINNER)];
             $this->io->write(sprintf("\r%s %s %d", $frame, $label, $current));
 
             return;
@@ -138,9 +138,9 @@ final readonly class ProgressIndicator
 
         $ratio = $total === 0 ? 1.0 : min(1.0, $current / $total);
         $width = 24;
-        $filled = (int) floor($ratio * $width);
+        $filled = (int) floor($ratio * (float) $width);
         $bar = str_repeat('#', $filled) . str_repeat('-', $width - $filled);
-        $percent = (int) round($ratio * 100);
+        $percent = (int) round($ratio * 100.0);
         $this->io->write(sprintf("\r[%s] %3d%% %s (%d/%d)", $bar, $percent, $label, $current, $total));
     }
 
