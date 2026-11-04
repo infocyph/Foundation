@@ -16,10 +16,12 @@ Work is underway on PR #20 / `feature/foundation-3`; no merge, tag, publication,
 
 The 90 implementation checkboxes below are acceptance criteria. Mark only entries with implementation and focused test/CI evidence; unmarked entries remain release requirements, even when partially implemented.
 
+- **New hosted QA blocker (2026-11-04):** on `453d92d`, both analysis lanes passed PHPStan and Composer audit but failed Psalm before analysis because `vendor/bin/psalm.phar` was absent after unpinned PHPForge `dev-main` resolved to `9b6067d`; earlier green run resolved `7214b16`. The available `vimeo/psalm` 7.0.2 installation alone did not supply the expected PHAR. Keep Psalm enabled and correct its owner/distribution rather than hiding the gate. Other jobs are assessed independently.
+
 ### Rolling batch tracker
 
 | Batch | Implemented source | Latest verified evidence | Remaining |
-| --- | --- | --- |
+| --- | --- | --- | --- |
 | Route-preset list integrity and host timing guard (2026-11-04) | Current batch: reject associative/sparse middleware stack maps; assert workflow minimum >=120 seconds | Previous HEAD `27ded8d` green, new source verification pending | Exact new-head PHP 8.4/8.5 stable/lowest QA, host smoke; compiled-route security proof |
 | Contract / dependency reconciliation | `1003e003`–`2118c7b2` | Previously failing 14 assertions resolved; `27ded8d` hosted four-lane QA pass | Final revision after additional batches |
 | Native OTP, Epicrypt, Pathwise operations | `556e5ea0`–`d8af04d1` | Borrowed context and cancellation regressions passed Pest on PHP 8.4/8.5, lowest/stable | Complete specialist/live-backend, soak, generation cases |
@@ -28,14 +30,14 @@ The 90 implementation checkboxes below are acceptance criteria. Mark only entrie
 | Hosting and packaging | `694aa480` | `41652683685` host smoke and `41652684379` four consumers/static-analysis/benchmarks passed on `27ded8d` | Strict paired-host and retained-state certification |
 | ReqShield file and cancellation boundary | `5e6e5ba7` | New regression fixtures; current four-lane QA was green for prior tested source | Exact-commit QA and MIME/host cancellation results |
 | Auth notification recipient hardening | `da1aa9b7`–`2828e444` | Purpose-specific recipient identity and negative override regressions implemented; resolved PHPStan complexity finding | Exact-commit security/QA result and wider auth flow review |
-| Authentication audit persistence | `27ded8d` green four-lane QA | Added direct DBLayer/SQLite persistence regression for nested mixed-case MFA, recovery, assertion, token and key material; extended redaction while retaining nonsecret IDs | Confirm PHP 8.4/8.5 QA before checking A04 criteria |
-| Captured release-artifact bytes | `27ded8d` green four-lane QA | Added an authenticated private-copy execution proof and tamper-after-signing rejection without executing the substituted payload | Verify stable/lowest PHP 8.4/8.5 tests before closing trust edge |
-| Process stdin cancellation and early exit | `27ded8d` green four-lane QA | Added active cancellation during blocked writes plus early child exit checks; existing no-read and output-before-input regressions retained | Verify timings and termination across both PHP lanes |
+| Authentication audit persistence | `27ded8d` green four-lane QA | DBLayer/SQLite persistence regression covers mixed-case nested MFA, recovery, assertion, token and key material, and retained nonsecret IDs | Identity-provenance policy and independent sinks remain to review |
+| Captured release-artifact bytes | `27ded8d` green four-lane QA | Authenticated private-copy execution and tamper rejection covered by regression | Worker-generation and Webrick/JSON read-after-check review remains |
+| Process stdin cancellation and early exit | `27ded8d` green four-lane QA | Active cancellation, early exit, non-reading child, and output-before-input regressions passed | Broader process cleanup and signal/supervisor matrix remains |
 | Sustained performance contract | `2790750c` | Comparator and fixture enforce 120-second trials rather than 60 | Full matched-host execution and separate dependency-upgrade evidence |
 | Release evidence and source baseline | `27ded8d` green release evidence | Updated module CLI fixture package requirements/installed-version metadata to DBLayer 6.1.4, Omnibus 3.0.3, OTP 7.0.1; selected a post-upgrade baseline for source-only host comparisons | Re-run release evidence and both paired-host modes |
 | Retired test-label cleanup | `27ded8d` green four-lane QA | Renamed DBLayer 5/Omnibus 2.6/Pathwise 4.1-labelled test owners to version-neutral contract names; retained their behaviors | Verify all migrated tests and references in QA |
 | Whole-dependency-upgrade comparator contract | `27ded8d` green four-lane QA | Explicit dependency-upgrade mode now resolves separate Composer locks, verifies a reviewed exact source/dist-ref change manifest before running the matrix, preserves the strict shared-lock default and produces distinct verdicts | Verify workflow, compare both full matrices and record host artifacts |
-| Performance-workflow QA reconciliation | `27ded8d` green four-lane QA and host smoke | Addressed `ReleaseWorkflowGuardTest` two-lock fixture drift and PHPForge ordered-public-methods policy after run `41651592843` reported 883 Pest passes / 2 fixture failures | Repeat all four QA lanes and native host on fixed exact source |
+| Performance-workflow QA reconciliation | `27ded8d` green four-lane QA and host smoke | Two-lock fixture and ordered-method policy corrected; 120-second guard strengthened in `453d92d` | New QA `41760817282`: Psalm analysis cannot open `vendor/bin/psalm.phar` with PHPForge dev-main `9b6067d`; investigate upstream tool distribution without suppressing Psalm |
 
 
 
@@ -163,7 +165,7 @@ Reproduction: a login with a valid ordinary password and nested `context.passwor
 
 - [x] Establish reserved security/context fields and redact credential/token/authorization/private-key values recursively before recording audit events, including calls that bypass `AuthActions`.
 - [ ] Keep trusted actor/session/device/correlation identities distinct from request-provided display metadata. Preserve useful event type, outcome, account correlation and nonsecret token/request identifiers while redacting bearer credentials.
-- [ ] Add in-memory and DBLayer audit regressions with nested arrays and mixed-case sensitive keys; assert that login/reset/MFA/passkey secrets do not persist.
+- [x] Add in-memory and DBLayer audit regressions with nested arrays and mixed-case sensitive keys; assert that login/reset/MFA/passkey secrets do not persist. `Foundation4SecurityBoundariesTest` and `Foundation4AuthAuditPersistenceTest` pass in pre-batch `41652684379` across four QA lanes.
 
 #### A05. Supervise process stdin without blocking deadlines
 
@@ -173,7 +175,7 @@ Reproduction: run a local PHP child that waits 600 ms before reading stdin; prov
 
 - [x] Start elapsed/deadline accounting before pipe preparation; pump bounded stdin writes together with stdout/stderr reads and termination checks.
 - [ ] Preserve output limits, EOF handling, child-tree cleanup, primary exception ordering, cancellation/heartbeat and signal restoration.
-- [ ] Add bounded regressions for a non-reading child, output-before-input, partial writes, early child exit and cancellation during input. Verify resource cleanup on success and every termination path.
+- [ ] Add bounded regressions for a non-reading child, output-before-input, partial writes, early child exit and cancellation during input. Four implemented fixtures passed pre-batch QA; retain open until partial-write forcing and all termination cleanup paths are explicitly covered.
 
 #### A06–A07. Repair contract tests and architecture evidence
 
@@ -308,8 +310,8 @@ Owners: `src/Filesystem/FilesystemTransferFactory.php`, `FilesystemUploadRequest
 
 Owners: `src/Validation/`, `FormRequest`, DBLayer validation-provider composition and input/JSON error boundaries.
 
-- [ ] Preserve `FormRequest`'s existing explicit `validateWithRunwire()` path and ordinary `validate()` path. Verify request cancellation reaches native validation and DB-backed rules without changing SQL-native comparison semantics.
-- [ ] Test upload/MIME validation through Foundation with stream-wrapper paths, empty paths and NUL-containing values. ReqShield 3.3.1 rejects these before file access; Foundation must not normalize them into an executable wrapper path or bypass the native rule.
+- [ ] Preserve `FormRequest`'s existing explicit `validateWithRunwire()` path and ordinary `validate()` path. `ReqShieldUntrustedUploadBoundaryTest` verifies host cancellation and ordinary validation, but DB-backed native cancellation semantics remain to be qualified.
+- [x] Test upload/MIME validation through Foundation with stream-wrapper paths, empty paths and NUL-containing values. `ReqShieldUntrustedUploadBoundaryTest` verifies native rejection and passed in four-lane pre-batch QA `41652684379`.
 - [ ] Requalify rules, sanitizers, DTO casts, validation profiles and database existence/uniqueness composition using current APIs.
 
 #### TalkingBytes 2.3.1
