@@ -124,6 +124,7 @@ it('conditionally marks a real DBLayer account verified only for its current ema
             ->and($store->findById('owner')?->status())->toBe(AccountStatus::PENDING_VERIFICATION);
 
         $store->save(new Account('email-owner', 'email-owner@example.test', AccountStatus::PENDING_VERIFICATION));
+        $connection->table($fixture->tables->accounts())->where('id', '=', 'email-owner')->update(['metadata' => null]);
         expect($store->markVerifiedForEmail('email-owner', 'EMAIL-OWNER@example.test', $verifiedAt))->toBeTrue()
             ->and($store->findById('email-owner')?->status())->toBe(AccountStatus::ACTIVE)
             ->and($store->findById('email-owner')?->metadata()['verified_at'] ?? null)->toBe($verifiedAt);
@@ -135,6 +136,49 @@ it('conditionally marks a real DBLayer account verified only for its current ema
             ->and($store->findById('owner')?->status())->toBe(AccountStatus::ACTIVE)
             ->and($store->findById('owner')?->metadata()['verified_at'] ?? null)->toBe($verifiedAt)
             ->and($store->findById('owner')?->metadata()['theme'] ?? null)->toBe('dark');
+    } finally {
+        $connection->disconnect();
+        foreach ([$database, $database . '-wal', $database . '-shm'] as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+    }
+});
+
+
+it('preserves failed DBLayer verification requests and unwraps only successful rollback denials', function (): void {
+    $database = sys_get_temp_dir() . '/foundation-email-rollback-' . bin2hex(random_bytes(8)) . '.sqlite';
+    $fixture = new AuthContentionFixture(['driver' => 'sqlite', 'database' => $database]);
+    $connection = $fixture->factory->connection();
+
+    try {
+        new MigrationRunner(
+            $connection,
+            [new AuthSchema($fixture->tables)],
+            table: 'foundation_email_rollback_test_migrations',
+        )->run();
+
+        $requests = new \Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerEmailVerificationStore(
+            new RuntimeStateContainer([DBLayerFactory::class => $fixture->factory]),
+            $fixture->tables,
+            new \Infocyph\Foundation\Auth\Support\SystemClock(),
+        );
+        $now = time();
+        $requests->save(new EmailVerificationRequest('race-request', 'owner', 'owner@example.test', $now, $now + 3600));
+        $denial = new \Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailDestinationChanged(
+            'Verification destination changed before account mutation.',
+        );
+
+        expect(fn() => $requests->consumeAndApply('race-request', static function () use ($denial): void {
+            throw $denial;
+        }))->toThrow(\Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailDestinationChanged::class)
+            ->and($requests->find('race-request')?->isConsumed())->toBeFalse();
+
+        expect(fn() => $requests->consumeAndApply('race-request', static function (): void {
+            throw new RuntimeException('unrelated failure');
+        }))->toThrow(\Infocyph\DBLayer\Exceptions\TransactionException::class)
+            ->and($requests->find('race-request')?->isConsumed())->toBeFalse();
     } finally {
         $connection->disconnect();
         foreach ([$database, $database . '-wal', $database . '-shm'] as $file) {

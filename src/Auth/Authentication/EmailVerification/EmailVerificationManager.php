@@ -59,6 +59,7 @@ final readonly class EmailVerificationManager
 
     /**
      * @param array<string, mixed> $context
+     * @throws \RuntimeException
      */
     public function verify(string $token, array $context = []): EmailVerificationResult
     {
@@ -104,7 +105,7 @@ final readonly class EmailVerificationManager
     {
         // An address change between the read and write must rollback the
         // one-time token consumption together with the account mutation.
-        $destinationChanged = new \RuntimeException('Verification destination changed before account mutation.');
+        $destinationChanged = new EmailDestinationChanged('Verification destination changed before account mutation.');
 
         try {
             $consumed = $this->store->consumeAndApply(
@@ -115,11 +116,7 @@ final readonly class EmailVerificationManager
                     }
                 },
             );
-        } catch (\RuntimeException $exception) {
-            if ($exception !== $destinationChanged) {
-                throw $exception;
-            }
-
+        } catch (EmailDestinationChanged) {
             return $this->invalidVerificationResult('email_destination_untrusted', $context);
         }
 
