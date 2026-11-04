@@ -10,6 +10,7 @@ use Infocyph\Foundation\Auth\Authorization\Permission\PermissionStoreInterface;
 
 final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implements PermissionAssignmentStoreInterface, PermissionStoreInterface
 {
+    #[\Override]
     public function assignPermissionToAccount(string $accountId, string $permissionId): void
     {
         if ($this->exists(
@@ -25,6 +26,7 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
         );
     }
 
+    #[\Override]
     public function assignPermissionToRole(string $roleId, string $permissionId): void
     {
         if ($this->exists(
@@ -40,6 +42,7 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
         );
     }
 
+    #[\Override]
     public function permissionsForAccount(string $accountId): array
     {
         return $this->allMapped(
@@ -49,6 +52,7 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
         );
     }
 
+    #[\Override]
     public function permissionsForRoles(array $roleIds): array
     {
         if ($roleIds === []) {
@@ -64,6 +68,7 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
         );
     }
 
+    #[\Override]
     public function revokePermissionFromAccount(string $accountId, string $permissionId): void
     {
         $this->execute(
@@ -72,6 +77,7 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
         );
     }
 
+    #[\Override]
     public function revokePermissionFromRole(string $roleId, string $permissionId): void
     {
         $this->execute(
@@ -80,6 +86,7 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
         );
     }
 
+    #[\Override]
     public function save(Permission $permission): void
     {
         $this->upsertRecord('permissions', 'id', [

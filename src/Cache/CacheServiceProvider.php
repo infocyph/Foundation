@@ -26,6 +26,7 @@ use Psr\SimpleCache\CacheInterface as SimpleCacheInterface;
 
 final class CacheServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $hasDatabase = $context->permitsCapability('database') && class_exists(Connection::class);

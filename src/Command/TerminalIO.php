@@ -29,6 +29,7 @@ final readonly class TerminalIO implements CommandIO
         );
     }
 
+    #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
         if ($choices === [] || array_any($choices, static fn(string $choice): bool => $choice === '')) {
@@ -56,6 +57,7 @@ final readonly class TerminalIO implements CommandIO
         }
     }
 
+    #[\Override]
     public function confirm(string $question, bool $default = false): bool
     {
         $this->assertInteractive();
@@ -76,6 +78,7 @@ final readonly class TerminalIO implements CommandIO
         }
     }
 
+    #[\Override]
     public function error(string $message): void
     {
         if ($this->silentMode) {
@@ -94,16 +97,19 @@ final readonly class TerminalIO implements CommandIO
         fwrite(STDERR, $message . PHP_EOL);
     }
 
+    #[\Override]
     public function info(string $message): void
     {
         $this->semantic('INFO', $message);
     }
 
+    #[\Override]
     public function interactive(): bool
     {
         return $this->interactiveMode;
     }
 
+    #[\Override]
     public function json(mixed $value): void
     {
         if ($this->quietMode || $this->silentMode) {
@@ -117,16 +123,19 @@ final readonly class TerminalIO implements CommandIO
         fwrite(STDOUT, $encoded . PHP_EOL);
     }
 
+    #[\Override]
     public function machineReadable(): bool
     {
         return $this->jsonMode;
     }
 
+    #[\Override]
     public function note(string $message): void
     {
         $this->semantic('NOTE', $message);
     }
 
+    #[\Override]
     public function password(string $question): string
     {
         $this->assertInteractive();
@@ -146,11 +155,13 @@ final readonly class TerminalIO implements CommandIO
         }
     }
 
+    #[\Override]
     public function quiet(): bool
     {
         return $this->quietMode;
     }
 
+    #[\Override]
     public function read(string $question, ?string $default = null): string
     {
         $this->assertInteractive();
@@ -160,11 +171,13 @@ final readonly class TerminalIO implements CommandIO
         return $value === '' && $default !== null ? $default : $value;
     }
 
+    #[\Override]
     public function success(string $message): void
     {
         $this->semantic('OK', $message);
     }
 
+    #[\Override]
     public function table(array $headers, array $rows): void
     {
         if ($this->quietMode || $this->silentMode) {
@@ -187,11 +200,13 @@ final readonly class TerminalIO implements CommandIO
         $this->writeTable($rendered, $this->widths($rendered));
     }
 
+    #[\Override]
     public function warning(string $message): void
     {
         $this->semantic('WARN', $message);
     }
 
+    #[\Override]
     public function write(string $message): void
     {
         if (!$this->quietMode && !$this->silentMode) {
@@ -199,6 +214,7 @@ final readonly class TerminalIO implements CommandIO
         }
     }
 
+    #[\Override]
     public function writeln(string $message = ''): void
     {
         if (!$this->quietMode && !$this->silentMode) {

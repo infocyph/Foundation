@@ -35,6 +35,7 @@ final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessToken
         );
     }
 
+    #[\Override]
     public function issue(OAuthAccessTokenClaims $claims): string
     {
         if (!hash_equals($this->keys->issuer, $claims->issuer)) {
@@ -67,6 +68,7 @@ final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessToken
         ));
     }
 
+    #[\Override]
     public function verify(string $token, string $expectedAudience): OAuthAccessTokenClaims
     {
         if ($token === '' || $expectedAudience === '') {

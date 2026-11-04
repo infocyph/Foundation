@@ -243,11 +243,13 @@ final readonly class WorkerManager
                 $this->stopCallback = \Closure::fromCallable($stopRequested);
             }
 
+            #[\Override]
             public function heartbeat(): void
             {
                 ($this->heartbeatCallback)();
             }
 
+            #[\Override]
             public function stopRequested(): bool
             {
                 return (bool) ($this->stopCallback)();

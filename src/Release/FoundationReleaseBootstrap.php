@@ -58,6 +58,7 @@ final readonly class FoundationReleaseBootstrap implements RuntimeApplicationFac
         return rtrim($releaseRoot, DIRECTORY_SEPARATOR);
     }
 
+    #[\Override]
     public function create(RuntimeContext $context): RuntimeApplicationInterface
     {
         return $this->web()->runwireApplication($context);

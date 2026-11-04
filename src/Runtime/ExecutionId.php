@@ -15,6 +15,7 @@ final readonly class ExecutionId implements \Stringable
         }
     }
 
+    #[\Override]
     public function __toString(): string
     {
         return $this->value;

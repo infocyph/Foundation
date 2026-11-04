@@ -11,6 +11,7 @@ final readonly class EpicryptPasswordResetTokenService extends AbstractEpicryptT
 {
     private const string CONTEXT = 'auth.password_reset';
 
+    #[\Override]
     public function issue(string $accountId, array $context = []): string
     {
         return $this->issueTimedToken(self::CONTEXT, [
@@ -21,6 +22,7 @@ final readonly class EpicryptPasswordResetTokenService extends AbstractEpicryptT
         ]);
     }
 
+    #[\Override]
     public function verify(string $token): TokenVerificationResult
     {
         $claims = $this->verifyTimedToken($token, self::CONTEXT, 'password_reset');

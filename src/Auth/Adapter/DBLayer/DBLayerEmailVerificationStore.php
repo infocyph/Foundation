@@ -9,11 +9,13 @@ use Infocyph\Foundation\Auth\Contract\Storage\EmailVerificationStoreInterface;
 
 final readonly class DBLayerEmailVerificationStore extends DBLayerConsumableStore implements EmailVerificationStoreInterface
 {
+    #[\Override]
     public function consume(string $requestId): void
     {
         $this->consumeRequest('emailVerifications', $requestId);
     }
 
+    #[\Override]
     public function consumeAndApply(string $requestId, callable $apply): bool
     {
         return $this->connection()->transaction(function () use ($requestId, $apply): bool {
@@ -31,11 +33,13 @@ final readonly class DBLayerEmailVerificationStore extends DBLayerConsumableStor
         }, attempts: 3) === true;
     }
 
+    #[\Override]
     public function find(string $requestId): ?EmailVerificationRequest
     {
         return $this->findRequest('emailVerifications', $this->mapRequest(...), $requestId);
     }
 
+    #[\Override]
     public function save(EmailVerificationRequest $request): void
     {
         $this->upsertRecord('emailVerifications', 'id', [

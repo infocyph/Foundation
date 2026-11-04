@@ -22,6 +22,7 @@ final readonly class PermissionAuthorizer implements AuthorizerInterface
         private bool $allowGuests = false,
     ) {}
 
+    #[\Override]
     public function authorize(
         PrincipalInterface $principal,
         string $ability,
@@ -35,6 +36,7 @@ final readonly class PermissionAuthorizer implements AuthorizerInterface
         }
     }
 
+    #[\Override]
     public function can(
         PrincipalInterface $principal,
         string $ability,

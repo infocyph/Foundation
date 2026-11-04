@@ -12,6 +12,7 @@ use Infocyph\Foundation\Auth\Contract\Storage\AccountStoreInterface;
 
 final readonly class DBLayerAccountStore extends DBLayerStore implements AccountProviderInterface, AccountStoreInterface
 {
+    #[\Override]
     public function findById(string $id): ?AccountInterface
     {
         $row = $this->first(
@@ -22,6 +23,7 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         return $row === null ? null : $this->mapAccount($row);
     }
 
+    #[\Override]
     public function findByIdentifier(string $identifier): ?AccountInterface
     {
         $row = $this->first(
@@ -32,6 +34,7 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         return $row === null ? null : $this->mapAccount($row);
     }
 
+    #[\Override]
     public function markVerified(string $accountId, int $verifiedAt): void
     {
         $account = $this->findById($accountId);
@@ -51,6 +54,7 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         );
     }
 
+    #[\Override]
     public function save(AccountInterface $account): void
     {
         if ($this->findById($account->id()) !== null) {
@@ -80,6 +84,7 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         );
     }
 
+    #[\Override]
     public function updateMetadata(string $accountId, array $metadata): void
     {
         $this->execute(
@@ -88,6 +93,7 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         );
     }
 
+    #[\Override]
     public function updatePasswordHash(string $accountId, string $passwordHash): void
     {
         $this->execute(
@@ -96,6 +102,7 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         );
     }
 
+    #[\Override]
     public function updateStatus(string $accountId, AccountStatus $status): void
     {
         $this->execute(

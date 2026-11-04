@@ -10,6 +10,7 @@ abstract class Command implements CommandHandlerInterface
 
     abstract protected function handle(): int;
 
+    #[\Override]
     final public function run(CommandContext $context): int
     {
         if ($this->context !== null) {

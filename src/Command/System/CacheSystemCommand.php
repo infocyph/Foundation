@@ -13,6 +13,7 @@ final class CacheSystemCommand extends SystemCommand
 {
     public function __construct(private readonly Application $application) {}
 
+    #[\Override]
     protected function handle(): int
     {
         return match ($this->canonicalName()) {

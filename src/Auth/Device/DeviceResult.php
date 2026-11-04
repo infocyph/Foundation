@@ -25,6 +25,7 @@ final readonly class DeviceResult
     /**
      * @return list<\UnitEnum>
      */
+    #[\Override]
     protected function successfulStatuses(): array
     {
         return [

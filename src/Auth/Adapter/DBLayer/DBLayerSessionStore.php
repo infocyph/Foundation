@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\Contract\Storage\SessionStoreInterface;
 
 final readonly class DBLayerSessionStore extends DBLayerStore implements SessionStoreInterface
 {
+    #[\Override]
     public function create(AuthSession $session): void
     {
         $this->insertRecord('sessions', [
@@ -23,6 +24,7 @@ final readonly class DBLayerSessionStore extends DBLayerStore implements Session
         ]);
     }
 
+    #[\Override]
     public function find(string $sessionId): ?AuthSession
     {
         return $this->firstMapped(
@@ -32,11 +34,13 @@ final readonly class DBLayerSessionStore extends DBLayerStore implements Session
         );
     }
 
+    #[\Override]
     public function revoke(string $sessionId): void
     {
         $this->deleteWhere('sessions', 'id = ?', [$sessionId]);
     }
 
+    #[\Override]
     public function revokeAllForAccount(string $accountId, ?string $exceptSessionId = null): void
     {
         if ($exceptSessionId !== null && $exceptSessionId !== '') {
@@ -48,6 +52,7 @@ final readonly class DBLayerSessionStore extends DBLayerStore implements Session
         $this->deleteWhere('sessions', 'account_id = ?', [$accountId]);
     }
 
+    #[\Override]
     public function rotate(AuthSession $current, AuthSession $replacement, int $now): bool
     {
         if ($replacement->id === $current->id || $replacement->accountId !== $current->accountId) {
@@ -76,6 +81,7 @@ final readonly class DBLayerSessionStore extends DBLayerStore implements Session
         }, attempts: 3) === true;
     }
 
+    #[\Override]
     public function touch(string $sessionId, int $lastSeenAt): void
     {
         $this->updateWhere('sessions', ['last_seen_at' => $lastSeenAt], 'id = ?', [$sessionId]);

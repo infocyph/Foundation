@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerStore;
 
 final readonly class DBLayerEpicryptJwtReplayStore extends DBLayerStore implements JwtReplayStoreInterface
 {
+    #[\Override]
     public function consume(string $namespace, string $tokenId, int $expiresAt): bool
     {
         $id = $this->id($namespace, $tokenId);
@@ -34,6 +35,7 @@ final readonly class DBLayerEpicryptJwtReplayStore extends DBLayerStore implemen
         }
     }
 
+    #[\Override]
     public function isRevoked(string $namespace, string $tokenId, int $expiresAt): bool
     {
         $row = $this->first(

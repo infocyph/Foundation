@@ -9,11 +9,13 @@ use Infocyph\Foundation\Auth\Contract\Storage\PasswordResetStoreInterface;
 
 final readonly class DBLayerPasswordResetStore extends DBLayerConsumableStore implements PasswordResetStoreInterface
 {
+    #[\Override]
     public function consume(string $requestId): void
     {
         $this->consumeRequest('passwordResets', $requestId);
     }
 
+    #[\Override]
     public function consumeAndApply(string $requestId, callable $apply): bool
     {
         return $this->connection()->transaction(function () use ($requestId, $apply): bool {
@@ -31,11 +33,13 @@ final readonly class DBLayerPasswordResetStore extends DBLayerConsumableStore im
         }, attempts: 3) === true;
     }
 
+    #[\Override]
     public function find(string $requestId): ?PasswordResetRequest
     {
         return $this->findRequest('passwordResets', $this->mapRequest(...), $requestId);
     }
 
+    #[\Override]
     public function save(PasswordResetRequest $request): void
     {
         $this->upsertRecord('passwordResets', 'id', [
@@ -48,6 +52,7 @@ final readonly class DBLayerPasswordResetStore extends DBLayerConsumableStore im
         ]);
     }
 
+    #[\Override]
     public function wasConsumed(string $requestId): bool
     {
         return $this->requestWasConsumed('passwordResets', $requestId);

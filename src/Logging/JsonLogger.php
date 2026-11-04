@@ -46,6 +46,7 @@ final class JsonLogger extends AbstractLogger
     /**
      * @param array<string, mixed> $context
      */
+    #[\Override]
     public function log($level, string|\Stringable $message, array $context = []): void
     {
         $level = is_string($level) ? strtolower($level) : '';

@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\Authorization\Grant\GrantStoreInterface;
 
 final readonly class DBLayerGrantStore extends ClockedDBLayerStore implements GrantStoreInterface
 {
+    #[\Override]
     public function grantsForPrincipal(string $principalId): array
     {
         return $this->allMapped(
@@ -18,11 +19,13 @@ final readonly class DBLayerGrantStore extends ClockedDBLayerStore implements Gr
         );
     }
 
+    #[\Override]
     public function revoke(string $grantId): void
     {
         $this->updateWhere('grants', ['revoked_at' => $this->now()], 'id = ? AND revoked_at IS NULL', [$grantId]);
     }
 
+    #[\Override]
     public function save(AccessGrant $grant): void
     {
         $this->upsertRecord('grants', 'id', [

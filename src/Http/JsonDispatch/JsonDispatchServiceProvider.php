@@ -12,6 +12,7 @@ use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
 final class JsonDispatchServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $responses = is_array($context->config['responses'] ?? null) ? $context->config['responses'] : [];

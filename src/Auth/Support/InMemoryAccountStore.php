@@ -18,11 +18,13 @@ final class InMemoryAccountStore implements AccountProviderInterface, AccountSto
      */
     private array $accounts = [];
 
+    #[\Override]
     public function findById(string $id): ?AccountInterface
     {
         return $this->accounts[$id] ?? null;
     }
 
+    #[\Override]
     public function findByIdentifier(string $identifier): ?AccountInterface
     {
         foreach ($this->accounts as $account) {
@@ -34,6 +36,7 @@ final class InMemoryAccountStore implements AccountProviderInterface, AccountSto
         return null;
     }
 
+    #[\Override]
     public function markVerified(string $accountId, int $verifiedAt): void
     {
         $account = $this->requireConcreteAccount($accountId);
@@ -47,23 +50,27 @@ final class InMemoryAccountStore implements AccountProviderInterface, AccountSto
         $this->accounts[$accountId] = $updated;
     }
 
+    #[\Override]
     public function save(AccountInterface $account): void
     {
         $this->accounts[$account->id()] = $account;
     }
 
+    #[\Override]
     public function updateMetadata(string $accountId, array $metadata): void
     {
         $account = $this->requireConcreteAccount($accountId);
         $this->accounts[$accountId] = $account->withMetadata($metadata);
     }
 
+    #[\Override]
     public function updatePasswordHash(string $accountId, string $passwordHash): void
     {
         $account = $this->requireConcreteAccount($accountId);
         $this->accounts[$accountId] = $account->withPasswordHash($passwordHash);
     }
 
+    #[\Override]
     public function updateStatus(string $accountId, AccountStatus $status): void
     {
         $account = $this->requireConcreteAccount($accountId);

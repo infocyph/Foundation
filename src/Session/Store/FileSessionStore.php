@@ -12,6 +12,7 @@ final readonly class FileSessionStore implements SessionStoreInterface
 {
     public function __construct(private string $directory) {}
 
+    #[\Override]
     public function delete(string $id): void
     {
         $path = $this->path($id);
@@ -20,6 +21,7 @@ final readonly class FileSessionStore implements SessionStoreInterface
         }
     }
 
+    #[\Override]
     public function load(string $id, int $now): ?SessionPayload
     {
         $path = $this->path($id);
@@ -40,6 +42,7 @@ final readonly class FileSessionStore implements SessionStoreInterface
         return $payload;
     }
 
+    #[\Override]
     public function prune(int $now, int $limit = 1_000): int
     {
         if (!is_dir($this->directory)) {
@@ -61,6 +64,7 @@ final readonly class FileSessionStore implements SessionStoreInterface
         return $pruned;
     }
 
+    #[\Override]
     public function save(string $id, SessionPayload $payload): void
     {
         $this->ensureDirectory();

@@ -15,6 +15,7 @@ final readonly class UidAuthIdGenerator implements AuthIdGeneratorInterface
 
     public function __construct(private ConfigRepository $config) {}
 
+    #[\Override]
     protected function generate(string $key): string
     {
         $default = $key === 'correlation' ? 'ulid' : 'uuid7';

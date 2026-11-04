@@ -17,6 +17,7 @@ final class InMemoryPasskeyCredentialStore implements PasskeyCredentialCompareAn
         private readonly ClockInterface $clock = new SystemClock(),
     ) {}
 
+    #[\Override]
     public function compareAndSwap(?PasskeyCredential $expected, PasskeyCredential $updated): bool
     {
         $current = $this->credentials[$updated->id] ?? null;
@@ -45,6 +46,7 @@ final class InMemoryPasskeyCredentialStore implements PasskeyCredentialCompareAn
         return true;
     }
 
+    #[\Override]
     public function findByCredentialId(string $credentialId): ?PasskeyCredential
     {
         foreach ($this->credentials as $credential) {
@@ -56,6 +58,7 @@ final class InMemoryPasskeyCredentialStore implements PasskeyCredentialCompareAn
         return null;
     }
 
+    #[\Override]
     public function findForAccount(string $accountId): array
     {
         return array_values(array_filter(
@@ -64,6 +67,7 @@ final class InMemoryPasskeyCredentialStore implements PasskeyCredentialCompareAn
         ));
     }
 
+    #[\Override]
     public function revoke(string $credentialId): void
     {
         foreach ($this->credentials as $id => $credential) {
@@ -73,11 +77,13 @@ final class InMemoryPasskeyCredentialStore implements PasskeyCredentialCompareAn
         }
     }
 
+    #[\Override]
     public function save(PasskeyCredential $credential): void
     {
         $this->credentials[$credential->id] = $credential;
     }
 
+    #[\Override]
     public function updateUsage(string $credentialId, int $signCount, int $usedAt): void
     {
         $credential = $this->findByCredentialId($credentialId);

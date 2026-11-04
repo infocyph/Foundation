@@ -23,6 +23,7 @@ final readonly class JobMiddlewarePipeline implements HandlerMiddleware
         $this->middleware = $normalized;
     }
 
+    #[\Override]
     public function process(
         object $message,
         Envelope $envelope,

@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Config;
 
 final class LocalPreset implements FoundationPreset
 {
+    #[\Override]
     public function config(): array
     {
         return [

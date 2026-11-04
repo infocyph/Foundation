@@ -16,11 +16,13 @@ final readonly class AtomicCounterStore implements CounterStoreInterface
         private string $prefix = 'ac',
     ) {}
 
+    #[\Override]
     public function increment(string $key, int $by = 1, ?int $ttlSeconds = null): int
     {
         return $this->counters->increment($this->key($key), $by, $ttlSeconds)->value;
     }
 
+    #[\Override]
     public function reset(string $key): void
     {
         $this->counters->delete($this->key($key));

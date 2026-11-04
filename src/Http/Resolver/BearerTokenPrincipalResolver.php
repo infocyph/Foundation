@@ -24,11 +24,13 @@ final class BearerTokenPrincipalResolver extends AbstractPrincipalResolver
         $this->prefix = $this->stringConfig('auth.http.bearer_prefix', 'Bearer ');
     }
 
+    #[\Override]
     public function name(): string
     {
         return 'bearer';
     }
 
+    #[\Override]
     public function resolve(Request $request): ?PrincipalInterface
     {
         $token = $this->bearerToken($request);

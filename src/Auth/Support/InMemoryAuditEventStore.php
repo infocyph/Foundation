@@ -27,6 +27,7 @@ final class InMemoryAuditEventStore implements AuditEventStoreInterface
         $this->events = [];
     }
 
+    #[\Override]
     public function record(AuthEvent $event): void
     {
         $this->events[] = $event;

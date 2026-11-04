@@ -14,6 +14,7 @@ final readonly class InterMixExecutionScope implements ExecutionScope
 {
     public function __construct(private FoundationExecutionScope $execution) {}
 
+    #[\Override]
     public function run(Envelope $envelope, callable $handler): mixed
     {
         $messageId = $envelope->last(MessageIdStamp::class);

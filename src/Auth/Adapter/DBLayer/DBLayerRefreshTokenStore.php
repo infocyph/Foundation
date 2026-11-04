@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\Contract\Storage\RefreshTokenStoreInterface;
 
 final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore implements RefreshTokenStoreInterface
 {
+    #[\Override]
     public function find(string $tokenId): ?RefreshTokenRecord
     {
         return $this->firstMapped(
@@ -18,11 +19,13 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
         );
     }
 
+    #[\Override]
     public function revokeFamily(string $familyId): void
     {
         $this->revokeTokenFamily('refreshTokens', $familyId);
     }
 
+    #[\Override]
     public function rotate(string $tokenId, RefreshTokenRecord $replacement): void
     {
         $current = $this->find($tokenId);
@@ -31,6 +34,7 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
         }
     }
 
+    #[\Override]
     public function rotateIfActive(RefreshTokenRecord $current, RefreshTokenRecord $replacement): bool
     {
         if ($replacement->id === $current->id
@@ -51,11 +55,13 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
         );
     }
 
+    #[\Override]
     public function save(RefreshTokenRecord $record): void
     {
         $this->upsertRecord('refreshTokens', 'id', $this->record($record));
     }
 
+    #[\Override]
     public function wasFamilyRevoked(string $familyId): bool
     {
         return $this->tokenFamilyWasRevoked('refreshTokens', $familyId);

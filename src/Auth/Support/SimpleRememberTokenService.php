@@ -29,6 +29,7 @@ final readonly class SimpleRememberTokenService implements RememberTokenServiceI
         $this->native = new EpicryptRememberToken($secrets->tokenSecret(32), $this->ttlSeconds, new RememberTokenPsrClock($clock));
     }
 
+    #[\Override]
     public function issue(string $accountId, string $deviceId): RememberToken
     {
         $selector = bin2hex(random_bytes(16));
@@ -44,6 +45,7 @@ final readonly class SimpleRememberTokenService implements RememberTokenServiceI
         );
     }
 
+    #[\Override]
     public function verify(string $token): RememberTokenVerificationResult
     {
         $parts = explode('.', $token, 2);

@@ -21,6 +21,7 @@ final readonly class SimpleRefreshTokenService implements RefreshTokenServiceInt
         private ClockInterface $clock,
     ) {}
 
+    #[\Override]
     public function issue(RefreshTokenClaims $claims): IssuedRefreshToken
     {
         $ttlSeconds = $claims->expiresAt - $this->clock->now();
@@ -50,6 +51,7 @@ final readonly class SimpleRefreshTokenService implements RefreshTokenServiceInt
         );
     }
 
+    #[\Override]
     public function verify(string $token): TokenVerificationResult
     {
         $verification = $this->tokens

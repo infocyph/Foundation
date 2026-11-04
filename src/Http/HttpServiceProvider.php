@@ -24,6 +24,7 @@ use Psr\Container\ContainerInterface;
 
 final class HttpServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $appConfig = is_array($context->config['app'] ?? null) ? $context->config['app'] : [];

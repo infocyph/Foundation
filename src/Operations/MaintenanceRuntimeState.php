@@ -27,6 +27,7 @@ final class MaintenanceRuntimeState implements MaintenanceStateInterface
         }
     }
 
+    #[\Override]
     public function message(): ?string
     {
         $status = $this->status();

@@ -30,6 +30,7 @@ final class RoutingServiceProvider extends ServiceProvider
         return $factory->routes();
     }
 
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         new MiddlewareConfigValidator(new ConfigRepository($context->config, $context->compiledConfig))->validate();

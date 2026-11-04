@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\Device\DeviceStoreInterface;
 
 final readonly class DBLayerDeviceStore extends ClockedDBLayerStore implements DeviceStoreInterface
 {
+    #[\Override]
     public function find(string $deviceId): ?DeviceRecord
     {
         return $this->firstMapped(
@@ -18,6 +19,7 @@ final readonly class DBLayerDeviceStore extends ClockedDBLayerStore implements D
         );
     }
 
+    #[\Override]
     public function findForAccount(string $accountId): array
     {
         return $this->allMapped(
@@ -27,16 +29,19 @@ final readonly class DBLayerDeviceStore extends ClockedDBLayerStore implements D
         );
     }
 
+    #[\Override]
     public function markTrusted(string $deviceId, bool $trusted): void
     {
         $this->updateWhere('devices', ['trusted' => $trusted ? 1 : 0], 'id = ?', [$deviceId]);
     }
 
+    #[\Override]
     public function revoke(string $deviceId): void
     {
         $this->updateWhere('devices', ['trusted' => 0, 'revoked_at' => $this->now()], 'id = ?', [$deviceId]);
     }
 
+    #[\Override]
     public function save(DeviceRecord $device): void
     {
         $this->upsertRecord('devices', 'id', [
@@ -52,6 +57,7 @@ final readonly class DBLayerDeviceStore extends ClockedDBLayerStore implements D
         ]);
     }
 
+    #[\Override]
     public function touch(string $deviceId, int $lastSeenAt): void
     {
         $this->updateWhere('devices', ['last_seen_at' => $lastSeenAt], 'id = ? AND revoked_at IS NULL', [$deviceId]);

@@ -11,6 +11,7 @@ final readonly class SimplePasswordResetTokenService extends AbstractSimpleTimed
 {
     private const string PURPOSE = 'password_reset';
 
+    #[\Override]
     public function issue(string $accountId, array $context = []): string
     {
         return $this->issueTimedToken(
@@ -20,6 +21,7 @@ final readonly class SimplePasswordResetTokenService extends AbstractSimpleTimed
         );
     }
 
+    #[\Override]
     public function verify(string $token): TokenVerificationResult
     {
         $verification = $this->verifyTimedToken($token, self::PURPOSE);

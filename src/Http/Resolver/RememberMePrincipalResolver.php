@@ -24,11 +24,13 @@ final class RememberMePrincipalResolver extends AbstractPrincipalResolver
         $this->cookie = $this->stringConfig('auth.http.remember_cookie', 'foundation_remember');
     }
 
+    #[\Override]
     public function name(): string
     {
         return 'remember';
     }
 
+    #[\Override]
     public function resolve(Request $request): ?PrincipalInterface
     {
         $token = $this->rememberToken($request);

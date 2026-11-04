@@ -26,6 +26,7 @@ final readonly class ResourceCollection implements JsonSerializable
     /**
      * @return list<mixed>
      */
+    #[\Override]
     public function jsonSerialize(): array
     {
         $resolved = [];

@@ -23,6 +23,7 @@ final readonly class CacheLayerWebhookReplayStore implements WebhookReplayStore
             : self::atomic($cache);
     }
 
+    #[\Override]
     public function claim(string $namespace, string $deliveryId, int $ttlSeconds): bool
     {
         if ($ttlSeconds < 1) {

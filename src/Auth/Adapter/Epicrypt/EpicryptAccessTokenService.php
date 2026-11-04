@@ -18,6 +18,7 @@ final readonly class EpicryptAccessTokenService implements AccessTokenServiceInt
         private EpicryptTokenFactory $factory,
     ) {}
 
+    #[\Override]
     public function issue(AccessTokenClaims $claims): string
     {
         return $this->factory->jwtIssuer(self::TYPE)->issue(new JwtClaims(
@@ -37,6 +38,7 @@ final readonly class EpicryptAccessTokenService implements AccessTokenServiceInt
         ));
     }
 
+    #[\Override]
     public function verify(string $token): TokenVerificationResult
     {
         $result = $this->factory->jwtVerifier(self::TYPE)->verifyResult($token);

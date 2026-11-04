@@ -21,6 +21,7 @@ final readonly class BaselinePasswordPolicy implements PasswordPolicyInterface
         }
     }
 
+    #[\Override]
     public function validate(string $plainPassword, array $context = []): PasswordPolicyResult
     {
         unset($context);

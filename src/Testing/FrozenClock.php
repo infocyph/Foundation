@@ -17,6 +17,7 @@ final class FrozenClock implements ClockInterface
         return $this;
     }
 
+    #[\Override]
     public function now(): int
     {
         return $this->timestamp;

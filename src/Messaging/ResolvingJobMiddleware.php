@@ -14,6 +14,7 @@ final readonly class ResolvingJobMiddleware implements JobMiddleware
         private string $service,
     ) {}
 
+    #[\Override]
     public function process(Job $job, JobContext $context, callable $next): mixed
     {
         $middleware = $this->container->get($this->service);

@@ -11,6 +11,7 @@ final readonly class SimpleEmailVerificationTokenService extends AbstractSimpleT
 {
     private const string PURPOSE = 'email_verification';
 
+    #[\Override]
     public function issue(string $accountId, string $email, array $context = []): string
     {
         return $this->issueTimedToken(
@@ -23,6 +24,7 @@ final readonly class SimpleEmailVerificationTokenService extends AbstractSimpleT
         );
     }
 
+    #[\Override]
     public function verify(string $token): TokenVerificationResult
     {
         $verification = $this->verifyTimedToken($token, self::PURPOSE);

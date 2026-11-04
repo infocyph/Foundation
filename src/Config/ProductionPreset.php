@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Config;
 
 final class ProductionPreset implements FoundationPreset
 {
+    #[\Override]
     public function config(): array
     {
         return [

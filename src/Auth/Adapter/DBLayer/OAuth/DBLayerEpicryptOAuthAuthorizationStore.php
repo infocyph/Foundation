@@ -12,6 +12,7 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerStore;
 
 final readonly class DBLayerEpicryptOAuthAuthorizationStore extends DBLayerStore implements OAuthAuthorizationStoreInterface
 {
+    #[\Override]
     public function create(OAuthAuthorizationRecord $record): bool
     {
         try {
@@ -40,11 +41,13 @@ final readonly class DBLayerEpicryptOAuthAuthorizationStore extends DBLayerStore
         }
     }
 
+    #[\Override]
     public function find(string $authorizationId): ?OAuthAuthorizationRecord
     {
         return $this->findUsing($this->connection(), $authorizationId);
     }
 
+    #[\Override]
     public function revoke(string $authorizationId, int $revokedAt): ?OAuthAuthorizationRecord
     {
         $result = $this->connection()->transaction(function (Connection $transaction) use ($authorizationId, $revokedAt): ?OAuthAuthorizationRecord {

@@ -21,6 +21,7 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
         parent::__construct($services, $tables, $connection);
     }
 
+    #[\Override]
     public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool
     {
         if ($expected === null) {
@@ -54,6 +55,7 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
             ->update($record) === 1;
     }
 
+    #[\Override]
     public function findForAccount(string $accountId): array
     {
         return array_map(
@@ -65,11 +67,13 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
         );
     }
 
+    #[\Override]
     public function remove(string $factorId): void
     {
         $this->deleteWhere('mfaFactors', 'id = ?', [$factorId]);
     }
 
+    #[\Override]
     public function save(MfaFactor $factor): void
     {
         $this->upsertRecord('mfaFactors', 'id', $this->record($factor));

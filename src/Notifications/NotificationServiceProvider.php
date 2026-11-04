@@ -53,6 +53,7 @@ final class NotificationServiceProvider extends ServiceProvider
         return $profiles->spoolReceiver();
     }
 
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);

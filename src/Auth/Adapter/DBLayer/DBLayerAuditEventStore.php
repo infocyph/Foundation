@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 
 final readonly class DBLayerAuditEventStore extends DBLayerStore implements AuditEventStoreInterface
 {
+    #[\Override]
     public function record(AuthEvent $event): void
     {
         $this->execute(

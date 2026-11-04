@@ -19,6 +19,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
 
     public function __construct(private MfaFactorCompareAndSwapStoreInterface $factors) {}
 
+    #[\Override]
     public function consume(string $binding, string $hashedCode, DateTimeImmutable $usedAt): array
     {
         $accountId = $this->accountId($binding);
@@ -62,6 +63,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
         throw new RuntimeException('Unable to atomically consume recovery state after concurrent updates.');
     }
 
+    #[\Override]
     public function metadata(string $binding): array
     {
         $factor = $this->find($this->accountId($binding));
@@ -78,6 +80,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
         ];
     }
 
+    #[\Override]
     public function replace(string $binding, array $hashedCodes, DateTimeImmutable $issuedAt): array
     {
         $accountId = $this->accountId($binding);

@@ -26,6 +26,7 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         private ?string $from = null,
     ) {}
 
+    #[\Override]
     public function send(AuthNotification $notification): void
     {
         $recipient = $this->resolveRecipient($notification);

@@ -13,6 +13,7 @@ final readonly class AuthPasskeyRecordSchema implements Migration
 {
     public function __construct(private AuthTables $tables) {}
 
+    #[\Override]
     public function down(SchemaManager $schema, MigrationContext $context): void
     {
         $table = $this->tables->passkeyCredentials();
@@ -24,11 +25,13 @@ final readonly class AuthPasskeyRecordSchema implements Migration
         $context->checkpoint();
     }
 
+    #[\Override]
     public function id(): string
     {
         return '20260907010000_foundation_auth_passkey_record';
     }
 
+    #[\Override]
     public function up(SchemaManager $schema, MigrationContext $context): void
     {
         $table = $this->tables->passkeyCredentials();

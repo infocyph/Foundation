@@ -12,6 +12,7 @@ final readonly class RememberTokenPsrClock implements PsrClockInterface
 {
     public function __construct(private ClockInterface $clock) {}
 
+    #[\Override]
     public function now(): \DateTimeImmutable
     {
         return new \DateTimeImmutable('@' . $this->clock->now());

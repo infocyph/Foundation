@@ -22,6 +22,7 @@ use Psr\Container\ContainerInterface;
 
 final class CommunicationServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if (!class_exists(HttpClient::class)) {

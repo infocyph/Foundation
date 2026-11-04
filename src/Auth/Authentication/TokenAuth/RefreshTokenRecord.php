@@ -27,6 +27,7 @@ final readonly class RefreshTokenRecord extends AbstractFamilyTokenRecord
         parent::__construct($id, $accountId, $familyId, $issuedAt, $expiresAt, $rotatedAt, $revokedAt, $metadata);
     }
 
+    #[\Override]
     protected function recreate(?int $rotatedAt, ?int $revokedAt): static
     {
         return new self(

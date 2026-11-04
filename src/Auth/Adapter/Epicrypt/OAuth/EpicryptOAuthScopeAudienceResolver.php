@@ -19,6 +19,7 @@ final readonly class EpicryptOAuthScopeAudienceResolver implements OAuthScopeAud
         private ConfigRepository $config,
     ) {}
 
+    #[\Override]
     public function resolve(EpicryptOAuthClient $client, array $scopes): array
     {
         $foundation = $this->clients->enabled($client->clientId);

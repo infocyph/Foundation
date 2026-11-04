@@ -23,6 +23,7 @@ final class OAuthSystemCommand extends SystemCommand
 {
     public function __construct(private readonly Application $application) {}
 
+    #[\Override]
     protected function handle(): int
     {
         $this->assertOAuthEnabled();

@@ -15,6 +15,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
 {
     private const int TRANSACTION_ATTEMPTS = 3;
 
+    #[\Override]
     public function create(PersonalAccessTokenRecord $record): bool
     {
         $result = $this->connection()->transaction(function (Connection $connection) use ($record): bool {
@@ -41,11 +42,13 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
         return $result === true;
     }
 
+    #[\Override]
     public function find(string $tokenId): ?PersonalAccessTokenRecord
     {
         return $this->findUsing($this->connection(), $tokenId);
     }
 
+    #[\Override]
     public function lastUsedAt(string $tokenId, string $subject): ?int
     {
         $row = $this->first(
@@ -59,6 +62,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
         return is_array($row) ? $this->intOrNull($row['last_used_at'] ?? null) : null;
     }
 
+    #[\Override]
     public function listForSubject(string $subject, int $limit = 100): array
     {
         if ($limit < 1 || $limit > 100) {
@@ -77,6 +81,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
         return array_map($this->map(...), $rows);
     }
 
+    #[\Override]
     public function revoke(string $tokenId, string $subject, int $revokedAt): ?PersonalAccessTokenRecord
     {
         $result = $this->connection()->transaction(function (Connection $connection) use ($tokenId, $subject, $revokedAt): ?PersonalAccessTokenRecord {
@@ -98,6 +103,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
         return $result instanceof PersonalAccessTokenRecord ? $result : null;
     }
 
+    #[\Override]
     public function revokeAll(string $subject, int $revokedAt): int
     {
         $result = $this->connection()->transaction(function (Connection $connection) use ($subject, $revokedAt): int {
@@ -115,6 +121,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
         return is_int($result) ? $result : 0;
     }
 
+    #[\Override]
     public function touch(
         string $tokenId,
         string $subject,

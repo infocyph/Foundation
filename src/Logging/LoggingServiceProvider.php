@@ -15,6 +15,7 @@ use Psr\Log\NullLogger;
 
 final class LoggingServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $logging = is_array($context->config['logging'] ?? null) ? $context->config['logging'] : [];

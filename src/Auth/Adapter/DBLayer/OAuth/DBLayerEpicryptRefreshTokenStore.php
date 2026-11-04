@@ -17,6 +17,7 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
 {
     private const int ROTATION_TRANSACTION_ATTEMPTS = 3;
 
+    #[\Override]
     public function create(#[\SensitiveParameter] RefreshTokenRecord $record): bool
     {
         try {
@@ -32,6 +33,7 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         }
     }
 
+    #[\Override]
     public function inspect(#[\SensitiveParameter] RefreshTokenRecord $record, int $now): RefreshTokenInspectionStatus
     {
         $row = $this->findRow($this->connection(), $record->tokenId);
@@ -55,6 +57,7 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         return RefreshTokenInspectionStatus::ACTIVE;
     }
 
+    #[\Override]
     public function revokeAuthorization(string $authorizationId, int $revokedAt): int
     {
         $connection = $this->connection();
@@ -80,6 +83,7 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         return count($families);
     }
 
+    #[\Override]
     public function revokeFamily(string $tokenId, int $revokedAt): bool
     {
         $row = $this->findRow($this->connection(), $tokenId);
@@ -98,6 +102,7 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         return true;
     }
 
+    #[\Override]
     public function rotate(
         #[\SensitiveParameter]
         RefreshTokenRecord $current,

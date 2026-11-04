@@ -14,6 +14,7 @@ use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAuthorizationCodeStoreInterface
 
 final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore implements OAuthAuthorizationCodeStoreInterface
 {
+    #[\Override]
     public function consume(
         string $codeHash,
         string $clientId,
@@ -57,6 +58,7 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
         return $result;
     }
 
+    #[\Override]
     public function save(OAuthAuthorizationCode $code): void
     {
         $this->insertRecord('oauthAuthorizationCodes', [

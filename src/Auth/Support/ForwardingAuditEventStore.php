@@ -21,6 +21,7 @@ final readonly class ForwardingAuditEventStore implements AuditEventStoreInterfa
         $this->forward = Closure::fromCallable($forward);
     }
 
+    #[\Override]
     public function record(AuthEvent $event): void
     {
         $this->store->record($event);

@@ -49,6 +49,7 @@ use Psr\Container\ContainerInterface;
 
 final class AuthServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $config = new ConfigRepository($context->config, $context->compiledConfig);

@@ -10,6 +10,7 @@ use Infocyph\Foundation\Command\ExitCode;
 
 abstract class SystemCommand extends Command
 {
+    #[\Override]
     final public static function define(CommandDefinition $command): void
     {
         unset($command);

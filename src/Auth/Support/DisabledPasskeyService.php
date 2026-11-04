@@ -14,6 +14,7 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyVerificationResult;
 
 final class DisabledPasskeyService implements PasskeyServiceInterface
 {
+    #[\Override]
     public function finishAuthentication(PasskeyAuthenticationResult $result): PasskeyVerificationResult
     {
         unset($result);
@@ -21,6 +22,7 @@ final class DisabledPasskeyService implements PasskeyServiceInterface
         throw new PasskeyException('Passkeys are disabled for this Foundation application.');
     }
 
+    #[\Override]
     public function finishRegistration(PasskeyRegistrationResult $result): PasskeyCredential
     {
         unset($result);
@@ -28,6 +30,7 @@ final class DisabledPasskeyService implements PasskeyServiceInterface
         throw new PasskeyException('Passkeys are disabled for this Foundation application.');
     }
 
+    #[\Override]
     public function startAuthentication(?string $accountId = null): PasskeyChallenge
     {
         unset($accountId);
@@ -35,6 +38,7 @@ final class DisabledPasskeyService implements PasskeyServiceInterface
         throw new PasskeyException('Passkeys are disabled for this Foundation application.');
     }
 
+    #[\Override]
     public function startRegistration(string $accountId): PasskeyChallenge
     {
         unset($accountId);

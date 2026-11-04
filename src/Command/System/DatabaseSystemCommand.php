@@ -19,6 +19,7 @@ final class DatabaseSystemCommand extends SystemCommand
         private readonly DBLayerFactory $database,
     ) {}
 
+    #[\Override]
     protected function handle(): int
     {
         return match ($this->canonicalName()) {

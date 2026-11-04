@@ -11,6 +11,7 @@ final readonly class SimplePasswordlessTokenService extends AbstractSimpleTimedT
 {
     private const string PURPOSE = 'passwordless';
 
+    #[\Override]
     public function issue(string $identifier, array $context = []): string
     {
         return $this->issueTimedToken(
@@ -22,6 +23,7 @@ final readonly class SimplePasswordlessTokenService extends AbstractSimpleTimedT
         );
     }
 
+    #[\Override]
     public function verify(string $token): TokenVerificationResult
     {
         $verification = $this->verifyTimedToken($token, self::PURPOSE);

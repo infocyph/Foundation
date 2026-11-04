@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialCompareAndSwapStoreInterfa
 
 final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore implements PasskeyCredentialCompareAndSwapStoreInterface
 {
+    #[\Override]
     public function compareAndSwap(?PasskeyCredential $expected, PasskeyCredential $updated): bool
     {
         if ($expected === null) {
@@ -42,6 +43,7 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
             ->update($record) === 1;
     }
 
+    #[\Override]
     public function findByCredentialId(string $credentialId): ?PasskeyCredential
     {
         $credential = $this->firstMapped(
@@ -53,6 +55,7 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
         return $credential?->credentialId === $credentialId ? $credential : null;
     }
 
+    #[\Override]
     public function findForAccount(string $accountId): array
     {
         return $this->allMapped(
@@ -62,6 +65,7 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
         );
     }
 
+    #[\Override]
     public function revoke(string $credentialId): void
     {
         $this->updateWhere(
@@ -72,11 +76,13 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
         );
     }
 
+    #[\Override]
     public function save(PasskeyCredential $credential): void
     {
         $this->upsertRecord('passkeyCredentials', 'id', $this->record($credential));
     }
 
+    #[\Override]
     public function updateUsage(string $credentialId, int $signCount, int $usedAt): void
     {
         $credential = $this->findByCredentialId($credentialId);

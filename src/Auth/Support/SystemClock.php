@@ -8,6 +8,7 @@ use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 
 final class SystemClock implements ClockInterface
 {
+    #[\Override]
     public function now(): int
     {
         return time();

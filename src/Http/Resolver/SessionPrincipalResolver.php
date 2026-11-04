@@ -25,11 +25,13 @@ final class SessionPrincipalResolver extends AbstractPrincipalResolver
         $this->cookie = $this->stringConfig('auth.http.session_cookie', 'foundation_session');
     }
 
+    #[\Override]
     public function name(): string
     {
         return 'session';
     }
 
+    #[\Override]
     public function resolve(Request $request): ?PrincipalInterface
     {
         $sessionId = $this->sessionId($request);

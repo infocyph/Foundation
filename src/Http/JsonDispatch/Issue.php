@@ -33,6 +33,7 @@ final readonly class Issue implements JsonSerializable
     /**
      * @return array<string, mixed>
      */
+    #[\Override]
     public function jsonSerialize(): array
     {
         return array_filter([

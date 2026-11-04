@@ -19,6 +19,7 @@ final readonly class EpicryptRefreshTokenService implements RefreshTokenServiceI
         private EpicryptTokenFactory $factory,
     ) {}
 
+    #[\Override]
     public function issue(RefreshTokenClaims $claims): IssuedRefreshToken
     {
         $token = $this->factory->jwtIssuer(self::TYPE)->issue(new JwtClaims(
@@ -48,6 +49,7 @@ final readonly class EpicryptRefreshTokenService implements RefreshTokenServiceI
         );
     }
 
+    #[\Override]
     public function verify(string $token): TokenVerificationResult
     {
         $result = $this->factory->jwtVerifier(self::TYPE)->verifyResult($token);

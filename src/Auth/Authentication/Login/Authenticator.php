@@ -37,6 +37,7 @@ final readonly class Authenticator implements AuthenticatorInterface
         private ClockInterface $clock = new SystemClock(),
     ) {}
 
+    #[\Override]
     public function login(LoginRequest $request): LoginResult
     {
         $account = $this->accounts->findByIdentifier($request->identifier);
@@ -98,6 +99,7 @@ final readonly class Authenticator implements AuthenticatorInterface
         return new LoginResult(LoginStatus::AUTHENTICATED, $principal, $session, 'authenticated', $verification->needsRehash, $request->context);
     }
 
+    #[\Override]
     public function logout(PrincipalInterface $principal, ?string $sessionId = null): void
     {
         $accountId = $principal->accountId();

@@ -25,6 +25,7 @@ final readonly class AuditingAuthorizer implements AuthorizerInterface
         private ClockInterface $clock = new SystemClock(),
     ) {}
 
+    #[\Override]
     public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void
     {
         $decision = $this->can($principal, $ability, $resource, $context);
@@ -37,6 +38,7 @@ final readonly class AuditingAuthorizer implements AuthorizerInterface
         }
     }
 
+    #[\Override]
     public function can(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): AuthorizationDecision
     {
         $decision = $this->inner->can($principal, $ability, $resource, $context);

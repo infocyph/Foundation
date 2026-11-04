@@ -11,6 +11,7 @@ final readonly class EpicryptEmailVerificationTokenService extends AbstractEpicr
 {
     private const string CONTEXT = 'auth.email_verification';
 
+    #[\Override]
     public function issue(string $accountId, string $email, array $context = []): string
     {
         return $this->issueTimedToken(self::CONTEXT, [
@@ -22,6 +23,7 @@ final readonly class EpicryptEmailVerificationTokenService extends AbstractEpicr
         ]);
     }
 
+    #[\Override]
     public function verify(string $token): TokenVerificationResult
     {
         $claims = $this->verifyTimedToken($token, self::CONTEXT, 'email_verification');

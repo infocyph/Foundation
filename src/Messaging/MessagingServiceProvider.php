@@ -48,6 +48,7 @@ use Psr\EventDispatcher\ListenerProviderInterface;
 
 final class MessagingServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $messaging = is_array($context->config['messaging'] ?? null) ? $context->config['messaging'] : [];

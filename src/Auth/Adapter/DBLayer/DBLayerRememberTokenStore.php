@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\Contract\Storage\RememberTokenStoreInterface;
 
 final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore implements RememberTokenStoreInterface
 {
+    #[\Override]
     public function find(string $recordId): ?RememberTokenRecord
     {
         return $this->firstMapped(
@@ -18,6 +19,7 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
         );
     }
 
+    #[\Override]
     public function findBySelector(string $selector): ?RememberTokenRecord
     {
         return $this->firstMapped(
@@ -27,16 +29,19 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
         );
     }
 
+    #[\Override]
     public function markUsed(string $recordId, int $usedAt): void
     {
         $this->updateWhere('rememberTokens', ['last_used_at' => $usedAt], 'id = ? AND revoked_at IS NULL', [$recordId]);
     }
 
+    #[\Override]
     public function revokeFamily(string $familyId): void
     {
         $this->revokeTokenFamily('rememberTokens', $familyId);
     }
 
+    #[\Override]
     public function rotate(string $recordId, RememberTokenRecord $replacement): void
     {
         $current = $this->find($recordId);
@@ -45,6 +50,7 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
         }
     }
 
+    #[\Override]
     public function rotateIfActive(RememberTokenRecord $current, RememberTokenRecord $replacement): bool
     {
         if ($replacement->id === $current->id
@@ -65,11 +71,13 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
         );
     }
 
+    #[\Override]
     public function save(RememberTokenRecord $record): void
     {
         $this->upsertRecord('rememberTokens', 'id', $this->record($record));
     }
 
+    #[\Override]
     public function wasFamilyRevoked(string $familyId): bool
     {
         return $this->tokenFamilyWasRevoked('rememberTokens', $familyId);

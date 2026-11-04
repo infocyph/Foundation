@@ -32,6 +32,7 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
         private ClockInterface $clock,
     ) {}
 
+    #[\Override]
     public function finishAuthentication(PasskeyAuthenticationResult $result): PasskeyVerificationResult
     {
         $credentialJson = $this->credentialJson($result->metadata);
@@ -73,6 +74,7 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
         );
     }
 
+    #[\Override]
     public function finishRegistration(PasskeyRegistrationResult $result): PasskeyCredential
     {
         $verification = $this->passkey->finishRegistration(
@@ -107,6 +109,7 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
         );
     }
 
+    #[\Override]
     public function startAuthentication(?string $accountId = null): PasskeyChallenge
     {
         $records = [];
@@ -129,6 +132,7 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
         return $this->challenge($ceremony, $accountId, $now);
     }
 
+    #[\Override]
     public function startRegistration(string $accountId): PasskeyChallenge
     {
         $account = $this->accounts->findById($accountId);

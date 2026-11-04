@@ -15,6 +15,7 @@ use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 
 final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAuthClientStoreInterface
 {
+    #[\Override]
     public function find(string $clientId): ?OAuthClient
     {
         return $this->firstMapped(
@@ -24,6 +25,7 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         );
     }
 
+    #[\Override]
     public function list(int $limit = 100): array
     {
         if ($limit < 1 || $limit > 500) {
@@ -39,6 +41,7 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         return array_map($this->mapClient(...), $rows);
     }
 
+    #[\Override]
     public function redirectUris(string $clientId): array
     {
         $rows = $this->all(
@@ -56,6 +59,7 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
      * @param list<string> $redirectUris
      * @param list<string> $scopes
      */
+    #[\Override]
     public function register(OAuthClient $client, array $redirectUris, array $scopes): void
     {
         $this->connection()->transaction(function (Connection $connection) use ($client, $redirectUris, $scopes): void {
@@ -65,6 +69,7 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         });
     }
 
+    #[\Override]
     public function replaceRedirectUris(string $clientId, array $redirectUris, int $createdAt): void
     {
         $this->connection()->transaction(function (Connection $connection) use ($clientId, $redirectUris, $createdAt): void {
@@ -73,6 +78,7 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         });
     }
 
+    #[\Override]
     public function replaceScopes(string $clientId, array $scopes, int $createdAt): void
     {
         $this->connection()->transaction(function (Connection $connection) use ($clientId, $scopes, $createdAt): void {
@@ -81,11 +87,13 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         });
     }
 
+    #[\Override]
     public function save(OAuthClient $client): void
     {
         $this->upsertRecord('oauthClients', 'client_id', $this->clientRecord($client));
     }
 
+    #[\Override]
     public function scopes(string $clientId): array
     {
         $rows = $this->all(

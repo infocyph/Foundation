@@ -16,11 +16,13 @@ final readonly class CurrentPrincipalContext implements CurrentPrincipalProvider
         $this->state()->principal = null;
     }
 
+    #[\Override]
     public function get(): ?PrincipalInterface
     {
         return $this->state()->principal;
     }
 
+    #[\Override]
     public function require(): PrincipalInterface
     {
         $principal = $this->get();

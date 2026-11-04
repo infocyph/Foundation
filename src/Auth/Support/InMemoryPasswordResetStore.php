@@ -9,11 +9,13 @@ use Infocyph\Foundation\Auth\Contract\Storage\PasswordResetStoreInterface;
 
 final class InMemoryPasswordResetStore extends AbstractInMemoryConsumableStore implements PasswordResetStoreInterface
 {
+    #[\Override]
     public function consume(string $requestId): void
     {
         $this->consumeStored($requestId);
     }
 
+    #[\Override]
     public function consumeAndApply(string $requestId, callable $apply): bool
     {
         $request = $this->find($requestId);
@@ -34,6 +36,7 @@ final class InMemoryPasswordResetStore extends AbstractInMemoryConsumableStore i
         return true;
     }
 
+    #[\Override]
     public function find(string $requestId): ?PasswordResetRequest
     {
         $request = $this->findStored($requestId);
@@ -41,16 +44,19 @@ final class InMemoryPasswordResetStore extends AbstractInMemoryConsumableStore i
         return $request instanceof PasswordResetRequest ? $request : null;
     }
 
+    #[\Override]
     public function save(PasswordResetRequest $request): void
     {
         $this->saveStored($request, $request->id);
     }
 
+    #[\Override]
     public function wasConsumed(string $requestId): bool
     {
         return $this->find($requestId)?->isConsumed() ?? false;
     }
 
+    #[\Override]
     protected function consumeRequest(object $request, int $consumedAt): object
     {
         return $request instanceof PasswordResetRequest ? $request->withConsumedAt($consumedAt) : $request;

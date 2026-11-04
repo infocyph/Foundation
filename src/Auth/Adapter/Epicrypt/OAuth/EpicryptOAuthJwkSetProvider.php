@@ -15,6 +15,7 @@ final readonly class EpicryptOAuthJwkSetProvider implements JwkSetProviderInterf
         private ?AsymmetricSigningKeySet $openIdKeys = null,
     ) {}
 
+    #[\Override]
     public function jwks(): array
     {
         $keys = $this->keys->epicrypt->jwks()['keys'];

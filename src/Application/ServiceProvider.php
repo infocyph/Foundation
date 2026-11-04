@@ -6,5 +6,6 @@ namespace Infocyph\Foundation\Application;
 
 abstract class ServiceProvider implements ServiceProviderInterface
 {
+    #[\Override]
     public function boot(Application $app): void {}
 }

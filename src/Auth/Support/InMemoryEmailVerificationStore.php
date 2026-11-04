@@ -9,12 +9,14 @@ use Infocyph\Foundation\Auth\Contract\Storage\EmailVerificationStoreInterface;
 
 final class InMemoryEmailVerificationStore extends AbstractInMemoryConsumableStore implements EmailVerificationStoreInterface
 {
+    #[\Override]
     public function consume(string $requestId): void
     {
         $storedRequestId = $requestId;
         $this->consumeStored($storedRequestId);
     }
 
+    #[\Override]
     public function consumeAndApply(string $requestId, callable $apply): bool
     {
         $request = $this->find($requestId);
@@ -35,6 +37,7 @@ final class InMemoryEmailVerificationStore extends AbstractInMemoryConsumableSto
         return true;
     }
 
+    #[\Override]
     public function find(string $requestId): ?EmailVerificationRequest
     {
         $request = $this->findStored($requestId);
@@ -46,11 +49,13 @@ final class InMemoryEmailVerificationStore extends AbstractInMemoryConsumableSto
         return $request;
     }
 
+    #[\Override]
     public function save(EmailVerificationRequest $request): void
     {
         $this->saveStored($request, requestId: $request->id);
     }
 
+    #[\Override]
     protected function consumeRequest(object $request, int $consumedAt): object
     {
         return $request instanceof EmailVerificationRequest ? $request->withConsumedAt($consumedAt) : $request;

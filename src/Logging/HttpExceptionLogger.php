@@ -15,6 +15,7 @@ final class HttpExceptionLogger extends AbstractLogger
     /**
      * @param array<string, mixed> $context
      */
+    #[\Override]
     public function log($level, string|\Stringable $message, array $context = []): void
     {
         $context['logger_message_type'] = is_string($message) ? 'string' : $message::class;

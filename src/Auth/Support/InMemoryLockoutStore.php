@@ -19,6 +19,7 @@ final class InMemoryLockoutStore implements LockoutStoreInterface
         private readonly ClockInterface $clock = new SystemClock(),
     ) {}
 
+    #[\Override]
     public function isLocked(string $accountId): bool
     {
         $lock = $this->locks[$accountId] ?? null;
@@ -36,11 +37,13 @@ final class InMemoryLockoutStore implements LockoutStoreInterface
         return true;
     }
 
+    #[\Override]
     public function lock(string $accountId, LockoutReason $reason, ?int $until = null): void
     {
         $this->locks[$accountId] = ['reason' => $reason, 'until' => $until];
     }
 
+    #[\Override]
     public function unlock(string $accountId): void
     {
         unset($this->locks[$accountId]);

@@ -22,6 +22,7 @@ use Psr\Container\ContainerInterface;
 
 final class SessionServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $session = $context->config['session'] ?? null;

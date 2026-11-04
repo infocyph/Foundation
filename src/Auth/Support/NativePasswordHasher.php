@@ -8,6 +8,7 @@ use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
 
 final class NativePasswordHasher implements PasswordHasherInterface
 {
+    #[\Override]
     public function hash(string $plainPassword, array $context = []): string
     {
         unset($context);

@@ -32,11 +32,13 @@ final class OAuthBearerTokenPrincipalResolver extends AbstractPrincipalResolver
         $this->audiences = ValueNormalizer::stringList($config->get('auth.oauth.resource_audiences', []));
     }
 
+    #[\Override]
     public function name(): string
     {
         return 'oauth_bearer';
     }
 
+    #[\Override]
     public function resolve(Request $request): ?PrincipalInterface
     {
         if ($this->audiences === []) {

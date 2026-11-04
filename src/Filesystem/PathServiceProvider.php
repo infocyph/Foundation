@@ -13,6 +13,7 @@ use Infocyph\InterMix\DI\Support\FactoryDefinition;
 /** Core path services have no dependency on the optional filesystem module. */
 final class PathServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function boot(Application $app): void
     {
         if ((bool) $app->config()->get('paths.auto_create_runtime_directories', false)) {
@@ -20,6 +21,7 @@ final class PathServiceProvider extends ServiceProvider
         }
     }
 
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $app = is_array($context->config['app'] ?? null) ? $context->config['app'] : [];

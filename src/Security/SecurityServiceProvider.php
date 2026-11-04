@@ -15,6 +15,7 @@ use Infocyph\InterMix\DI\Support\ServiceReference;
 
 final class SecurityServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if (!class_exists(AeadCipher::class)) {

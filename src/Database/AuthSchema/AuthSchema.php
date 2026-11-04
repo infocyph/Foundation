@@ -15,6 +15,7 @@ final readonly class AuthSchema implements Migration
         private AuthTables $tables,
     ) {}
 
+    #[\Override]
     public function down(SchemaManager $schema, MigrationContext $context): void
     {
         foreach (array_reverse($this->tables->all()) as $table) {
@@ -23,11 +24,13 @@ final readonly class AuthSchema implements Migration
         }
     }
 
+    #[\Override]
     public function id(): string
     {
         return '20260730000000_foundation_auth_schema';
     }
 
+    #[\Override]
     public function up(SchemaManager $schema, MigrationContext $context): void
     {
         $this->createAccounts($schema);

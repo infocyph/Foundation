@@ -18,6 +18,7 @@ final readonly class AuthOAuthEpicryptProtocolSchema implements Migration
 {
     public function __construct(private AuthTables $tables) {}
 
+    #[\Override]
     public function down(SchemaManager $schema, MigrationContext $context): void
     {
         $refresh = $this->tables->oauthRefreshTokens();
@@ -35,11 +36,13 @@ final readonly class AuthOAuthEpicryptProtocolSchema implements Migration
         $context->checkpoint();
     }
 
+    #[\Override]
     public function id(): string
     {
         return '20260921000000_foundation_auth_oauth_epicrypt_protocol';
     }
 
+    #[\Override]
     public function up(SchemaManager $schema, MigrationContext $context): void
     {
         $this->extendRefreshState($schema);

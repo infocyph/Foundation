@@ -17,6 +17,7 @@ use Infocyph\OTP\TOTP;
 
 final class AuthOtpServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if (!class_exists(TOTP::class)) {

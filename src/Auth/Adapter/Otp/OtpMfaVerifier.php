@@ -34,6 +34,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         return $this->challengeFactors;
     }
 
+    #[\Override]
     public function verify(MfaChallenge $challenge, string $code): MfaVerificationResult
     {
         if ($challenge->factorId === null || $challenge->factorId === '') {

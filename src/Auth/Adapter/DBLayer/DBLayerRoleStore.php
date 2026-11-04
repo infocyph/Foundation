@@ -10,6 +10,7 @@ use Infocyph\Foundation\Auth\Authorization\Role\RoleStoreInterface;
 
 final readonly class DBLayerRoleStore extends ClockedDBLayerStore implements RoleAssignmentStoreInterface, RoleStoreInterface
 {
+    #[\Override]
     public function assignRole(string $accountId, string $roleId): void
     {
         if ($this->exists(
@@ -25,6 +26,7 @@ final readonly class DBLayerRoleStore extends ClockedDBLayerStore implements Rol
         );
     }
 
+    #[\Override]
     public function revokeRole(string $accountId, string $roleId): void
     {
         $this->execute(
@@ -33,6 +35,7 @@ final readonly class DBLayerRoleStore extends ClockedDBLayerStore implements Rol
         );
     }
 
+    #[\Override]
     public function rolesForAccount(string $accountId): array
     {
         return $this->allMapped(
@@ -42,6 +45,7 @@ final readonly class DBLayerRoleStore extends ClockedDBLayerStore implements Rol
         );
     }
 
+    #[\Override]
     public function save(Role $role): void
     {
         $this->upsertRecord('roles', 'id', [

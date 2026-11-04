@@ -16,6 +16,7 @@ final readonly class OtpRecoveryCodeService implements RecoveryCodeServiceInterf
         private int $codeLength = 12,
     ) {}
 
+    #[\Override]
     public function generate(string $accountId, int $count = 0): array
     {
         $result = $this->recoveryCodes->generate(
@@ -27,6 +28,7 @@ final readonly class OtpRecoveryCodeService implements RecoveryCodeServiceInterf
         return $result->plainCodes;
     }
 
+    #[\Override]
     public function verify(string $accountId, string $code): RecoveryCodeVerificationResult
     {
         $result = $this->recoveryCodes->consume($this->binding($accountId), $code);

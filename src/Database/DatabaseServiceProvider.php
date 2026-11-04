@@ -31,6 +31,7 @@ final class DatabaseServiceProvider extends ServiceProvider
         return $factory->connection();
     }
 
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if (!class_exists(Connection::class)) {

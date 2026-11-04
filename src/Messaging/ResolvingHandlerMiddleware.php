@@ -17,6 +17,7 @@ final readonly class ResolvingHandlerMiddleware implements HandlerMiddleware
         private string $service,
     ) {}
 
+    #[\Override]
     public function process(
         object $message,
         Envelope $envelope,

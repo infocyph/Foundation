@@ -20,6 +20,7 @@ final readonly class SimpleAccessTokenService implements AccessTokenServiceInter
         private ClockInterface $clock,
     ) {}
 
+    #[\Override]
     public function issue(AccessTokenClaims $claims): string
     {
         $ttlSeconds = $claims->expiresAt - $this->clock->now();
@@ -36,6 +37,7 @@ final readonly class SimpleAccessTokenService implements AccessTokenServiceInter
             ], $claims->subjectId);
     }
 
+    #[\Override]
     public function verify(string $token): TokenVerificationResult
     {
         $verification = $this->tokens

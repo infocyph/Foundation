@@ -36,6 +36,7 @@ final class Gate implements AuthorizerInterface
         return $this;
     }
 
+    #[\Override]
     public function authorize(
         PrincipalInterface $principal,
         string $ability,
@@ -62,6 +63,7 @@ final class Gate implements AuthorizerInterface
         return $this;
     }
 
+    #[\Override]
     public function can(
         PrincipalInterface $principal,
         string $ability,

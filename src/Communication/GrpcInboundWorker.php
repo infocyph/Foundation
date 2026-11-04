@@ -28,6 +28,7 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         private ConfigRepository $config,
     ) {}
 
+    #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
         $sourceService = $this->sourceService();
