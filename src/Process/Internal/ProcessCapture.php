@@ -116,7 +116,7 @@ final readonly class ProcessCapture
         return strlen($chunk) <= $remaining ? $chunk : substr($chunk, 0, $remaining);
     }
 
-    /** @param array<int, resource> $pipes */
+    /** @param array<int, mixed> $pipes Closed pipe handles may no longer be resources. */
     private function closePipes(array $pipes): void
     {
         foreach ($pipes as $pipe) {
@@ -287,7 +287,7 @@ final readonly class ProcessCapture
         return $this->writeReadyInput($stdin, $input, $inputOffset, $lastActivityAt, $pipes);
     }
 
-    /** @param array<int, resource> $pipes */
+    /** @param array<int, mixed> $pipes A child may have already closed a stream. */
     private function preparePipes(array &$pipes, ProcessOptions $options): void
     {
         if (isset($pipes[0]) && is_resource($pipes[0])) {
@@ -351,8 +351,12 @@ final readonly class ProcessCapture
     }
 
     /**
+     * stream_select() filters the ready lists by reference.
+     *
      * @param list<resource> $read
      * @param list<resource> $write
+     * @param-out array<array-key, resource> $read
+     * @param-out array<array-key, resource> $write
      */
     private function select(array &$read, array &$write): int|false
     {
