@@ -4,6 +4,9 @@ Date: 2026-11-04 (Asia/Dhaka). Status: **implementation in progress; release gat
 
 ## Implementation checkpoint — 2026-11-04
 
+- **A05 PHPStan/Psalm reconcile (2026-11-04; pending exact-head QA):** The first A05 test-backed run [41809633105](https://github.com/infocyph/Foundation/actions/runs/41809633105) reduced Psalm to 1,648 errors but introduced three PHPStan type-shape failures in `ProcessCapture` due to a too-wide by-reference pipe annotation and stream-select's reindexed readiness arrays. Keep the original typed pipe contract and broaden only `consumeReady()`'s ready-stream argument (which iterates values without assuming a list). No runtime branching changed. Exact-head PHPForge validation required before acceptance.
+
+
 - **A05 slow-reader and Psalm ownership regression batch (2026-11-04, pending QA):** Extend `ProcessInputDeadlineTest` with a delayed-reader large input digest check and a simultaneous output-overflow/pending-stdin termination case. Correct `ProcessCapture` static resource/ref annotations to reflect closed handles and `stream_select()` mutations without changing production control flow. Latest official baseline `c18c6d5` passed all PHPStan/QA/production-consumer/benchmark/native-host lanes; Psalm still failed [41807494682](https://github.com/infocyph/Foundation/actions/runs/41807494682) with 1,654 reported console errors. Keep A05 open and formal acceptance at **29/90** until exact-head CI verifies both new cases and all cleanup conditions.
 
 

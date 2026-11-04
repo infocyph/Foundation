@@ -127,7 +127,7 @@ final readonly class ProcessCapture
     }
 
     /**
-     * @param list<resource> $read
+     * @param array<array-key, resource> $read
      * @param array<int, resource> $pipes
      */
     private function consumeReady(
@@ -287,7 +287,7 @@ final readonly class ProcessCapture
         return $this->writeReadyInput($stdin, $input, $inputOffset, $lastActivityAt, $pipes);
     }
 
-    /** @param array<int, mixed> $pipes A child may have already closed a stream. */
+    /** @param array<int, resource> $pipes */
     private function preparePipes(array &$pipes, ProcessOptions $options): void
     {
         if (isset($pipes[0]) && is_resource($pipes[0])) {
