@@ -22,6 +22,7 @@ use Infocyph\Foundation\Auth\Adapter\TalkingBytes\AuthNotificationMapper;
 use Infocyph\Foundation\Auth\Adapter\TalkingBytes\TalkingBytesAuthNotifier;
 use Infocyph\Foundation\Auth\Adapter\Uid\UidAuthIdGenerator;
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
+use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Auth\Notification\AuthNotification;
@@ -470,5 +471,137 @@ it('keeps bearer issuance tokens in trusted auth services but never in HTTP-faci
             ->toBeString()
             ->and($services->passwordless()->issue($account->identifier())->token)
             ->toBeString();
+    });
+});
+
+it('binds HTTP password reset delivery and token subject for account ID and identifier lookup', function (): void {
+    $app = Foundation::web([
+        'app' => ['base_path' => sys_get_temp_dir()],
+        'router' => ['files' => []],
+    ]);
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $services = $app->make(AuthServices::class);
+        $account = $services->accounts()->create('reset-owner@example.test')->account;
+        if ($account === null) {
+            throw new LogicException('Expected a persisted account.');
+        }
+
+        $notifications = $app->make(AuthNotifierInterface::class);
+        if (!$notifications instanceof CollectingAuthNotifier) {
+            throw new LogicException('Expected collecting notifier.');
+        }
+        $mailer = Emailer::fake();
+        $outbound = new TalkingBytesAuthNotifier(
+            $mailer,
+            new AuthNotificationMapper(new NotificationTemplateRegistry(new ConfigRepository())),
+            $services->accountProvider(),
+            from: 'sender@example.test',
+        );
+        $actions = $app->make(AuthActions::class);
+
+        foreach ([
+            ['account_id' => $account->id()],
+            ['identifier' => $account->identifier()],
+        ] as $lookup) {
+            $result = $actions->requestPasswordReset($lookup + [
+                'email' => 'attacker@example.test',
+                'recipient_email' => 'attacker@example.test',
+                'context' => [
+                    'email' => 'attacker@example.test',
+                    'account_email' => 'attacker@example.test',
+                    'recipient_email' => 'attacker@example.test',
+                ],
+            ]);
+            $queued = $notifications->notifications();
+            $notification = $queued[count($queued) - 1] ?? null;
+            if (!$notification instanceof AuthNotification) {
+                throw new LogicException('Expected the password reset notification.');
+            }
+
+            expect($result->token)->toBeNull()
+                ->and($notification->type)->toBe(AuthNotificationType::PASSWORD_RESET_REQUESTED)
+                ->and($notification->accountId)->toBe($account->id());
+
+            $token = $notification->payload['token'] ?? null;
+            expect($token)->toBeString();
+            if (!is_string($token)) {
+                throw new LogicException('Expected a reset token.');
+            }
+
+            $outbound->send($notification);
+            expect($services->passwordResets()->complete($token, 'replacement-hash')->completed())->toBeTrue()
+                ->and($services->accountProvider()->findById($account->id())?->passwordHash())->toBe('replacement-hash');
+        }
+
+        $mailer->assertable()->assertSentCount(2);
+        $mailer->assertable()->assertSentTo('reset-owner@example.test');
+        expect(fn() => $mailer->assertable()->assertSentTo('attacker@example.test'))
+            ->toThrow(RuntimeException::class);
+    });
+});
+
+it('keeps verified email and passwordless tokens bound to trusted notification recipients', function (): void {
+    $app = Foundation::web([
+        'app' => ['base_path' => sys_get_temp_dir()],
+        'router' => ['files' => []],
+    ]);
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $services = $app->make(AuthServices::class);
+        $account = $services->accounts()->create(
+            'purpose-owner@example.test',
+            status: AccountStatus::PENDING_VERIFICATION,
+        )->account;
+        if ($account === null) {
+            throw new LogicException('Expected a persisted account.');
+        }
+        $notifications = $app->make(AuthNotifierInterface::class);
+        if (!$notifications instanceof CollectingAuthNotifier) {
+            throw new LogicException('Expected collecting notifier.');
+        }
+        $mailer = Emailer::fake();
+        $outbound = new TalkingBytesAuthNotifier(
+            $mailer,
+            new AuthNotificationMapper(new NotificationTemplateRegistry(new ConfigRepository())),
+            $services->accountProvider(),
+            from: 'sender@example.test',
+        );
+
+        $actions = $app->make(AuthActions::class);
+        $email = $actions->requestEmailVerification([
+            'account_id' => $account->id(),
+            'email' => $account->identifier(),
+            'context' => ['email' => 'attacker@example.test', 'recipient_email' => 'attacker@example.test'],
+        ]);
+        $passwordless = $actions->requestPasswordless([
+            'identifier' => $account->identifier(),
+            'email' => 'attacker@example.test',
+            'context' => ['recipient_email' => 'attacker@example.test'],
+        ]);
+        expect($email->token)->toBeNull()
+            ->and($passwordless->token)->toBeNull();
+
+        $issued = $notifications->notifications();
+        expect($issued)->toHaveCount(2);
+        foreach ($issued as $notification) {
+            $outbound->send($notification);
+            $token = $notification->payload['token'] ?? null;
+            expect($token)->toBeString();
+            if (!is_string($token)) {
+                throw new LogicException('Expected a delivered token.');
+            }
+
+            if ($notification->type === AuthNotificationType::EMAIL_VERIFICATION_REQUESTED) {
+                expect($notification->accountId)->toBe($account->id())
+                    ->and($services->emailVerification()->verify($token)->verified())->toBeTrue();
+            } else {
+                expect($notification->type)->toBe(AuthNotificationType::PASSWORDLESS_LOGIN_REQUESTED)
+                    ->and($services->passwordless()->verify($token)->successful())->toBeTrue();
+            }
+        }
+
+        $mailer->assertable()->assertSentCount(2);
+        $mailer->assertable()->assertSentTo('purpose-owner@example.test');
+        expect(fn() => $mailer->assertable()->assertSentTo('attacker@example.test'))
+            ->toThrow(RuntimeException::class);
     });
 });
