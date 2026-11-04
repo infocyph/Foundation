@@ -48,6 +48,13 @@ final readonly class AuthNotificationMapper
             : $message->from($address->email, $address->name);
     }
 
+    private static function encodePayload(mixed $value): string
+    {
+        $encoded = json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        return $encoded === false ? '' : $encoded;
+    }
+
     /**
      * @param array<string, mixed> $payload
      */
@@ -64,13 +71,6 @@ final readonly class AuthNotificationMapper
         }
 
         return implode("\n", $lines);
-    }
-
-    private static function encodePayload(mixed $value): string
-    {
-        $encoded = json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        return $encoded === false ? '' : $encoded;
     }
 
     /**
