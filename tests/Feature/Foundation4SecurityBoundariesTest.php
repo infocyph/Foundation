@@ -6,10 +6,12 @@ use Infocyph\Foundation\Auth\Account\Account;
 use Infocyph\Foundation\Auth\Account\AccountStatus;
 use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationStatus;
+use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
 use Infocyph\Foundation\Auth\Adapter\TalkingBytes\AuthNotificationMapper;
 use Infocyph\Foundation\Auth\Adapter\TalkingBytes\TalkingBytesAuthNotifier;
 use Infocyph\Foundation\Auth\Adapter\Uid\UidAuthIdGenerator;
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
+use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Auth\Notification\AuthNotification;
 use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
@@ -215,4 +217,52 @@ it('keeps caller metadata out of authoritative audit session and device identity
         ->and($events[0]->deviceId)->toBeNull()
         ->and($events[1]->sessionId)->toBe('server-session')
         ->and($events[1]->deviceId)->toBe('server-device');
+});
+
+it('refuses caller context as authoritative audit identity through credential and token managers', function (): void {
+    $app = Foundation::web([
+        'app' => ['base_path' => sys_get_temp_dir()],
+        'router' => ['files' => []],
+    ]);
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $services = $app->make(AuthServices::class);
+        $account = $services->accounts()->create('provenance@example.test')->account;
+        expect($account)->not->toBeNull();
+        if ($account === null) {
+            throw new LogicException('Expected an account.');
+        }
+
+        $context = ['session_id' => 'forged-session', 'device_id' => 'forged-device'];
+        $services->passwordResets()->issue($account->id(), $context);
+        $services->emailVerification()->issue($account->id(), $account->identifier(), $context);
+        $now = time();
+        $services->tokens()->issueAccessToken(new AccessTokenClaims(
+            subjectId: $account->id(),
+            actorId: null,
+            issuedAt: $now,
+            expiresAt: $now + 60,
+        ), $context);
+        $services->tokens()->issueRefreshToken($account->id(), metadata: $context);
+        $services->tokens()->revokeRefreshFamily('unbound-family', ['account_id' => 'forged-account'] + $context);
+        $services->rememberMe()->issue($account->id(), 'stored-device', $context);
+
+        $audit = $app->make(AuditEventStoreInterface::class);
+        expect($audit)->toBeInstanceOf(InMemoryAuditEventStore::class);
+        if (!$audit instanceof InMemoryAuditEventStore) {
+            throw new LogicException('Expected the in-memory audit store.');
+        }
+
+        $events = $audit->events();
+        expect($events)->toHaveCount(6);
+        foreach ($events as $event) {
+            expect($event->sessionId)->toBeNull();
+            if ($event->type !== AuthEventType::REMEMBER_TOKEN_ISSUED) {
+                expect($event->deviceId)->toBeNull();
+            }
+        }
+        expect($events[5]->deviceId)->toBe('stored-device')
+            ->and($events[4]->type)->toBe(AuthEventType::REFRESH_TOKEN_REVOKED)
+            ->and($events[4]->accountId)->toBeNull()
+            ->and($events[4]->actorId)->toBeNull();
+    });
 });

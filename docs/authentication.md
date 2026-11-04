@@ -98,7 +98,10 @@ explicit account update contract; verifying a newly supplied arbitrary address
 must not mark a different stored account address verified. Do not expose issued
 token values directly to unauthenticated HTTP clients.
 
-Audit metadata is descriptive, not an identity source. Pass verified session and
+Audit metadata is descriptive, not an identity source. Auth managers do not promote
+free-form request context to canonical audit session or device fields. Verified
+record-owned token devices remain authoritative; unbound token-family revocation
+cannot ascribe an account from `context.account_id`. Pass verified session and
 device IDs explicitly when recording an auth audit event; caller-provided
 `metadata.session_id` and `metadata.device_id` must not become canonical IDs.
 
