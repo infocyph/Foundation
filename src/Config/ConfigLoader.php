@@ -41,24 +41,30 @@ final class ConfigLoader
             ? null
             : $this->loadCacheManifest($cacheDirectory);
         if ($cacheDirectory !== null && $cached !== null && $cached['type'] === self::TYPE_SINGLE) {
-            $single = $this->loadSingleCache(
-                $cacheDirectory . DIRECTORY_SEPARATOR . $cached['file'],
-                $overrides,
-            );
-            if ($single !== null) {
-                return $single;
+            $file = $cached['file'] ?? null;
+            if ($file === ArrayKitConfigCache::SINGLE_FILE) {
+                $single = $this->loadSingleCache(
+                    $cacheDirectory . DIRECTORY_SEPARATOR . $file,
+                    $overrides,
+                );
+                if ($single !== null) {
+                    return $single;
+                }
             }
         }
 
         if ($cacheDirectory !== null && $cached !== null && $cached['type'] === self::TYPE_SHARDED) {
-            return ConfigRepository::fromLazyFiles(
-                directory: $cacheDirectory,
-                cacheDirectory: $cacheDirectory,
-                fallback: $cached['complete'] ? [] : $this->defaults(),
-                overrides: $overrides,
-                namespaces: $cached['namespaces'],
-                compiled: true,
-            );
+            $namespaces = $cached['namespaces'] ?? null;
+            if ($namespaces !== null) {
+                return ConfigRepository::fromLazyFiles(
+                    directory: $cacheDirectory,
+                    cacheDirectory: $cacheDirectory,
+                    fallback: ($cached['complete'] ?? false) ? [] : $this->defaults(),
+                    overrides: $overrides,
+                    namespaces: $namespaces,
+                    compiled: true,
+                );
+            }
         }
 
         return ConfigRepository::fromLazyFiles(

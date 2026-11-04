@@ -35,8 +35,9 @@ final readonly class RoutePresetRegistrar
     ) {}
 
     /**
-     * @param list<string>|string|null $prefix
-     * @param list<string>|string|Closure|null $domain
+     * @param array{prefix?:mixed,domain?:mixed,middleware?:mixed,name?:mixed,as?:mixed}|string|null $prefix
+     * @param array{prefix?:mixed,domain?:mixed,middleware?:mixed,name?:mixed,as?:mixed}|string|Closure|null $domain
+     * @throws \InvalidArgumentException
      */
     public function group(
         Registrar $router,
