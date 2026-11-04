@@ -43,6 +43,30 @@ function foundationOtpPasskeyConfig(string $storeDriver = 'memory'): array
     ];
 }
 
+/**
+ * OpenSSL's P-256 coordinate buffers can omit leading zero bytes; COSE EC2
+ * requires each coordinate to occupy exactly 32 bytes.
+ */
+function foundationCoseP256Coordinate(string $coordinate): string
+{
+    if ($coordinate === '' || strlen($coordinate) > 32) {
+        throw new InvalidArgumentException('P-256 coordinate has invalid size.');
+    }
+
+    return str_pad($coordinate, 32, "\0", STR_PAD_LEFT);
+}
+
+it('encodes P-256 coordinates as fixed-width COSE bytes even with leading zeroes', function (): void {
+    $short = str_repeat("\x01", 31);
+    $padded = foundationCoseP256Coordinate($short);
+
+    expect(strlen($padded))->toBe(32)
+        ->and(substr($padded, 0, 1))->toBe("\0")
+        ->and(substr($padded, 1))->toBe($short)
+        ->and(fn() => foundationCoseP256Coordinate(str_repeat('x', 33)))
+        ->toThrow(InvalidArgumentException::class);
+});
+
 it('routes the selected WebAuthn driver through OTP Passkey', function (): void {
     $app = Foundation::web(foundationOtpPasskeyConfig())->boot();
 
@@ -73,7 +97,8 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
         }
         // COSE EC2/P-256/ES256 map: protocol fixture bytes, consumed by native WebAuthn.
         $publicKey = "\xa5\x01\x02\x03\x26\x20\x01\x21\x58\x20"
-            . $details['ec']['x'] . "\x22\x58\x20" . $details['ec']['y'];
+            . foundationCoseP256Coordinate($details['ec']['x'])
+            . "\x22\x58\x20" . foundationCoseP256Coordinate($details['ec']['y']);
         $rawId = random_bytes(32);
         $credentialId = \Infocyph\OTP\Support\Base64Url::encode($rawId);
         $userHandle = hash('sha3-256', "foundation:passkey:user:v1\0owner", true);
