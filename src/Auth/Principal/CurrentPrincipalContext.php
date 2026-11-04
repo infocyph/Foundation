@@ -11,11 +11,21 @@ final readonly class CurrentPrincipalContext implements CurrentPrincipalProvider
 {
     public function __construct(private ContainerInterface $container) {}
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function clear(): void
     {
         $this->state()->principal = null;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function get(): ?PrincipalInterface
     {
@@ -36,6 +46,11 @@ final readonly class CurrentPrincipalContext implements CurrentPrincipalProvider
         return $principal;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function set(?PrincipalInterface $principal): void
     {
         $this->state()->principal = $principal;

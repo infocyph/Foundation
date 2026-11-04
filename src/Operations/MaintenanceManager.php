@@ -21,6 +21,9 @@ final readonly class MaintenanceManager
     /**
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function disable(): bool
     {
@@ -42,6 +45,9 @@ final readonly class MaintenanceManager
     /**
      * @return array{enabled:bool,enabled_at:?string,retry_after:?int,message:?string,driver:string}
      * @throws \InvalidArgumentException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public function enable(?int $retryAfter = null, ?string $message = null): array
     {
@@ -60,7 +66,12 @@ final readonly class MaintenanceManager
         return [...$state, 'driver' => $this->driver()];
     }
 
-    /** @return array{enabled:bool,enabled_at:?string,retry_after:?int,message:?string,driver:string} */
+    /**
+     * @return array{enabled:bool,enabled_at:?string,retry_after:?int,message:?string,driver:string}
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     public function status(): array
     {
         $state = $this->read();
@@ -137,6 +148,9 @@ final readonly class MaintenanceManager
      * @return array<string,mixed>
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     private function read(): array
     {
@@ -166,6 +180,9 @@ final readonly class MaintenanceManager
      * @param array<string,mixed> $state
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     private function write(array $state): void
     {

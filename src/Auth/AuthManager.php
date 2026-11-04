@@ -21,11 +21,21 @@ final readonly class AuthManager
         private array $drivers = [],
     ) {}
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function authenticator(): AuthenticatorInterface
     {
         return $this->services->authenticator();
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function authorizer(): AuthorizerInterface
     {
         return $this->services->authorizer();
@@ -51,6 +61,11 @@ final readonly class AuthManager
         return !new ConfigValidator($this->config)->validateForProduction()->fails();
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function principal(): CurrentPrincipalContext
     {
         return $this->services->principals();

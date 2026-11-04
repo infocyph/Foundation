@@ -15,6 +15,9 @@ use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 
 final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAuthClientStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function find(string $clientId): ?OAuthClient
     {
@@ -27,6 +30,7 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     #[\Override]
     public function list(int $limit = 100): array
@@ -44,6 +48,9 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         return array_map($this->mapClient(...), $rows);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function redirectUris(string $clientId): array
     {
@@ -61,6 +68,9 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
     /**
      * @param list<string> $redirectUris
      * @param list<string> $scopes
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function register(OAuthClient $client, array $redirectUris, array $scopes): void
@@ -72,6 +82,11 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         });
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function replaceRedirectUris(string $clientId, array $redirectUris, int $createdAt): void
     {
@@ -81,6 +96,11 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         });
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function replaceScopes(string $clientId, array $scopes, int $createdAt): void
     {
@@ -90,12 +110,18 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         });
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function save(OAuthClient $client): void
     {
         $this->upsertRecord('oauthClients', 'client_id', $this->clientRecord($client));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function scopes(string $clientId): array
     {

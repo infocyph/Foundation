@@ -21,6 +21,9 @@ abstract readonly class DBLayerStore
     /**
      * @param list<mixed> $bindings
      * @return list<array<string, mixed>>
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     protected function all(string $sql, array $bindings = []): array
     {
@@ -65,6 +68,9 @@ abstract readonly class DBLayerStore
      * Execute intentionally raw SQL that is not a generic CRUD operation.
      *
      * @param list<mixed> $bindings
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     protected function execute(string $sql, array $bindings = []): void
     {
@@ -119,6 +125,12 @@ abstract readonly class DBLayerStore
         return is_numeric($value) ? (int) $value : null;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     protected function query(string $table): QueryBuilder
     {
         return $this->connection()->table($this->table($table));

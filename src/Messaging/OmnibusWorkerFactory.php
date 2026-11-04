@@ -42,11 +42,19 @@ final readonly class OmnibusWorkerFactory
         return $workers;
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     public function has(string $name): bool
     {
         return isset($this->all()[$name]);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function make(string $name, ?WorkerLifecycle $lifecycle = null): Worker
     {
         return new Worker(
@@ -56,6 +64,9 @@ final readonly class OmnibusWorkerFactory
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function options(string $name): WorkerOptions
     {
         $definition = $this->definition($name);
@@ -108,6 +119,7 @@ final readonly class OmnibusWorkerFactory
      *   restart_backoff_seconds:float,
      *   shutdown_grace_seconds:float
      * }
+     * @throws \InvalidArgumentException
      */
     public function pool(string $name): array
     {

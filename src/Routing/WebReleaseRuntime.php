@@ -52,6 +52,8 @@ final readonly class WebReleaseRuntime
     /**
      * @param array<string, mixed> $config
      * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     public static function load(
         array $config,
@@ -66,6 +68,9 @@ final readonly class WebReleaseRuntime
      * Load one release from a trusted normalized config snapshot without source discovery.
      *
      * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     public static function loadCompiled(
         ConfigRepository $config,
@@ -86,6 +91,9 @@ final readonly class WebReleaseRuntime
      *
      * @param array<string, mixed> $config
      * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     public static function loadPrevalidated(
         array $config,
@@ -103,6 +111,9 @@ final readonly class WebReleaseRuntime
      * Trusted load from a normalized config snapshot owned by the same Foundation generation.
      *
      * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     public static function loadPrevalidatedCompiled(
         ConfigRepository $config,

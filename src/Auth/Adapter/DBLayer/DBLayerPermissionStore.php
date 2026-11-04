@@ -10,6 +10,9 @@ use Infocyph\Foundation\Auth\Authorization\Permission\PermissionStoreInterface;
 
 final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implements PermissionAssignmentStoreInterface, PermissionStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function assignPermissionToAccount(string $accountId, string $permissionId): void
     {
@@ -26,6 +29,9 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function assignPermissionToRole(string $roleId, string $permissionId): void
     {
@@ -42,6 +48,9 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function permissionsForAccount(string $accountId): array
     {
@@ -52,6 +61,9 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function permissionsForRoles(array $roleIds): array
     {
@@ -68,6 +80,9 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function revokePermissionFromAccount(string $accountId, string $permissionId): void
     {
@@ -77,6 +92,9 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function revokePermissionFromRole(string $roleId, string $permissionId): void
     {
@@ -86,6 +104,9 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function save(Permission $permission): void
     {

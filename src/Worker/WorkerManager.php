@@ -25,7 +25,10 @@ final readonly class WorkerManager
 {
     public function __construct(private Application $application) {}
 
-    /** @return array<string, array<string, mixed>> */
+    /**
+     * @return array<string, array<string, mixed>>
+     * @throws \UnexpectedValueException
+     */
     public function all(string $routes = 'routes/workers.php'): array
     {
         $providers = $this->providerDefinitions($routes);
@@ -142,7 +145,10 @@ final readonly class WorkerManager
         }
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \LogicException
+     */
     private function assertForkSafeConfig(array $config): void
     {
         $this->assertForkSafeValue($config, 'config');
@@ -207,7 +213,10 @@ final readonly class WorkerManager
         }
     }
 
-    /** @return \Closure():bool */
+    /**
+     * @return \Closure():bool
+     * @throws \RuntimeException
+     */
     private function generationStopRequested(): \Closure
     {
         $loaded = $this->application->loadedReleaseGeneration();
@@ -289,6 +298,8 @@ final readonly class WorkerManager
 
     /**
      * @return array<string, array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     private function providerDefinitions(
         string $routes,
@@ -319,6 +330,8 @@ final readonly class WorkerManager
      * @param callable():void $processHeartbeat
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \LogicException
+     * @throws \Exception
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     private function runMessaging(
         string $name,
@@ -449,6 +462,7 @@ final readonly class WorkerManager
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function selectedGeneration(FoundationReleaseBootstrap $bootstrap): LoadedReleaseGeneration
     {

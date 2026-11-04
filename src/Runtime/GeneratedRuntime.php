@@ -29,6 +29,11 @@ final readonly class GeneratedRuntime
      * @param array<string,mixed> $config
      * @param array<int|string,mixed> $capabilities Must match the compile-time topology.
      * @throws \InvalidArgumentException
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public static function load(
         array $config,
@@ -44,6 +49,11 @@ final readonly class GeneratedRuntime
      *
      * @param array<int|string,mixed> $capabilities Must match the compile-time topology.
      * @throws \InvalidArgumentException
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public static function loadCompiled(
         ConfigRepository $config,

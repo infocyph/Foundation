@@ -26,6 +26,8 @@ final readonly class SessionManager
 
     /**
      * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function current(): BrowserSession
     {
@@ -38,6 +40,11 @@ final readonly class SessionManager
         return $active[count($active) - 1];
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function enter(BrowserSession $session): void
     {
         $state = $this->state();
@@ -46,6 +53,8 @@ final readonly class SessionManager
 
     /**
      * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function leave(BrowserSession $session): void
     {
@@ -78,6 +87,12 @@ final readonly class SessionManager
         return $this->store()->prune(time(), $limit);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Throwable
+     */
     public function resetContext(): void
     {
         $this->state()->reset();
@@ -98,6 +113,11 @@ final readonly class SessionManager
         return $state;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function store(): SessionStoreInterface
     {
         $state = $this->state();
