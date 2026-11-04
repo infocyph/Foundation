@@ -37,7 +37,10 @@ final readonly class ProviderFileLoader
         return $resolved;
     }
 
-    /** @return list<class-string<ServiceProviderInterface>> */
+    /**
+     * @return list<class-string<ServiceProviderInterface>>
+     * @throws BootstrapException
+     */
     public function providers(RuntimeMode $runtimeMode): array
     {
         $groups = $this->groups();
@@ -93,6 +96,7 @@ final readonly class ProviderFileLoader
 
     /**
      * @return list<class-string<ServiceProviderInterface>>
+     * @throws BootstrapException
      */
     private function providersForGroup(string $file, string $group, mixed $configured): array
     {
@@ -126,7 +130,6 @@ final readonly class ProviderFileLoader
                 ));
             }
 
-            /** @var class-string<ServiceProviderInterface> $provider */
             $resolved[] = $provider;
         }
 

@@ -4,6 +4,8 @@ Date: 2026-11-04 (Asia/Dhaka). Status: **implementation in progress; release gat
 
 ## Implementation checkpoint — 2026-11-04
 
+- **Verified official PHPForge checkpoint and source-type batch 4 (2026-11-04):** Exact source `5c6d0d0` failed [Security & Standards 41803161683](https://github.com/infocyph/Foundation/actions/runs/41803161683) on both Psalm 8.4/8.5 lanes with **1,656 console errors** (improved from 1,708), while all four normal QA lanes, both PHPStan lanes, both benchmarks, clean installation and all four production-consumer lanes passed; [native host 41803160881](https://github.com/infocyph/Foundation/actions/runs/41803160881) passed all five smoke lanes. Batch 4 preserves strict analysis and runtime contracts while correcting a false-string guard, removing unnecessary list copying, propagating provider boot exception declarations and adding Psalm-native aliases for the fixed module schema. Do not accept this batch until new exact-head PHPForge validation succeeds. **Formal acceptance remains 29/90; 61 open.**
+
 - **Exception-contract batch 3 (2026-11-04; pending official QA):** Added 57 verified `@throws` declarations across twelve Foundation-auth, DBLayer, filesystem, OAuth, routing, scheduler-command and session components based on the corrected PHPForge worker. The batch changes annotations only, not runtime control flow or analyzer settings. Continue to treat 29/90 as the formal acceptance count until the exact revision has green required checks.
 
 - **Exception-contract batch 2 (2026-11-04; awaiting standard PHPForge validation):** Reviewed source locations identified by the official Psalm report and added 127 missing exception declarations across 12 existing components, including DBLayer account/permission stores, Runwire-generated runtime, sessions, worker control, release routing and system commands. No new exception behavior, runtime branch, analyzer suppression or public-signature changes. Acceptance remains **29/90** until fresh mandatory CI confirms the batch.
@@ -404,7 +406,7 @@ Owners: `src/Routing/`, `src/Http/`, `src/Session/Middleware/`, trusted web rele
 
 ### P6. Validation and release evidence
 
-Run focused behavior tests while implementing, then the full PHPForge processing/detailed QA/release-guard flow. Fix causes; do not suppress findings, lower thresholds or remove relevant tests. Refresh and review the pinned PHPForge reusable QA workflow against the selected tooling revision; its reviewed pin is `9b6067dcf8a477d3420c178d934e4dbc6a589b49`, independently of the installed plugin revision.
+Run focused behavior tests while implementing, then the full PHPForge processing/detailed QA/release-guard flow. Fix causes; do not suppress findings, lower thresholds or remove relevant tests. Refresh and review the pinned PHPForge reusable QA workflow against the selected tooling revision; its reviewed pin is `a6232b6aefcc32b84b2fb94b8db8f5ac3b276d5d`, independently of the installed plugin revision.
 
 | Gate | Required evidence |
 | --- | --- |

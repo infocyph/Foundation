@@ -14,6 +14,22 @@ use Infocyph\Foundation\Module\Internal\ModuleArchitectureValidator;
  * public schema-v2 module CLI, planner and lifecycle integration.
  * Core and QA never become installable optional modules.
  *
+ * @psalm-type FeatureDependency = array{target:string,when?:array{key:string,operator:'equals'|'not-empty',value?:bool|int|string}}
+ * @psalm-type ArchitectureFeature = array{
+ *     description:string,
+ *     owner:string,
+ *     packages:non-empty-array<string,string>,
+ *     config:list<string>,
+ *     schemas:list<string>,
+ *     platform:array{extensions:list<string>,optional_extensions:list<string>},
+ *     dependencies:list<FeatureDependency>,
+ *     selection_key:?string
+ * }
+ * @psalm-type ArchitectureModule = array{
+ *     description:string,
+ *     features:array<string,ArchitectureFeature>
+ * }
+ *
  * @phpstan-type FeatureDependency array{target:string,when?:array{key:string,operator:'equals'|'not-empty',value?:bool|int|string}}
  * @phpstan-type ArchitectureFeature array{
  *     description:string,
@@ -155,7 +171,10 @@ final class ModuleArchitectureCatalog
         ],
     ];
 
-    /** @phpstan-return array<string,ArchitectureModule> */
+    /**
+     * @phpstan-return array<string,ArchitectureModule>
+     * @psalm-return array<string,ArchitectureModule>
+     */
     public function all(): array
     {
         return self::MODULES;
@@ -163,6 +182,7 @@ final class ModuleArchitectureCatalog
 
     /**
      * @phpstan-return ArchitectureFeature
+     * @psalm-return ArchitectureFeature
      * @throws \InvalidArgumentException
      */
     public function feature(string $module, string $feature): array
@@ -207,6 +227,7 @@ final class ModuleArchitectureCatalog
      * invalid because it is also a historical Core operations alias.
      *
      * @phpstan-return array{module:string,feature:string,definition:ArchitectureFeature}
+     * @psalm-return array{module:string,feature:string,definition:ArchitectureFeature}
      * @throws \InvalidArgumentException
      */
     public function resolve(string $id): array
@@ -228,6 +249,7 @@ final class ModuleArchitectureCatalog
      * schemas and platform metadata without altering application state.
      *
      * @phpstan-param array<string,ArchitectureModule>|null $modules
+     * @psalm-param array<string,ArchitectureModule>|null $modules
      */
     public function validate(?array $modules = null): void
     {
