@@ -14,7 +14,7 @@ final class ProcessSignals
 
     /**
      * @param callable(int):void $interrupt
-     * @return array{async:bool,handlers:array<int,callable|int|string>}|null
+     * @return array{async:bool,handlers:array<int,callable|int>}|null
      */
     public function register(ProcessOptions $options, callable $interrupt): ?array
     {
@@ -28,7 +28,11 @@ final class ProcessSignals
 
         $handlers = [];
         foreach ([self::SIGNAL_INTERRUPT, self::SIGNAL_TERMINATE] as $signal) {
-            $handlers[$signal] = pcntl_signal_get_handler($signal);
+            $handler = pcntl_signal_get_handler($signal);
+            if (!is_int($handler) && !is_callable($handler)) {
+                throw new \RuntimeException('Unable to capture a valid POSIX signal handler.');
+            }
+            $handlers[$signal] = $handler;
         }
 
         $async = pcntl_async_signals();
@@ -46,7 +50,7 @@ final class ProcessSignals
         return ['async' => $async, 'handlers' => $handlers];
     }
 
-    /** @param array{async:bool,handlers:array<int,callable|int|string>}|null $state */
+    /** @param array{async:bool,handlers:array<int,callable|int>}|null $state */
     public function restore(?array $state): void
     {
         if ($state === null || !function_exists('pcntl_signal')) {

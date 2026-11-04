@@ -138,9 +138,9 @@ final readonly class ProgressIndicator
 
         $ratio = $total === 0 ? 1.0 : min(1.0, $current / $total);
         $width = 24;
-        $filled = (int) floor($ratio * (float) $width);
+        $filled = (int) floor((float) $ratio * (float) $width);
         $bar = str_repeat('#', $filled) . str_repeat('-', $width - $filled);
-        $percent = (int) round($ratio * 100.0);
+        $percent = (int) round((float) $ratio * 100.0);
         $this->io->write(sprintf("\r[%s] %3d%% %s (%d/%d)", $bar, $percent, $label, $current, $total));
     }
 

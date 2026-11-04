@@ -67,8 +67,8 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
     }
 
     /**
-     * @param class-string<object> $implementation
-     * @param class-string<object> $dependency
+     * @param class-string $implementation
+     * @param class-string $dependency
      */
     private function bindClockedToken(string $service, string $implementation, string $dependency): void
     {
@@ -89,8 +89,8 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
     }
 
     /**
-     * @param class-string<object> $implementation
-     * @param class-string<object> $dependency
+     * @param class-string $implementation
+     * @param class-string $dependency
      */
     private function bindSingleDependencyToken(string $service, string $implementation, string $dependency): void
     {
@@ -98,8 +98,8 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
     }
 
     /**
-     * @param class-string<object> $implementation
-     * @param class-string<object> $dependency
+     * @param class-string $implementation
+     * @param class-string $dependency
      */
     private function bindTimedSingleDependencyToken(
         string $service,

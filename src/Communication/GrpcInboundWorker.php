@@ -70,7 +70,7 @@ final readonly class GrpcInboundWorker implements WorkerProvider
     private function cancellationSignal(WorkerRuntime $runtime): CancellationSignal
     {
         $lastHeartbeat = self::monotonicNanoseconds();
-        $heartbeatInterval = (int) ($this->heartbeatIntervalMilliseconds() * 1_000_000);
+        $heartbeatInterval = (int) round((float) $this->heartbeatIntervalMilliseconds() * 1_000_000.0);
 
         return CancellationSignal::fromCallable(
             function () use ($runtime, &$lastHeartbeat, $heartbeatInterval): bool {
