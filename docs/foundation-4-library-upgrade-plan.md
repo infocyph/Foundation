@@ -16,13 +16,14 @@ Work is underway on PR #20 / `feature/foundation-3`; no merge, tag, publication,
 
 The 90 implementation checkboxes below are acceptance criteria. Mark only entries with implementation and focused test/CI evidence; unmarked entries remain release requirements, even when partially implemented.
 
-- **New hosted QA blocker (2026-11-04):** on `453d92d`, both analysis lanes passed PHPStan and Composer audit but failed Psalm before analysis because `vendor/bin/psalm.phar` was absent after unpinned PHPForge `dev-main` resolved to `9b6067d`; earlier green run resolved `7214b16`. The available `vimeo/psalm` 7.0.2 installation alone did not supply the expected PHAR. Keep Psalm enabled and correct its owner/distribution rather than hiding the gate. Other jobs are assessed independently.
+- **Analysis/tooling reconciliation (2026-11-04):** `453d92d` CI `41760817282` passed PHPStan and Composer audit but failed Psalm on PHP 8.4/8.5 solely because pinned PHPForge reusable workflow `fdec64c` calls `vendor/bin/psalm.phar` while current PHPForge `dev-main` resolves to `9b6067d` and installs the Composer binary `vendor/bin/psalm`. Pinning the reviewed published upstream workflow source at `9b6067dcf8a477d3420c178d934e4dbc6a589b49` restores the supported executable path. The new revision requires all QA and analysis lanes to pass; Psalm remains required.
 
 ### Rolling batch tracker
 
 | Batch | Implemented source | Latest verified evidence | Remaining |
 | --- | --- | --- | --- |
-| Route-preset list integrity and host timing guard (2026-11-04) | Current batch: reject associative/sparse middleware stack maps; assert workflow minimum >=120 seconds | Previous HEAD `27ded8d` green, new source verification pending | Exact new-head PHP 8.4/8.5 stable/lowest QA, host smoke; compiled-route security proof |
+| PHPForge Psalm workflow compatibility (2026-11-04) | Refresh reusable workflow pin from `fdec64c` to `9b6067d`; keep Psalm enabled and require immutable SHA | `41760817282` reproduces missing `vendor/bin/psalm.phar` in PHP 8.4/8.5 while PHPStan and audit pass | Validate exact new SHA across full QA/analysis |
+| Route-preset list integrity and host timing guard (2026-11-04) | `453d92d`: reject associative/sparse middleware stack maps; assert workflow minimum >=120 seconds | Previous HEAD `27ded8d` green; `453d92d` CI in progress | Exact new-head QA/host smoke and compiled-route security proof |
 | Contract / dependency reconciliation | `1003e003`–`2118c7b2` | Previously failing 14 assertions resolved; `27ded8d` hosted four-lane QA pass | Final revision after additional batches |
 | Native OTP, Epicrypt, Pathwise operations | `556e5ea0`–`d8af04d1` | Borrowed context and cancellation regressions passed Pest on PHP 8.4/8.5, lowest/stable | Complete specialist/live-backend, soak, generation cases |
 | Architecture boundary | `694aa480` | Project Deptrac check and negative Foundation-to-Infbyte dependency fixture passed four QA lanes | Broader coverage review and architectural audit |
@@ -37,7 +38,7 @@ The 90 implementation checkboxes below are acceptance criteria. Mark only entrie
 | Release evidence and source baseline | `27ded8d` green release evidence | Updated module CLI fixture package requirements/installed-version metadata to DBLayer 6.1.4, Omnibus 3.0.3, OTP 7.0.1; selected a post-upgrade baseline for source-only host comparisons | Re-run release evidence and both paired-host modes |
 | Retired test-label cleanup | `27ded8d` green four-lane QA | Renamed DBLayer 5/Omnibus 2.6/Pathwise 4.1-labelled test owners to version-neutral contract names; retained their behaviors | Verify all migrated tests and references in QA |
 | Whole-dependency-upgrade comparator contract | `27ded8d` green four-lane QA | Explicit dependency-upgrade mode now resolves separate Composer locks, verifies a reviewed exact source/dist-ref change manifest before running the matrix, preserves the strict shared-lock default and produces distinct verdicts | Verify workflow, compare both full matrices and record host artifacts |
-| Performance-workflow QA reconciliation | `27ded8d` green four-lane QA and host smoke | Two-lock fixture and ordered-method policy corrected; 120-second guard strengthened in `453d92d` | New QA `41760817282`: Psalm analysis cannot open `vendor/bin/psalm.phar` with PHPForge dev-main `9b6067d`; investigate upstream tool distribution without suppressing Psalm |
+| Performance-workflow QA reconciliation | `27ded8d` green four-lane QA and host smoke | Two-lock fixture and ordered-method policy corrected; 120-second guard strengthened in `453d92d`; refreshed reusable QA workflow to upstream `9b6067d` for Composer Psalm executable | Final exact-head QA, including Psalm security analysis |
 
 
 
@@ -358,7 +359,7 @@ Owners: `src/Routing/`, `src/Http/`, `src/Session/Middleware/`, trusted web rele
 
 ### P6. Validation and release evidence
 
-Run focused behavior tests while implementing, then the full PHPForge processing/detailed QA/release-guard flow. Fix causes; do not suppress findings, lower thresholds or remove relevant tests. Refresh and review the pinned PHPForge reusable QA workflow against the selected tooling revision; its current pin is `fdec64cf4460f13116eb0e2f3405acadd3e84377`, independently of the installed plugin revision.
+Run focused behavior tests while implementing, then the full PHPForge processing/detailed QA/release-guard flow. Fix causes; do not suppress findings, lower thresholds or remove relevant tests. Refresh and review the pinned PHPForge reusable QA workflow against the selected tooling revision; its reviewed pin is `9b6067dcf8a477d3420c178d934e4dbc6a589b49`, independently of the installed plugin revision.
 
 | Gate | Required evidence |
 | --- | --- |

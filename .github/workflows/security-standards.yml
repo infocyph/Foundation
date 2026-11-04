@@ -27,7 +27,7 @@ jobs:
     permissions:
       contents: read
   phpforge:
-    uses: infocyph/phpforge/.github/workflows/security-standards.yml@fdec64cf4460f13116eb0e2f3405acadd3e84377
+    uses: infocyph/phpforge/.github/workflows/security-standards.yml@9b6067dcf8a477d3420c178d934e4dbc6a589b49
     permissions:
       security-events: write
       actions: read
@@ -286,7 +286,7 @@ jobs:
             printf "source_sha=%s\n" "$SOURCE_SHA"
             printf "ci_sha=%s\n" "$GITHUB_SHA"
             printf "php=%s\n" "$(php -r 'echo PHP_VERSION;')"
-            printf "phpforge_workflow=%s\n" "fdec64cf4460f13116eb0e2f3405acadd3e84377"
+            printf "phpforge_workflow=%s\n" "9b6067dcf8a477d3420c178d934e4dbc6a589b49"
             printf "generated_at=%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } > "$directory/manifest.env"
           php -m | sort > "$directory/php-extensions.txt"
