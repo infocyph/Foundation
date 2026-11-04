@@ -101,8 +101,9 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
 
             $this->recipe(EmailVerificationManager::class, EmailVerificationManager::class, [
                 $this->ref(EmailVerificationTokenServiceInterface::class), $this->ref(EmailVerificationStoreInterface::class),
-                $this->ref(AccountStoreInterface::class), $this->ref(AuthNotifierInterface::class),
-                $this->ref(AuditEventStoreInterface::class), $this->ref(AuthIdGeneratorInterface::class),
+                $this->ref(AccountStoreInterface::class), $this->ref(AccountProviderInterface::class),
+                $this->ref(AuthNotifierInterface::class), $this->ref(AuditEventStoreInterface::class),
+                $this->ref(AuthIdGeneratorInterface::class),
                 $this->intConfig('auth.email_verification_ttl', 3600), $this->ref(ClockInterface::class),
             ], LifetimeEnum::Scoped);
 

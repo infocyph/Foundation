@@ -91,6 +91,15 @@ if ($result->failed()) {
 }
 ```
 
+The domain-level `EmailVerificationManager::issue()` independently requires
+the destination to match the target account's stored email identity. Its
+constructor receives both the account write store and a separately bound
+`AccountProviderInterface` for that authoritative lookup. Custom constructor
+callers must pass the account provider after the account store. An arbitrary new
+address is not a supported verification purpose: a privileged email-change
+feature needs a separate authenticated update and pending-address contract,
+not a `context.email` override.
+
 This low-level action does **not** authenticate or authorize the HTTP caller.
 Applications must bind account identity to the authenticated principal and apply
 appropriate rate limits. A privileged address-change flow needs a separate,

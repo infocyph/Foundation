@@ -379,6 +379,7 @@ it('rejects verified email tokens whose subject or destination differs from the 
             $tokens,
             $store,
             $accounts,
+            $accounts,
             new CollectingAuthNotifier(),
             new InMemoryAuditEventStore(),
             new UidAuthIdGenerator(new ConfigRepository()),
@@ -603,5 +604,56 @@ it('keeps verified email and passwordless tokens bound to trusted notification r
         $mailer->assertable()->assertSentTo('purpose-owner@example.test');
         expect(fn() => $mailer->assertable()->assertSentTo('attacker@example.test'))
             ->toThrow(RuntimeException::class);
+    });
+});
+
+it('rejects untrusted direct domain email verification destinations before token issuance', function (): void {
+    $app = Foundation::web([
+        'app' => ['base_path' => sys_get_temp_dir()],
+        'router' => ['files' => []],
+    ]);
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $services = $app->make(AuthServices::class);
+        $account = $services->accounts()->create(
+            'domain-owner@example.test',
+            status: AccountStatus::PENDING_VERIFICATION,
+        )->account;
+        if ($account === null) {
+            throw new LogicException('Expected a persisted account.');
+        }
+        $notifier = $app->make(AuthNotifierInterface::class);
+        if (!$notifier instanceof CollectingAuthNotifier) {
+            throw new LogicException('Expected collecting notifier.');
+        }
+
+        $manager = $services->emailVerification();
+        $forged = $manager->issue($account->id(), 'attacker@example.test', [
+            'recipient_email' => 'attacker@example.test',
+        ]);
+        $missing = $manager->issue('missing-account', 'attacker@example.test');
+
+        expect($forged->status)->toBe(EmailVerificationStatus::INVALID)
+            ->and($forged->code)->toBe('email_destination_untrusted')
+            ->and($forged->token)->toBeNull()
+            ->and($missing->status)->toBe(EmailVerificationStatus::INVALID)
+            ->and($notifier->notifications())->toBeEmpty();
+
+        $issued = $manager->issue($account->id(), $account->identifier(), [
+            'email' => 'attacker@example.test',
+            'recipient_email' => 'attacker@example.test',
+        ]);
+        expect($issued->status)->toBe(EmailVerificationStatus::ISSUED)
+            ->and($issued->token)->toBeString()
+            ->and($notifier->notifications())->toHaveCount(1)
+            ->and($notifier->notifications()[0]->payload['email'])->toBe($account->identifier());
+
+        $username = $services->accounts()->create('domain-user', metadata: [
+            'email' => 'bound-owner@example.test',
+        ])->account;
+        if ($username === null) {
+            throw new LogicException('Expected a username-backed account.');
+        }
+        expect($manager->issue($username->id(), 'attacker@example.test')->failed())->toBeTrue()
+            ->and($manager->issue($username->id(), 'bound-owner@example.test')->successful())->toBeTrue();
     });
 });

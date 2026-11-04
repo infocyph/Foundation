@@ -10,6 +10,7 @@ use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
 use Infocyph\Foundation\Auth\Contract\Security\TokenVerificationResult;
+use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\EmailVerificationStoreInterface;
@@ -26,6 +27,7 @@ final readonly class EmailVerificationManager
         private EmailVerificationTokenServiceInterface $tokens,
         private EmailVerificationStoreInterface $store,
         private AccountStoreInterface $accounts,
+        private AccountProviderInterface $accountProvider,
         private AuthNotifierInterface $notifier,
         private AuditEventStoreInterface $audit,
         private AuthIdGeneratorInterface $ids,
@@ -38,6 +40,10 @@ final readonly class EmailVerificationManager
      */
     public function issue(string $accountId, string $email, array $context = []): EmailVerificationResult
     {
+        if (!$this->trustedDestination($accountId, $email)) {
+            return $this->invalidVerificationResult('email_destination_untrusted', $context);
+        }
+
         $now = $this->clock->now();
         $requestId = $this->ids->challengeId();
         $request = new EmailVerificationRequest($requestId, $accountId, $email, $now, $now + $this->ttlSeconds, context: $context);
@@ -160,6 +166,23 @@ final readonly class EmailVerificationManager
             metadata: $metadata + $context,
             severity: $severity,
         );
+    }
+
+    private function trustedDestination(string $accountId, string $email): bool
+    {
+        $account = $this->accountProvider->findById($accountId);
+        if ($account === null) {
+            return false;
+        }
+
+        $identifier = $account->identifier();
+        $stored = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false
+            ? $identifier
+            : ($account->metadata()['email'] ?? null);
+
+        return is_string($stored)
+            && filter_var($stored, FILTER_VALIDATE_EMAIL) !== false
+            && strcasecmp($stored, $email) === 0;
     }
 
     private function resolveRequest(TokenVerificationResult $verification): ?EmailVerificationRequest
