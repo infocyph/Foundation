@@ -58,12 +58,19 @@ final readonly class AuthNotificationMapper
         foreach ($payload as $key => $value) {
             $rendered = is_scalar($value) || $value === null
                 ? (string) $value
-                : (json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '');
+                : self::encodePayload($value);
 
             $lines[] = sprintf('%s: %s', $key, $rendered);
         }
 
         return implode("\n", $lines);
+    }
+
+    private static function encodePayload(mixed $value): string
+    {
+        $encoded = json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        return $encoded === false ? '' : $encoded;
     }
 
     /**
@@ -90,7 +97,7 @@ final readonly class AuthNotificationMapper
         foreach ($notification->payload as $key => $value) {
             $variables[$key] = is_scalar($value) || $value === null
                 ? $value
-                : (json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '');
+                : self::encodePayload($value);
         }
 
         return $variables;

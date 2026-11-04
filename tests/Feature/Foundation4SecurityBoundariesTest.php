@@ -304,3 +304,28 @@ it('does not promote caller supplied password-change audit IDs and preserves pas
             ->and($event?->deviceId)->toBeNull();
     });
 });
+
+it('preserves encoded JSON zero in authentication notification templates and payload lines', function (): void {
+    $registry = new NotificationTemplateRegistry(new ConfigRepository([
+        'notifications' => [
+            'auth' => [
+                'templates' => [
+                    'login_alert' => ['text' => '{{counter}}|{{payload_lines}}'],
+                ],
+            ],
+        ],
+    ]));
+    $zero = new class implements JsonSerializable {
+        public function jsonSerialize(): int
+        {
+            return 0;
+        }
+    };
+    $message = new AuthNotificationMapper($registry)->toEmail(new AuthNotification(
+        AuthNotificationType::LOGIN_ALERT,
+        'account-id',
+        ['counter' => $zero],
+    ), 'owner@example.test');
+
+    expect($message->textBody())->toBe('0|counter: 0');
+});
