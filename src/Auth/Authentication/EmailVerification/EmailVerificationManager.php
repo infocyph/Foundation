@@ -98,6 +98,7 @@ final readonly class EmailVerificationManager
 
     /**
      * @param array<string, mixed> $context
+     * @throws \RuntimeException
      */
     private function completeVerification(EmailVerificationRequest $request, array $context): EmailVerificationResult
     {

@@ -36,6 +36,7 @@ final class InMemoryAccountStore implements AccountProviderInterface, AccountSto
         return null;
     }
 
+    /** @throws \Infocyph\Foundation\Auth\Exception\StorageException */
     #[\Override]
     public function markVerified(string $accountId, int $verifiedAt): void
     {
@@ -86,6 +87,7 @@ final class InMemoryAccountStore implements AccountProviderInterface, AccountSto
         $this->accounts[$account->id()] = $account;
     }
 
+    /** @throws \Infocyph\Foundation\Auth\Exception\StorageException */
     #[\Override]
     public function updateMetadata(string $accountId, array $metadata): void
     {
@@ -93,6 +95,7 @@ final class InMemoryAccountStore implements AccountProviderInterface, AccountSto
         $this->accounts[$accountId] = $account->withMetadata($metadata);
     }
 
+    /** @throws \Infocyph\Foundation\Auth\Exception\StorageException */
     #[\Override]
     public function updatePasswordHash(string $accountId, string $passwordHash): void
     {
@@ -100,6 +103,7 @@ final class InMemoryAccountStore implements AccountProviderInterface, AccountSto
         $this->accounts[$accountId] = $account->withPasswordHash($passwordHash);
     }
 
+    /** @throws \Infocyph\Foundation\Auth\Exception\StorageException */
     #[\Override]
     public function updateStatus(string $accountId, AccountStatus $status): void
     {

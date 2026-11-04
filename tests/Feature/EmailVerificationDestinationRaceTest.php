@@ -123,6 +123,11 @@ it('conditionally marks a real DBLayer account verified only for its current ema
             ->and($store->markVerifiedForEmail('owner', 'attacker@example.test', $verifiedAt))->toBeFalse()
             ->and($store->findById('owner')?->status())->toBe(AccountStatus::PENDING_VERIFICATION);
 
+        $store->save(new Account('email-owner', 'email-owner@example.test', AccountStatus::PENDING_VERIFICATION));
+        expect($store->markVerifiedForEmail('email-owner', 'EMAIL-OWNER@example.test', $verifiedAt))->toBeTrue()
+            ->and($store->findById('email-owner')?->status())->toBe(AccountStatus::ACTIVE)
+            ->and($store->findById('email-owner')?->metadata()['verified_at'] ?? null)->toBe($verifiedAt);
+
         $store->updateMetadata('owner', ['email' => 'current@example.test', 'theme' => 'dark']);
 
         expect($store->markVerifiedForEmail('owner', 'original@example.test', $verifiedAt))->toBeFalse()

@@ -13,6 +13,9 @@ use Infocyph\Foundation\Auth\Contract\Storage\AccountStoreInterface;
 final readonly class DBLayerAccountStore extends DBLayerStore implements AccountProviderInterface, AccountStoreInterface
 {
     /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \RuntimeException
      */
     #[\Override]
@@ -27,6 +30,9 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
     }
 
     /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \RuntimeException
      */
     #[\Override]
@@ -41,6 +47,9 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
     }
 
     /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \RuntimeException
      */
     #[\Override]
@@ -68,6 +77,9 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
      * live in a username account's JSON metadata, so a separate email-column
      * comparison is insufficient.
      *
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \RuntimeException
      */
     #[\Override]
@@ -101,7 +113,14 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         if ($originalMetadata === null) {
             $where .= ' AND metadata IS NULL';
         } elseif (is_string($originalMetadata)) {
-            $where .= ' AND metadata = ?';
+            $condition = match ($this->connection()->getDriverName()) {
+                'pgsql' => 'CAST(metadata AS TEXT) = ?',
+                'mysql', 'mariadb' => 'CAST(metadata AS BINARY) = CAST(? AS BINARY)',
+                'mssql' => 'CONVERT(VARBINARY(MAX), metadata) = CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), ?))',
+                'sqlite' => 'metadata = ?',
+                default => throw new \LogicException('Atomic account email verification requires a supported database driver.'),
+            };
+            $where .= ' AND ' . $condition;
             $bindings[] = $originalMetadata;
         } else {
             return false;
@@ -116,6 +135,9 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
     }
 
     /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \RuntimeException
      */
     #[\Override]
@@ -149,6 +171,9 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
     }
 
     /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \RuntimeException
      */
     #[\Override]
@@ -161,6 +186,9 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
     }
 
     /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \RuntimeException
      */
     #[\Override]
@@ -173,6 +201,9 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
     }
 
     /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \RuntimeException
      */
     #[\Override]

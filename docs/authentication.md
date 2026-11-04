@@ -100,6 +100,20 @@ address is not a supported verification purpose: a privileged email-change
 feature needs a separate authenticated update and pending-address contract,
 not a `context.email` override.
 
+During token redemption, the manager also requires a destination-conditional
+`AccountStoreInterface::markVerifiedForEmail($accountId, $email, $verifiedAt)`
+operation. Unlike the administrative `markVerified()` operation, this method
+must atomically compare the currently persisted email destination at its write
+boundary and return `false` without changing the account when it has changed.
+The one-time token's `consumeAndApply()` and account mutation must participate
+in the same transaction; a failed compare aborts consumption with
+`email_destination_untrusted`. Built-in in-memory and DBLayer account stores
+implement this contract. Custom stores implementing `AccountStoreInterface`
+must implement the conditional operation with equivalent atomicity; a separate
+read followed by unconditional account update is not sufficient. Database
+adapters must preserve the original stored JSON representation when comparing
+username-account email metadata, including differences across SQL dialects.
+
 This low-level action does **not** authenticate or authorize the HTTP caller.
 Applications must bind account identity to the authenticated principal and apply
 appropriate rate limits. A privileged address-change flow needs a separate,
