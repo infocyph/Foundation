@@ -3,10 +3,14 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Auth\Account\Account;
+use Infocyph\Foundation\Auth\Account\AccountStatus;
+use Infocyph\Foundation\Auth\AuthServices;
+use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationStatus;
 use Infocyph\Foundation\Auth\Adapter\TalkingBytes\AuthNotificationMapper;
 use Infocyph\Foundation\Auth\Adapter\TalkingBytes\TalkingBytesAuthNotifier;
 use Infocyph\Foundation\Auth\Adapter\Uid\UidAuthIdGenerator;
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
+use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Auth\Notification\AuthNotification;
 use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
@@ -14,6 +18,7 @@ use Infocyph\Foundation\Auth\Support\InMemoryAccountStore;
 use Infocyph\Foundation\Auth\Support\InMemoryAuditEventStore;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Notifications\NotificationTemplateRegistry;
 use Infocyph\TalkingBytes\Email\Emailer;
 
@@ -126,4 +131,88 @@ it('redacts nested credentials at the shared authentication audit recorder bound
     foreach (['password-sentinel', 'access-sentinel', 'secret-sentinel', 'bearer-sentinel'] as $secret) {
         expect($encoded)->not->toContain($secret);
     }
+});
+
+it('allows HTTP-facing verification issuance only to an account-stored email', function (): void {
+    $app = Foundation::web([
+        'app' => ['base_path' => sys_get_temp_dir()],
+        'router' => ['files' => []],
+    ]);
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $services = $app->make(AuthServices::class);
+        $actions = $app->make(AuthActions::class);
+        $account = $services->accounts()->create(
+            'victim@example.test',
+            status: AccountStatus::PENDING_VERIFICATION,
+        )->account;
+        expect($account)->not->toBeNull();
+        if ($account === null) {
+            throw new LogicException('Expected a stored account.');
+        }
+
+        $forged = $actions->requestEmailVerification([
+            'account_id' => $account->id(),
+            'email' => 'attacker@example.test',
+            'context' => ['email' => 'attacker@example.test'],
+        ]);
+        expect($forged->status)->toBe(EmailVerificationStatus::INVALID)
+            ->and($forged->code)->toBe('email_destination_untrusted')
+            ->and($forged->token)->toBeNull();
+
+        $legitimate = $actions->requestEmailVerification([
+            'account_id' => $account->id(),
+            'email' => 'victim@example.test',
+        ]);
+        expect($legitimate->status)->toBe(EmailVerificationStatus::ISSUED)
+            ->and($legitimate->email())->toBe('victim@example.test');
+
+        $username = $services->accounts()->create(
+            'victim-user',
+            metadata: ['email' => 'account@example.test'],
+            status: AccountStatus::PENDING_VERIFICATION,
+        )->account;
+        expect($username)->not->toBeNull();
+        if ($username === null) {
+            throw new LogicException('Expected a stored username account.');
+        }
+
+        expect($actions->requestEmailVerification([
+            'account_id' => $username->id(),
+        ])->email())->toBe('account@example.test');
+        expect($actions->requestEmailVerification([
+            'account_id' => $username->id(),
+            'email' => 'attacker@example.test',
+        ])->status)->toBe(EmailVerificationStatus::INVALID);
+    });
+});
+
+it('keeps caller metadata out of authoritative audit session and device identity', function (): void {
+    $audit = new InMemoryAuditEventStore();
+    $ids = new UidAuthIdGenerator(new ConfigRepository());
+    $clock = new SystemClock();
+
+    AuthEventRecorder::record(
+        $audit,
+        $ids,
+        $clock,
+        AuthEventType::LOGIN_SUCCESS,
+        'account-id',
+        metadata: ['session_id' => 'supplied-session', 'device_id' => 'supplied-device'],
+    );
+    AuthEventRecorder::record(
+        $audit,
+        $ids,
+        $clock,
+        AuthEventType::LOGIN_SUCCESS,
+        'account-id',
+        metadata: ['session_id' => 'supplied-session', 'device_id' => 'supplied-device'],
+        sessionId: 'server-session',
+        deviceId: 'server-device',
+    );
+
+    $events = $audit->events();
+    expect($events[0]->sessionId)->toBeNull()
+        ->and($events[0]->deviceId)->toBeNull()
+        ->and($events[1]->sessionId)->toBe('server-session')
+        ->and($events[1]->deviceId)->toBe('server-device');
 });

@@ -105,7 +105,14 @@ final readonly class AuthActions
             );
         }
 
-        $email = $this->string($payload, 'email', $account->identifier());
+        $email = $this->emailVerificationDestination($account, $payload);
+        if ($email === null) {
+            return new EmailVerificationResult(
+                EmailVerificationStatus::INVALID,
+                code: 'email_destination_untrusted',
+                context: $this->context($payload),
+            );
+        }
 
         return $this->services->emailVerification()->issue(
             $account->id(),
@@ -418,6 +425,27 @@ final readonly class AuthActions
     /**
      * @param array<string, mixed> $payload
      */
+    /**
+     * Only a stored account destination may activate its verified status.
+     * Arbitrary address changes require a separate authorized account-change flow.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function emailVerificationDestination(AccountInterface $account, array $payload): ?string
+    {
+        $identifier = $account->identifier();
+        $email = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false
+            ? $identifier
+            : ($account->metadata()['email'] ?? null);
+        if (!is_string($email) || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            return null;
+        }
+
+        $requested = $this->nullableString($payload, 'email');
+
+        return $requested === null || strcasecmp($requested, $email) === 0 ? $email : null;
+    }
+
     private function int(array $payload, string $key, int $default = 0): int
     {
         $value = $payload[$key] ?? null;

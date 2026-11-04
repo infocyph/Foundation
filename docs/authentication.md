@@ -71,6 +71,37 @@ transition that must discard browser state may use `invalidate()`. Rotation
 checks current lock ownership before deleting the previous record, so a stale
 request cannot remove newer session state.
 
+## Email verification trust boundary
+
+The HTTP-facing `AuthActions::requestEmailVerification()` only issues a
+verification token to the account's stored email identity. A supplied `email`
+field must match that stored address; for username-based accounts, the canonical
+address may come from stored account `metadata.email`. Mismatches and missing
+trusted destinations return `EmailVerificationStatus::INVALID` with
+`email_destination_untrusted` and do not issue a token.
+
+```php
+use Infocyph\Foundation\Auth\Http\AuthActions;
+
+$actions = $app->make(AuthActions::class);
+$result = $actions->requestEmailVerification(['account_id' => $accountId]);
+
+if ($result->failed()) {
+    // Handle the invalid destination without exposing a token.
+}
+```
+
+This low-level action does **not** authenticate or authorize the HTTP caller.
+Applications must bind account identity to the authenticated principal and apply
+appropriate rate limits. A privileged address-change flow needs a separate,
+explicit account update contract; verifying a newly supplied arbitrary address
+must not mark a different stored account address verified. Do not expose issued
+token values directly to unauthenticated HTTP clients.
+
+Audit metadata is descriptive, not an identity source. Pass verified session and
+device IDs explicitly when recording an auth audit event; caller-provided
+`metadata.session_id` and `metadata.device_id` must not become canonical IDs.
+
 ## Authorization
 
 The configured authorizer evaluates application gate/policy/permission/grant

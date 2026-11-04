@@ -23,6 +23,8 @@ The 90 implementation checkboxes below are acceptance criteria. Mark only entrie
 
 | Batch | Implemented source | Latest verified evidence | Remaining |
 | --- | --- | --- | --- |
+| Verified email destination and audit identity boundary (2026-11-04) | Require HTTP verification destination to match stored account email; stop promoting arbitrary audit metadata into canonical session/device fields; add adversarial regression and documentation | Previous `0902665b` full QA and native host green; new source verification pending | Verify all QA; inspect other callers that pass untrusted IDs explicitly, and trusted direct-domain email-change flows |
+
 | Durable messaging test-name parity (2026-11-04) | Renamed Omnibus 2.6-labelled test owner and fixture symbols to version-neutral terms; preserved encoded durable-message alias `foundation.omnibus26.durable-message.v1` with an explicit regression | Prior `0902665b` four-lane QA and native-host smoke green; new source verification pending | Continue P4 source/doc compatibility audit and rerun new revision |
 
 | PHPForge Psalm workflow compatibility (2026-11-04) | Reusable Actions workflow pin `9b6067d`; Composer `infocyph/phpforge: dev-main@dev` unchanged; Psalm required | `41761279913` full QA and both Psalm/PHPStan lanes green on `0902665b` | Requalify after next source changes |
@@ -139,7 +141,7 @@ Evidence: `src/Auth/Http/AuthActions.php:153` passes the nested context through 
 Reproduction: call `AuthActions::requestPasswordReset()` with `identifier=victim@example.test` and `context.email=attacker@example.test`; pass the resulting notification through the actual TalkingBytes notifier with an in-memory fake transport. The notification belongs to the victim, the selected recipient is the attacker, and its token changes the victim password. No external email was sent. Exposure requires an application to pass attacker-controlled fields/context into these helpers and use this notifier; Foundation does not automatically publish a reset route.
 
 - [x] Separate HTTP-supplied context from trusted delivery policy. Resolve password-reset recipients from the target account; do not accept delivery-field overrides from request metadata.
-- [ ] Preserve explicit email-verification destination semantics through a validated, purpose-specific contract rather than a generic metadata override. Apply the same review to passwordless/MFA/security notifications.
+- [ ] Preserve explicit email-verification destination semantics through a validated, purpose-specific contract rather than a generic metadata override. HTTP-facing issuance now rejects addresses outside authoritative account state; trusted domain email-change flows and end-to-end notifier verification remain to audit. Passwordless/MFA/security notification recipient binding was implemented earlier.
 - [ ] Add end-to-end regressions for nested and top-level override fields, account lookup by identifier/ID, missing/invalid recipients and each security-notification purpose. Assert both the intended recipient and the account/purpose of the issued token.
 - [ ] Review public HTTP response mapping so issuance results containing tokens are never blindly exposed as an unauthenticated response. Keep low-level domain results useful without making request handlers disclose their secrets.
 
@@ -168,7 +170,7 @@ Evidence: `AuthActions::context()` returns a nonempty nested context verbatim; `
 Reproduction: a login with a valid ordinary password and nested `context.password=audit-secret-sentinel` records that sentinel unchanged in the final audit event. The probe prints only a boolean. This confirms retention of supplied credential-shaped data, not extraction of an unrelated server secret.
 
 - [x] Establish reserved security/context fields and redact credential/token/authorization/private-key values recursively before recording audit events, including calls that bypass `AuthActions`.
-- [ ] Keep trusted actor/session/device/correlation identities distinct from request-provided display metadata. Preserve useful event type, outcome, account correlation and nonsecret token/request identifiers while redacting bearer credentials.
+- [ ] Keep trusted actor/session/device/correlation identities distinct from request-provided display metadata. The recorder no longer promotes arbitrary metadata to canonical session/device fields, with tests for trusted explicit IDs; caller-specific sites that explicitly promote request-supplied IDs still require review.
 - [x] Add in-memory and DBLayer audit regressions with nested arrays and mixed-case sensitive keys; assert that login/reset/MFA/passkey secrets do not persist. `Foundation4SecurityBoundariesTest` and `Foundation4AuthAuditPersistenceTest` pass in pre-batch `41652684379` across four QA lanes.
 
 #### A05. Supervise process stdin without blocking deadlines

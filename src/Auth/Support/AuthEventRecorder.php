@@ -14,6 +14,9 @@ use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 final class AuthEventRecorder
 {
     /**
+     * Canonical actor, session and device identities must be passed explicitly
+     * from trusted application state, never inferred from arbitrary metadata.
+     *
      * @param array<string, mixed> $metadata
      */
     public static function record(
@@ -34,8 +37,8 @@ final class AuthEventRecorder
             severity: $severity,
             accountId: $accountId,
             actorId: $actorId ?? $accountId,
-            sessionId: $sessionId ?? ContextValue::stringOrNull($metadata, 'session_id'),
-            deviceId: $deviceId ?? ContextValue::stringOrNull($metadata, 'device_id'),
+            sessionId: $sessionId,
+            deviceId: $deviceId,
             correlationId: $ids->correlationId(),
             occurredAt: $clock->now(),
             metadata: self::safeMetadata($metadata),
