@@ -657,3 +657,40 @@ it('rejects untrusted direct domain email verification destinations before token
             ->and($manager->issue($username->id(), 'bound-owner@example.test')->successful())->toBeTrue();
     });
 });
+
+it('cannot verify a stale email token after the authoritative account email changes', function (): void {
+    $app = Foundation::web([
+        'app' => ['base_path' => sys_get_temp_dir()],
+        'router' => ['files' => []],
+    ]);
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $services = $app->make(AuthServices::class);
+        $account = $services->accounts()->create(
+            'previous-email-user',
+            metadata: ['email' => 'previous@example.test'],
+            status: AccountStatus::PENDING_VERIFICATION,
+        )->account;
+        if ($account === null) {
+            throw new LogicException('Expected an account.');
+        }
+
+        $issued = $services->emailVerification()->issue($account->id(), 'previous@example.test');
+        expect($issued->status)->toBe(EmailVerificationStatus::ISSUED)
+            ->and($issued->token)->toBeString();
+        if ($issued->request === null || $issued->token === null) {
+            throw new LogicException('Expected a persisted verification request and token.');
+        }
+
+        expect($services->accounts()->updateMetadata(
+            $account->id(),
+            ['email' => 'current@example.test'],
+        )->successful())->toBeTrue();
+
+        $verified = $services->emailVerification()->verify($issued->token);
+        $store = $app->make(\Infocyph\Foundation\Auth\Contract\Storage\EmailVerificationStoreInterface::class);
+        expect($verified->status)->toBe(EmailVerificationStatus::INVALID)
+            ->and($verified->code)->toBe('email_destination_untrusted')
+            ->and($store->find($issued->request->id)?->isConsumed())->toBeFalse()
+            ->and($services->accountProvider()->findById($account->id())?->status())->toBe(AccountStatus::PENDING_VERIFICATION);
+    });
+});

@@ -89,6 +89,10 @@ final readonly class EmailVerificationManager
             return $this->expiredVerificationResult($request, $context);
         }
 
+        if (!$this->trustedDestination($request->accountId, $request->email)) {
+            return $this->invalidVerificationResult('email_destination_untrusted', $context);
+        }
+
         return $this->completeVerification($request, $context);
     }
 
