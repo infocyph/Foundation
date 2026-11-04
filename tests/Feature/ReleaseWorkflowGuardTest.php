@@ -16,7 +16,7 @@ it('requires tagged Foundation releases to pass quality and production consumers
         expect($jobs[$job]['if'] ?? null)->toBeNull();
     }
 
-    expect($jobs['phpforge']['uses'])->toBe('infocyph/phpforge/.github/workflows/security-standards.yml@9b6067dcf8a477d3420c178d934e4dbc6a589b49')
+    expect($jobs['phpforge']['uses'])->toBe('infocyph/phpforge/.github/workflows/security-standards.yml@a6232b6aefcc32b84b2fb94b8db8f5ac3b276d5d')
         ->and($jobs['runtime-hosts']['uses'])->toBe('./.github/workflows/foundation4-host-certification.yml')
         ->and($jobs['runtime-hosts']['if'])->toContain("startsWith(github.ref, 'refs/tags/')");
     $hosts = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/foundation4-host-certification.yml');
