@@ -4,6 +4,9 @@ Date: 2026-11-04 (Asia/Dhaka). Status: **implementation in progress; release gat
 
 ## Implementation checkpoint — 2026-11-04
 
+- **Analyzer reconciliation on the 32/90 acceptance batch (2026-11-04; exact-head QA pending):** The first pushed revision `34cd06e` failed [PHPForge Security & Standards 41850396232](https://github.com/infocyph/Foundation/actions/runs/41850396232) because redundant defensive cache-key conditions exceeded the project's class/method complexity limits and triggered PHPStan's nullable-offset certainty rules. Restore the original verified runtime flow and add precise Psalm-only discriminated manifest shapes in the two already-validated branches. Quote the reserved `as` key in the Webrick group annotation to satisfy Psalm's parser. No analyzer policy or runtime fallback behavior changed. This corrective revision requires exact-head validation; formal acceptance remains **32/90**, Psalm was 1,585 on the failed batch.
+
+
 - **Verified acceptance reconciliation + targeted Psalm shape batch (2026-11-04; exact-head QA pending):** [Official PHPForge run 41817524500](https://github.com/infocyph/Foundation/actions/runs/41817524500) passed all four QA lanes, production consumers, both PHPStan lanes, benchmarks and clean install; [native smoke 41817523859](https://github.com/infocyph/Foundation/actions/runs/41817523859) passed. Reconcile two P0 A02 trusted-byte verification/test criteria and one P5 downstream adoption checklist criterion supported by those tests/docs: **32/90 accepted; 58 open**. This batch also corrects `ConfigLoader` cached-manifest optional-key guards and aligns `RoutePresetRegistrar::group()` parameter documentation with Webrick's actual named `GroupInput` shape, addressing reported Psalm type issues without changing route behavior or analyzer thresholds. Both Psalm analysis lanes still reported 1,588 errors on the prior head; do not claim this batch passes until the official exact-head workers report.
 
 

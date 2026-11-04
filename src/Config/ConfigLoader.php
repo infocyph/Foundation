@@ -41,30 +41,26 @@ final class ConfigLoader
             ? null
             : $this->loadCacheManifest($cacheDirectory);
         if ($cacheDirectory !== null && $cached !== null && $cached['type'] === self::TYPE_SINGLE) {
-            $file = $cached['file'] ?? null;
-            if ($file === ArrayKitConfigCache::SINGLE_FILE) {
-                $single = $this->loadSingleCache(
-                    $cacheDirectory . DIRECTORY_SEPARATOR . $file,
-                    $overrides,
-                );
-                if ($single !== null) {
-                    return $single;
-                }
+            /** @psalm-var array{type:'single',file:string} $cached */
+            $single = $this->loadSingleCache(
+                $cacheDirectory . DIRECTORY_SEPARATOR . $cached['file'],
+                $overrides,
+            );
+            if ($single !== null) {
+                return $single;
             }
         }
 
         if ($cacheDirectory !== null && $cached !== null && $cached['type'] === self::TYPE_SHARDED) {
-            $namespaces = $cached['namespaces'] ?? null;
-            if ($namespaces !== null) {
-                return ConfigRepository::fromLazyFiles(
-                    directory: $cacheDirectory,
-                    cacheDirectory: $cacheDirectory,
-                    fallback: ($cached['complete'] ?? false) ? [] : $this->defaults(),
-                    overrides: $overrides,
-                    namespaces: $namespaces,
-                    compiled: true,
-                );
-            }
+            /** @psalm-var array{type:'sharded',namespaces:list<string>,complete:bool} $cached */
+            return ConfigRepository::fromLazyFiles(
+                directory: $cacheDirectory,
+                cacheDirectory: $cacheDirectory,
+                fallback: $cached['complete'] ? [] : $this->defaults(),
+                overrides: $overrides,
+                namespaces: $cached['namespaces'],
+                compiled: true,
+            );
         }
 
         return ConfigRepository::fromLazyFiles(
