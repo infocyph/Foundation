@@ -5,6 +5,17 @@ declare(strict_types=1);
 use Infocyph\Foundation\Auth\Account\Account;
 use Infocyph\Foundation\Auth\Account\AccountStatus;
 use Infocyph\Foundation\Auth\AuthServices;
+use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationManager;
+use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationRequest;
+use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationTokenServiceInterface;
+use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetManager;
+use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetRequest;
+use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetStatus;
+use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetTokenServiceInterface;
+use Infocyph\Foundation\Auth\Contract\Security\TokenVerificationResult;
+use Infocyph\Foundation\Auth\Support\CollectingAuthNotifier;
+use Infocyph\Foundation\Auth\Support\InMemoryEmailVerificationStore;
+use Infocyph\Foundation\Auth\Support\InMemoryPasswordResetStore;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationStatus;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
 use Infocyph\Foundation\Auth\Adapter\TalkingBytes\AuthNotificationMapper;
@@ -328,4 +339,91 @@ it('preserves encoded JSON zero in authentication notification templates and pay
     ), 'owner@example.test');
 
     expect($message->textBody())->toBe('0|counter: 0');
+});
+
+it('rejects verified email tokens whose subject or destination differs from the stored request', function (): void {
+    $accounts = new InMemoryAccountStore();
+    $accounts->save(new Account('victim', 'victim@example.test', AccountStatus::PENDING_VERIFICATION));
+    $store = new InMemoryEmailVerificationStore();
+    $now = time();
+    $store->save(new EmailVerificationRequest('email-request', 'victim', 'victim@example.test', $now, $now + 3600));
+
+    foreach ([
+        new TokenVerificationResult(true, 'attacker', claims: [
+            'request_id' => 'email-request',
+            'email' => 'victim@example.test',
+        ]),
+        new TokenVerificationResult(true, 'victim', claims: [
+            'request_id' => 'email-request',
+            'email' => 'attacker@example.test',
+        ]),
+    ] as $verification) {
+        $tokens = new class($verification) implements EmailVerificationTokenServiceInterface {
+            public function __construct(private TokenVerificationResult $verification) {}
+
+            public function issue(string $accountId, string $email, array $context = []): string
+            {
+                return 'test-token';
+            }
+
+            public function verify(string $token): TokenVerificationResult
+            {
+                return $this->verification;
+            }
+        };
+
+        $manager = new EmailVerificationManager(
+            $tokens,
+            $store,
+            $accounts,
+            new CollectingAuthNotifier(),
+            new InMemoryAuditEventStore(),
+            new UidAuthIdGenerator(new ConfigRepository()),
+        );
+
+        $result = $manager->verify('test-token');
+        expect($result->status)->toBe(EmailVerificationStatus::INVALID)
+            ->and($result->code)->toBe('verification_request_mismatch')
+            ->and($store->find('email-request')?->isConsumed())->toBeFalse()
+            ->and($accounts->findById('victim')?->status())->toBe(AccountStatus::PENDING_VERIFICATION);
+    }
+});
+
+it('rejects a verified password reset token for another stored account', function (): void {
+    $accounts = new InMemoryAccountStore();
+    $accounts->save(new Account('victim', 'victim@example.test', passwordHash: 'original-hash'));
+    $store = new InMemoryPasswordResetStore();
+    $now = time();
+    $store->save(new PasswordResetRequest('reset-request', 'victim', $now, $now + 3600));
+
+    $tokens = new class implements PasswordResetTokenServiceInterface {
+        public function issue(string $accountId, array $context = []): string
+        {
+            return 'test-token';
+        }
+
+        public function verify(string $token): TokenVerificationResult
+        {
+            return new TokenVerificationResult(
+                true,
+                'attacker',
+                claims: ['request_id' => 'reset-request'],
+            );
+        }
+    };
+
+    $manager = new PasswordResetManager(
+        $tokens,
+        $store,
+        $accounts,
+        new CollectingAuthNotifier(),
+        new InMemoryAuditEventStore(),
+        new UidAuthIdGenerator(new ConfigRepository()),
+    );
+
+    $result = $manager->complete('test-token', 'attacker-hash');
+    expect($result->status)->toBe(PasswordResetStatus::INVALID)
+        ->and($result->code)->toBe('reset_request_mismatch')
+        ->and($store->wasConsumed('reset-request'))->toBeFalse()
+        ->and($accounts->findById('victim')?->passwordHash())->toBe('original-hash');
 });

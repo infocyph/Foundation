@@ -50,6 +50,10 @@ final readonly class PasswordResetManager
             return new PasswordResetResult(PasswordResetStatus::INVALID, code: 'reset_request_not_found', context: $context);
         }
 
+        if ($verification->subjectId !== $request->accountId) {
+            return new PasswordResetResult(PasswordResetStatus::INVALID, code: 'reset_request_mismatch', context: $context);
+        }
+
         if ($request->isConsumed() || $this->store->wasConsumed($request->id)) {
             return new PasswordResetResult(PasswordResetStatus::CONSUMED, $request, code: 'reset_request_consumed', context: $context);
         }

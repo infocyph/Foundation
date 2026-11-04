@@ -69,6 +69,12 @@ final readonly class EmailVerificationManager
             return $this->missingVerificationResult($context);
         }
 
+        if ($verification->subjectId !== $request->accountId
+            || ($verification->claims['email'] ?? null) !== $request->email
+        ) {
+            return $this->invalidVerificationResult('verification_request_mismatch', $context);
+        }
+
         if ($request->isConsumed()) {
             return $this->consumedVerificationResult($request, $context);
         }
