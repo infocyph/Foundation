@@ -39,7 +39,10 @@ final class ScheduledCommand
         $this->timezone = new \DateTimeZone(date_default_timezone_get());
     }
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param array<string, mixed> $data
+     * @throws \InvalidArgumentException
+     */
     public static function fromManifest(array $data): self
     {
         $command = new self(self::stringValue($data['command'] ?? null, ''));
@@ -98,6 +101,9 @@ final class ScheduledCommand
         return $this->arguments;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function cron(string $expression): self
     {
         $this->cron = new CronExpression($expression);
@@ -174,6 +180,9 @@ final class ScheduledCommand
         return $this->memoryLimitMegabytes;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function onOneServer(bool $enabled = true, float $leaseSeconds = 300.0, float $waitSeconds = 0.0): self
     {
         $this->assertLockTiming($leaseSeconds, $waitSeconds);
@@ -247,6 +256,9 @@ final class ScheduledCommand
         ];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function withoutOverlap(bool $enabled = true, float $leaseSeconds = 300.0, float $waitSeconds = 0.0): self
     {
         $this->assertLockTiming($leaseSeconds, $waitSeconds);

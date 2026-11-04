@@ -67,7 +67,10 @@ final readonly class FilesystemResponseFactory
         );
     }
 
-    /** @param array<string, string|list<string>> $headers */
+    /**
+     * @param array<string, string|list<string>> $headers
+     * @throws \InvalidArgumentException
+     */
     public function publicFile(Request $request, string $relativePath, array $headers = []): Response
     {
         $resolved = $this->publicFiles->resolve($relativePath);
@@ -86,6 +89,7 @@ final readonly class FilesystemResponseFactory
     /**
      * @param array<string, string|list<string>> $headers
      * @throws \InvalidArgumentException
+      * @throws \LogicException
      */
     public function xAccelRedirect(
         Request $request,
@@ -116,7 +120,11 @@ final readonly class FilesystemResponseFactory
         );
     }
 
-    /** @param array<string, string|list<string>> $headers */
+    /**
+     * @param array<string, string|list<string>> $headers
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function xSendfile(
         Request $request,
         string $path,
@@ -302,6 +310,9 @@ final readonly class FilesystemResponseFactory
     /**
      * @param array<string, string|list<string>> $headers
      * @return array{0:DownloadProcessor,1:string,2:DownloadPreparation,3:?Response}
+      * @throws \Infocyph\Pathwise\Exceptions\DownloadException
+      * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
+      * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
      */
     private function prepareInitialDownload(
         Request $request,

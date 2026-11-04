@@ -56,6 +56,9 @@ final readonly class OAuthManager
         private ?ClockInterface $clock = null,
     ) {}
 
+    /**
+     * @throws \LogicException
+     */
     public function approve(AuthorizationRequest $request, PrincipalInterface $principal): OAuthAuthorizationCodeIssue
     {
         $issue = $this->authorizationCodes->issue($request, $principal);
@@ -82,7 +85,10 @@ final readonly class OAuthManager
         }
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function authorizationRedirectContext(array $parameters): AuthorizationRedirectContext
     {
         return $this->authorizationRedirectContextFor($parameters, $this->authorizationProtocolResult($parameters));
@@ -181,6 +187,9 @@ final readonly class OAuthManager
         return $this->consents->hasConsent($principal, $request);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function introspect(
         #[\SensitiveParameter]
         string $token,
@@ -251,6 +260,9 @@ final readonly class OAuthManager
         return $this->openIdMetadata->toArray();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function revoke(
         #[\SensitiveParameter]
         string $token,

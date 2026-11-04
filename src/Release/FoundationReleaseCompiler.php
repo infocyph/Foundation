@@ -37,6 +37,8 @@ final readonly class FoundationReleaseCompiler
      *   active_pointer:string,
      *   release:array<string,mixed>
      * }
+      * @throws \InvalidArgumentException
+      * @throws \RuntimeException
      */
     public function buildAndActivate(
         array $config,
@@ -76,7 +78,11 @@ final readonly class FoundationReleaseCompiler
         }
     }
 
-    /** Explicitly remove Foundation-owned release generations and the active pointer. */
+    /**
+     * Explicitly remove Foundation-owned release generations and the active pointer.
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function clear(string $releaseRoot): bool
     {
         $releaseRoot = $this->root($releaseRoot);
@@ -101,6 +107,7 @@ final readonly class FoundationReleaseCompiler
      *
      * @return list<string>
      * @throws \InvalidArgumentException
+      * @throws \RuntimeException
      */
     public function prune(string $releaseRoot, int $keep = 2): array
     {
@@ -158,6 +165,8 @@ final readonly class FoundationReleaseCompiler
      *   manifest:?string,
      *   manifest_sha256:?string
      * }
+      * @throws \InvalidArgumentException
+      * @throws \RuntimeException
      */
     public function status(string $releaseRoot): array
     {
@@ -206,6 +215,8 @@ final readonly class FoundationReleaseCompiler
      * @param array<string,mixed> $config
      * @param array<string,array<int|string,mixed>> $capabilities
      * @return array<string,mixed>
+      * @throws \RuntimeException
+      * @throws \UnexpectedValueException
      */
     private function compileGeneration(
         array $config,
@@ -316,7 +327,10 @@ final readonly class FoundationReleaseCompiler
         ];
     }
 
-    /** @param array<string,mixed> $source */
+    /**
+     * @param array<string,mixed> $source
+     * @throws \UnexpectedValueException
+     */
     private function digestField(array $source, string $field, int $length): string
     {
         return FoundationReleaseManifest::digest($source[$field] ?? null, $length, $field);
@@ -480,6 +494,7 @@ final readonly class FoundationReleaseCompiler
      * @param array<string,mixed> $web
      * @return array{path:string,sha256:string}
      * @throws \UnexpectedValueException
+      * @throws \RuntimeException
      */
     private function releaseConfig(array $web, string $stage): array
     {
@@ -548,7 +563,10 @@ final readonly class FoundationReleaseCompiler
         return $sha256;
     }
 
-    /** @param array<string,mixed> $source */
+    /**
+     * @param array<string,mixed> $source
+     * @throws \UnexpectedValueException
+     */
     private function stringField(array $source, string $field): string
     {
         return FoundationReleaseManifest::nonEmptyString($source[$field] ?? null, $field);

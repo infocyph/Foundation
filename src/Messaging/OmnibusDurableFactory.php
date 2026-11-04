@@ -32,6 +32,11 @@ final readonly class OmnibusDurableFactory
         private SystemClock $clock,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function afterCommit(MessageBus $bus): AfterCommitDispatcher
     {
         return new AfterCommitDispatcher(
@@ -40,6 +45,11 @@ final readonly class OmnibusDurableFactory
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function failureStore(EnvelopeSerializer $serializer): DBLayerFailureStore
     {
         return new DBLayerFailureStore(
@@ -50,6 +60,9 @@ final readonly class OmnibusDurableFactory
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function serializer(): JsonEnvelopeSerializer
     {
         return new JsonEnvelopeSerializer(
@@ -64,6 +77,11 @@ final readonly class OmnibusDurableFactory
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function transport(EnvelopeSerializer $serializer): DBLayerTransport
     {
         return new DBLayerTransport(
@@ -74,6 +92,11 @@ final readonly class OmnibusDurableFactory
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function workflowStore(EnvelopeSerializer $serializer): DBLayerWorkflowStore
     {
         return new DBLayerWorkflowStore(

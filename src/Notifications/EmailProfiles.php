@@ -47,6 +47,10 @@ final readonly class EmailProfiles
         return $this->sender($profile);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function imapMailbox(string $profile = 'default'): Mailbox
     {
         $context = NativeRunwireOperation::current();
@@ -58,6 +62,10 @@ final readonly class EmailProfiles
         ));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function pop3Mailbox(string $profile = 'default'): Pop3Mailbox
     {
         $context = NativeRunwireOperation::current();
@@ -69,6 +77,10 @@ final readonly class EmailProfiles
         ));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function sender(?string $profile = null): Emailer
     {
         $config = $this->senderProfile($profile);
@@ -97,6 +109,10 @@ final readonly class EmailProfiles
         ]);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function spoolReceiver(string $profile = 'default'): SpoolEmailReceiver
     {
         $config = $this->resolveSpoolPaths(
@@ -235,7 +251,10 @@ final readonly class EmailProfiles
         return $config;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function senderProfile(?string $profile): array
     {
         $name = is_string($profile) && trim($profile) !== '' ? trim($profile) : $this->defaultSender();
@@ -258,7 +277,10 @@ final readonly class EmailProfiles
         return is_string($value) && trim($value) !== '' ? trim($value) : $default;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function transportConfig(string $transport): array
     {
         return $this->profile('notifications.email.transports', $transport);

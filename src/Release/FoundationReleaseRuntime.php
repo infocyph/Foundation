@@ -17,7 +17,12 @@ final readonly class FoundationReleaseRuntime
 {
     public function __construct(private ActiveGeneration $active = new ActiveGeneration()) {}
 
-    /** @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config. */
+    /**
+     * @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config.
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
+     * @throws \UnexpectedValueException
+     */
     public function nonWeb(
         array $config,
         RuntimeMode $runtime,
@@ -50,7 +55,12 @@ final readonly class FoundationReleaseRuntime
         return $this->attachGeneration($loaded, $releaseRoot, $generation, $lease);
     }
 
-    /** @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config. */
+    /**
+     * @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config.
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
+     * @throws \UnexpectedValueException
+     */
     public function nonWebPrevalidated(
         array $config,
         RuntimeMode $runtime,
@@ -99,7 +109,11 @@ final readonly class FoundationReleaseRuntime
         );
     }
 
-    /** @return array{0:string,1:array<string,mixed>,2:string,3:string} */
+    /**
+     * @return array{0:string,1:array<string,mixed>,2:string,3:string}
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
+     */
     public function trustedActiveManifest(string $releaseRoot, string $trustedSha256): array
     {
         [$generation, $manifest, $directory, $manifestPath] = $this->trustedActiveManifestWithLease(
@@ -110,7 +124,11 @@ final readonly class FoundationReleaseRuntime
         return [$generation, $manifest, $directory, $manifestPath];
     }
 
-    /** @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config. */
+    /**
+     * @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config.
+     * @throws \Throwable
+     * @throws \UnexpectedValueException
+     */
     public function web(
         array $config,
         string $releaseRoot,
@@ -130,7 +148,12 @@ final readonly class FoundationReleaseRuntime
         return $this->attachWebGeneration($runtime, $releaseRoot, $generation, $lease);
     }
 
-    /** @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config. */
+    /**
+     * @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config.
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
+     * @throws \UnexpectedValueException
+     */
     public function webPrevalidated(
         array $config,
         string $releaseRoot,
@@ -210,6 +233,10 @@ final readonly class FoundationReleaseRuntime
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function attachGeneration(
         GeneratedRuntime $runtime,
         string $releaseRoot,
@@ -227,6 +254,9 @@ final readonly class FoundationReleaseRuntime
         return $runtime;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function attachWebGeneration(
         WebReleaseRuntime $runtime,
         string $releaseRoot,
@@ -259,6 +289,9 @@ final readonly class FoundationReleaseRuntime
         return $directory . DIRECTORY_SEPARATOR . $this->relative($path);
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function relative(mixed $path): string
     {
         return str_replace(
@@ -268,7 +301,11 @@ final readonly class FoundationReleaseRuntime
         );
     }
 
-    /** @param array<string,mixed> $manifest */
+    /**
+     * @param array<string,mixed> $manifest
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     private function releaseConfig(array $manifest, string $directory): ConfigRepository
     {
         return FoundationReleaseConfig::load(

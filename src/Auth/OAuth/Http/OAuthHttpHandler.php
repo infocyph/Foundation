@@ -23,6 +23,9 @@ final readonly class OAuthHttpHandler
         private ConfigRepository $config,
     ) {}
 
+    /**
+     * @throws \LogicException
+     */
     public function authorization(Request $request): AuthorizationRequest|Response
     {
         try {
@@ -59,6 +62,9 @@ final readonly class OAuthHttpHandler
         }
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function authorizationApproved(AuthorizationRequest $request, PrincipalInterface $principal): Response
     {
         $this->oauth->grantConsent($principal, $request);
@@ -67,6 +73,9 @@ final readonly class OAuthHttpHandler
         return $this->responses->authorizationSuccess($request, $issue->code, $this->issuer());
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function authorizationDenied(AuthorizationRequest $request, ?PrincipalInterface $principal = null): Response
     {
         $this->oauth->deny($request, $principal);
@@ -78,6 +87,9 @@ final readonly class OAuthHttpHandler
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function authorizationFailure(
         AuthorizationRequest $request,
         OAuthProtocolException $exception,
@@ -115,6 +127,10 @@ final readonly class OAuthHttpHandler
         return $this->responses->metadata($this->oauth->metadata());
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     * @throws \LogicException
+     */
     public function openIdInteraction(
         AuthorizationRequest $request,
         ?PrincipalInterface $principal,
@@ -122,6 +138,9 @@ final readonly class OAuthHttpHandler
         return $this->oauth->openIdInteraction($request, $principal);
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function openIdMetadata(): Response
     {
         return $this->responses->metadata($this->oauth->openIdMetadata());
@@ -160,6 +179,9 @@ final readonly class OAuthHttpHandler
         }
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function userInfo(Request $request): Response
     {
         try {
@@ -243,7 +265,10 @@ final readonly class OAuthHttpHandler
         return $origin . $route;
     }
 
-    /** @param array<string, string> $parameters */
+    /**
+     * @param array<string, string> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function optionalString(array $parameters, string $name, int $maximumBytes): ?string
     {
         if (!array_key_exists($name, $parameters)) {
