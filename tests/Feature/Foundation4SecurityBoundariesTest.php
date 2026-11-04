@@ -266,3 +266,41 @@ it('refuses caller context as authoritative audit identity through credential an
             ->and($events[4]->actorId)->toBeNull();
     });
 });
+
+it('does not promote caller supplied password-change audit IDs and preserves password verification', function (): void {
+    $app = Foundation::web([
+        'app' => ['base_path' => sys_get_temp_dir()],
+        'router' => ['files' => []],
+    ]);
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $services = $app->make(AuthServices::class);
+        $hasher = $services->passwordHasher();
+        $account = $services->accounts()->create(
+            'change-provenance@example.test',
+            $hasher->hash('initial-password'),
+        )->account;
+        expect($account)->not->toBeNull();
+        if ($account === null) {
+            throw new LogicException('Expected an account.');
+        }
+
+        $forged = ['session_id' => 'untrusted-session', 'device_id' => 'untrusted-device'];
+        expect($services->passwordChanges()->change(
+            $account->id(),
+            'initial-password',
+            $hasher->hash('next-password'),
+            $forged,
+        )->successful())->toBeTrue();
+
+        $audit = $app->make(AuditEventStoreInterface::class);
+        expect($audit)->toBeInstanceOf(InMemoryAuditEventStore::class);
+        if (!$audit instanceof InMemoryAuditEventStore) {
+            throw new LogicException('Expected an in-memory audit store.');
+        }
+        $event = $audit->events()[0] ?? null;
+        expect($event?->type)->toBe(AuthEventType::PASSWORD_CHANGED)
+            ->and($event?->accountId)->toBe($account->id())
+            ->and($event?->sessionId)->toBeNull()
+            ->and($event?->deviceId)->toBeNull();
+    });
+});

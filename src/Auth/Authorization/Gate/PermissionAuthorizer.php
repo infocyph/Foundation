@@ -41,7 +41,8 @@ final readonly class PermissionAuthorizer implements AuthorizerInterface
         mixed $resource = null,
         array $context = [],
     ): AuthorizationDecision {
-        if ($principal->accountId() === null) {
+        $accountId = $principal->accountId();
+        if ($accountId === null) {
             return $this->allowGuests
                 ? AuthorizationDecision::allow('guest_allowed')
                 : AuthorizationDecision::deny('guest_forbidden', 'Guest principals cannot access this ability.', $context);
@@ -49,7 +50,7 @@ final readonly class PermissionAuthorizer implements AuthorizerInterface
 
         $requestedAbility = Ability::from($ability, $resource, $context);
 
-        foreach ($this->directAndRolePermissions($principal->accountId()) as $permission) {
+        foreach ($this->directAndRolePermissions($accountId) as $permission) {
             if ($this->matcher->matches($permission->name, $requestedAbility->name)) {
                 return AuthorizationDecision::allow('permission_granted', context: ['permission' => $permission->name] + $context);
             }

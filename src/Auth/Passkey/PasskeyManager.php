@@ -78,10 +78,12 @@ final readonly class PasskeyManager
                 ['credential_id' => $verification->credentialId, 'reason' => $verification->reason] + $context,
             );
 
-            if ($lockout?->status === LockoutStatus::LOCKED) {
-                $code = $lockout->code ?? 'account_locked';
-            } elseif ($lockout?->code !== null) {
-                $code = $lockout->code;
+            if ($lockout !== null) {
+                if ($lockout->status === LockoutStatus::LOCKED) {
+                    $code = $lockout->code ?? 'account_locked';
+                } elseif ($lockout->code !== null) {
+                    $code = $lockout->code;
+                }
             }
         }
 

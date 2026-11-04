@@ -100,10 +100,11 @@ final readonly class Authenticator implements AuthenticatorInterface
 
     public function logout(PrincipalInterface $principal, ?string $sessionId = null): void
     {
+        $accountId = $principal->accountId();
         if ($sessionId !== null) {
             $this->sessions->revoke($sessionId);
-        } elseif ($principal->accountId() !== null) {
-            $this->sessions->revokeAllForAccount($principal->accountId());
+        } elseif ($accountId !== null) {
+            $this->sessions->revokeAllForAccount($accountId);
         }
 
         AuthEventRecorder::record(
@@ -111,7 +112,7 @@ final readonly class Authenticator implements AuthenticatorInterface
             $this->ids,
             $this->clock,
             AuthEventType::LOGOUT,
-            $principal->accountId(),
+            $accountId,
             actorId: $principal->id(),
             sessionId: $sessionId,
         );
