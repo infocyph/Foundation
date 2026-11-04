@@ -14,7 +14,11 @@ use Infocyph\Pathwise\Integration\Runwire\RunwireExecutionContext as PathwiseRun
 use Infocyph\ReqShield\Support\RunwireExecution as ReqShieldRunwire;
 use Infocyph\ReqShield\Validator;
 use Infocyph\Runwire\RequestContext;
+use Infocyph\Runwire\Runtime;
+use Infocyph\Runwire\Runtime\Enum\CancellationReason;
+use Infocyph\Runwire\Runtime\Enum\RuntimeDriver;
 use Infocyph\Runwire\RuntimeContext;
+use Infocyph\Runwire\RuntimeOptions;
 use Infocyph\TalkingBytes\Integration\Runwire\RunwireBinding as TalkingBytesRunwire;
 use Infocyph\UID\Runtime\RunwireBinding as UidRunwire;
 use Infocyph\Webrick\Runtime\Http\RunwireRuntimeAdapter;
@@ -296,4 +300,53 @@ it('detaches a throwing Foundation exception reporter from the native Runwire re
     }
 
     expect(CacheRunwire::runtime())->toBeNull();
+});
+
+it('pins the published Runwire 3 host methods and named request/runtime contracts', function (): void {
+    foreach ([
+        Runtime::class => [
+            'create' => ['options'],
+            'listen' => ['server'],
+            'run' => [],
+            'serveApplication' => ['factory'],
+        ],
+        RuntimeContext::class => [
+            'standalone' => [],
+            'fromCapabilities' => [
+                'capabilities', 'mode', 'workerSlot', 'generation', 'pid', 'concurrent', 'metrics',
+            ],
+        ],
+        RequestContext::class => [
+            'create' => [
+                'runtime', 'policy', 'requestId', 'startNanoseconds', 'maxAttributes',
+            ],
+        ],
+    ] as $owner => $methods) {
+        foreach ($methods as $method => $names) {
+            $reflection = new ReflectionMethod($owner, $method);
+            $actual = array_map(
+                static fn(ReflectionParameter $parameter): string => $parameter->getName(),
+                $reflection->getParameters(),
+            );
+            expect($actual)->toBe($names);
+        }
+    }
+
+    $options = new RuntimeOptions();
+    $explicit = new RuntimeOptions(driver: RuntimeDriver::SWOOLE);
+    expect($options->driver)->toBe(RuntimeDriver::AUTO)
+        ->and($explicit->driver)->toBe(RuntimeDriver::SWOOLE)
+        ->and(Runtime::create($explicit))->toBeInstanceOf(Runtime::class)
+        ->and(RuntimeDriver::from('native'))->toBe(RuntimeDriver::NATIVE);
+
+    $runtime = RuntimeContext::standalone();
+    $request = RequestContext::create($runtime, requestId: 'foundation-runwire3-api');
+    try {
+        expect($request->runtime())->toBe($runtime)
+            ->and($request->cancel(CancellationReason::HOST_CANCELLED))->toBeTrue()
+            ->and($request->cancelled())->toBeTrue();
+    } finally {
+        $request->complete();
+    }
+    expect($request->completed())->toBeTrue();
 });
