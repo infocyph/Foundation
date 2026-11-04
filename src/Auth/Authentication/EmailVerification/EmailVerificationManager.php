@@ -168,6 +168,17 @@ final readonly class EmailVerificationManager
         );
     }
 
+    private function resolveRequest(TokenVerificationResult $verification): ?EmailVerificationRequest
+    {
+        $requestId = $verification->claims[self::REQUEST_CONTEXT_KEY] ?? $verification->tokenId;
+
+        if (!is_string($requestId) || $requestId === '') {
+            return null;
+        }
+
+        return $this->store->find($requestId);
+    }
+
     private function trustedDestination(string $accountId, string $email): bool
     {
         $account = $this->accountProvider->findById($accountId);
@@ -183,16 +194,5 @@ final readonly class EmailVerificationManager
         return is_string($stored)
             && filter_var($stored, FILTER_VALIDATE_EMAIL) !== false
             && strcasecmp($stored, $email) === 0;
-    }
-
-    private function resolveRequest(TokenVerificationResult $verification): ?EmailVerificationRequest
-    {
-        $requestId = $verification->claims[self::REQUEST_CONTEXT_KEY] ?? $verification->tokenId;
-
-        if (!is_string($requestId) || $requestId === '') {
-            return null;
-        }
-
-        return $this->store->find($requestId);
     }
 }
