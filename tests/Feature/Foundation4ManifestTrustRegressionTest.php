@@ -273,6 +273,7 @@ PHP);
         if ($registered) {
             stream_wrapper_unregister($scheme);
         }
+        foundationResetWebrickProductionRegistries();
         new \Symfony\Component\Filesystem\Filesystem()->remove($project);
     }
 });

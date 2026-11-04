@@ -247,56 +247,6 @@ final readonly class WebReleaseRuntime
     }
 
     /**
-     * @return array<string,mixed>
-     * @throws \InvalidArgumentException
-     * @throws \RuntimeException
-     */
-    private static function loadTrustedManifest(string $releaseManifestPath, string $trustedSha256): array
-    {
-        $trustedSha256 = strtolower(trim($trustedSha256));
-        if (preg_match('/^[a-f0-9]{64}$/D', $trustedSha256) !== 1) {
-            throw new \InvalidArgumentException('Trusted Foundation web release manifest SHA-256 is invalid.');
-        }
-
-        $runtimePath = WebrickReleaseCompiler::runtimeManifestPath($releaseManifestPath);
-        $useRuntime = is_file($runtimePath);
-        $selectedPath = $useRuntime ? $runtimePath : $releaseManifestPath;
-        if (!is_file($selectedPath)) {
-            throw new \RuntimeException('Foundation web release manifest is missing.');
-        }
-
-        // Verify the captured bytes, not a path that Webrick can reopen later.
-        $contents = file_get_contents($selectedPath);
-        if (!is_string($contents) || !hash_equals($trustedSha256, hash('sha256', $contents))) {
-            throw new \RuntimeException('Foundation web release manifest trust identity mismatch.');
-        }
-
-        // Preserve Webrick's native release-schema validation using a private,
-        // short-lived copy. The original path must never be read a second time.
-        $directory = sys_get_temp_dir() . '/foundation-web-trust-' . bin2hex(random_bytes(12));
-        if (!mkdir($directory, 0700)) {
-            throw new \RuntimeException('Unable to stage the trusted Webrick release manifest.');
-        }
-        $privateManifestPath = $directory . '/release.json';
-        $privatePath = $useRuntime
-            ? WebrickReleaseCompiler::runtimeManifestPath($privateManifestPath)
-            : $privateManifestPath;
-
-        try {
-            if (file_put_contents($privatePath, $contents, LOCK_EX) !== strlen($contents)) {
-                throw new \RuntimeException('Unable to write the trusted Webrick manifest copy.');
-            }
-
-            return new ReleaseManifestLoader()->load($privateManifestPath);
-        } finally {
-            if (is_file($privatePath)) {
-                unlink($privatePath);
-            }
-            rmdir($directory);
-        }
-    }
-
-    /**
      * @param array<string, mixed>|ConfigRepository $config
      * @param array<int|string, mixed> $foundationCapabilities
      * @param array<string,mixed>|null $trustedManifest
@@ -399,6 +349,56 @@ final readonly class WebReleaseRuntime
         $server = new RuntimeServer($kernel, $runtimeAdapter);
 
         return new self($container, $kernel, $server, $capabilities);
+    }
+
+    /**
+     * @return array<string,mixed>
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
+    private static function loadTrustedManifest(string $releaseManifestPath, string $trustedSha256): array
+    {
+        $trustedSha256 = strtolower(trim($trustedSha256));
+        if (preg_match('/^[a-f0-9]{64}$/D', $trustedSha256) !== 1) {
+            throw new \InvalidArgumentException('Trusted Foundation web release manifest SHA-256 is invalid.');
+        }
+
+        $runtimePath = WebrickReleaseCompiler::runtimeManifestPath($releaseManifestPath);
+        $useRuntime = is_file($runtimePath);
+        $selectedPath = $useRuntime ? $runtimePath : $releaseManifestPath;
+        if (!is_file($selectedPath)) {
+            throw new \RuntimeException('Foundation web release manifest is missing.');
+        }
+
+        // Verify the captured bytes, not a path that Webrick can reopen later.
+        $contents = file_get_contents($selectedPath);
+        if (!is_string($contents) || !hash_equals($trustedSha256, hash('sha256', $contents))) {
+            throw new \RuntimeException('Foundation web release manifest trust identity mismatch.');
+        }
+
+        // Preserve Webrick's native release-schema validation using a private,
+        // short-lived copy. The original path must never be read a second time.
+        $directory = sys_get_temp_dir() . '/foundation-web-trust-' . bin2hex(random_bytes(12));
+        if (!mkdir($directory, 0700)) {
+            throw new \RuntimeException('Unable to stage the trusted Webrick release manifest.');
+        }
+        $privateManifestPath = $directory . '/release.json';
+        $privatePath = $useRuntime
+            ? WebrickReleaseCompiler::runtimeManifestPath($privateManifestPath)
+            : $privateManifestPath;
+
+        try {
+            if (file_put_contents($privatePath, $contents, LOCK_EX) !== strlen($contents)) {
+                throw new \RuntimeException('Unable to write the trusted Webrick manifest copy.');
+            }
+
+            return new ReleaseManifestLoader()->load($privateManifestPath);
+        } finally {
+            if (is_file($privatePath)) {
+                unlink($privatePath);
+            }
+            rmdir($directory);
+        }
     }
 
     /**

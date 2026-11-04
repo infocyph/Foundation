@@ -4,6 +4,9 @@ Date: 2026-11-04 (Asia/Dhaka). Status: **implementation in progress; release gat
 
 ## Implementation checkpoint — 2026-11-04
 
+- **Exact-head QA correction for P0 A02 (2026-11-04; pending revalidation):** [Security & Standards 41811022065](https://github.com/infocyph/Foundation/actions/runs/41811022065) verified both new Webrick/JSON captured-byte tests, and PHPStan passed, but Pest found two failures (SHA-256 architecture boundary inventory omitted the two new security owners, and the new Webrick boot test left its production alias registry frozen for a subsequent test); Pint also flagged method ordering in `WebReleaseRuntime`. The correction narrowly records the two explicit cryptographic owners, restores test-only Webrick global registry cleanup, and moves the private trusted-loader method into project method order. No release security check was relaxed. Psalm remains failing with 1,648 reported errors at `3036d5f`. **Acceptance remains 29/90** pending fresh complete QA.
+
+
 - **P0 A02 generated-runtime JSON trust boundary (2026-11-04; pending QA):** Folded trusted JSON metadata verification into `GeneratedRuntimeMetadata::read()` so `GeneratedRuntime::loadPrevalidated()` parses the same bytes whose SHA-256 it verifies, eliminating a `hash_file()`/second-read window and the redundant verifier. Added deterministic stream-switch tests for single-read acceptance and digest mismatch, plus the source-located `ServiceResolutionException` contract in metadata path resolution. No new dependency, suppression or changed manifest schema. A02 remains open pending exact-head QA and final Webrick/metadata parity review; formal acceptance stays **29/90**.
 
 
