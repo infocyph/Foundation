@@ -16,7 +16,6 @@ use Infocyph\Foundation\Auth\Contract\Storage\EmailVerificationStoreInterface;
 use Infocyph\Foundation\Auth\Notification\AuthNotification;
 use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
-use Infocyph\Foundation\Auth\Support\ContextValue;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
 final readonly class EmailVerificationManager
@@ -154,8 +153,6 @@ final readonly class EmailVerificationManager
             $accountId,
             metadata: $metadata + $context,
             severity: $severity,
-            sessionId: ContextValue::stringOrNull($context, 'session_id'),
-            deviceId: ContextValue::stringOrNull($context, 'device_id'),
         );
     }
 

@@ -339,8 +339,6 @@ final readonly class MfaManager
             $accountId,
             metadata: $metadata,
             severity: $severity,
-            sessionId: ContextValue::stringOrNull($metadata, 'session_id'),
-            deviceId: ContextValue::stringOrNull($metadata, 'device_id'),
         );
     }
 
