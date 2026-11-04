@@ -30,7 +30,7 @@ use Infocyph\TalkingBytes\Webhook\WebhookVerifier;
  *
  * TalkingBytes owns protocol execution and resolved protocol composition.
  * Foundation owns named profile selection, application policy and DI lifetime.
- * @psalm-api
+ * @api
  */
 final readonly class CommunicationProfiles
 {

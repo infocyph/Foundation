@@ -18,7 +18,7 @@ use Infocyph\Webrick\Response\Conditional\ConditionalValidator;
 use Infocyph\Webrick\Response\Conditional\Outcome;
 use Infocyph\Webrick\Response\Response;
 
-/** @psalm-api */
+/** @api */
 final readonly class FilesystemResponseFactory
 {
     public function __construct(

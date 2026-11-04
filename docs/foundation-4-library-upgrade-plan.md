@@ -4,6 +4,9 @@ Date: 2026-11-04 (Asia/Dhaka). Status: **implementation in progress; release gat
 
 ## Implementation checkpoint — 2026-11-04
 
+- **Public-entrypoint annotation QA correction (2026-11-04; pending revalidation):** [Official PHPForge QA 41816826485](https://github.com/infocyph/Foundation/actions/runs/41816826485) passed Pest/Pint but classified four legitimate `@psalm-api` annotations as forbidden skip directives. Psalm fell from 1,648 to 1,588 issues and PHPStan stayed green. Replace each with Psalm-equivalent framework-standard `@api`, already used by Foundation, without changing scanner behavior, silencing analysis, or misclassifying private implementation details. Verify exact-head worker again before accepting.
+
+
 - **Psalm public-API reachability and P5 Infbyte adoption batch (2026-11-04; pending official QA):** Marked only four genuine externally consumed Foundation surfaces (`BrowserSession`, `FilesystemResponseFactory`, `EmailProfiles`, `CommunicationProfiles`) as `@psalm-api`, using Psalm's documented public-entrypoint model rather than suppressing `Unused*` findings or disabling unused-code analysis. Added an eight-stage post-publication Infbyte application adoption checklist without changing Infbyte. Recheck exact-head PHPStan, Psalm, Pest, Pint and native-host lanes; formal acceptance remains **29/90** until the results are verified.
 
 

@@ -25,7 +25,7 @@ use Infocyph\TalkingBytes\Email\Receiver\SpoolEmailReceiver;
  *
  * TalkingBytes owns transport/decorator composition, parsing, receiving and
  * mailbox behavior. Foundation owns profile selection, secrets and path policy.
- * @psalm-api
+ * @api
  */
 final readonly class EmailProfiles
 {
