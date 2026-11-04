@@ -19,6 +19,7 @@ use Infocyph\ReqShield\Validator;
  * Rule execution, sanitization, casting, schema compilation and validation
  * semantics remain ReqShield responsibilities. Foundation only resolves the
  * application schema and applies its configured profile.
+  * @psalm-api
  */
 final readonly class ValidatorFactory
 {

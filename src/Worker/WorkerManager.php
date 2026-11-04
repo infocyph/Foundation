@@ -20,6 +20,7 @@ use Infocyph\Omnibus\Consumer\Worker;
 use Infocyph\Omnibus\Consumer\WorkerLifecycle;
 use Infocyph\Omnibus\Consumer\WorkerPool;
 
+/** @psalm-api */
 final readonly class WorkerManager
 {
     public function __construct(private Application $application) {}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Account;
 
+/** @psalm-api */
 final readonly class Account implements AccountInterface
 {
     /**

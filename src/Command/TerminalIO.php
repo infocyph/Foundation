@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Command;
 
+/** @psalm-api */
 final readonly class TerminalIO implements CommandIO
 {
     private bool $interactiveMode;
