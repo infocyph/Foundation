@@ -267,7 +267,7 @@ use Infocyph\TalkingBytes\Email\Parser\RawEmailParser;
 
 ## Inbound gRPC worker lifecycle
 
-TalkingBytes 2.1 supplies the accepted-exchange boundary through
+TalkingBytes 2.3.1 supplies the accepted-exchange boundary through
 `GrpcInboundSource` and `GrpcInboundDispatcher::serveOne()`. Foundation does
 not open a gRPC socket or implement the native server/runtime. Applications bind
 a process-owned `GrpcInboundSource` (or configure

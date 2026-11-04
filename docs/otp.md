@@ -48,6 +48,9 @@ php infbyte module:install security.crypto
 
 OTP MFA and WebAuthn passkeys are independently selectable. TOTP/HOTP/OCRA do
 not require `web-auth/webauthn-lib`; AOTP requires `ext-sodium`.
+Generating an optional **SVG QR code** requires `ext-xmlwriter`; text/URI QR
+output and passkey ceremonies do not. Passkey/WebAuthn does **not** require
+`ext-sodium` unless a separately selected AOTP factor is also active.
 
 ## Authentication-state storage
 
