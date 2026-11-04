@@ -63,9 +63,12 @@ final readonly class ProcessRunner
         try {
             return $this->capture->run($process, $pipes, $options, $tree);
         } catch (\Throwable $exception) {
-            $this->closePipes($pipes);
-            $this->tree->terminate($process, $options->terminationGraceSeconds, $tree);
-            proc_close($process);
+            CleanupGuard::run(
+                $exception,
+                fn() => $this->closePipes($pipes),
+                fn() => $this->tree->terminate($process, $options->terminationGraceSeconds, $tree),
+                static fn() => proc_close($process),
+            );
 
             throw $exception;
         }

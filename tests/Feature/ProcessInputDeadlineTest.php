@@ -165,3 +165,38 @@ it('preserves lifecycle callback failures and reaps a noninteractive child with 
         }
     }
 })->with(['heartbeat', 'cancelled']);
+
+it('reaps a noninteractive child when an output callback fails with pending stdin', function (): void {
+    $pidFile = tempnam(sys_get_temp_dir(), 'foundation-output-pid-');
+    expect($pidFile)->toBeString();
+
+    try {
+        $command = [
+            PHP_BINARY,
+            '-r',
+            'file_put_contents(' . var_export($pidFile, true) . ', (string) getmypid()); echo "ready"; flush(); usleep(4000000);',
+        ];
+
+        $options = new ProcessOptions(
+            input: str_repeat('I', 1_048_576),
+            onStdout: static function (string $output): void {
+                throw new LogicException('Output observer failed.');
+            },
+            terminationGraceSeconds: 0.1,
+            handleSignals: false,
+        );
+
+        expect(fn() => new ProcessRunner()->run($command, $options))
+            ->toThrow(LogicException::class, 'Output observer failed.');
+
+        $pid = (int) file_get_contents($pidFile);
+        expect($pid)->toBeGreaterThan(0);
+        if (function_exists('posix_kill')) {
+            expect(posix_kill($pid, 0))->toBeFalse();
+        }
+    } finally {
+        if (is_file($pidFile)) {
+            unlink($pidFile);
+        }
+    }
+});
