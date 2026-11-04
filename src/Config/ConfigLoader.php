@@ -143,7 +143,8 @@ final class ConfigLoader
         }
 
         $namespaces = [];
-        foreach (glob($directory . DIRECTORY_SEPARATOR . '*.php') ?: [] as $file) {
+        $files = glob($directory . DIRECTORY_SEPARATOR . '*.php');
+        foreach ($files === false ? [] : $files as $file) {
             $namespace = pathinfo($file, PATHINFO_FILENAME);
             if ($namespace !== '' && $namespace[0] !== '_') {
                 $namespaces[] = $namespace;
@@ -355,8 +356,9 @@ final class ConfigLoader
     private function sourceFingerprint(string $directory, string $basePath): string
     {
         $files = is_dir($directory)
-            ? (glob(rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php') ?: [])
-            : [];
+            ? glob(rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php')
+            : false;
+        $files = $files === false ? [] : $files;
         $providers = rtrim($basePath, DIRECTORY_SEPARATOR)
             . DIRECTORY_SEPARATOR . 'bootstrap'
             . DIRECTORY_SEPARATOR . 'providers.php';

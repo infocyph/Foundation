@@ -171,7 +171,8 @@ final class ArrayKitConfigCache
         $root = rtrim($directory, DIRECTORY_SEPARATOR);
         $this->assertNativeGenerationPointer($root);
 
-        foreach (glob($root . DIRECTORY_SEPARATOR . '.arraykit-gen-*') ?: [] as $generation) {
+        $generations = glob($root . DIRECTORY_SEPARATOR . '.arraykit-gen-*');
+        foreach ($generations === false ? [] : $generations as $generation) {
             $this->assertNativeGenerationDirectory($generation);
         }
     }
@@ -195,7 +196,8 @@ final class ArrayKitConfigCache
             '__manifest',
         ], true);
 
-        foreach (glob(rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php') ?: [] as $file) {
+        $files = glob(rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php');
+        foreach ($files === false ? [] : $files as $file) {
             if (!isset($keep[pathinfo($file, PATHINFO_FILENAME)]) && !unlink($file)) {
                 throw new \RuntimeException(sprintf(
                     'Unable to remove stale config cache artifact "%s".',

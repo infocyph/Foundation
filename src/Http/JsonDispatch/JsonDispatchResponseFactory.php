@@ -161,23 +161,31 @@ final readonly class JsonDispatchResponseFactory
     private function pagination(PaginatorInterface $paginator): array
     {
         if ($paginator instanceof CursorPaginator) {
-            return array_filter([
+            $pagination = [
                 'mode' => 'cursor',
                 'limit' => $paginator->perPage(),
                 'count' => $paginator->count(),
                 'has_more' => $paginator->hasMorePages(),
-                'next_cursor' => $paginator->nextCursor(),
-                'previous_cursor' => $paginator->previousCursor(),
-            ], static fn(mixed $value): bool => $value !== null);
+            ];
+            $nextCursor = $paginator->nextCursor();
+            if ($nextCursor !== null) {
+                $pagination['next_cursor'] = $nextCursor;
+            }
+            $previousCursor = $paginator->previousCursor();
+            if ($previousCursor !== null) {
+                $pagination['previous_cursor'] = $previousCursor;
+            }
+
+            return $pagination;
         }
 
-        return array_filter([
+        return [
             'mode' => 'offset',
             'offset' => max(0, ($paginator->currentPage() - 1) * $paginator->perPage()),
             'limit' => $paginator->perPage(),
             'count' => $paginator->count(),
             'total' => $paginator->total(),
-        ], static fn(mixed $value): bool => $value !== null);
+        ];
     }
 
     private function pointer(string $field): string

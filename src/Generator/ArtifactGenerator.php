@@ -200,6 +200,7 @@ final readonly class ArtifactGenerator
             $segments[] = $normalized;
         }
 
+        /** @var non-empty-list<non-falsy-string> $segments */
         return $segments;
     }
 
