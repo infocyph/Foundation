@@ -144,6 +144,7 @@ BASH,
 
     private function zsh(string $executable): string
     {
+        $function = preg_replace('/[^A-Za-z0-9_]/', '_', basename($executable)) ?? 'infbyte';
         $commands = [];
         foreach ($this->registry->visible() as $descriptor) {
             $definition = $descriptor->definition;
@@ -178,10 +179,10 @@ _%s() {
 compdef _%s %s
 ZSH,
             $executable,
-            preg_replace('/[^A-Za-z0-9_]/', '_', basename($executable)),
+            $function,
             implode(PHP_EOL, array_map(static fn(string $line): string => '        ' . $line, $commands)),
             $this->zshCases(),
-            preg_replace('/[^A-Za-z0-9_]/', '_', basename($executable)),
+            $function,
             $executable,
         );
     }

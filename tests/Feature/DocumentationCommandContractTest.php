@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Command\CommandCatalog;
+use Infocyph\Foundation\Command\CommandRegistry;
+use Infocyph\Foundation\Command\CompletionGenerator;
 
 it('keeps documented infbyte command examples dispatchable', function (): void {
     $root = dirname(__DIR__, 2);
@@ -28,4 +30,12 @@ it('keeps documented infbyte command examples dispatchable', function (): void {
     $missing = array_values(array_diff(array_keys($documented), $available));
 
     expect($missing)->toBe([]);
+});
+
+it('generates a stable Zsh function name for a hyphenated executable', function (): void {
+    $completion = new CompletionGenerator(new CommandRegistry(includeSystem: false));
+    $script = $completion->generate('zsh', 'inf-byte');
+
+    expect($script)->toContain('_inf_byte() {')
+        ->and($script)->toContain('compdef _inf_byte inf-byte');
 });
