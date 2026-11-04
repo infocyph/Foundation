@@ -13,6 +13,7 @@ final class HttpExceptionLogger extends AbstractLogger
     ) {}
 
     /**
+     * @param mixed $level
      * @param array<string, mixed> $context
      */
     #[\Override]

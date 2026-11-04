@@ -10,7 +10,6 @@ use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountStoreInterface;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
-/** @psalm-api */
 final readonly class AccountManager
 {
     public function __construct(

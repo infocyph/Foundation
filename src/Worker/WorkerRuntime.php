@@ -9,7 +9,6 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Runtime\ExecutionId;
 
-/** @psalm-api */
 final readonly class WorkerRuntime
 {
     /**

@@ -151,10 +151,15 @@ final readonly class OAuthHttpInput
         }
 
         $decoded = base64_decode($match[1], true);
-        if (!is_string($decoded) || !str_contains($decoded, ':')) {
+        if (!is_string($decoded)) {
             throw OAuthProtocolException::invalidClient();
         }
-        [$encodedClientId, $encodedSecret] = explode(':', $decoded, 2);
+        $separator = strpos($decoded, ':');
+        if ($separator === false) {
+            throw OAuthProtocolException::invalidClient();
+        }
+        $encodedClientId = substr($decoded, 0, $separator);
+        $encodedSecret = substr($decoded, $separator + 1);
         $clientId = $this->decodeComponent($encodedClientId);
         $secret = $this->decodeComponent($encodedSecret);
         if (!$this->validCredential($clientId, 128) || !$this->validCredential($secret, 4096)) {

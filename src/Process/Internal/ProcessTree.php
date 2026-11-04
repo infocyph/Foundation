@@ -51,7 +51,7 @@ final class ProcessTree
         }
 
         $this->signal($process, $tree, self::SIGNAL_TERMINATE, force: false);
-        $deadline = ProcessOutcome::clock() + (int) round($graceSeconds * 1_000_000_000);
+        $deadline = ProcessOutcome::clock() + (int) round($graceSeconds * 1_000_000_000.0);
         while ($this->running($process, $tree) && ProcessOutcome::clock() < $deadline) {
             usleep(10_000);
         }

@@ -12,7 +12,6 @@ use Infocyph\Foundation\Module\Internal\ModuleConfigPublisher;
  * Core introspection and non-destructive configuration publication only.
  *
  * @phpstan-import-type ModuleState from ModuleStateResolver
-  * @psalm-api
  */
 final readonly class ModuleManager
 {

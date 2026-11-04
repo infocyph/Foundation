@@ -10,7 +10,6 @@ use Infocyph\Foundation\Process\Internal\ProcessSignals;
 use Infocyph\Foundation\Process\Internal\ProcessTree;
 use Infocyph\Foundation\Runtime\CleanupGuard;
 
-/** @psalm-api */
 final readonly class ProcessRunner
 {
     private ProcessCapture $capture;

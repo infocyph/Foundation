@@ -420,9 +420,12 @@ final readonly class ParsedInput
             return [$body, null];
         }
 
-        [$name, $value] = explode('=', $body, 2);
+        $separator = strpos($body, '=');
+        if ($separator === false) {
+            return [$body, null];
+        }
 
-        return [$name, $value];
+        return [substr($body, 0, $separator), substr($body, $separator + 1)];
     }
 
     /**

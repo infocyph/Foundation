@@ -41,7 +41,6 @@ final readonly class SessionTopologyGuard
             'cache' => $this->state->cacheStoreScope($session->cacheStore),
             'database' => $this->state->databaseConnectionScope($session->databaseConnection),
             'file' => SharedStateTopology::HOST,
-            'array' => SharedStateTopology::PROCESS,
             default => SharedStateTopology::NONE,
         };
         if (!$this->state->satisfies($storeScope, SharedStateTopology::CLUSTER)) {

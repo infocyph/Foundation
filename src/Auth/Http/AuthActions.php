@@ -22,7 +22,6 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyRegistrationResult;
 use Infocyph\Foundation\Auth\Passkey\PasskeyRegistrationStatus;
 use Infocyph\Foundation\Support\ValueNormalizer;
 
-/** @psalm-api */
 final readonly class AuthActions
 {
     public function __construct(

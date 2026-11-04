@@ -115,9 +115,12 @@ final readonly class CronExpression
 
             return [$value, $value];
         }
-        [$start, $end] = explode('-', $base, 2);
+        $separator = strpos($base, '-');
+        if ($separator === false) {
+            return [(int) $base, (int) $base];
+        }
 
-        return [(int) $start, (int) $end];
+        return [(int) substr($base, 0, $separator), (int) substr($base, $separator + 1)];
     }
 
     /** @param array{int,int} $range */

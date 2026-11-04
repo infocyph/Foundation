@@ -6,7 +6,6 @@ namespace Infocyph\Foundation\Command;
 
 use Infocyph\Foundation\Application\RuntimeMode;
 
-/** @psalm-api */
 final class CommandDefinition
 {
     /** @var list<string> */

@@ -217,7 +217,10 @@ final readonly class ConfigValidator
         }
     }
 
-    /** @param list<ConfigIssue> $issues @param class-string<\BackedEnum> $enumClass */
+    /**
+     * @param list<ConfigIssue> $issues
+     * @param class-string<\BackedEnum> $enumClass
+     */
     private function validateDriver(array &$issues, string $key, string $value, string $enumClass): void
     {
         if ($enumClass::tryFrom($value) !== null) {
