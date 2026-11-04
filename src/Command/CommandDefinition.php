@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Command;
 
 use Infocyph\Foundation\Application\RuntimeMode;
 
+/** @api */
 final class CommandDefinition
 {
     /** @var list<string> */
