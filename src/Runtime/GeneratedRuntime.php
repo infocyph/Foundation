@@ -103,8 +103,7 @@ final readonly class GeneratedRuntime
         }
 
         $artifactPath = self::resolvePrevalidatedPath($config, $artifactPath);
-        self::assertTrustedMetadata($artifactPath, $trustedMetadataSha256);
-        $metadata = GeneratedRuntimeMetadata::read($artifactPath);
+        $metadata = GeneratedRuntimeMetadata::read($artifactPath, $trustedMetadataSha256);
         self::assertReleaseMetadata($metadata, $expectedEnvironment, $expectedConfigFingerprint);
         GeneratedRuntimeMetadata::assertPrevalidatedIdentity(
             $metadata,
@@ -186,21 +185,6 @@ final readonly class GeneratedRuntime
         $actual = $metadata['config_fingerprint'] ?? null;
         if (!is_string($actual) || !hash_equals($expectedConfigFingerprint, $actual)) {
             throw new \RuntimeException('Foundation generated runtime config identity does not match the release generation.');
-        }
-    }
-
-    /**
-     * @throws \RuntimeException
-     */
-    private static function assertTrustedMetadata(string $artifactPath, string $trustedSha256): void
-    {
-        $metadataPath = GeneratedRuntimeMetadata::path($artifactPath);
-        if (!is_file($metadataPath)) {
-            throw new \RuntimeException('Foundation generated-runtime metadata is missing.');
-        }
-        $actualSha256 = hash_file('sha256', $metadataPath);
-        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
-            throw new \RuntimeException('Foundation generated-runtime metadata trust identity mismatch.');
         }
     }
 

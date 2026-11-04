@@ -276,3 +276,35 @@ PHP);
         new \Symfony\Component\Filesystem\Filesystem()->remove($project);
     }
 });
+
+it('validates and decodes the same captured bytes for trusted generated runtime JSON', function (): void {
+    $payload = ['schema_version' => 2, 'runtime' => 'worker', 'providers' => ['TrustedProvider']];
+    $original = json_encode($payload, JSON_THROW_ON_ERROR);
+    FoundationManifestChangingStream::$original = $original;
+    FoundationManifestChangingStream::$replacement = json_encode(
+        ['schema_version' => 2, 'runtime' => 'worker', 'providers' => ['ReplacedProvider']],
+        JSON_THROW_ON_ERROR,
+    );
+    FoundationManifestChangingStream::$opens = 0;
+    $scheme = 'foundationmetadatatrust';
+    expect(stream_wrapper_register($scheme, FoundationManifestChangingStream::class))->toBeTrue();
+
+    try {
+        $path = $scheme . '://worker-runtime';
+        $metadata = \Infocyph\Foundation\Runtime\GeneratedRuntimeMetadata::read(
+            $path,
+            hash('sha256', $original),
+        );
+        expect($metadata)->toBe($payload)
+            ->and(FoundationManifestChangingStream::$opens)->toBe(1);
+
+        FoundationManifestChangingStream::$opens = 0;
+        expect(fn() => \Infocyph\Foundation\Runtime\GeneratedRuntimeMetadata::read(
+            $path,
+            str_repeat('0', 64),
+        ))->toThrow(RuntimeException::class, 'trust identity mismatch');
+        expect(FoundationManifestChangingStream::$opens)->toBe(1);
+    } finally {
+        stream_wrapper_unregister($scheme);
+    }
+});

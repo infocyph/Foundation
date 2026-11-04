@@ -4,6 +4,9 @@ Date: 2026-11-04 (Asia/Dhaka). Status: **implementation in progress; release gat
 
 ## Implementation checkpoint — 2026-11-04
 
+- **P0 A02 generated-runtime JSON trust boundary (2026-11-04; pending QA):** Folded trusted JSON metadata verification into `GeneratedRuntimeMetadata::read()` so `GeneratedRuntime::loadPrevalidated()` parses the same bytes whose SHA-256 it verifies, eliminating a `hash_file()`/second-read window and the redundant verifier. Added deterministic stream-switch tests for single-read acceptance and digest mismatch, plus the source-located `ServiceResolutionException` contract in metadata path resolution. No new dependency, suppression or changed manifest schema. A02 remains open pending exact-head QA and final Webrick/metadata parity review; formal acceptance stays **29/90**.
+
+
 - **P0 A02 Webrick trusted-runtime verification/evaluation fix (2026-11-04; pending QA):** Replaced Webrick runtime manifest path-hash/read-again behavior with capture-once SHA-256 verification, private staged native-schema validation and one immutable manifest array passed into trusted boot. The nontrusted path continues to use Webrick's normal loader. Added a changing-stream regression that must prove the original trusted PHP bytes are opened once and a replacement execution marker never runs. This addresses the reported Webrick read-after-check boundary without weakening the trust identity; keep A02 open until hosted QA proves it, and continue reviewing JSON metadata boundaries. Formal acceptance remains **29/90**.
 
 

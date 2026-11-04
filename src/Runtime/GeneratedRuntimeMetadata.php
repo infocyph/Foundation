@@ -117,7 +117,7 @@ final class GeneratedRuntimeMetadata
      * @throws \RuntimeException
      * @throws \UnexpectedValueException
      */
-    public static function read(string $artifactPath): array
+    public static function read(string $artifactPath, ?string $trustedSha256 = null): array
     {
         $path = self::path($artifactPath);
         if (!is_file($path) || !is_readable($path)) {
@@ -127,6 +127,9 @@ final class GeneratedRuntimeMetadata
         $contents = file_get_contents($path);
         if (!is_string($contents)) {
             throw new \RuntimeException(sprintf('Unable to read generated runtime metadata: "%s".', $path));
+        }
+        if ($trustedSha256 !== null && !hash_equals($trustedSha256, hash('sha256', $contents))) {
+            throw new \RuntimeException('Foundation generated-runtime metadata trust identity mismatch.');
         }
 
         try {
@@ -151,6 +154,7 @@ final class GeneratedRuntimeMetadata
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     public static function resolvePath(Application $application, string $path): string
     {
