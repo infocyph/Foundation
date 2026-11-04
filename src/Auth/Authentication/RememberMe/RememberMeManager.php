@@ -11,7 +11,6 @@ use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\RememberTokenStoreInterface;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
-use Infocyph\Foundation\Auth\Support\ContextValue;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
 final readonly class RememberMeManager
@@ -136,7 +135,6 @@ final readonly class RememberMeManager
             metadata: $metadata,
             severity: $severity,
             deviceId: $deviceId,
-            sessionId: ContextValue::stringOrNull($metadata, 'session_id'),
         );
     }
 }

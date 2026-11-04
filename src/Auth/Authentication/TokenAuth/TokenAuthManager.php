@@ -12,7 +12,6 @@ use Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\RefreshTokenStoreInterface;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
-use Infocyph\Foundation\Auth\Support\ContextValue;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
 final readonly class TokenAuthManager
@@ -89,7 +88,7 @@ final readonly class TokenAuthManager
         }
 
         $this->refreshTokens->revokeFamily($familyId);
-        $this->record(AuthEventType::REFRESH_TOKEN_REVOKED, ContextValue::stringOrNull($context, 'account_id'), ['family_id' => $familyId] + $context, AuthEventSeverity::NOTICE);
+        $this->record(AuthEventType::REFRESH_TOKEN_REVOKED, null, ['family_id' => $familyId] + $context, AuthEventSeverity::NOTICE);
 
         return new TokenRevocationResult(TokenRevocationStatus::REVOKED, $familyId, 'refresh_token_family_revoked', $context);
     }
@@ -212,8 +211,7 @@ final readonly class TokenAuthManager
             $accountId,
             metadata: $metadata,
             severity: $severity,
-            deviceId: $deviceId ?? ContextValue::stringOrNull($metadata, 'device_id'),
-            sessionId: ContextValue::stringOrNull($metadata, 'session_id'),
+            deviceId: $deviceId,
         );
     }
 }
