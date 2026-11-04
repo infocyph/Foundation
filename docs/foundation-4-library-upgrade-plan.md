@@ -16,14 +16,17 @@ Work is underway on PR #20 / `feature/foundation-3`; no merge, tag, publication,
 
 The 90 implementation checkboxes below are acceptance criteria. Mark only entries with implementation and focused test/CI evidence; unmarked entries remain release requirements, even when partially implemented.
 
+- **Verified release-gate checkpoint (2026-11-04):** `0902665b` passed all four QA PHP 8.4/8.5 stable/lowest lanes, both static-analysis lanes (including required Psalm), both benchmark lanes, four production consumers and release-evidence in [41761279913](https://github.com/infocyph/Foundation/actions/runs/41761279913). Both native PHP 8.4/8.5 Swoole and OpenSwoole lanes and the host smoke passed [41761279328](https://github.com/infocyph/Foundation/actions/runs/41761279328). These are functional tests, not the missing controlled paired-host or multi-service recovery certificates. Keep `infocyph/phpforge: dev-main@dev`; the separate immutable reusable Actions workflow ref selects only the workflow code, not a fixed Composer package release.
 - **Analysis/tooling reconciliation (2026-11-04):** `453d92d` CI `41760817282` passed PHPStan and Composer audit but failed Psalm on PHP 8.4/8.5 solely because pinned PHPForge reusable workflow `fdec64c` calls `vendor/bin/psalm.phar` while current PHPForge `dev-main` resolves to `9b6067d` and installs the Composer binary `vendor/bin/psalm`. Pinning the reviewed published upstream workflow source at `9b6067dcf8a477d3420c178d934e4dbc6a589b49` restores the supported executable path. The new revision requires all QA and analysis lanes to pass; Psalm remains required.
 
 ### Rolling batch tracker
 
 | Batch | Implemented source | Latest verified evidence | Remaining |
 | --- | --- | --- | --- |
-| PHPForge Psalm workflow compatibility (2026-11-04) | Refresh reusable workflow pin from `fdec64c` to `9b6067d`; keep Psalm enabled and require immutable SHA | `41760817282` reproduces missing `vendor/bin/psalm.phar` in PHP 8.4/8.5 while PHPStan and audit pass | Validate exact new SHA across full QA/analysis |
-| Route-preset list integrity and host timing guard (2026-11-04) | `453d92d`: reject associative/sparse middleware stack maps; assert workflow minimum >=120 seconds | Previous HEAD `27ded8d` green; `453d92d` CI in progress | Exact new-head QA/host smoke and compiled-route security proof |
+| Durable messaging test-name parity (2026-11-04) | Renamed Omnibus 2.6-labelled test owner and fixture symbols to version-neutral terms; preserved encoded durable-message alias `foundation.omnibus26.durable-message.v1` with an explicit regression | Prior `0902665b` four-lane QA and native-host smoke green; new source verification pending | Continue P4 source/doc compatibility audit and rerun new revision |
+
+| PHPForge Psalm workflow compatibility (2026-11-04) | Reusable Actions workflow pin `9b6067d`; Composer `infocyph/phpforge: dev-main@dev` unchanged; Psalm required | `41761279913` full QA and both Psalm/PHPStan lanes green on `0902665b` | Requalify after next source changes |
+| Route-preset list integrity and host timing guard (2026-11-04) | `453d92d`: reject associative/sparse middleware stack maps; assert workflow minimum >=120 seconds | `41761279913` all QA/analysis and `41761279328` native host green on `0902665b` | Compiled-route fail-closed regression |
 | Contract / dependency reconciliation | `1003e003`–`2118c7b2` | Previously failing 14 assertions resolved; `27ded8d` hosted four-lane QA pass | Final revision after additional batches |
 | Native OTP, Epicrypt, Pathwise operations | `556e5ea0`–`d8af04d1` | Borrowed context and cancellation regressions passed Pest on PHP 8.4/8.5, lowest/stable | Complete specialist/live-backend, soak, generation cases |
 | Architecture boundary | `694aa480` | Project Deptrac check and negative Foundation-to-Infbyte dependency fixture passed four QA lanes | Broader coverage review and architectural audit |
@@ -38,7 +41,7 @@ The 90 implementation checkboxes below are acceptance criteria. Mark only entrie
 | Release evidence and source baseline | `27ded8d` green release evidence | Updated module CLI fixture package requirements/installed-version metadata to DBLayer 6.1.4, Omnibus 3.0.3, OTP 7.0.1; selected a post-upgrade baseline for source-only host comparisons | Re-run release evidence and both paired-host modes |
 | Retired test-label cleanup | `27ded8d` green four-lane QA | Renamed DBLayer 5/Omnibus 2.6/Pathwise 4.1-labelled test owners to version-neutral contract names; retained their behaviors | Verify all migrated tests and references in QA |
 | Whole-dependency-upgrade comparator contract | `27ded8d` green four-lane QA | Explicit dependency-upgrade mode now resolves separate Composer locks, verifies a reviewed exact source/dist-ref change manifest before running the matrix, preserves the strict shared-lock default and produces distinct verdicts | Verify workflow, compare both full matrices and record host artifacts |
-| Performance-workflow QA reconciliation | `27ded8d` green four-lane QA and host smoke | Two-lock fixture and ordered-method policy corrected; 120-second guard strengthened in `453d92d`; refreshed reusable QA workflow to upstream `9b6067d` for Composer Psalm executable | Final exact-head QA, including Psalm security analysis |
+| Performance-workflow QA reconciliation | `0902665b` green four-lane QA and host smoke | Two-lock fixture, ordered-method policy and 120-second workflow guard corrected; immutable reusable workflow refreshed for Composer Psalm executable | Full independent matched-host throughput certification |
 
 
 
@@ -342,7 +345,7 @@ Owners: `src/Routing/`, `src/Http/`, `src/Session/Middleware/`, trusted web rele
 
 ### P4. Remove obsolete compatibility and rebuild generated releases
 
-- [ ] Inventory old-library compatibility code, test descriptions, fixtures and docs. For example, `CurrentInfocyphApiCompatibilityTest.php` still describes DBLayer 5 / Omnibus 2.6, while current dependencies are DBLayer 6 / Omnibus 3. Update misleading labels and assertions to the supported baseline; preserve meaningful behavioral coverage.
+- [ ] Inventory old-library compatibility code, test descriptions, fixtures and docs. Version-neutral DBLayer/Omnibus tests now cover current APIs; the remaining Omnibus 2.6-labelled durable fixture was renamed while retaining its historical persisted codec alias. Continue scanning other outdated labels and compatibility branches before closing this broad criterion.
 - [ ] Distinguish current public options and security policies from old-version shims before removal. No broad deletion based only on a name containing `legacy` or `fallback`.
 - [ ] Keep required-package and selected-feature failures explicit. Missing optional packages should produce actionable feature diagnostics, not select an older implementation or silently disable an explicitly selected feature.
 - [ ] Rebuild all web/CLI/worker/scheduler artifacts after dependency changes. `FoundationReleaseManifest::dependencyFingerprint()` and release-runtime validation already reject Composer dependency drift; preserve that rejection and test it with the actual upgrade.

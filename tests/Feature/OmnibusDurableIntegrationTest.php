@@ -18,12 +18,12 @@ use Infocyph\Omnibus\MessageBus;
 use Infocyph\Omnibus\Serialization\EnvelopeSerializer;
 use Infocyph\Omnibus\Serialization\MessageCodec;
 
-final readonly class FoundationOmnibus26DurableMessage
+final readonly class FoundationOmnibusDurableMessage
 {
     public function __construct(public string $value) {}
 }
 
-final readonly class FoundationOmnibus26DurableMessageCodec implements MessageCodec
+final readonly class FoundationOmnibusDurableMessageCodec implements MessageCodec
 {
     public function alias(): string
     {
@@ -37,12 +37,12 @@ final readonly class FoundationOmnibus26DurableMessageCodec implements MessageCo
             throw new UnexpectedValueException('Durable message value must be a string.');
         }
 
-        return new FoundationOmnibus26DurableMessage($value);
+        return new FoundationOmnibusDurableMessage($value);
     }
 
     public function encode(object $message): array
     {
-        if (!$message instanceof FoundationOmnibus26DurableMessage) {
+        if (!$message instanceof FoundationOmnibusDurableMessage) {
             throw new InvalidArgumentException('Unexpected durable message type.');
         }
 
@@ -51,16 +51,16 @@ final readonly class FoundationOmnibus26DurableMessageCodec implements MessageCo
 
     public function type(): string
     {
-        return FoundationOmnibus26DurableMessage::class;
+        return FoundationOmnibusDurableMessage::class;
     }
 }
 
-final class FoundationOmnibus26DurableHandler
+final class FoundationOmnibusDurableHandler
 {
     /** @var list<string> */
     public static array $handled = [];
 
-    public function __invoke(FoundationOmnibus26DurableMessage $message): void
+    public function __invoke(FoundationOmnibusDurableMessage $message): void
     {
         if ($message->value === 'fail') {
             throw new RuntimeException('expected durable handler failure');
@@ -71,11 +71,15 @@ final class FoundationOmnibus26DurableHandler
 }
 
 beforeEach(function (): void {
-    FoundationOmnibus26DurableHandler::$handled = [];
+    FoundationOmnibusDurableHandler::$handled = [];
 });
 
-it('composes Omnibus 2.6 DBLayer transport, failure store and schema only when enabled', function (): void {
-    [$app, $database] = foundationOmnibus26DurableApp();
+it('keeps the established serialized message alias readable after the library upgrade', function (): void {
+    expect(new FoundationOmnibusDurableMessageCodec()->alias())->toBe('foundation.omnibus26.durable-message.v1');
+});
+
+it('composes current Omnibus DBLayer transport, failure store and schema only when enabled', function (): void {
+    [$app, $database] = foundationOmnibusDurableApp();
 
     try {
         $schema = $app->make(MessagingDatabaseSchema::class);
@@ -91,36 +95,36 @@ it('composes Omnibus 2.6 DBLayer transport, failure store and schema only when e
         $bus = $app->make(MessageBus::class);
         $transport = $app->make(DBLayerTransport::class);
 
-        $bus->dispatch(new FoundationOmnibus26DurableMessage('handled'));
+        $bus->dispatch(new FoundationOmnibusDurableMessage('handled'));
         expect($transport->size('work'))->toBe(1);
 
         $app->make(ConsumerFactory::class)->make('database')->run('work');
 
         expect($transport->size('work'))->toBe(0)
-            ->and(FoundationOmnibus26DurableHandler::$handled)->toBe(['handled']);
+            ->and(FoundationOmnibusDurableHandler::$handled)->toBe(['handled']);
 
-        $bus->dispatch(new FoundationOmnibus26DurableMessage('fail'));
+        $bus->dispatch(new FoundationOmnibusDurableMessage('fail'));
         $app->make(ConsumerFactory::class)->make('database')->run('work');
 
         $failures = $app->make(DBLayerFailureStore::class)->all();
         expect($failures)->toHaveCount(1)
             ->and($failures[0]->envelope?->message)->toEqual(
-                new FoundationOmnibus26DurableMessage('fail'),
+                new FoundationOmnibusDurableMessage('fail'),
             );
     } finally {
         unset($app);
-        foundationOmnibus26RemoveDatabase($database);
+        foundationOmnibusRemoveDatabase($database);
     }
 });
 
-it('reads legacy Omnibus 2.5 unwrapped DB payloads during the coordinated 2.6 cutover', function (): void {
-    [$app, $database] = foundationOmnibus26DurableApp();
+it('reads existing serialized queue rows through the current DB transport', function (): void {
+    [$app, $database] = foundationOmnibusDurableApp();
 
     try {
         $app->make(MessagingDatabaseSchema::class)->install();
         $serializer = $app->make(EnvelopeSerializer::class);
         $payload = $serializer->encode(new Envelope(
-            new FoundationOmnibus26DurableMessage('legacy'),
+            new FoundationOmnibusDurableMessage('legacy'),
         ));
         $connection = $app->make(DBLayerFactory::class)->infrastructureConnection('main');
         $connection->insert(
@@ -138,16 +142,16 @@ it('reads legacy Omnibus 2.5 unwrapped DB payloads during the coordinated 2.6 cu
         $reservation = [...$app->make(DBLayerTransport::class)->receive('work')][0];
 
         expect($reservation->envelope()->message)->toEqual(
-            new FoundationOmnibus26DurableMessage('legacy'),
+            new FoundationOmnibusDurableMessage('legacy'),
         );
     } finally {
         unset($app);
-        foundationOmnibus26RemoveDatabase($database);
+        foundationOmnibusRemoveDatabase($database);
     }
 });
 
 it('binds Omnibus after-commit dispatch to the current Foundation execution connection', function (): void {
-    [$app, $database] = foundationOmnibus26DurableApp();
+    [$app, $database] = foundationOmnibusDurableApp();
 
     try {
         $app->make(MessagingDatabaseSchema::class)->install();
@@ -158,7 +162,7 @@ it('binds Omnibus after-commit dispatch to the current Foundation execution conn
             $dispatcher = $app->make(AfterCommitDispatcher::class);
 
             $connection->transaction(function () use ($dispatcher): void {
-                $dispatcher->dispatch(new FoundationOmnibus26DurableMessage('after-commit'));
+                $dispatcher->dispatch(new FoundationOmnibusDurableMessage('after-commit'));
             });
         });
 
@@ -169,7 +173,7 @@ it('binds Omnibus after-commit dispatch to the current Foundation execution conn
             $dispatcher = $app->make(AfterCommitDispatcher::class);
 
             $connection->transaction(function () use ($dispatcher): void {
-                $dispatcher->dispatch(new FoundationOmnibus26DurableMessage('rolled-back'));
+                $dispatcher->dispatch(new FoundationOmnibusDurableMessage('rolled-back'));
 
                 throw new RuntimeException('rollback');
             });
@@ -177,16 +181,16 @@ it('binds Omnibus after-commit dispatch to the current Foundation execution conn
             ->and($transport->size('work'))->toBe(1);
     } finally {
         unset($app);
-        foundationOmnibus26RemoveDatabase($database);
+        foundationOmnibusRemoveDatabase($database);
     }
 });
 
 it('requires an explicit failure-store policy for durable consumers', function (): void {
-    $database = foundationOmnibus26DatabasePath();
+    $database = foundationOmnibusDatabasePath();
 
     try {
         expect(fn() => Foundation::worker([
-            'database' => foundationOmnibus26DatabaseConfig($database),
+            'database' => foundationOmnibusDatabaseConfig($database),
             'messaging' => [
                 'durable' => [
                     'enabled' => true,
@@ -199,7 +203,7 @@ it('requires an explicit failure-store policy for durable consumers', function (
             'Durable database consumers/workers require an explicit messaging.durable.failure_store policy.',
         );
     } finally {
-        foundationOmnibus26RemoveDatabase($database);
+        foundationOmnibusRemoveDatabase($database);
     }
 });
 
@@ -238,11 +242,11 @@ it('keeps the DBLayer durable graph cold when durable messaging is disabled', fu
 });
 
 /** @return array{0:\Infocyph\Foundation\Application\Application,1:string} */
-function foundationOmnibus26DurableApp(?array $selectedFeatures = null): array
+function foundationOmnibusDurableApp(?array $selectedFeatures = null): array
 {
-    $database = foundationOmnibus26DatabasePath();
+    $database = foundationOmnibusDatabasePath();
     $config = [
-        'database' => foundationOmnibus26DatabaseConfig($database),
+        'database' => foundationOmnibusDatabaseConfig($database),
         'messaging' => [
             'durable' => [
                 'enabled' => true,
@@ -250,20 +254,20 @@ function foundationOmnibus26DurableApp(?array $selectedFeatures = null): array
                 'failure_store' => 'database',
             ],
             'serialization' => [
-                'message_codecs' => [FoundationOmnibus26DurableMessageCodec::class],
+                'message_codecs' => [FoundationOmnibusDurableMessageCodec::class],
             ],
             'default_route' => [
                 'transport' => 'database',
                 'queue' => 'work',
             ],
             'routes' => [
-                FoundationOmnibus26DurableMessage::class => [
+                FoundationOmnibusDurableMessage::class => [
                     'transport' => 'database',
                     'queue' => 'work',
                 ],
             ],
             'handlers' => [
-                FoundationOmnibus26DurableMessage::class => FoundationOmnibus26DurableHandler::class,
+                FoundationOmnibusDurableMessage::class => FoundationOmnibusDurableHandler::class,
             ],
             'consumer' => ['transport' => 'database'],
             'retry' => [
@@ -285,7 +289,7 @@ function foundationOmnibus26DurableApp(?array $selectedFeatures = null): array
 }
 
 /** @return array<string,mixed> */
-function foundationOmnibus26DatabaseConfig(string $database): array
+function foundationOmnibusDatabaseConfig(string $database): array
 {
     return [
         'default' => 'main',
@@ -298,17 +302,17 @@ function foundationOmnibus26DatabaseConfig(string $database): array
     ];
 }
 
-function foundationOmnibus26DatabasePath(): string
+function foundationOmnibusDatabasePath(): string
 {
-    $path = tempnam(sys_get_temp_dir(), 'foundation-omnibus26-');
+    $path = tempnam(sys_get_temp_dir(), 'foundation-omnibus-');
     if (!is_string($path)) {
-        throw new RuntimeException('Unable to allocate Omnibus 2.6 SQLite fixture.');
+        throw new RuntimeException('Unable to allocate Omnibus durable SQLite fixture.');
     }
 
     return $path;
 }
 
-function foundationOmnibus26RemoveDatabase(string $database): void
+function foundationOmnibusRemoveDatabase(string $database): void
 {
     if (is_file($database)) {
         unlink($database);
@@ -317,7 +321,7 @@ function foundationOmnibus26RemoveDatabase(string $database): void
 
 
 it('retains durable messages and failed attempts across selected specialist execution failures', function (): void {
-    [$app, $database] = foundationOmnibus26DurableApp([
+    [$app, $database] = foundationOmnibusDurableApp([
         'data.database' => true,
         'execution.messaging' => true,
     ]);
@@ -330,7 +334,7 @@ it('retains durable messages and failed attempts across selected specialist exec
         $transport = $app->make(DBLayerTransport::class);
         $bus = $app->make(MessageBus::class);
 
-        $bus->dispatch(new FoundationOmnibus26DurableMessage('fail'));
+        $bus->dispatch(new FoundationOmnibusDurableMessage('fail'));
         expect($transport->size('work'))->toBe(1);
         $app->make(ConsumerFactory::class)->make('database')->run('work');
         expect($transport->size('work'))->toBe(0)
@@ -338,10 +342,10 @@ it('retains durable messages and failed attempts across selected specialist exec
 
         // Failed delivery must be durable, not a destructive rollback of the
         // native messaging schema or the subsequent successful dispatch.
-        $bus->dispatch(new FoundationOmnibus26DurableMessage('recovered'));
+        $bus->dispatch(new FoundationOmnibusDurableMessage('recovered'));
         $app->make(ConsumerFactory::class)->make('database')->run('work');
         expect($transport->size('work'))->toBe(0)
-            ->and(FoundationOmnibus26DurableHandler::$handled)->toContain('recovered')
+            ->and(FoundationOmnibusDurableHandler::$handled)->toContain('recovered')
             ->and($app->make(DBLayerFailureStore::class)->all())->toHaveCount(1)
             ->and($schema->readiness()['installed'])->toBeTrue();
 
@@ -349,7 +353,7 @@ it('retains durable messages and failed attempts across selected specialist exec
             $connection = $app->make(DBLayerFactory::class)->connection('main');
             $dispatcher = $app->make(AfterCommitDispatcher::class);
             $connection->transaction(function () use ($dispatcher): void {
-                $dispatcher->dispatch(new FoundationOmnibus26DurableMessage('cancelled'));
+                $dispatcher->dispatch(new FoundationOmnibusDurableMessage('cancelled'));
 
                 throw new RuntimeException('cancelled transaction');
             });
@@ -357,20 +361,20 @@ it('retains durable messages and failed attempts across selected specialist exec
             ->and($transport->size('work'))->toBe(0);
     } finally {
         unset($app);
-        foundationOmnibus26RemoveDatabase($database);
+        foundationOmnibusRemoveDatabase($database);
     }
 });
 
 it('rejects durable selected messaging without DB ownership before opening storage', function (): void {
-    $database = foundationOmnibus26DatabasePath();
+    $database = foundationOmnibusDatabasePath();
     try {
         expect(fn() => Foundation::worker([
-            'database' => foundationOmnibus26DatabaseConfig($database),
+            'database' => foundationOmnibusDatabaseConfig($database),
             'modules' => ['features' => ['execution.messaging' => true]],
             'messaging' => ['durable' => ['enabled' => true]],
         ]))->toThrow(LogicException::class, 'data.database')
             ->and(filesize($database))->toBe(0);
     } finally {
-        foundationOmnibus26RemoveDatabase($database);
+        foundationOmnibusRemoveDatabase($database);
     }
 });
