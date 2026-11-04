@@ -238,8 +238,13 @@ final class ScheduledCommand
         return $this->timeoutSeconds;
     }
 
+    /** @throws \InvalidArgumentException */
     public function timezone(string|\DateTimeZone $timezone): self
     {
+        if ($timezone === '') {
+            throw new \InvalidArgumentException('Schedule timezone must be non-empty.');
+        }
+
         $this->timezone = is_string($timezone) ? new \DateTimeZone($timezone) : $timezone;
 
         return $this;

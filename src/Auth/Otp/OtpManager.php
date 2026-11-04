@@ -20,7 +20,6 @@ use Infocyph\OTP\GridOTP;
 use Infocyph\OTP\MobileOTP;
 use Infocyph\OTP\ValueObjects\AotpChallenge;
 use Infocyph\OTP\ValueObjects\AotpResponse;
-use Infocyph\OTP\ValueObjects\EnrollmentPayload;
 use Infocyph\OTP\ValueObjects\GridChallenge;
 
 /**
@@ -48,9 +47,7 @@ final readonly class OtpManager
         int $recoveryCodeCount = 10,
     ): OtpEnrollmentResult {
         $provisioned = $this->provisioning->provision($accountId, $label, $withQrSvg);
-        /** @var EnrollmentPayload $payload */
         $payload = $provisioned['payload'];
-        /** @var array<string, mixed> $factorMetadata */
         $factorMetadata = $provisioned['factor_metadata'];
 
         $enrollment = $this->mfa->enrollFactor(
@@ -93,7 +90,10 @@ final readonly class OtpManager
         return $this->activateVerifiedFactor($accountId, $factor, $verification, $context);
     }
 
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     public function completeEnrollment(
         string $accountId,
         string $factorId,

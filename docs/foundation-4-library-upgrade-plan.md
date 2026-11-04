@@ -4,6 +4,9 @@ Date: 2026-11-04 (Asia/Dhaka). Status: **implementation in progress; release gat
 
 ## Implementation checkpoint — 2026-11-04
 
+- **OTP/scheduler coupled runtime/analysis correction (2026-11-04; QA pending):** Removed two redundant OTP enrollment `@var` annotations plus the now-unused imported type; the native provisioning API already returns the precise payload and factor metadata shape. Documented that native OTP cancellation is propagated during enrollment completion. Reject an empty scheduler timezone explicitly (instead of delegating an invalid empty input to `DateTimeZone`) and add a regression that preserves explicit timezone-object behavior. This batch addresses Psalm findings in previously touched public owners without adding compatibility paths, thresholds, suppressions or new files. Await exact-head standard PHPForge QA; acceptance stays **32/90**.
+
+
 - **Public entrypoint reachability batch (2026-11-04; pending exact-head QA):** Explicitly identify `ConfigLoader` (including cache publication), `ScheduledCommand` (fluent scheduling), `OAuthManager` (returned by `AuthServices::oauth()`), `OtpManager` (documented OTP enrollment/challenges), and `Gate` (returned by `AuthServices::gate()`) as application-facing public `@api` owners. Removed the outdated `OTP 6.1` ownership label from `OtpManager` while retaining the supported native OTP 7 integration. This allows Psalm to analyze their public entrypoints instead of mistaking dependent private members for dead code; no suppression, analyzer threshold change, or runtime behavior change. Retain unused-code analysis for truly private classes. Do not accept without exact-head PHPForge validation; formal acceptance remains **32/90**.
 
 
