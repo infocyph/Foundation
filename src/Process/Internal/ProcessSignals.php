@@ -16,6 +16,7 @@ final class ProcessSignals
     /**
      * @param callable(int):void $interrupt
      * @return array{async:bool,handlers:array<int,callable|int>}|null
+     * @throws \Throwable
      */
     public function register(ProcessOptions $options, callable $interrupt): ?array
     {

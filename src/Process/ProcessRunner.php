@@ -187,7 +187,7 @@ final readonly class ProcessRunner
                 },
             );
 
-            while (($status = proc_get_status($process))['running']) {
+            while (proc_get_status($process)['running']) {
                 $reason = $this->interactiveTermination($options, $startedAt, $interruptedSignal);
                 if ($reason !== null) {
                     break;

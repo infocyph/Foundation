@@ -19,6 +19,7 @@ final readonly class ProcessCapture
      * @param resource $process
      * @param array<int, resource> $pipes
      * @param array{pid:?int,group:bool} $tree
+     * @throws \Throwable
      */
     public function run($process, array $pipes, ProcessOptions $options, array $tree): ProcessResult
     {
@@ -43,7 +44,7 @@ final readonly class ProcessCapture
                 },
             );
 
-            while (($status = proc_get_status($process))['running']) {
+            while (proc_get_status($process)['running']) {
                 $reason = $this->requestedTermination(
                     $options,
                     $startedAt,
