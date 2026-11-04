@@ -76,11 +76,11 @@ it('keeps runtime token roots out of generated InterMix artifacts', function (st
     } finally {
         unset($_ENV[$environment], $_SERVER[$environment]);
         putenv($environment);
-        foundationEpicrypt31ArtifactRemove($project);
+        foundationEpicryptArtifactRemove($project);
     }
 })->with(['simple', 'security']);
 
-function foundationEpicrypt31ArtifactRemove(string $directory): void
+function foundationEpicryptArtifactRemove(string $directory): void
 {
     if (!is_dir($directory)) {
         return;

@@ -16,7 +16,7 @@ use Psr\Container\ContainerInterface;
 /**
  * @return array{DBLayerFactory,RuntimeExecutionState,object,ConfigRepository,CacheManager}
  */
-function foundationDbLayer51QueryRuntime(array $config): array
+function foundationDbLayerQueryRuntime(array $config): array
 {
     $repository = new ConfigRepository($config);
     $state = new RuntimeExecutionState();
@@ -73,7 +73,7 @@ function foundationDbLayer51QueryRuntime(array $config): array
 }
 
 it('keeps CacheLayer completely cold when DBLayer query caching is disabled', function (): void {
-    [$database, $state, $container] = foundationDbLayer51QueryRuntime([
+    [$database, $state, $container] = foundationDbLayerQueryRuntime([
         'app' => ['base_path' => sys_get_temp_dir()],
         'database' => [
             'default' => 'default',
@@ -144,7 +144,7 @@ it('requires an isolated CacheLayer namespace before enabling shared DB query ca
 });
 
 it('uses the exact DBLayer connection cache and invalidates only after successful outer commit', function (): void {
-    [$database, $state] = foundationDbLayer51QueryRuntime([
+    [$database, $state] = foundationDbLayerQueryRuntime([
         'app' => ['base_path' => sys_get_temp_dir()],
         'database' => [
             'default' => 'default',
@@ -196,7 +196,7 @@ it('builds PDO-backed CacheLayer infrastructure without borrowing an execution c
     mkdir($basePath, 0777, true);
 
     try {
-        [$database, $state, $container] = foundationDbLayer51QueryRuntime([
+        [$database, $state, $container] = foundationDbLayerQueryRuntime([
             'app' => ['base_path' => $basePath],
             'database' => [
                 'default' => 'default',
@@ -235,7 +235,7 @@ it('builds PDO-backed CacheLayer infrastructure without borrowing an execution c
 
 
 it('shares the configured named query cache with the application cache registry and honors replacement', function (): void {
-    [$database, $state, , , $manager] = foundationDbLayer51QueryRuntime([
+    [$database, $state, , , $manager] = foundationDbLayerQueryRuntime([
         'app' => ['base_path' => sys_get_temp_dir()],
         'database' => [
             'default' => 'default',
@@ -282,7 +282,7 @@ it('resolves a PDO-backed named query cache through the registry without recursi
     mkdir($basePath, 0777, true);
 
     try {
-        [$database, $state, , , $manager] = foundationDbLayer51QueryRuntime([
+        [$database, $state, , , $manager] = foundationDbLayerQueryRuntime([
             'app' => ['base_path' => $basePath],
             'database' => [
                 'default' => 'default',

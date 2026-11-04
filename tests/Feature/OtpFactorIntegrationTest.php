@@ -11,7 +11,7 @@ use Infocyph\OTP\MobileOTP;
 use Infocyph\OTP\ValueObjects\AotpChallenge;
 use Infocyph\OTP\ValueObjects\GridChallenge;
 
-function foundationOtp61App(): \Infocyph\Foundation\Application\Application
+function foundationOtpApp(): \Infocyph\Foundation\Application\Application
 {
     $basePath = sys_get_temp_dir() . '/foundation-otp61-' . bin2hex(random_bytes(8));
     mkdir($basePath . '/cache', 0775, true);
@@ -47,7 +47,7 @@ function foundationOtp61App(): \Infocyph\Foundation\Application\Application
 it('keeps AOTP private keys device-owned and composes native challenges', function (): void {
     expect(AOTP::isAvailable())->toBeTrue();
 
-    $app = foundationOtp61App();
+    $app = foundationOtpApp();
     $app->container()->withinScope('webrick.request', static function () use ($app): void {
         $otp = $app->make(OtpManager::class);
         $keys = AOTP::generateKeyPair();
@@ -107,7 +107,7 @@ it('keeps AOTP private keys device-owned and composes native challenges', functi
 });
 
 it('enrolls GridOTP without exposing its secret through generic enrollment context', function (): void {
-    $app = foundationOtp61App();
+    $app = foundationOtpApp();
     $app->container()->withinScope('webrick.request', static function () use ($app): void {
         $otp = $app->make(OtpManager::class);
         $enrollment = $otp->enrollGridOtp('acct-grid-1');
@@ -149,7 +149,7 @@ it('enrolls GridOTP without exposing its secret through generic enrollment conte
 });
 
 it('imports MobileOTP only through the explicit legacy workflow', function (): void {
-    $app = foundationOtp61App();
+    $app = foundationOtpApp();
     $app->container()->withinScope('webrick.request', static function () use ($app): void {
         $otp = $app->make(OtpManager::class);
         $secret = MobileOTP::generateSecret();
@@ -178,7 +178,7 @@ it('imports MobileOTP only through the explicit legacy workflow', function (): v
 });
 
 it('preserves GridOTP state after cancellation of a borrowed Runwire operation', function (): void {
-    $app = foundationOtp61App();
+    $app = foundationOtpApp();
     $app->container()->withinScope('webrick.request', static function () use ($app): void {
         $otp = $app->make(OtpManager::class);
         $enrollment = $otp->enrollGridOtp('acct-grid-cancelled');

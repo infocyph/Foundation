@@ -8,8 +8,8 @@ use Infocyph\Foundation\Filesystem\StorageRegistry;
 
 
 it('isolates identical logical disk names across Foundation applications in one process', function (): void {
-    $baseA = sys_get_temp_dir() . '/foundation-pathwise4-a-' . bin2hex(random_bytes(5));
-    $baseB = sys_get_temp_dir() . '/foundation-pathwise4-b-' . bin2hex(random_bytes(5));
+    $baseA = sys_get_temp_dir() . '/foundation-pathwise-a-' . bin2hex(random_bytes(5));
+    $baseB = sys_get_temp_dir() . '/foundation-pathwise-b-' . bin2hex(random_bytes(5));
     mkdir($baseA, 0775, true);
     mkdir($baseB, 0775, true);
 
@@ -37,14 +37,14 @@ it('isolates identical logical disk names across Foundation applications in one 
         expect($storageA->disk('uploads')->read('same.txt'))->toBe('application-a')
             ->and($storageB->disk('uploads')->read('same.txt'))->toBe('application-b');
     } finally {
-        foundationPathwise4IsolationRemove($baseA);
-        foundationPathwise4IsolationRemove($baseB);
+        foundationPathwiseIsolationRemove($baseA);
+        foundationPathwiseIsolationRemove($baseB);
     }
 });
 
 it('keeps interleaved Fiber storage operations bound to the owning context', function (): void {
-    $baseA = sys_get_temp_dir() . '/foundation-pathwise4-fiber-a-' . bin2hex(random_bytes(5));
-    $baseB = sys_get_temp_dir() . '/foundation-pathwise4-fiber-b-' . bin2hex(random_bytes(5));
+    $baseA = sys_get_temp_dir() . '/foundation-pathwise-fiber-a-' . bin2hex(random_bytes(5));
+    $baseB = sys_get_temp_dir() . '/foundation-pathwise-fiber-b-' . bin2hex(random_bytes(5));
     mkdir($baseA, 0775, true);
     mkdir($baseB, 0775, true);
 
@@ -82,8 +82,8 @@ it('keeps interleaved Fiber storage operations bound to the owning context', fun
         expect($fiberA->getReturn())->toBe('A')
             ->and($fiberB->getReturn())->toBe('B');
     } finally {
-        foundationPathwise4IsolationRemove($baseA);
-        foundationPathwise4IsolationRemove($baseB);
+        foundationPathwiseIsolationRemove($baseA);
+        foundationPathwiseIsolationRemove($baseB);
     }
 });
 
@@ -99,7 +99,7 @@ it('rejects an invalid default disk while constructing the application storage c
     ))->toThrow(InvalidArgumentException::class, "Default filesystem 'missing' is not configured");
 });
 
-function foundationPathwise4IsolationRemove(string $directory): void
+function foundationPathwiseIsolationRemove(string $directory): void
 {
     if (!is_dir($directory)) {
         return;

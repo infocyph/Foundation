@@ -11,7 +11,7 @@ use Infocyph\Foundation\Communication\CacheLayerWebhookReplayStore;
 
 it('uses CacheLayer native claim consume CAS and TTL semantics', function (): void {
     $cache = Cache::memory(
-        namespace: 'foundation-33-atomic',
+        namespace: 'foundation-atomic-atomic',
         options: new CacheOptions(failOpen: false),
     );
     $atomic = $cache->atomic();
@@ -71,8 +71,8 @@ it('defers replay storage until a claim and preserves atomic failure behavior', 
 });
 
 it('preserves replay consume CAS and auth lockout atomicity under process contention', function (): void {
-    $dsn = foundationCacheLayer33RedisDsn();
-    $namespace = 'foundation-33-' . bin2hex(random_bytes(8));
+    $dsn = foundationCacheLayerAtomicRedisDsn();
+    $namespace = 'foundation-atomic-' . bin2hex(random_bytes(8));
     $cache = Cache::redis(
         namespace: $namespace,
         dsn: $dsn,
@@ -82,24 +82,24 @@ it('preserves replay consume CAS and auth lockout atomicity under process conten
     try {
         $cache->clear();
 
-        $claims = foundationCacheLayer33Workers('claim', $namespace, $dsn, 'same-delivery', 8);
+        $claims = foundationCacheLayerAtomicWorkers('claim', $namespace, $dsn, 'same-delivery', 8);
         expect(array_count_values($claims))->toMatchArray(['1' => 1, '0' => 7]);
 
         $ttl = new CacheLayerTtlStore($cache);
         $ttl->put('single-consume', 'payload', 30);
-        $pulls = foundationCacheLayer33Workers('pull', $namespace, $dsn, 'single-consume', 8);
+        $pulls = foundationCacheLayerAtomicWorkers('pull', $namespace, $dsn, 'single-consume', 8);
         expect(array_count_values($pulls))->toMatchArray(['payload' => 1, '__miss__' => 7]);
 
         $atomic = $cache->atomic();
         expect($atomic)->not->toBeNull()
             ->and($atomic?->setIfAbsent('cas-contention', 0, 30))->toBeTrue();
-        $cas = foundationCacheLayer33Workers('cas', $namespace, $dsn, 'cas-contention', 8);
+        $cas = foundationCacheLayerAtomicWorkers('cas', $namespace, $dsn, 'cas-contention', 8);
         expect(array_count_values($cas))->toMatchArray(['1' => 1, '0' => 7])
             ->and($cache->get('cas-contention'))->toBe(1);
 
         $counter = new AtomicCounterStore(AtomicCounters::redis($namespace, $dsn));
         $counter->reset('login:shared-account');
-        $increments = foundationCacheLayer33Workers('counter', $namespace, $dsn, 'login:shared-account', 8);
+        $increments = foundationCacheLayerAtomicWorkers('counter', $namespace, $dsn, 'login:shared-account', 8);
         expect($increments)->toBe(['1', '2', '3', '4', '5', '6', '7', '8']);
         $counter->reset('login:shared-account');
     } finally {
@@ -107,7 +107,7 @@ it('preserves replay consume CAS and auth lockout atomicity under process conten
     }
 });
 
-function foundationCacheLayer33RedisDsn(): string
+function foundationCacheLayerAtomicRedisDsn(): string
 {
     $explicit = getenv('FOUNDATION_TEST_REDIS_DSN');
     if (is_string($explicit) && $explicit !== '') {
@@ -125,7 +125,7 @@ function foundationCacheLayer33RedisDsn(): string
 }
 
 /** @return list<string> */
-function foundationCacheLayer33Workers(
+function foundationCacheLayerAtomicWorkers(
     string $mode,
     string $namespace,
     string $dsn,

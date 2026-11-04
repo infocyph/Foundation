@@ -20,7 +20,7 @@ use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundSource;
 use Infocyph\TalkingBytes\Grpc\Testing\FakeGrpcInboundExchange;
 use Infocyph\TalkingBytes\Grpc\Testing\FakeGrpcInboundSource;
 
-final class FoundationTalkingBytes21GrpcHandler implements GrpcInboundHandlerInterface
+final class FoundationTalkingBytesGrpcHandler implements GrpcInboundHandlerInterface
 {
     public static int $handled = 0;
 
@@ -44,7 +44,7 @@ final class FoundationTalkingBytes21GrpcHandler implements GrpcInboundHandlerInt
     }
 }
 
-final class FoundationTalkingBytes21GrpcSource implements GrpcInboundSource
+final class FoundationTalkingBytesGrpcSource implements GrpcInboundSource
 {
     public bool $requestStopOnAccept = false;
 
@@ -81,31 +81,31 @@ final class FoundationTalkingBytes21GrpcSource implements GrpcInboundSource
     }
 }
 
-final class FoundationTalkingBytes21GrpcProvider extends ServiceProvider
+final class FoundationTalkingBytesGrpcProvider extends ServiceProvider
 {
-    public function __construct(private readonly FoundationTalkingBytes21GrpcSource $source) {}
+    public function __construct(private readonly FoundationTalkingBytesGrpcSource $source) {}
 
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
         $builder->value(GrpcInboundSource::class, $this->source);
         $builder->factory(
-            FoundationTalkingBytes21GrpcHandler::class,
-            FactoryDefinition::construct(FoundationTalkingBytes21GrpcHandler::class),
+            FoundationTalkingBytesGrpcHandler::class,
+            FactoryDefinition::construct(FoundationTalkingBytesGrpcHandler::class),
             LifetimeEnum::Scoped,
         );
     }
 }
 
 it('runs accepted gRPC exchanges inside fresh Foundation worker execution scopes', function (): void {
-    FoundationTalkingBytes21GrpcHandler::$handled = 0;
-    FoundationTalkingBytes21GrpcHandler::$next = 0;
-    $source = new FoundationTalkingBytes21GrpcSource();
+    FoundationTalkingBytesGrpcHandler::$handled = 0;
+    FoundationTalkingBytesGrpcHandler::$next = 0;
+    $source = new FoundationTalkingBytesGrpcSource();
     $first = $source->enqueue(new GrpcInboundRequest('/foundation.v1.Test/Call', ['id' => 1]));
     $second = $source->enqueue(new GrpcInboundRequest('/foundation.v1.Test/Call', ['id' => 2]));
     $heartbeat = 0;
 
-    $app = foundationTalkingBytes21GrpcApplication($source);
+    $app = foundationTalkingBytesGrpcApplication($source);
     $runtime = new WorkerRuntime(
         $app,
         static function () use (&$heartbeat): void {
@@ -123,19 +123,19 @@ it('runs accepted gRPC exchanges inside fresh Foundation worker execution scopes
         ->and($second->completed())->toBeTrue()
         ->and($first->response()?->message['sequence'] ?? null)->toBe(1)
         ->and($second->response()?->message['sequence'] ?? null)->toBe(2)
-        ->and(FoundationTalkingBytes21GrpcHandler::$handled)->toBe(2)
+        ->and(FoundationTalkingBytesGrpcHandler::$handled)->toBe(2)
         ->and($first->response()?->message['message'] ?? null)->toBe(['id' => 1])
         ->and($second->response()?->message['message'] ?? null)->toBe(['id' => 2]);
 });
 
 it('forwards Foundation stop policy through TalkingBytes inbound cancellation', function (): void {
-    FoundationTalkingBytes21GrpcHandler::$handled = 0;
-    FoundationTalkingBytes21GrpcHandler::$next = 0;
-    $source = new FoundationTalkingBytes21GrpcSource();
+    FoundationTalkingBytesGrpcHandler::$handled = 0;
+    FoundationTalkingBytesGrpcHandler::$next = 0;
+    $source = new FoundationTalkingBytesGrpcSource();
     $exchange = $source->enqueue(new GrpcInboundRequest('/foundation.v1.Test/Call', ['id' => 3]));
     $source->requestStopOnAccept = true;
 
-    $app = foundationTalkingBytes21GrpcApplication($source);
+    $app = foundationTalkingBytesGrpcApplication($source);
     $runtime = new WorkerRuntime(
         $app,
         stopRequested: static fn(): bool => $source->stopRequested,
@@ -147,11 +147,11 @@ it('forwards Foundation stop policy through TalkingBytes inbound cancellation', 
         ->and($source->sawCancellation)->toBeTrue()
         ->and($exchange->completed())->toBeTrue()
         ->and($exchange->response()?->status)->toBe(GrpcStatus::Cancelled)
-        ->and(FoundationTalkingBytes21GrpcHandler::$handled)->toBe(0);
+        ->and(FoundationTalkingBytesGrpcHandler::$handled)->toBe(0);
 });
 
-function foundationTalkingBytes21GrpcApplication(
-    FoundationTalkingBytes21GrpcSource $source,
+function foundationTalkingBytesGrpcApplication(
+    FoundationTalkingBytesGrpcSource $source,
 ): \Infocyph\Foundation\Application\Application {
     return Foundation::worker([
         'app' => [
@@ -161,7 +161,7 @@ function foundationTalkingBytes21GrpcApplication(
         '_config_cache' => false,
         'providers' => [
             'worker' => [
-                new FoundationTalkingBytes21GrpcProvider($source),
+                new FoundationTalkingBytesGrpcProvider($source),
             ],
         ],
         'communication' => [
@@ -171,7 +171,7 @@ function foundationTalkingBytes21GrpcApplication(
                     'idle_sleep_milliseconds' => 0,
                     'heartbeat_interval_milliseconds' => 5_000,
                     'handlers' => [
-                        '/foundation.v1.Test/Call' => FoundationTalkingBytes21GrpcHandler::class,
+                        '/foundation.v1.Test/Call' => FoundationTalkingBytesGrpcHandler::class,
                     ],
                 ],
             ],

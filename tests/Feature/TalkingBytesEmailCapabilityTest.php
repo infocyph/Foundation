@@ -140,11 +140,11 @@ it('keeps mailbox instances caller-owned and spool receivers execution-scoped', 
 
         expect($firstReceiver)->not->toBe($secondReceiver);
     } finally {
-        foundationTalkingBytes21EmailRemove($root);
+        foundationTalkingBytesEmailRemove($root);
     }
 });
 
-function foundationTalkingBytes21EmailRemove(string $directory): void
+function foundationTalkingBytesEmailRemove(string $directory): void
 {
     if (!is_dir($directory)) {
         return;

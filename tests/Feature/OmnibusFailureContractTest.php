@@ -9,12 +9,12 @@ use Infocyph\Omnibus\Failure\FailureManager;
 use Infocyph\Omnibus\Failure\InMemoryFailureStore;
 use Infocyph\Omnibus\Transport\InMemoryTransport;
 
-final readonly class FoundationOmnibus26FailureMessage
+final readonly class FoundationOmnibusFailureMessage
 {
     public function __construct(public string $value) {}
 }
 
-it('preserves Omnibus 2.6 failure retry claim and removal semantics used by queue retry', function (): void {
+it('preserves Omnibus 3 failure retry claim and removal semantics used by queue retry', function (): void {
     $clock = new SystemClock();
     $failures = new InMemoryFailureStore($clock);
     $transport = new InMemoryTransport($clock);
@@ -22,7 +22,7 @@ it('preserves Omnibus 2.6 failure retry claim and removal semantics used by queu
     $failure = FailedMessage::decoded(
         'foundation-failure-1',
         'failed',
-        Envelope::wrap(new FoundationOmnibus26FailureMessage('retry-me')),
+        Envelope::wrap(new FoundationOmnibusFailureMessage('retry-me')),
         1,
         new DateTimeImmutable('-1 minute'),
         RuntimeException::class,
@@ -32,13 +32,13 @@ it('preserves Omnibus 2.6 failure retry claim and removal semantics used by queu
 
     $sent = $manager->retry('foundation-failure-1', $transport, 'retry');
 
-    expect($sent->message)->toBeInstanceOf(FoundationOmnibus26FailureMessage::class)
+    expect($sent->message)->toBeInstanceOf(FoundationOmnibusFailureMessage::class)
         ->and($sent->message->value)->toBe('retry-me')
         ->and($transport->size('retry'))->toBe(1)
         ->and($failures->find('foundation-failure-1'))->toBeNull();
 });
 
-it('preserves Omnibus 2.6 failure list, prune, forget and flush semantics', function (): void {
+it('preserves Omnibus 3 failure list, prune, forget and flush semantics', function (): void {
     $clock = new SystemClock();
     $failures = new InMemoryFailureStore($clock);
     $manager = new FailureManager($failures);
@@ -46,7 +46,7 @@ it('preserves Omnibus 2.6 failure list, prune, forget and flush semantics', func
     $failures->add(FailedMessage::decoded(
         'foundation-failure-old',
         'failed',
-        Envelope::wrap(new FoundationOmnibus26FailureMessage('old')),
+        Envelope::wrap(new FoundationOmnibusFailureMessage('old')),
         1,
         new DateTimeImmutable('-2 days'),
         RuntimeException::class,
@@ -55,7 +55,7 @@ it('preserves Omnibus 2.6 failure list, prune, forget and flush semantics', func
     $failures->add(FailedMessage::decoded(
         'foundation-failure-current',
         'failed',
-        Envelope::wrap(new FoundationOmnibus26FailureMessage('current')),
+        Envelope::wrap(new FoundationOmnibusFailureMessage('current')),
         2,
         new DateTimeImmutable('now'),
         RuntimeException::class,
@@ -71,7 +71,7 @@ it('preserves Omnibus 2.6 failure list, prune, forget and flush semantics', func
     $failures->add(FailedMessage::decoded(
         'foundation-failure-a',
         'failed',
-        Envelope::wrap(new FoundationOmnibus26FailureMessage('a')),
+        Envelope::wrap(new FoundationOmnibusFailureMessage('a')),
         1,
         new DateTimeImmutable('now'),
         RuntimeException::class,
@@ -80,7 +80,7 @@ it('preserves Omnibus 2.6 failure list, prune, forget and flush semantics', func
     $failures->add(FailedMessage::decoded(
         'foundation-failure-b',
         'failed',
-        Envelope::wrap(new FoundationOmnibus26FailureMessage('b')),
+        Envelope::wrap(new FoundationOmnibusFailureMessage('b')),
         1,
         new DateTimeImmutable('now'),
         RuntimeException::class,

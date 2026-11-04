@@ -11,7 +11,7 @@ use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Omnibus\Consumer\WorkerLifecycle;
 use Infocyph\Omnibus\Consumer\WorkerPool;
 
-it('passes Foundation lifecycle callbacks through to Omnibus 2.6 workers', function (): void {
+it('passes Foundation lifecycle callbacks through to Omnibus 3 workers', function (): void {
     $app = Foundation::worker([
         'messaging' => [
             'workers' => [
@@ -90,7 +90,7 @@ it('keeps Omnibus worker configuration reads cold until a worker is constructed'
     expect($observer->resolved)->toBeTrue();
 });
 
-it('passes parent lifecycle directly to Omnibus 2.6 WorkerPool before child spawn', function (): void {
+it('passes parent lifecycle directly to Omnibus 3 WorkerPool before child spawn', function (): void {
     $lifecycle = new class implements WorkerLifecycle {
         public int $heartbeats = 0;
 

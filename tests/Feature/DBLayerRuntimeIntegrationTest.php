@@ -19,7 +19,7 @@ use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
 use Psr\Container\ContainerInterface;
 
-function foundationDbLayer51Config(string $database = ':memory:'): ConnectionConfig
+function foundationDbLayerRuntimeConfig(string $database = ':memory:'): ConnectionConfig
 {
     return ConnectionConfig::fromArray([
         'driver' => 'sqlite',
@@ -30,7 +30,7 @@ function foundationDbLayer51Config(string $database = ':memory:'): ConnectionCon
 }
 
 /** @return array{DBLayerFactory,RuntimeExecutionState} */
-function foundationDbLayer51Factory(array $database): array
+function foundationDbLayerRuntimeFactory(array $database): array
 {
     $state = new RuntimeExecutionState();
     $container = new class ($state) implements ContainerInterface {
@@ -61,7 +61,7 @@ function foundationDbLayer51Factory(array $database): array
 
 it('owns a DBLayer lease per Foundation execution and delegates rollback sanitation to DBLayer', function (): void {
     $file = sys_get_temp_dir() . '/foundation-dblayer-51-lease-' . bin2hex(random_bytes(6)) . '.sqlite';
-    $config = foundationDbLayer51Config($file);
+    $config = foundationDbLayerRuntimeConfig($file);
     $pool = new Pool([
         'min_connections' => 1,
         'max_connections' => 2,
@@ -103,7 +103,7 @@ it('owns a DBLayer lease per Foundation execution and delegates rollback sanitat
 });
 
 it('never exposes one active pooled connection to two interleaved Foundation executions', function (): void {
-    $config = foundationDbLayer51Config();
+    $config = foundationDbLayerRuntimeConfig();
     $pool = new Pool([
         'min_connections' => 0,
         'max_connections' => 2,
@@ -143,7 +143,7 @@ it('never exposes one active pooled connection to two interleaved Foundation exe
 });
 
 it('keeps fresh and infrastructure database connections outside the pooled execution lease', function (): void {
-    [$factory, $state] = foundationDbLayer51Factory([
+    [$factory, $state] = foundationDbLayerRuntimeFactory([
         'default' => 'default',
         'pool' => [
             'enabled' => true,
@@ -174,7 +174,7 @@ it('keeps fresh and infrastructure database connections outside the pooled execu
 });
 
 it('rejects stale MFA and passkey credential replacements through DBLayer single-statement revision checks', function (): void {
-    [$factory, $state] = foundationDbLayer51Factory([
+    [$factory, $state] = foundationDbLayerRuntimeFactory([
         'default' => 'default',
         'connections' => [
             'default' => [

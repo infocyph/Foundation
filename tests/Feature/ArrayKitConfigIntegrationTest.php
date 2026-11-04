@@ -5,8 +5,8 @@ declare(strict_types=1);
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\EnvironmentLoader;
 
-it('delegates layered config precedence and structural shadowing to ArrayKit 5.2', function (): void {
-    $project = arrayKit52ConfigProject([
+it('delegates layered config precedence and structural shadowing to ArrayKit 5.3', function (): void {
+    $project = arrayKitConfigProject([
         'config/app.php' => <<<'PHP'
 <?php
 
@@ -52,7 +52,7 @@ PHP,
                 'override' => true,
             ]);
     } finally {
-        arrayKit52ConfigRemove($project);
+        arrayKitConfigRemove($project);
     }
 });
 
@@ -63,9 +63,9 @@ it('preserves configured environment file order and ArrayKit interpolation seman
         'FOUNDATION_AK52_LITERAL',
         'FOUNDATION_AK52_ORDER',
     ];
-    $snapshot = arrayKit52EnvironmentSnapshot($keys);
-    arrayKit52EnvironmentUnset($keys);
-    $project = arrayKit52ConfigProject([
+    $snapshot = arrayKitEnvironmentSnapshot($keys);
+    arrayKitEnvironmentUnset($keys);
+    $project = arrayKitConfigProject([
         '.env.first' => <<<'ENV'
 FOUNDATION_AK52_BASE=base
 FOUNDATION_AK52_NAME=${FOUNDATION_AK52_BASE}-name
@@ -84,17 +84,17 @@ ENV,
             ->and($_ENV['FOUNDATION_AK52_LITERAL'] ?? null)->toBe('$FOUNDATION_AK52_BASE')
             ->and($_ENV['FOUNDATION_AK52_ORDER'] ?? null)->toBe('second');
     } finally {
-        arrayKit52EnvironmentRestore($snapshot);
-        arrayKit52ConfigRemove($project);
+        arrayKitEnvironmentRestore($snapshot);
+        arrayKitConfigRemove($project);
     }
 });
 
 it('protects process-only host environment values from env-file hydration', function (): void {
     $key = 'FOUNDATION_AK52_PROCESS_ONLY';
-    $snapshot = arrayKit52EnvironmentSnapshot([$key]);
+    $snapshot = arrayKitEnvironmentSnapshot([$key]);
     unset($_ENV[$key], $_SERVER[$key]);
     putenv($key . '=process');
-    $project = arrayKit52ConfigProject([
+    $project = arrayKitConfigProject([
         '.env' => $key . "=file\n",
     ]);
 
@@ -105,16 +105,16 @@ it('protects process-only host environment values from env-file hydration', func
             ->and(array_key_exists($key, $_ENV))->toBeFalse()
             ->and(array_key_exists($key, $_SERVER))->toBeFalse();
     } finally {
-        arrayKit52EnvironmentRestore($snapshot);
-        arrayKit52ConfigRemove($project);
+        arrayKitEnvironmentRestore($snapshot);
+        arrayKitConfigRemove($project);
     }
 });
 
 it('propagates ArrayKit BOM and NUL rejection through the Foundation environment load path', function (): void {
-    $bom = arrayKit52ConfigProject([
+    $bom = arrayKitConfigProject([
         '.env' => "\xEF\xBB\xBFFOUNDATION_AK52_SAFE=value\n",
     ]);
-    $nul = arrayKit52ConfigProject([
+    $nul = arrayKitConfigProject([
         '.env' => "FOUNDATION_AK52_SAFE=value\0bad\n",
     ]);
 
@@ -124,16 +124,16 @@ it('propagates ArrayKit BOM and NUL rejection through the Foundation environment
         expect(fn() => new EnvironmentLoader()->load($nul))
             ->toThrow(\UnexpectedValueException::class);
     } finally {
-        arrayKit52ConfigRemove($bom);
-        arrayKit52ConfigRemove($nul);
+        arrayKitConfigRemove($bom);
+        arrayKitConfigRemove($nul);
     }
 });
 
 it('skips missing configured environment files while loading later sources', function (): void {
     $key = 'FOUNDATION_AK52_OPTIONAL';
-    $snapshot = arrayKit52EnvironmentSnapshot([$key]);
-    arrayKit52EnvironmentUnset([$key]);
-    $project = arrayKit52ConfigProject([
+    $snapshot = arrayKitEnvironmentSnapshot([$key]);
+    arrayKitEnvironmentUnset([$key]);
+    $project = arrayKitConfigProject([
         '.env.present' => $key . "=loaded\n",
     ]);
 
@@ -144,13 +144,13 @@ it('skips missing configured environment files while loading later sources', fun
 
         expect($_ENV[$key] ?? null)->toBe('loaded');
     } finally {
-        arrayKit52EnvironmentRestore($snapshot);
-        arrayKit52ConfigRemove($project);
+        arrayKitEnvironmentRestore($snapshot);
+        arrayKitConfigRemove($project);
     }
 });
 
 /** @param array<string, string> $files */
-function arrayKit52ConfigProject(array $files): string
+function arrayKitConfigProject(array $files): string
 {
     $root = sys_get_temp_dir() . '/foundation-arraykit52-' . bin2hex(random_bytes(6));
 
@@ -170,7 +170,7 @@ function arrayKit52ConfigProject(array $files): string
  * @param list<string> $keys
  * @return array<string, array{env_exists:bool,env:mixed,server_exists:bool,server:mixed,process:string|false}>
  */
-function arrayKit52EnvironmentSnapshot(array $keys): array
+function arrayKitEnvironmentSnapshot(array $keys): array
 {
     $snapshot = [];
     foreach ($keys as $key) {
@@ -187,7 +187,7 @@ function arrayKit52EnvironmentSnapshot(array $keys): array
 }
 
 /** @param list<string> $keys */
-function arrayKit52EnvironmentUnset(array $keys): void
+function arrayKitEnvironmentUnset(array $keys): void
 {
     foreach ($keys as $key) {
         unset($_ENV[$key], $_SERVER[$key]);
@@ -196,7 +196,7 @@ function arrayKit52EnvironmentUnset(array $keys): void
 }
 
 /** @param array<string, array{env_exists:bool,env:mixed,server_exists:bool,server:mixed,process:string|false}> $snapshot */
-function arrayKit52EnvironmentRestore(array $snapshot): void
+function arrayKitEnvironmentRestore(array $snapshot): void
 {
     foreach ($snapshot as $key => $state) {
         if ($state['env_exists']) {
@@ -215,7 +215,7 @@ function arrayKit52EnvironmentRestore(array $snapshot): void
     }
 }
 
-function arrayKit52ConfigRemove(string $directory): void
+function arrayKitConfigRemove(string $directory): void
 {
     if (!is_dir($directory)) {
         return;
@@ -228,7 +228,7 @@ function arrayKit52ConfigRemove(string $directory): void
 
         $path = $directory . DIRECTORY_SEPARATOR . $entry;
         if (is_dir($path)) {
-            arrayKit52ConfigRemove($path);
+            arrayKitConfigRemove($path);
         } else {
             unlink($path);
         }

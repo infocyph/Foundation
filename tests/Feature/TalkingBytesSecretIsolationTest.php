@@ -142,11 +142,11 @@ it('keeps communication secrets out of runtime identity metadata logs and cache 
 
         expect($report['metadata_path'])->toBe($artifact . '.foundation.json');
     } finally {
-        foundationTalkingBytes21SecretRemove($root);
+        foundationTalkingBytesSecretRemove($root);
     }
 });
 
-function foundationTalkingBytes21SecretRemove(string $directory): void
+function foundationTalkingBytesSecretRemove(string $directory): void
 {
     if (!is_dir($directory)) {
         return;

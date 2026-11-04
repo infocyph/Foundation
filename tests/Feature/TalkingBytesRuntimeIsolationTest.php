@@ -13,7 +13,7 @@ use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Webhook\Testing\WebhookTestFactory;
 
 it('keeps mutable TalkingBytes clients isolated across sequential Foundation execution scopes', function (): void {
-    $app = foundationTalkingBytes21StatefulApplication();
+    $app = foundationTalkingBytesStatefulApplication();
     $container = $app->container();
 
     $first = $container->withinScope('webrick.request', static function () use ($app): array {
@@ -49,7 +49,7 @@ it('keeps mutable TalkingBytes clients isolated across sequential Foundation exe
 });
 
 it('keeps scoped TalkingBytes client graphs Fiber-local under interleaving', function (): void {
-    $app = foundationTalkingBytes21StatefulApplication();
+    $app = foundationTalkingBytesStatefulApplication();
 
     $run = static function () use ($app): Fiber {
         return new Fiber(static function () use ($app): array {
@@ -140,7 +140,7 @@ it('uses TalkingBytes v2 bound webhook signatures with Foundation atomic replay 
         ->toThrow(RuntimeException::class, 'signature_mismatch');
 });
 
-function foundationTalkingBytes21StatefulApplication(): \Infocyph\Foundation\Application\Application
+function foundationTalkingBytesStatefulApplication(): \Infocyph\Foundation\Application\Application
 {
     return Foundation::web([
         'base_path' => dirname(__DIR__, 2),
