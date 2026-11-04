@@ -19,7 +19,11 @@ use Infocyph\Runwire\Runtime\Enum\RuntimeDriver;
 
 final class CommandCatalog
 {
-    /** @return array<string, CommandDefinition> */
+    /**
+     * @return array<string, CommandDefinition>
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function all(): array
     {
         $connectionOption = static fn(CommandDefinition $command): CommandDefinition => $command

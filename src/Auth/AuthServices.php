@@ -41,56 +41,111 @@ final readonly class AuthServices
         private ConfigRepository $config,
     ) {}
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function accountProvider(): AccountProviderInterface
     {
         return $this->resolve(AccountProviderInterface::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function accounts(): AccountManager
     {
         return $this->resolve(AccountManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function authenticator(): AuthenticatorInterface
     {
         return $this->resolve(Authenticator::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function authorizer(): AuthorizerInterface
     {
         return $this->resolve(AuthorizerInterface::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function delegation(): DelegationManager
     {
         return $this->resolve(DelegationManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function devices(): DeviceManager
     {
         return $this->resolve(DeviceManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function emailVerification(): EmailVerificationManager
     {
         return $this->resolve(EmailVerificationManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function gate(): Gate
     {
         return $this->resolve(Gate::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function impersonation(): ImpersonationManager
     {
         return $this->resolve(ImpersonationManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function lockouts(): LockoutManager
     {
         return $this->resolve(LockoutManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function mfa(): MfaManager
     {
         return $this->resolve(MfaManager::class);
@@ -98,6 +153,9 @@ final readonly class AuthServices
 
     /**
      * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function oauth(): OAuthManager
     {
@@ -108,71 +166,141 @@ final readonly class AuthServices
         return $this->resolve(OAuthManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function passkeys(): PasskeyManager
     {
         return $this->resolve(PasskeyManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function passwordChanges(): PasswordChangeManager
     {
         return $this->resolve(PasswordChangeManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function passwordHasher(): PasswordHasherInterface
     {
         return $this->resolve(PasswordHasherInterface::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function passwordless(): PasswordlessManager
     {
         return $this->resolve(PasswordlessManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function passwordPolicy(): PasswordPolicyInterface
     {
         return $this->resolve(PasswordPolicyInterface::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function passwordResets(): PasswordResetManager
     {
         return $this->resolve(PasswordResetManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function passwordVerifier(): PasswordVerifierInterface
     {
         return $this->resolve(PasswordVerifierInterface::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function permissions(): PermissionManager
     {
         return $this->resolve(PermissionManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function principals(): CurrentPrincipalContext
     {
         return $this->resolve(CurrentPrincipalContext::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function rememberMe(): RememberMeManager
     {
         return $this->resolve(RememberMeManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function roles(): RoleManager
     {
         return $this->resolve(RoleManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function sessions(): SessionManager
     {
         return $this->resolve(SessionManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function stepUp(): StepUpManager
     {
         return $this->resolve(StepUpManager::class);
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function tokens(): TokenAuthManager
     {
         return $this->resolve(TokenAuthManager::class);
