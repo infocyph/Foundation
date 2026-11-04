@@ -429,3 +429,46 @@ it('rejects a verified password reset token for another stored account', functio
         ->and($store->wasConsumed('reset-request'))->toBeFalse()
         ->and($accounts->findById('victim')?->passwordHash())->toBe('original-hash');
 });
+
+it('keeps bearer issuance tokens in trusted auth services but never in HTTP-facing action results', function (): void {
+    $app = Foundation::web([
+        'app' => ['base_path' => sys_get_temp_dir()],
+        'router' => ['files' => []],
+    ]);
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $services = $app->make(AuthServices::class);
+        $actions = $app->make(AuthActions::class);
+        $account = $services->accounts()->create(
+            'bearer-boundary@example.test',
+            status: AccountStatus::PENDING_VERIFICATION,
+        )->account;
+        expect($account)->not->toBeNull();
+        if ($account === null) {
+            throw new LogicException('Expected a persisted account.');
+        }
+
+        $email = $actions->requestEmailVerification(['account_id' => $account->id()]);
+        $reset = $actions->requestPasswordReset(['identifier' => $account->identifier()]);
+        $passwordless = $actions->requestPasswordless(['identifier' => $account->identifier()]);
+
+        expect($email->successful())->toBeTrue()
+            ->and($email->token)->toBeNull()
+            ->and($email->email())->toBe($account->identifier())
+            ->and($reset->successful())->toBeTrue()
+            ->and($reset->token)->toBeNull()
+            ->and($passwordless->successful())->toBeTrue()
+            ->and($passwordless->token)->toBeNull();
+
+        foreach ([$email, $reset, $passwordless] as $publicResult) {
+            $encoded = json_encode($publicResult, JSON_THROW_ON_ERROR);
+            expect($encoded)->toContain('"token":null');
+        }
+
+        expect($services->emailVerification()->issue($account->id(), $account->identifier())->token)
+            ->toBeString()
+            ->and($services->passwordResets()->issue($account->id())->token)
+            ->toBeString()
+            ->and($services->passwordless()->issue($account->identifier())->token)
+            ->toBeString();
+    });
+});

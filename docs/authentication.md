@@ -98,6 +98,17 @@ explicit account update contract; verifying a newly supplied arbitrary address
 must not mark a different stored account address verified. Do not expose issued
 token values directly to unauthenticated HTTP clients.
 
+The HTTP-facing `AuthActions::requestEmailVerification()`,
+`requestPasswordReset()` and `requestPasswordless()` return outcome records
+with `token: null` even after successful delivery. This prevents accidental
+JSON serialization of newly issued bearer tokens. The configured notifier still
+delivers the token to its authoritative recipient; trusted domain code calling
+`AuthServices::emailVerification()->issue()`, `passwordResets()->issue()`
+or `passwordless()->issue()` retains the actual token for controlled workflows.
+Never serialize those trusted-domain issuance results in unauthenticated HTTP
+handlers. The action helpers do not themselves authenticate the caller; bind
+account ownership and rate limits at the application route.
+
 Audit metadata is descriptive, not an identity source. Auth managers do not promote
 free-form request context to canonical audit session or device fields. Verified
 record-owned token devices remain authoritative; unbound token-family revocation

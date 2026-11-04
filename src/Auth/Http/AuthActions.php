@@ -83,6 +83,7 @@ final readonly class AuthActions
     }
 
     /**
+     * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \UnexpectedValueException
@@ -132,10 +133,17 @@ final readonly class AuthActions
             );
         }
 
-        return $this->services->emailVerification()->issue(
+        $result = $this->services->emailVerification()->issue(
             $account->id(),
             $email,
             $this->context($payload),
+        );
+
+        return new EmailVerificationResult(
+            $result->status,
+            $result->request,
+            code: $result->code,
+            context: $result->context,
         );
     }
 
@@ -172,9 +180,15 @@ final readonly class AuthActions
      */
     public function requestPasswordless(array $payload): PasswordlessResult
     {
-        return $this->services->passwordless()->issue(
+        $result = $this->services->passwordless()->issue(
             $this->string($payload, 'identifier', $this->string($payload, 'email')),
             $this->context($payload),
+        );
+
+        return new PasswordlessResult(
+            $result->status,
+            code: $result->code,
+            context: $result->context,
         );
     }
 
@@ -195,9 +209,16 @@ final readonly class AuthActions
             );
         }
 
-        return $this->services->passwordResets()->issue(
+        $result = $this->services->passwordResets()->issue(
             $account->id(),
             $this->context($payload),
+        );
+
+        return new PasswordResetResult(
+            $result->status,
+            $result->request,
+            code: $result->code,
+            context: $result->context,
         );
     }
 
@@ -320,6 +341,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     private function accountId(array $payload): ?string
     {
