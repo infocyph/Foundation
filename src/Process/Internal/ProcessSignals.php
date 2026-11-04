@@ -36,6 +36,7 @@ final class ProcessSignals
         }
 
         $state = ['async' => pcntl_async_signals(), 'handlers' => $handlers];
+
         try {
             pcntl_async_signals(true);
             foreach (array_keys($handlers) as $signal) {
