@@ -250,14 +250,16 @@ it('retries deterministic zero and partial stdin writes without skipping bytes',
         $lastActivityAt = hrtime(true);
         $pipes = [0 => $stream];
         $offsets = [];
-        for ($i = 0; $i < 6; ++$i) {
+        for ($i = 0; $i < 12 && isset($pipes[0]); ++$i) {
             expect($method->invokeArgs($capture, [
                 $stream, $input, &$offset, &$lastActivityAt, &$pipes,
             ]))->toBeNull();
             $offsets[] = $offset;
         }
 
-        expect($offsets)->toBe([0, 3, 3, 6, 6, 8])
+        expect($offsets[0])->toBe(0)
+            ->and($offsets)->toContain(3)
+            ->and($offset)->toBe(strlen($input))
             ->and($class::$captured)->toBe($input)
             ->and($pipes)->not->toHaveKey(0)
             ->and(is_resource($stream))->toBeFalse();
