@@ -27,7 +27,7 @@ jobs:
     permissions:
       contents: read
   phpforge:
-    uses: infocyph/phpforge/.github/workflows/security-standards.yml@9b6067dcf8a477d3420c178d934e4dbc6a589b49
+    uses: infocyph/phpforge/.github/workflows/security-standards.yml@a6232b6aefcc32b84b2fb94b8db8f5ac3b276d5d
     permissions:
       security-events: write
       actions: read
@@ -40,61 +40,6 @@ jobs:
       service_topologies: '{}'
       benchmark_composer_script: "benchmark:release"
       benchmark_result_file: "build/cachelayer-33-utilization.json"
-
-
-  # Temporary Psalm SARIF visibility; supplements mandatory PHPForge analysis.
-  psalm-sarif-triage:
-    name: Psalm SARIF issue inventory (diagnostic)
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v7
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.4"
-          tools: composer:v2
-          extensions: "mbstring, intl, sodium, zip, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
-          coverage: none
-      - name: Install analysis dependencies
-        run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
-      - name: Capture and print Psalm SARIF diagnostics
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p build/psalm-triage
-          set +e
-          php vendor/bin/psalm \
-            --config=vendor/infocyph/phpforge/resources/psalm.xml \
-            --security-analysis --threads=1 --no-progress --no-cache \
-            --output-format=console --report=build/psalm-triage/psalm-results.sarif \
-            > build/psalm-triage/psalm-console.log 2>&1
-          result=$?
-          set -e
-          printf 'psalm_exit=%d\n' "$result" | tee build/psalm-triage/status.txt
-          if [ -s build/psalm-triage/psalm-results.sarif ]; then
-            jq -r '.runs[]? | .results[]? |
-              [(.ruleId // "unknown"),
-               (.locations[0].physicalLocation.artifactLocation.uri // "unknown"),
-               ((.locations[0].physicalLocation.region.startLine // 0) | tostring),
-               (.message.text // .message.markdown // "")] | @tsv' \
-              build/psalm-triage/psalm-results.sarif \
-              > build/psalm-triage/issues.tsv
-            printf 'psalm_sarif_issues=%s\n' "$(wc -l < build/psalm-triage/issues.tsv)" \
-              | tee -a build/psalm-triage/status.txt
-            sed -n '1,160p' build/psalm-triage/issues.tsv
-          fi
-          cat build/psalm-triage/psalm-console.log
-          # Reporting only: PHPForge's required Psalm gate remains unchanged.
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: foundation-psalm-sarif-triage-${{ github.sha }}
-          path: build/psalm-triage/
-          if-no-files-found: error
-          retention-days: 7
 
 
   production-consumer:
@@ -341,7 +286,7 @@ jobs:
             printf "source_sha=%s\n" "$SOURCE_SHA"
             printf "ci_sha=%s\n" "$GITHUB_SHA"
             printf "php=%s\n" "$(php -r 'echo PHP_VERSION;')"
-            printf "phpforge_workflow=%s\n" "9b6067dcf8a477d3420c178d934e4dbc6a589b49"
+            printf "phpforge_workflow=%s\n" "a6232b6aefcc32b84b2fb94b8db8f5ac3b276d5d"
             printf "generated_at=%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } > "$directory/manifest.env"
           php -m | sort > "$directory/php-extensions.txt"
