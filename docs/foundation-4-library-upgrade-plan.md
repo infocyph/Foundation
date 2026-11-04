@@ -23,6 +23,8 @@ The 90 implementation checkboxes below are acceptance criteria. Mark only entrie
 
 | Batch | Implemented source | Latest verified evidence | Remaining |
 | --- | --- | --- | --- |
+| A03 compiled-route fail-closed acceptance (2026-11-04) | Added production Webrick release-compiler regression: typo `web-aut` must throw before a route artifact can be published | Direct registrar scenarios green in `41761279913`; new compiled check awaiting hosted QA | Verify `RoutePresetCompileSafetyTest` under current PHP 8.4/8.5 QA, then close the A03 criterion |
+
 | Security batch PHPStan annotation repair (2026-11-04) | Restored `AuthActions::int()` typed-array PHPDoc after inserting `emailVerificationDestination()`; no behavior change | `41762779421` PHP 8.4 analysis caught `missingType.iterableValue`; correction committed | New SHA needs PHP 8.4/8.5 analysis and all QA |
 | Verified email destination and audit identity boundary (2026-11-04) | Require HTTP verification destination to match stored account email; stop promoting arbitrary audit metadata into canonical session/device fields; add adversarial regression and documentation | Previous `0902665b` full QA and native host green; new source verification pending | Verify all QA; inspect other callers that pass untrusted IDs explicitly, and trusted direct-domain email-change flows |
 
@@ -162,7 +164,7 @@ Evidence: `RoutePresetRegistrar::stack()` selects configured/built-in names and 
 
 - [x] Throw an actionable configuration exception for unknown presets. Reject malformed names/stacks/middleware entries rather than filtering away intended protections.
 - [x] Preserve deliberately declared custom groups, including an explicitly empty custom stack where the public contract permits it. Existing `RoutePresetRegistrarTest` exercises both on pre-batch four-lane green QA.
-- [ ] Prove a typo cannot publish an unprotected route in development or a compiled release. Verify existing valid presets/custom overrides still produce their exact intended stacks.
+- [ ] Prove a typo cannot publish an unprotected route in development or a compiled release. New production Webrick compile-path regression now rejects `web-aut` before emitting its router artifact; retain this item until the new test passes hosted QA. Existing registrar tests retain exact valid preset/custom stack assertions.
 
 #### A04. Keep credentials out of audit metadata
 
