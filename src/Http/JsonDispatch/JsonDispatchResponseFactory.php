@@ -179,18 +179,26 @@ final readonly class JsonDispatchResponseFactory
             return $pagination;
         }
 
-        return [
+        $pagination = [
             'mode' => 'offset',
             'offset' => max(0, ($paginator->currentPage() - 1) * $paginator->perPage()),
             'limit' => $paginator->perPage(),
             'count' => $paginator->count(),
-            'total' => $paginator->total(),
         ];
+        $total = $paginator->total();
+        if ($total !== null) {
+            $pagination['total'] = $total;
+        }
+
+        return $pagination;
     }
 
     private function pointer(string $field): string
     {
-        $segments = preg_split('/[.\\[\\]]+/', $field, -1, PREG_SPLIT_NO_EMPTY) ?: [$field];
+        $segments = preg_split('/[.\\[\\]]+/', $field, -1, PREG_SPLIT_NO_EMPTY);
+        if ($segments === false) {
+            $segments = [$field];
+        }
 
         return '/' . implode('/', array_map(
             static fn(string $segment): string => str_replace(['~', '/'], ['~0', '~1'], $segment),
