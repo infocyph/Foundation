@@ -34,10 +34,7 @@ final readonly class FoundationReleaseBootstrap implements RuntimeApplicationFac
         }
     }
 
-    /**
-     * @param array<string,mixed> $config
-     * @throws \InvalidArgumentException
-     */
+    /** @param array<string,mixed> $config */
     public static function fromEnvironment(array $config = []): ?self
     {
         $trustedSha256 = self::environment(self::MANIFEST_SHA256_ENV);
@@ -64,22 +61,13 @@ final readonly class FoundationReleaseBootstrap implements RuntimeApplicationFac
         return rtrim($releaseRoot, DIRECTORY_SEPARATOR);
     }
 
-    /**
-     * @throws \LogicException
-     * @throws \Throwable
-     */
     #[\Override]
     public function create(RuntimeContext $context): RuntimeApplicationInterface
     {
         return $this->web()->runwireApplication($context);
     }
 
-    /**
-     * @param array<string,mixed> $config
-     * @throws \InvalidArgumentException
-     * @throws \Throwable
-     * @throws \UnexpectedValueException
-     */
+    /** @param array<string,mixed> $config */
     public function nonWeb(array $config, RuntimeMode $runtime): Application
     {
         return new FoundationReleaseRuntime()->nonWebPrevalidated(
@@ -95,9 +83,6 @@ final readonly class FoundationReleaseBootstrap implements RuntimeApplicationFac
      * native request adaptation and response emission.
      *
      * @param array<string,mixed> $config
-      * @throws \InvalidArgumentException
-      * @throws \Throwable
-      * @throws \UnexpectedValueException
      */
     public function web(
         array $config = [],

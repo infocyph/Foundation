@@ -309,3 +309,101 @@ it('validates and decodes the same captured bytes for trusted generated runtime 
         stream_wrapper_unregister($scheme);
     }
 });
+
+/** Test-only provider for authenticated worker topology artifacts. */
+final class FoundationManifestTrustedWorkerProvider implements \Infocyph\Foundation\Worker\WorkerProvider
+{
+    public function run(\Infocyph\Foundation\Worker\WorkerRuntime $runtime): int
+    {
+        unset($runtime);
+
+        return 0;
+    }
+}
+
+it('loads the captured authenticated config bytes without reopening the original source', function (): void {
+    $marker = sys_get_temp_dir() . '/foundation-config-swap-' . bin2hex(random_bytes(8));
+    $original = "<?php return ['format' => 1, 'config' => ['app' => ['env' => 'trusted']]];";
+    FoundationManifestChangingStream::$original = $original;
+    FoundationManifestChangingStream::$replacement = '<?php file_put_contents('
+        . var_export($marker, true) . ", 'replacement'); return ['format' => 1, 'config' => ['app' => ['env' => 'untrusted']]];";
+    FoundationManifestChangingStream::$opens = 0;
+    $scheme = 'foundationconfigcapture';
+
+    expect(stream_wrapper_register($scheme, FoundationManifestChangingStream::class))->toBeTrue();
+    try {
+        $config = \Infocyph\Foundation\Release\FoundationReleaseConfig::load(
+            $scheme . '://config.php',
+            hash('sha256', $original),
+        );
+        expect($config->get('app.env'))->toBe('trusted')
+            ->and(FoundationManifestChangingStream::$opens)->toBe(1)
+            ->and(is_file($marker))->toBeFalse();
+    } finally {
+        stream_wrapper_unregister($scheme);
+        if (is_file($marker)) {
+            unlink($marker);
+        }
+    }
+});
+
+it('loads the captured authenticated worker topology without reopening the source', function (): void {
+    $marker = sys_get_temp_dir() . '/foundation-worker-swap-' . bin2hex(random_bytes(8));
+    $payload = [
+        'format' => 1,
+        'providers' => ['trusted' => FoundationManifestTrustedWorkerProvider::class],
+    ];
+    $original = '<?php return ' . var_export($payload, true) . ';';
+    FoundationManifestChangingStream::$original = $original;
+    FoundationManifestChangingStream::$replacement = '<?php file_put_contents('
+        . var_export($marker, true) . ", 'replacement'); return ['format' => 1, 'providers' => [];";
+    FoundationManifestChangingStream::$opens = 0;
+    $scheme = 'foundationworkercapture';
+
+    expect(stream_wrapper_register($scheme, FoundationManifestChangingStream::class))->toBeTrue();
+    try {
+        $providers = new \Infocyph\Foundation\Worker\WorkerTopology()->load(
+            $scheme . '://providers.php',
+            hash('sha256', $original),
+        );
+        expect($providers['trusted']['provider'])->toBe(FoundationManifestTrustedWorkerProvider::class)
+            ->and(FoundationManifestChangingStream::$opens)->toBe(1)
+            ->and(is_file($marker))->toBeFalse();
+    } finally {
+        stream_wrapper_unregister($scheme);
+        if (is_file($marker)) {
+            unlink($marker);
+        }
+    }
+});
+
+it('rejects an unauthenticated generation manifest before loading its worker topology', function (): void {
+    $root = sys_get_temp_dir() . '/foundation-worker-generation-' . bin2hex(random_bytes(8));
+    $directory = $root . '/generations/probe';
+    mkdir($directory, 0700, true);
+    $marker = $root . '/executed.txt';
+    $path = $directory . '/foundation.php';
+    file_put_contents($path, '<?php file_put_contents('
+        . var_export($marker, true) . ", 'untrusted'); return [];");
+
+    try {
+        $generation = new \Infocyph\Foundation\Runtime\LoadedReleaseGeneration(
+            $root,
+            'probe',
+            str_repeat('0', 64),
+        );
+        expect(fn() => new \Infocyph\Foundation\Worker\WorkerTopology()->loadGeneration($generation))
+            ->toThrow(RuntimeException::class, 'trust identity mismatch');
+        expect(is_file($marker))->toBeFalse();
+    } finally {
+        if (is_file($path)) {
+            unlink($path);
+        }
+        if (is_file($marker)) {
+            unlink($marker);
+        }
+        rmdir($directory);
+        rmdir(dirname($directory));
+        rmdir($root);
+    }
+});

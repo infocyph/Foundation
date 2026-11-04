@@ -27,12 +27,7 @@ final readonly class FilesystemResponseFactory
         private FilesystemPublicFileResolver $publicFiles,
     ) {}
 
-    /**
-     * @param array<string, string|list<string>> $headers
-     * @throws \Infocyph\Pathwise\Exceptions\DownloadException
-     * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
-     * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
-     */
+    /** @param array<string, string|list<string>> $headers */
     public function download(
         Request $request,
         string $path,
@@ -52,12 +47,7 @@ final readonly class FilesystemResponseFactory
         );
     }
 
-    /**
-     * @param array<string, string|list<string>> $headers
-     * @throws \Infocyph\Pathwise\Exceptions\DownloadException
-     * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
-     * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
-     */
+    /** @param array<string, string|list<string>> $headers */
     public function inline(
         Request $request,
         string $path,
@@ -80,9 +70,6 @@ final readonly class FilesystemResponseFactory
     /**
      * @param array<string, string|list<string>> $headers
      * @throws \InvalidArgumentException
-      * @throws \Infocyph\Pathwise\Exceptions\DownloadException
-      * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
-      * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
      */
     public function publicFile(Request $request, string $relativePath, array $headers = []): Response
     {
@@ -103,9 +90,6 @@ final readonly class FilesystemResponseFactory
      * @param array<string, string|list<string>> $headers
      * @throws \InvalidArgumentException
      * @throws \LogicException
-      * @throws \Infocyph\Pathwise\Exceptions\DownloadException
-      * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
-      * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
      */
     public function xAccelRedirect(
         Request $request,
@@ -140,9 +124,6 @@ final readonly class FilesystemResponseFactory
      * @param array<string, string|list<string>> $headers
      * @throws \InvalidArgumentException
      * @throws \LogicException
-      * @throws \Infocyph\Pathwise\Exceptions\DownloadException
-      * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
-      * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
      */
     public function xSendfile(
         Request $request,

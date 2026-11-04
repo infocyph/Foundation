@@ -42,9 +42,6 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
 
     /**
      * @throws \RuntimeException
-      * @throws \LogicException
-      * @throws \Psr\Container\ContainerExceptionInterface
-      * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function markVerified(string $accountId, int $verifiedAt): void
@@ -68,9 +65,6 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
 
     /**
      * @throws \RuntimeException
-      * @throws \LogicException
-      * @throws \Psr\Container\ContainerExceptionInterface
-      * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function save(AccountInterface $account): void
@@ -104,9 +98,6 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
 
     /**
      * @throws \RuntimeException
-      * @throws \LogicException
-      * @throws \Psr\Container\ContainerExceptionInterface
-      * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function updateMetadata(string $accountId, array $metadata): void
@@ -119,9 +110,6 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
 
     /**
      * @throws \RuntimeException
-      * @throws \LogicException
-      * @throws \Psr\Container\ContainerExceptionInterface
-      * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function updatePasswordHash(string $accountId, string $passwordHash): void
@@ -134,9 +122,6 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
 
     /**
      * @throws \RuntimeException
-      * @throws \LogicException
-      * @throws \Psr\Container\ContainerExceptionInterface
-      * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function updateStatus(string $accountId, AccountStatus $status): void

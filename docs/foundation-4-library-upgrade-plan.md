@@ -4,6 +4,12 @@ Date: 2026-11-04 (Asia/Dhaka). Status: **implementation in progress; release gat
 
 ## Implementation checkpoint — 2026-11-04
 
+- **Quality-gate correction (2026-11-04):** Rolled back the 12-file automated `@throws` batch `01105d6` after [official PHPForge validation 41815337038](https://github.com/infocyph/Foundation/actions/runs/41815337038) found 11 Pint style failures and 1,676 Psalm findings (versus 1,648 beforehand). Its exception propagation exposed more callers than it resolved; keep the earlier accepted contracts and revisit only structurally justified exception fixes. The separate P0 A02 regression tests remain intact; formal acceptance is still **29/90** pending exact-head QA.
+
+
+- **P0 A02 complete replacement-test coverage (2026-11-04; pending standard CI):** Added deterministic single-open stream-switch regressions for trusted Foundation release config and worker topology, and a generation-manifest trust-mismatch test that asserts no unverified PHP is evaluated. Existing native Webrick/JSON captured-byte regressions and valid source-free generation tests remain. These tests do not change runtime code or weaken trust enforcement. A02 checklist remains open until the exact-head official PHPForge suite verifies all cases.
+
+
 - **Official PHPForge Psalm exception-contract batch 5 (2026-11-04; pending exact-head QA):** Mapped 157 `MissingThrowsDocblock` findings from the unmodified official PHP 8.4 analysis [41811868808](https://github.com/infocyph/Foundation/actions/runs/41811868808) to 46 affected methods in 12 existing Session, DBLayer-auth, filesystem, command, HTTP, operations, and release bootstrap files. Added 142 unique exception declarations; entries already documented were not duplicated. No runtime branches, dependency constraints, analyzer rules or suppressions were changed. Full PHPForge QA and Psalm on the new exact head are required before acceptance; **formal 29/90 tally remains unchanged**.
 
 
