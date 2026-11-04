@@ -4,6 +4,8 @@ Date: 2026-11-04 (Asia/Dhaka). Status: **implementation in progress; release gat
 
 ## Implementation checkpoint — 2026-11-04
 
+- **Exception-contract batch 3 (2026-11-04; pending official QA):** Added 57 verified `@throws` declarations across twelve Foundation-auth, DBLayer, filesystem, OAuth, routing, scheduler-command and session components based on the corrected PHPForge worker. The batch changes annotations only, not runtime control flow or analyzer settings. Continue to treat 29/90 as the formal acceptance count until the exact revision has green required checks.
+
 - **Exception-contract batch 2 (2026-11-04; awaiting standard PHPForge validation):** Reviewed source locations identified by the official Psalm report and added 127 missing exception declarations across 12 existing components, including DBLayer account/permission stores, Runwire-generated runtime, sessions, worker control, release routing and system commands. No new exception behavior, runtime branch, analyzer suppression or public-signature changes. Acceptance remains **29/90** until fresh mandatory CI confirms the batch.
 
 - **QA correction (2026-11-04):** The first type-shape batch `baa04b2` reduced Psalm's reported errors from 1,708 to **1,701**, but its [PHPForge run 41801805151](https://github.com/infocyph/Foundation/actions/runs/41801805151) flagged one PHPStan regression: nullable `PaginatorInterface::total()` was included as an unconditionally typed integer. The offset paginator now preserves nullable omission explicitly, matching the previous output contract, and pointer tokenization uses a strict `false` check. This revision must pass fresh PHPForge QA before acceptance; the 29/90 plan count remains unchanged.

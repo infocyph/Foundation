@@ -24,6 +24,9 @@ final readonly class AuthDriverResolver
 
     private AuthTokenDriver $tokens;
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function __construct(
         ConfigRepository $config,
     ) {

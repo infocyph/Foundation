@@ -12,6 +12,9 @@ use Infocyph\Foundation\Auth\Contract\Storage\AccountStoreInterface;
 
 final readonly class DBLayerAccountStore extends DBLayerStore implements AccountProviderInterface, AccountStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function findById(string $id): ?AccountInterface
     {
@@ -23,6 +26,9 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         return $row === null ? null : $this->mapAccount($row);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function findByIdentifier(string $identifier): ?AccountInterface
     {
@@ -34,6 +40,9 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         return $row === null ? null : $this->mapAccount($row);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function markVerified(string $accountId, int $verifiedAt): void
     {
@@ -54,6 +63,9 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function save(AccountInterface $account): void
     {
@@ -84,6 +96,9 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function updateMetadata(string $accountId, array $metadata): void
     {
@@ -93,6 +108,9 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function updatePasswordHash(string $accountId, string $passwordHash): void
     {
@@ -102,6 +120,9 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function updateStatus(string $accountId, AccountStatus $status): void
     {

@@ -60,6 +60,7 @@ final class ActiveGeneration
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function clear(string $releaseRoot): bool
     {
@@ -93,6 +94,9 @@ final class ActiveGeneration
      * Return the validated pointer without executing the generation PHP manifest.
      *
      * @return array{generation:string,manifest:string}
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public function currentPointer(string $releaseRoot): array
     {
@@ -105,11 +109,19 @@ final class ActiveGeneration
         ];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function exists(string $releaseRoot): bool
     {
         return is_file($this->root($releaseRoot) . DIRECTORY_SEPARATOR . self::POINTER);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     public function replacementRequired(string $releaseRoot, string $loadedGeneration): bool
     {
         $pointer = $this->pointer($this->root($releaseRoot));

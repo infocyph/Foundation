@@ -11,6 +11,9 @@ use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAuthorizationStoreInterface;
 
 final readonly class DBLayerOAuthAuthorizationStore extends DBLayerStore implements OAuthAuthorizationStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function find(string $authorizationId): ?OAuthAuthorization
     {
@@ -23,6 +26,7 @@ final readonly class DBLayerOAuthAuthorizationStore extends DBLayerStore impleme
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     #[\Override]
     public function recent(int $limit = 100, ?string $clientId = null): array
@@ -41,6 +45,12 @@ final readonly class DBLayerOAuthAuthorizationStore extends DBLayerStore impleme
         return array_map($this->mapAuthorization(...), $this->all($sql, $bindings));
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function revoke(string $authorizationId, int $revokedAt): bool
     {
@@ -53,6 +63,9 @@ final readonly class DBLayerOAuthAuthorizationStore extends DBLayerStore impleme
         )->rowCount() === 1;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function save(OAuthAuthorization $authorization): void
     {

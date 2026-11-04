@@ -44,12 +44,22 @@ final readonly class DBLayerEpicryptOAuthAuthorizationStore extends DBLayerStore
         }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function find(string $authorizationId): ?OAuthAuthorizationRecord
     {
         return $this->findUsing($this->connection(), $authorizationId);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function revoke(string $authorizationId, int $revokedAt): ?OAuthAuthorizationRecord
     {

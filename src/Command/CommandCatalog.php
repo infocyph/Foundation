@@ -343,7 +343,11 @@ final class CommandCatalog
         return $catalog;
     }
 
-    /** @return array<string, CommandDescriptor> */
+    /**
+     * @return array<string, CommandDescriptor>
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function descriptors(): array
     {
         $descriptors = [];
@@ -368,7 +372,11 @@ final class CommandCatalog
         return $this->find($name)?->commandRuntime() ?? RuntimeMode::Cli;
     }
 
-    /** @param list<string> $capabilities */
+    /**
+     * @param list<string> $capabilities
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function generator(string $artifact, string $description, array $capabilities = []): CommandDefinition
     {
         $definition = new CommandDefinition('create:' . $artifact, $description, 'Generators', capabilities: $capabilities)

@@ -16,6 +16,9 @@ final readonly class FilesystemUploadRequestHandler
 {
     public function __construct(private FilesystemTransferFactory $transfers) {}
 
+    /**
+     * @throws \Infocyph\Pathwise\Exceptions\UploadException
+     */
     public function finalizeChunkUpload(string $uploadId, ?string $directory = null, ?string $disk = null): string
     {
         return $this->withRunwire(
@@ -24,6 +27,10 @@ final readonly class FilesystemUploadRequestHandler
         );
     }
 
+    /**
+     * @throws \Infocyph\Pathwise\Exceptions\UploadException
+     * @throws \InvalidArgumentException
+     */
     public function processChunkUploadRequest(
         Request $request,
         string $field = 'file',
@@ -67,6 +74,10 @@ final readonly class FilesystemUploadRequestHandler
         );
     }
 
+    /**
+     * @throws \Infocyph\Pathwise\Exceptions\UploadException
+     * @throws \InvalidArgumentException
+     */
     public function processUploadRequest(
         Request $request,
         string $field = 'file',

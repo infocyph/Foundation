@@ -76,6 +76,7 @@ final readonly class EnvironmentFileProtector
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function key(?string $keyFile, string $keyEnvironment): string
     {
@@ -134,6 +135,11 @@ final readonly class EnvironmentFileProtector
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     private function transform(
         bool $protect,
         string $input,

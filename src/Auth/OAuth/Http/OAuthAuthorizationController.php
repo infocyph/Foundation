@@ -21,6 +21,9 @@ final readonly class OAuthAuthorizationController
         private SessionConfig $session,
     ) {}
 
+    /**
+     * @throws \LogicException
+     */
     public function authorization(Request $request): Response
     {
         $authorization = $this->oauth->authorization($request);
@@ -43,6 +46,9 @@ final readonly class OAuthAuthorizationController
         };
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function authorizationGet(Request $request, AuthorizationRequest $authorization): Response
     {
         if (!$authorization->openId()) {
@@ -100,6 +106,9 @@ final readonly class OAuthAuthorizationController
         return $this->consent($request, $authorization);
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function consent(
         Request $request,
         AuthorizationRequest $authorization,

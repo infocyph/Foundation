@@ -67,6 +67,8 @@ final class BrowserSession
 
     /**
      * @throws \LengthException
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function commit(int $now): SessionCommit
     {
@@ -117,6 +119,9 @@ final class BrowserSession
         return $token;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function flash(string $key, mixed $value): void
     {
         $this->put($key, $value);
@@ -322,6 +327,9 @@ final class BrowserSession
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function deleteCurrent(): void
     {
         $id = $this->id;
@@ -331,6 +339,10 @@ final class BrowserSession
         }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     private function load(): void
     {
         $this->assertOpen();

@@ -16,6 +16,9 @@ final readonly class AuthorizationServerMetadata
 {
     public function __construct(private ConfigRepository $config) {}
 
+    /**
+     * @throws \LogicException
+     */
     public function epicrypt(): EpicryptAuthorizationServerMetadata
     {
         return new EpicryptAuthorizationServerMetadata(
@@ -100,6 +103,9 @@ final readonly class AuthorizationServerMetadata
         return $grants;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function issuer(): string
     {
         return $this->string('auth.oauth.issuer');
