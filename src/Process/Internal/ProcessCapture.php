@@ -290,7 +290,7 @@ final readonly class ProcessCapture
     /** @param array<int, resource> $pipes */
     private function preparePipes(array &$pipes, ProcessOptions $options): void
     {
-        if (isset($pipes[0]) && is_resource($pipes[0])) {
+        if (isset($pipes[0])) {
             if ($options->input === null || $options->input === '') {
                 fclose($pipes[0]);
                 unset($pipes[0]);
@@ -300,7 +300,7 @@ final readonly class ProcessCapture
         }
 
         foreach ([1, 2] as $index) {
-            if (isset($pipes[$index]) && is_resource($pipes[$index])) {
+            if (isset($pipes[$index])) {
                 stream_set_blocking($pipes[$index], false);
             }
         }

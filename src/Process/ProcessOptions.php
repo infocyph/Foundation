@@ -22,6 +22,7 @@ final readonly class ProcessOptions
      * @param (callable():bool)|null $heartbeat Return false when the child must stop.
      * @param (callable(string):void)|null $onStdout
      * @param (callable(string):void)|null $onStderr
+     * @throws \InvalidArgumentException
      */
     public function __construct(
         public ?string $cwd = null,

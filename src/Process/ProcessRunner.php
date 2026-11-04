@@ -89,7 +89,7 @@ final readonly class ProcessRunner
         }
     }
 
-    /** @param array<int, resource> $pipes */
+    /** @param array<int, mixed> $pipes Closed pipe handles may no longer be resources. */
     private function closePipes(array $pipes): void
     {
         foreach ($pipes as $pipe) {

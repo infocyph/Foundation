@@ -122,3 +122,46 @@ it('terminates a chatty child at the output limit while stdin is pending', funct
         ->and(strlen($result->stdout))->toBeLessThanOrEqual(4096)
         ->and((hrtime(true) - $started) / 1_000_000_000)->toBeLessThan(1.5);
 });
+
+it('preserves lifecycle callback failures and reaps a noninteractive child with pending input', function (string $hook): void {
+    $pidFile = tempnam(sys_get_temp_dir(), 'foundation-input-pid-');
+    expect($pidFile)->toBeString();
+
+    try {
+        $probe = static function () use ($hook, $pidFile): bool {
+            clearstatcache(true, $pidFile);
+            $pid = trim((string) file_get_contents($pidFile));
+            if ($pid === '') {
+                return $hook === 'heartbeat';
+            }
+
+            throw new LogicException('Pending input ' . $hook . ' failed.');
+        };
+
+        $command = [
+            PHP_BINARY,
+            '-r',
+            'file_put_contents(' . var_export($pidFile, true) . ', (string) getmypid()); usleep(4000000);',
+        ];
+        $options = new ProcessOptions(
+            input: str_repeat('I', 1_048_576),
+            cancelled: $hook === 'cancelled' ? $probe : null,
+            heartbeat: $hook === 'heartbeat' ? $probe : null,
+            terminationGraceSeconds: 0.1,
+            handleSignals: false,
+        );
+
+        expect(fn() => new ProcessRunner()->run($command, $options))
+            ->toThrow(LogicException::class, 'Pending input ' . $hook . ' failed.');
+
+        $pid = (int) file_get_contents($pidFile);
+        expect($pid)->toBeGreaterThan(0);
+        if (function_exists('posix_kill')) {
+            expect(posix_kill($pid, 0))->toBeFalse();
+        }
+    } finally {
+        if (is_file($pidFile)) {
+            unlink($pidFile);
+        }
+    }
+})->with(['heartbeat', 'cancelled']);
