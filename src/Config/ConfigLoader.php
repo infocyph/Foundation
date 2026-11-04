@@ -70,6 +70,10 @@ final class ConfigLoader
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function writeCache(
         ConfigRepository $config,
         string $cacheDirectory,
@@ -336,6 +340,7 @@ final class ConfigLoader
 
     /**
      * @return array{_format:int,_schema:string,_source:string,_type:string,_file:string}
+     * @throws \RuntimeException
      */
     private function singleCachePayload(
         ConfigRepository $config,

@@ -50,7 +50,12 @@ final readonly class ArtifactGenerator
 
     public function __construct(private Application $application) {}
 
-    /** @return array{class:string,path:string} */
+    /**
+     * @return array{class:string,path:string}
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function create(string $artifact, string $name, bool $force = false, ?string $table = null): array
     {
         if ($artifact === 'config') {

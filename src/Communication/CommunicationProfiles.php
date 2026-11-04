@@ -97,6 +97,10 @@ final readonly class CommunicationProfiles
         return HttpClientConfig::fromArray($this->httpConfigArray($profile));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function webhookReceiver(
         ?string $profile = null,
         ?WebhookReplayStore $replayStore = null,
@@ -121,6 +125,7 @@ final readonly class CommunicationProfiles
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function webhookSender(?string $profile = null): WebhookSender
     {
@@ -133,7 +138,11 @@ final readonly class CommunicationProfiles
         return Webhook::senderFromResolvedConfig($this->http($httpProfile), $config);
     }
 
-    /** @param list<string>|string|null $secret */
+    /**
+     * @param list<string>|string|null $secret
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function webhookVerifier(
         ?string $profile = null,
         string|array|null $secret = null,
@@ -157,12 +166,18 @@ final readonly class CommunicationProfiles
         return is_string($value) && trim($value) !== '' ? trim($value) : $fallback;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function grpcConfig(?string $profile): array
     {
         return $this->profile('grpc.profiles', 'grpc.default_profile', $profile);
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function grpcFactory(): GrpcClientFactory
     {
         $context = NativeRunwireOperation::current();
@@ -173,7 +188,10 @@ final readonly class CommunicationProfiles
             : $factory->withRunwire($context->runtime, $context->request, $context->scope);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function httpConfigArray(?string $profile): array
     {
         return $this->profile('http.clients', 'http.default_client', $profile);
@@ -200,13 +218,19 @@ final readonly class CommunicationProfiles
         return ValueNormalizer::associativeArray($profiles[$name]);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function webhookInboundConfig(?string $profile): array
     {
         return $this->profile('webhooks.inbound', 'webhooks.default_inbound', $profile);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function webhookOutboundConfig(?string $profile): array
     {
         return $this->profile('webhooks.outbound', 'webhooks.default_outbound', $profile);

@@ -37,6 +37,10 @@ final readonly class EmailProfiles
         private RawEmailParser $parser,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function authEmailer(): Emailer
     {
         $profile = $this->stringConfig(
@@ -213,7 +217,10 @@ final readonly class EmailProfiles
         return $config;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function resolvedTransport(string $transport): array
     {
         $config = $this->transportConfig($transport);

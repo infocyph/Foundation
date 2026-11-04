@@ -247,7 +247,12 @@ final readonly class FilesystemResponseFactory
         return $merged;
     }
 
-    /** @param array<string, string|list<string>> $headers */
+    /**
+     * @param array<string, string|list<string>> $headers
+     * @throws \Infocyph\Pathwise\Exceptions\DownloadException
+     * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
+     * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     */
     private function offloadResponse(
         Request $request,
         string $path,
@@ -351,7 +356,12 @@ final readonly class FilesystemResponseFactory
         return $this->storage->path($path, $disk);
     }
 
-    /** @param array<string, string|list<string>> $headers */
+    /**
+     * @param array<string, string|list<string>> $headers
+     * @throws \Infocyph\Pathwise\Exceptions\DownloadException
+     * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
+     * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     */
     private function respond(
         Request $request,
         string $path,

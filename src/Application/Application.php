@@ -69,6 +69,9 @@ final class Application
         return $app;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function appPath(string $path = ''): string
     {
         return $this->paths()->app($path);
@@ -93,6 +96,9 @@ final class Application
         return $this;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function basePath(string $path = ''): string
     {
         return $this->paths()->base($path);
@@ -113,11 +119,17 @@ final class Application
         return $this->booted;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function bootstrapPath(string $path = ''): string
     {
         return $this->paths()->bootstrap($path);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function cachePath(string $path = ''): string
     {
         return $this->paths()->cache($path);
@@ -128,6 +140,9 @@ final class Application
         return $this->config;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function configPath(string $path = ''): string
     {
         return $this->paths()->config($path);
@@ -148,6 +163,9 @@ final class Application
         return $this->container;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function databasePath(string $path = ''): string
     {
         return $this->paths()->database($path);
@@ -170,6 +188,7 @@ final class Application
 
     /**
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     public function handle(Request $request): Response
     {
@@ -207,6 +226,9 @@ final class Application
         return $this->loadedReleaseGeneration;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function logsPath(string $path = ''): string
     {
         return $this->paths()->logs($path);
@@ -257,6 +279,9 @@ final class Application
         return $this->providers;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function publicPath(string $path = ''): string
     {
         return $this->paths()->public($path);
@@ -282,11 +307,17 @@ final class Application
         $this->testingOverrides[$id] = $service;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function resourcesPath(string $path = ''): string
     {
         return $this->paths()->resources($path);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function routesPath(string $path = ''): string
     {
         return $this->paths()->routes($path);
@@ -322,16 +353,25 @@ final class Application
         return $this->runtimeMode;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function sessionsPath(string $path = ''): string
     {
         return $this->paths()->sessions($path);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function storagePath(string $path = ''): string
     {
         return $this->paths()->storage($path);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function uploadsPath(string $path = ''): string
     {
         return $this->paths()->uploads($path);

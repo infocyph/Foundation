@@ -129,11 +129,17 @@ final class ScheduledCommand
         return $this->cron->matches(new \DateTimeImmutable('@' . $now->getTimestamp())->setTimezone($this->timezone));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function everyMinute(): self
     {
         return $this->cron('* * * * *');
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function hourly(): self
     {
         return $this->cron('0 * * * *');

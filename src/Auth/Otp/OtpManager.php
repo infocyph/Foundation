@@ -63,7 +63,10 @@ final readonly class OtpManager
         return new OtpEnrollmentResult($enrollment, $payload, $factorMetadata);
     }
 
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
+     */
     public function completeAotpEnrollment(
         string $accountId,
         string $factorId,
@@ -230,7 +233,10 @@ final readonly class OtpManager
         );
     }
 
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
+     */
     public function issueAotpChallenge(
         string $accountId,
         string $factorId,
@@ -254,6 +260,9 @@ final readonly class OtpManager
         return $this->mfa->issueChallenge($accountId, $purpose, $factorId, $context);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function issueAotpEnrollmentChallenge(
         string $accountId,
         string $factorId,
@@ -282,6 +291,9 @@ final readonly class OtpManager
         return $this->mfa->issueChallenge($accountId, $purpose, $factorId, $context);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function issueGridEnrollmentChallenge(string $accountId, string $factorId): GridChallenge
     {
         return $this->verifier->challengeFactors()->issueGrid(
@@ -289,6 +301,9 @@ final readonly class OtpManager
         );
     }
 
+    /**
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     public function verifyFactor(MfaFactor $factor, string $code): MfaVerificationResult
     {
         return $this->verifier->verifyEnrollment($factor, $code);
