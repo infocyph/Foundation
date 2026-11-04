@@ -362,7 +362,7 @@ final readonly class ScheduleManager
         $leaseSeconds = $entry->overlapLeaseSeconds();
         $refreshIntervalNs = max(
             1,
-            (int) floor(min((float) $leaseSeconds / 3.0, 5.0) * 1_000_000_000.0),
+            (int) floor(min($leaseSeconds / 3.0, 5.0) * 1_000_000_000.0),
         );
         $nextRefreshAt = hrtime(true) + $refreshIntervalNs;
 
