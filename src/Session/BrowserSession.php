@@ -10,6 +10,7 @@ use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\Foundation\Cache\FoundationCacheKey;
 use Infocyph\Webrick\Request\Request;
 
+/** @psalm-api */
 final class BrowserSession
 {
     public const string REQUEST_ATTRIBUTE = 'foundation.session';

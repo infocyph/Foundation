@@ -207,6 +207,74 @@ php docs/examples/foundation-4-runwire-worker.php
 These are *development* smoke checks; real hosted Runwire HTTP requires a
 trusted compiled Webrick release and the host-supplied writer/context.
 
+## Infbyte application adoption checklist (after Foundation 4 publication)
+
+This section is for the **downstream Infbyte application**, not Foundation's own
+release process. Do not change Infbyte's dependency graph or deployment artifacts
+against an unpublished Foundation candidate. Foundation and its independent
+production consumers must first pass the release gates and publish Foundation 4.
+
+1. **Inventory and preserve the deployed application.** Record the application
+   commit, `composer.lock` SHA-256, PHP/extensions/INI, hosting driver,
+   selected optional features, enabled capability topology, generated release
+   identity, and current data/schema versions. Back up database tables,
+   cache/session state, auth tokens and MFA/passkeys, durable queue/outbox/failure
+   data and any filesystem-backed storage. Verify backups can be restored in an
+   isolated deployment before modifying dependencies.
+2. **Update the application-owned Composer graph.** Require the published
+   Foundation 4 stable release and each *selected* optional package directly,
+   using the versions in [the dependency matrix](foundation-4-library-upgrade-plan.md).
+   Resolve the application's full graph and commit its new lockfile. Do not
+   install DBLayer, Omnibus, OTP, Pathwise, ReqShield, Epicrypt or TalkingBytes
+   just because a package appears in Foundation's `require-dev`. PHPForge
+   remains a development dependency, not a production dependency.
+3. **Remove excluded API and configuration usage.** Replace Runwire 2 context,
+   old InterMix/DBLayer/Omnibus service calls, old module aliases and JSON-v1
+   feature identifiers with the current contracts in
+   [the API replacement map](foundation-4-api-map.md). Treat missing explicitly
+   selected packages as actionable errors. Do not add compatibility shims,
+   automatically enable installed features, or silently substitute synchronous
+   behavior after a stale/cancelled native context.
+4. **Select and validate exactly the application's features.** Inspect
+   `php infbyte module:list`, `module:show` and `module:doctor`; plan and
+   enable qualified IDs such as `data.database` or `execution.messaging`
+   individually. Review conditional requirements (for example, durable
+   messaging needs database ownership; OTP-backed MFA needs its declared
+   crypto feature). Run `php infbyte config:validate --production` and
+   `php infbyte app:ready` using the target deployment configuration.
+5. **Rebuild Composer autoloaders and all generated releases.** Run
+   `composer dump-autoload --optimize` in the application deployment and
+   rebuild trusted web, CLI, worker and scheduler generations using the
+   published Foundation 4 compiler contract. Never reuse a Foundation 3
+   generation or override dependency-fingerprint rejection. Verify that the
+   immutable manifest and the resolved dependency lock describe the same
+   deployment and that source-free loading works before activating the new
+   generation. See [compiled release example](examples/foundation-4-compiled-release.php).
+6. **Qualify the actual host, including the no-Runwire path.** Exercise ordinary
+   PHP/FPM/index.php without a native loop or supervisor and, **if the
+   application uses one**, its selected Runwire-backed persistent host.
+   Confirm host-owned context identity, timeouts, cancellation, nested scopes,
+   request/job state reset and graceful worker replacement. Test every
+   selected integration through real application requests and jobs, not merely
+   by checking that its class autoloads.
+7. **Rehearse retained-state migration and rollback.** Restore a production-like
+   snapshot, run the documented application migrations, and verify session,
+   account, OTP/passkey, key-rotation, cache, durable queue/outbox and filesystem
+   read/write semantics. Roll back a *coherent* application source, Composer
+   lock, compiled generation, configuration and data snapshot, rather than
+   switching only PHP source while leaving incompatible state behind. Record
+   recovery evidence using the
+   [retained-data rehearsal guide](foundation-4-retained-data-rehearsal.md).
+8. **Stage, measure and approve separately.** Check application startup,
+   response correctness, tail latency, successful RPM, resource growth and
+   worker recycle/soak for the actual host and selected backends. Keep the
+   final Infbyte application deployment decision independent of Foundation's
+   already-published library release. Preserve results and the rollback
+   decision as application-owned artifacts.
+
+The checklist is a downstream *adoption procedure*, not a declaration that
+any Infbyte migration or retained-data rehearsal has been executed.
+
 ## Foundation-first release boundary
 
 Foundation 4.0 is implemented and verified independently of the Infbyte application skeleton. Integrating an Infbyte application is a **separate follow-up after Foundation is ready**. The Foundation CI consumer matrix verifies core-only, database-only and published optional-package/Runwire deployments without cloning or rewriting Infbyte. The [API replacement map](foundation-4-api-map.md) remains the downstream migration reference. Operators must still validate their own selected production recovery and durable-state procedures; unit/synthetic fixtures alone do not certify external deployments.

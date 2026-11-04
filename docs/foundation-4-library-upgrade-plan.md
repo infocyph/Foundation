@@ -4,6 +4,9 @@ Date: 2026-11-04 (Asia/Dhaka). Status: **implementation in progress; release gat
 
 ## Implementation checkpoint — 2026-11-04
 
+- **Psalm public-API reachability and P5 Infbyte adoption batch (2026-11-04; pending official QA):** Marked only four genuine externally consumed Foundation surfaces (`BrowserSession`, `FilesystemResponseFactory`, `EmailProfiles`, `CommunicationProfiles`) as `@psalm-api`, using Psalm's documented public-entrypoint model rather than suppressing `Unused*` findings or disabling unused-code analysis. Added an eight-stage post-publication Infbyte application adoption checklist without changing Infbyte. Recheck exact-head PHPStan, Psalm, Pest, Pint and native-host lanes; formal acceptance remains **29/90** until the results are verified.
+
+
 - **Quality-gate correction (2026-11-04):** Rolled back the 12-file automated `@throws` batch `01105d6` after [official PHPForge validation 41815337038](https://github.com/infocyph/Foundation/actions/runs/41815337038) found 11 Pint style failures and 1,676 Psalm findings (versus 1,648 beforehand). Its exception propagation exposed more callers than it resolved; keep the earlier accepted contracts and revisit only structurally justified exception fixes. The separate P0 A02 regression tests remain intact; formal acceptance is still **29/90** pending exact-head QA.
 
 
