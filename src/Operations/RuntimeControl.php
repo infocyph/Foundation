@@ -20,6 +20,10 @@ final readonly class RuntimeControl
         return !hash_equals($baseline, $this->token($scope, $name));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function signal(string $scope, ?string $name = null): string
     {
         $scope = $this->key($scope, $name);
@@ -37,7 +41,11 @@ final readonly class RuntimeControl
         return $token;
     }
 
-    /** @return array<string,array{token:string,signaled_at:string}> */
+    /**
+     * @return array<string,array{token:string,signaled_at:string}>
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function status(): array
     {
         $state = $this->read();
@@ -65,6 +73,9 @@ final readonly class RuntimeControl
             : '';
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function cache(): \Infocyph\CacheLayer\Cache\CacheInterface
     {
         return $this->application->make(CacheManager::class)->store($this->cacheStore());
@@ -142,6 +153,7 @@ final readonly class RuntimeControl
     /**
      * @param callable(array<string,mixed>):array<string,mixed> $mutation
      * @throws \RuntimeException
+      * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     private function mutate(callable $mutation): void
     {

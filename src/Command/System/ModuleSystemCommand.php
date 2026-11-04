@@ -124,6 +124,11 @@ final class ModuleSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function invalidateRelease(): void
     {
         $config = $this->application->config()->all();
@@ -155,6 +160,9 @@ final class ModuleSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function mutateFeature(): int
     {
         $operation = substr($this->canonicalName(), strlen('module:'));
@@ -191,6 +199,9 @@ final class ModuleSystemCommand extends SystemCommand
             : ExitCode::FAILURE;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function plan(): int
     {
         $plan = new ModuleFeaturePlanner()->plan('install', $this->selection(), $this->snapshot());
@@ -214,6 +225,9 @@ final class ModuleSystemCommand extends SystemCommand
         return $plan['applicable'] ? ExitCode::SUCCESS : ExitCode::FAILURE;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function publishConfig(): int
     {
         $result = new ModuleFeatureConfigPublisher($this->application)->publish(
@@ -232,6 +246,7 @@ final class ModuleSystemCommand extends SystemCommand
 
     /**
      * @throws \RuntimeException
+      * @throws \InvalidArgumentException
      */
     private function schemas(): int
     {
@@ -274,7 +289,10 @@ final class ModuleSystemCommand extends SystemCommand
         return $this->emit(['schema_version' => 2, 'schemas' => $schemas], 'Selected feature-owned schemas verified.');
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \InvalidArgumentException
+     */
     private function selection(): array
     {
         return $this->catalog()->selection(
@@ -283,7 +301,10 @@ final class ModuleSystemCommand extends SystemCommand
         );
     }
 
-    /** @phpstan-return Context */
+    /**
+     * @phpstan-return Context
+     * @throws \RuntimeException
+     */
     private function snapshot(): array
     {
         return new ModuleFeatureCommandSnapshot($this->application)->capture();

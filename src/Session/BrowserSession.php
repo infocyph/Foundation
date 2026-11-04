@@ -57,7 +57,11 @@ final class BrowserSession
         return $session;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function all(): array
     {
         $this->load();
@@ -105,6 +109,10 @@ final class BrowserSession
         return new SessionCommit(true, $id);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function csrfToken(): string
     {
         $this->load();
@@ -128,12 +136,19 @@ final class BrowserSession
         $this->flashNext[$key] = true;
     }
 
-    /** @param array<string, mixed> $input */
+    /**
+     * @param array<string, mixed> $input
+     * @throws \InvalidArgumentException
+     */
     public function flashInput(array $input): void
     {
         $this->flash('_old_input', $input);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function forget(string ...$keys): void
     {
         $this->load();
@@ -146,6 +161,10 @@ final class BrowserSession
         }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function get(string $key, mixed $default = null): mixed
     {
         $this->load();
@@ -153,6 +172,10 @@ final class BrowserSession
         return $this->data[$key] ?? $default;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function has(string $key): bool
     {
         $this->load();
@@ -160,6 +183,10 @@ final class BrowserSession
         return array_key_exists($key, $this->data);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function id(): string
     {
         $this->load();
@@ -167,6 +194,10 @@ final class BrowserSession
         return $this->id ?? throw new \LogicException('The browser session has no identifier.');
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function invalidate(): void
     {
         $this->load();
@@ -177,7 +208,11 @@ final class BrowserSession
         $this->id = self::generateId();
     }
 
-    /** @param list<string> $keys */
+    /**
+     * @param list<string> $keys
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function keep(array $keys): void
     {
         $this->load();
@@ -216,6 +251,8 @@ final class BrowserSession
 
     /**
      * @throws \InvalidArgumentException
+      * @throws \LogicException
+      * @throws \RuntimeException
      */
     public function put(string $key, mixed $value): void
     {
@@ -227,12 +264,20 @@ final class BrowserSession
         $this->data[$key] = $value;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function reflash(): void
     {
         $this->load();
         $this->flashNext += $this->flashCurrent;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function regenerate(bool $destroy = true): string
     {
         $this->load();
@@ -245,6 +290,10 @@ final class BrowserSession
         return $this->id;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function regenerateCsrfToken(): string
     {
         $this->load();

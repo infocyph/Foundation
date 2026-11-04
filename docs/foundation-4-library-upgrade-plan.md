@@ -4,6 +4,9 @@ Date: 2026-11-04 (Asia/Dhaka). Status: **implementation in progress; release gat
 
 ## Implementation checkpoint — 2026-11-04
 
+- **Official PHPForge Psalm exception-contract batch 5 (2026-11-04; pending exact-head QA):** Mapped 157 `MissingThrowsDocblock` findings from the unmodified official PHP 8.4 analysis [41811868808](https://github.com/infocyph/Foundation/actions/runs/41811868808) to 46 affected methods in 12 existing Session, DBLayer-auth, filesystem, command, HTTP, operations, and release bootstrap files. Added 142 unique exception declarations; entries already documented were not duplicated. No runtime branches, dependency constraints, analyzer rules or suppressions were changed. Full PHPForge QA and Psalm on the new exact head are required before acceptance; **formal 29/90 tally remains unchanged**.
+
+
 - **Exact-head QA correction for P0 A02 (2026-11-04; pending revalidation):** [Security & Standards 41811022065](https://github.com/infocyph/Foundation/actions/runs/41811022065) verified both new Webrick/JSON captured-byte tests, and PHPStan passed, but Pest found two failures (SHA-256 architecture boundary inventory omitted the two new security owners, and the new Webrick boot test left its production alias registry frozen for a subsequent test); Pint also flagged method ordering in `WebReleaseRuntime`. The correction narrowly records the two explicit cryptographic owners, restores test-only Webrick global registry cleanup, and moves the private trusted-loader method into project method order. No release security check was relaxed. Psalm remains failing with 1,648 reported errors at `3036d5f`. **Acceptance remains 29/90** pending fresh complete QA.
 
 

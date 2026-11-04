@@ -273,6 +273,9 @@ final class OperationsSystemCommand extends SystemCommand
     /**
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
+      * @throws \LogicException
+      * @throws \Psr\Container\ContainerExceptionInterface
+      * @throws \Psr\Container\NotFoundExceptionInterface
      */
     private function maintenanceDisable(): int
     {
@@ -286,6 +289,10 @@ final class OperationsSystemCommand extends SystemCommand
 
     /**
      * @throws \InvalidArgumentException
+      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+      * @throws \Psr\SimpleCache\InvalidArgumentException
+      * @throws \RuntimeException
+      * @throws \UnexpectedValueException
      */
     private function maintenanceEnable(): int
     {
@@ -295,6 +302,12 @@ final class OperationsSystemCommand extends SystemCommand
         return $this->emit($state, 'Maintenance mode enabled.');
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     private function maintenanceStatus(): int
     {
         $state = $this->maintenance()->status();
