@@ -24,6 +24,9 @@ use Infocyph\OTP\TOTP;
 
 final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
 {
+    /**
+     * @throws \LogicException
+     */
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->mfa() === AuthMfaDriver::OTP) {

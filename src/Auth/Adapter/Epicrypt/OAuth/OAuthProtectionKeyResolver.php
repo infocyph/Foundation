@@ -27,6 +27,9 @@ final readonly class OAuthProtectionKeyResolver
         private ClockInterface $clock,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function authorizationCodeKeys(): KeyRing
     {
         return $this->resolve(
@@ -36,6 +39,9 @@ final readonly class OAuthProtectionKeyResolver
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function refreshTokenKeys(): KeyRing
     {
         return $this->resolve(

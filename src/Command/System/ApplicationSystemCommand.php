@@ -199,6 +199,8 @@ final class ApplicationSystemCommand extends SystemCommand
 
     /**
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
      */
     private function generateSecret(): int
     {
@@ -313,6 +315,9 @@ final class ApplicationSystemCommand extends SystemCommand
         return (int) $value;
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function ready(): int
     {
         $report = new ReadinessReport($this->application)->generate();

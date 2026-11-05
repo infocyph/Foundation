@@ -74,6 +74,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return $this->option('connection');
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function destructiveMigration(string $operation): int
     {
         if (!$this->authorizeDestructive('migrate:' . $operation)) {
@@ -91,6 +97,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return $this->migrationResult($migrations, ucfirst($operation) . ' migration operation completed.');
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function migrate(): int
     {
         $runner = $this->migrations->runner($this->connectionName());
@@ -122,6 +134,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function migrationStatus(): int
     {
         $status = $this->migrations->runner($this->connectionName())->status();
@@ -240,6 +258,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return $records;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function rollback(): int
     {
         $runner = $this->migrations->runner($this->connectionName());
@@ -251,6 +275,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return $this->migrationResult($migrations, 'Rollback completed.');
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function seed(): int
     {
         $transactional = !$this->input()->hasOption('transaction') || $this->flag('transaction');

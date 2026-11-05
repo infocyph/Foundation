@@ -27,6 +27,9 @@ final readonly class SchedulerRuntime
      * @param callable(ExecutionId):T $handler
      * @param array<string, mixed> $context
      * @return T
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     * @throws \Throwable
      */
     public function execute(
         callable $handler,

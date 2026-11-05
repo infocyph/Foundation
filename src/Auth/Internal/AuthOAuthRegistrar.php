@@ -99,6 +99,9 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         return $this->boolConfig('auth.oauth.enabled', false);
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function register(bool $http): void
     {
         if (!$this->enabled()) {

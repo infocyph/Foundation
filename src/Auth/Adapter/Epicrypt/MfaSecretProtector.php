@@ -65,6 +65,9 @@ final readonly class MfaSecretProtector
         return $this->factorWithMetadata($factor, $metadata);
     }
 
+    /**
+     * @throws \Infocyph\Epicrypt\Exception\Crypto\DecryptionException
+     */
     public function unprotect(MfaFactor $factor): MfaFactor
     {
         return $this->unprotectResult($factor)->factor;
@@ -112,7 +115,10 @@ final readonly class MfaSecretProtector
         );
     }
 
-    /** @param array<string, mixed> $metadata */
+    /**
+     * @param array<string, mixed> $metadata
+     * @throws \InvalidArgumentException
+     */
     private function factorWithMetadata(MfaFactor $factor, array $metadata): MfaFactor
     {
         return new MfaFactor(

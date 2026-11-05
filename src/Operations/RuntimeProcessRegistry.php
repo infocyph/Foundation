@@ -12,7 +12,10 @@ final readonly class RuntimeProcessRegistry
 {
     public function __construct(private Application $application) {}
 
-    /** @return list<array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:bool}> */
+    /**
+     * @return list<array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:bool}>
+     * @throws \UnexpectedValueException
+     */
     public function all(?string $kind = null, ?string $name = null): array
     {
         $directory = $this->directory();
@@ -43,6 +46,7 @@ final readonly class RuntimeProcessRegistry
      * @param array<int|string, mixed> $record
      * @return array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:true}
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function heartbeat(array $record): array
     {
@@ -60,6 +64,7 @@ final readonly class RuntimeProcessRegistry
     /**
      * @return array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:true}
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function register(string $kind, string $name): array
     {

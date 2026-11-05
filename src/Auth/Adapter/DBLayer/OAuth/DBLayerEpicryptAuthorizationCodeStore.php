@@ -14,6 +14,9 @@ final readonly class DBLayerEpicryptAuthorizationCodeStore extends DBLayerStore 
 {
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function consume(

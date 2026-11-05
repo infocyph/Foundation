@@ -24,11 +24,23 @@ final readonly class AuthSchemaInstaller
         private bool $personalAccessTokensEnabled = false,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function install(?string $connection = null): void
     {
         $this->runner($connection)->run();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function installed(?string $connection = null): bool
     {
         return $this->readiness($connection)['installed'];
@@ -116,6 +128,12 @@ final readonly class AuthSchemaInstaller
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function uninstall(?string $connection = null): void
     {
         $this->runner($connection)->reset(true);

@@ -28,6 +28,10 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         private ConfigRepository $config,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
@@ -68,6 +72,9 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         return is_int($value) ? $value : (int) ($value * 1_000_000_000.0);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function cancellationSignal(WorkerRuntime $runtime): CancellationSignal
     {
         $lastHeartbeat = self::monotonicNanoseconds();

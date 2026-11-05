@@ -25,7 +25,13 @@ final readonly class DatabaseTestManager
         $this->database->connection($connection)->begin();
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function refresh(?string $connection = null): array
     {
         return $this->migrations->runner($connection)->refresh(true);
@@ -50,6 +56,10 @@ final readonly class DatabaseTestManager
      * @template T
      * @param callable():T $test
      * @return T
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function transaction(callable $test, ?string $connection = null): mixed
     {

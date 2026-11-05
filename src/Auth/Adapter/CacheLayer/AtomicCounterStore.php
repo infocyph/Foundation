@@ -28,6 +28,10 @@ final readonly class AtomicCounterStore implements CounterStoreInterface
         $this->counters->delete($this->key($key));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function key(string $key): string
     {
         return FoundationCacheKey::security($this->prefix, $this->domain, $key);

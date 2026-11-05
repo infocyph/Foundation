@@ -91,6 +91,10 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \OverflowException
+     */
     private function advanceCounter(MfaFactor $factor, int $counter): bool
     {
         $metadata = $factor->metadata;

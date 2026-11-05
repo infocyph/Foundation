@@ -35,6 +35,9 @@ final readonly class AuthMfaKeyResolver
         return $this->config->get('auth.otp.secret_protection.allow_legacy_plaintext', false) === true;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function assertProductionReady(): void
     {
         if (!$this->config->isProduction()) {

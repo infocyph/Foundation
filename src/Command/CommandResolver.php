@@ -13,6 +13,8 @@ final readonly class CommandResolver
 
     /**
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Throwable
      */
     public function run(
         CommandDescriptor $descriptor,
@@ -97,7 +99,10 @@ final readonly class CommandResolver
         }
     }
 
-    /** @param class-string<CommandHandlerInterface> $handler */
+    /**
+     * @param class-string<CommandHandlerInterface> $handler
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function resolve(string $handler): CommandHandlerInterface
     {
         return $this->application->make($handler);

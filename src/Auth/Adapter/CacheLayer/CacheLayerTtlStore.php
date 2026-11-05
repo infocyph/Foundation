@@ -74,6 +74,10 @@ final readonly class CacheLayerTtlStore implements TtlStoreInterface
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function key(string $key): string
     {
         return FoundationCacheKey::security($this->prefix, $this->domain, $key);

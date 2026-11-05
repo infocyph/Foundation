@@ -236,6 +236,9 @@ final class RuntimeSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function scheduleList(): int
     {
         $entries = new ScheduleManager($this->application)->entries();
@@ -277,6 +280,9 @@ final class RuntimeSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function scheduleRun(): int
     {
         $runs = new ScheduleManager($this->application)->runDue();
@@ -317,6 +323,8 @@ final class RuntimeSystemCommand extends SystemCommand
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \UnexpectedValueException
      */
     private function scheduleTest(): int
     {
@@ -403,6 +411,10 @@ final class RuntimeSystemCommand extends SystemCommand
         return $this->renderStorage($links, 'Removed');
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     private function workerList(): int
     {
         $workers = new WorkerManager($this->application)->all();

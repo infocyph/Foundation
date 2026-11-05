@@ -35,6 +35,9 @@ final class AuthMfaGraphFactory
         return new OtpChallengeFactorService($store);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function recoveryCodes(
         RecoveryCodeStoreInterface $store,
         ConfigRepository $config,
@@ -59,6 +62,9 @@ final class AuthMfaGraphFactory
         return new OtpRecoveryCodeStore($factors);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function secretProtector(ConfigRepository $config): MfaSecretProtector
     {
         $keys = new AuthMfaKeyResolver($config);

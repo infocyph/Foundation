@@ -150,6 +150,9 @@ final readonly class WebrickMiddlewareFactory
 
     /**
      * @param array<string, mixed> $definition
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     private function cookieEncryption(array $definition): ?CookieEncryptionMiddleware
     {

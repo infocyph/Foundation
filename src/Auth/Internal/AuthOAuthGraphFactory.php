@@ -75,6 +75,10 @@ final class AuthOAuthGraphFactory
         return $resolver->refreshTokenKeys();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Throwable
+     */
     public static function signingKeySet(OAuthSigningKeyResolver $resolver): OAuthSigningKeySet
     {
         return $resolver->resolve();

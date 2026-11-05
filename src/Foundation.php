@@ -46,7 +46,12 @@ final class Foundation
         return self::createFor(RuntimeMode::Worker, $config);
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     */
     private static function createFor(RuntimeMode $runtime, array $config): Application
     {
         return Application::create($config, $runtime);

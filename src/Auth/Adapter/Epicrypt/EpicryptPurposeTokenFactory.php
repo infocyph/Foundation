@@ -29,6 +29,10 @@ final readonly class EpicryptPurposeTokenFactory
         $this->deriver = new KeyDeriver();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
     public function forPurpose(string $purpose, int $ttlSeconds): PurposeToken
     {
         $domain = self::domain($purpose);

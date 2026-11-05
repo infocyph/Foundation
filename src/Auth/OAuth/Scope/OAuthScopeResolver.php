@@ -21,6 +21,7 @@ final readonly class OAuthScopeResolver
      * @param list<string> $previous
      * @param list<string> $requested
      * @return list<string>
+     * @throws \InvalidArgumentException
      */
     public function narrow(array $previous, array $requested): array
     {
@@ -34,6 +35,7 @@ final readonly class OAuthScopeResolver
     /**
      * @param list<string> $requestedScopes
      * @param list<string> $requestedAudiences
+     * @throws \InvalidArgumentException
      */
     public function resolve(
         OAuthClient $client,

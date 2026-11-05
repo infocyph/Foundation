@@ -34,6 +34,9 @@ final readonly class CurrentPrincipalContext implements CurrentPrincipalProvider
 
     /**
      * @throws \Infocyph\Foundation\Auth\Exception\AuthenticationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function require(): PrincipalInterface

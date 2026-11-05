@@ -42,6 +42,9 @@ final readonly class OtpChallengeFactorService
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function issueGrid(MfaFactor $factor): GridChallenge
     {
         return $this->grid($factor)->issue($factor->id, runwire: CacheRunwire::current());
@@ -52,6 +55,9 @@ final readonly class OtpChallengeFactorService
         return $this->stateCache;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function verifyAotp(MfaFactor $factor, MfaChallenge $challenge, string $responseJson): MfaVerificationResult
     {
         $payload = ValueNormalizer::associativeArray($challenge->metadata['aotp_challenge'] ?? null);
@@ -106,6 +112,9 @@ final readonly class OtpChallengeFactorService
         return $this->verifyGridResponse($factor, GridChallenge::fromArray($payload), $response);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function verifyGridResponse(
         MfaFactor $factor,
         GridChallenge $challenge,

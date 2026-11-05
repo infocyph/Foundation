@@ -21,6 +21,9 @@ final readonly class AuthPruner
      * @return array<string,int>
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function prune(?string $connection = null, int $retentionHours = 24): array
     {

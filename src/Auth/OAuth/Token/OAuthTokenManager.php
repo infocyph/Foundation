@@ -50,7 +50,10 @@ final readonly class OAuthTokenManager
         return $this->response($result);
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function authorizationCode(
         array $parameters,
         OAuthClientAuthentication $authentication,

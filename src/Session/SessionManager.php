@@ -82,6 +82,11 @@ final readonly class SessionManager
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function prune(int $limit = 1_000): int
     {
         return $this->store()->prune(time(), $limit);

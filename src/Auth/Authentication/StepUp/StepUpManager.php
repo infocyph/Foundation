@@ -20,6 +20,7 @@ final readonly class StepUpManager
 
     /**
      * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
      */
     public function evaluate(AuthSession $session, string $ability, array $context = []): StepUpResult
     {
@@ -48,6 +49,9 @@ final readonly class StepUpManager
         return new StepUpResult(!$recent, $requirement, $satisfiedAt, $recent ? 'step_up_not_required' : 'step_up_required', $context);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function markSatisfied(string $accountId, string $sessionId, string $ability, StepUpMethod $method = StepUpMethod::RECENT_AUTH, int $ttlSeconds = 900): void
     {
         $this->ttl->put($this->key($accountId, $sessionId, $ability, $method), $this->clock->now(), self::duration($ttlSeconds));
