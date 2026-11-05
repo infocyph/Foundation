@@ -6,6 +6,8 @@ use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpChallengeFactorService;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpMfaVerifier;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpRecoveryCodeService;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpRecoveryCodeStore;
 use Infocyph\Foundation\Auth\Mfa\MfaChallenge;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorType;
@@ -15,6 +17,7 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\OTP\AOTP;
 use Infocyph\OTP\GridOTP;
 use Infocyph\OTP\HOTP;
+use Infocyph\OTP\RecoveryCodes;
 use Infocyph\Runwire\Exception\CancelledException;
 use Infocyph\Runwire\RequestContext;
 use Infocyph\Runwire\Runtime\Enum\CancellationReason;
@@ -290,4 +293,51 @@ it('preserves HOTP counters across a cancelled borrowed request and forwards nat
         ->and($verifier->verify($challenge, $code)->verified)->toBeTrue()
         ->and($factors->findForAccount($factor->accountId)[0]->metadata['otp']['counter'])->toBe(1)
         ->and($verifier->verify($challenge, $code)->verified)->toBeFalse();
+});
+
+
+it('keeps recovery-code issuance and consumption atomic across cancelled borrowed Runwire requests', function (): void {
+    $accountId = 'acct-recovery-cancel-' . bin2hex(random_bytes(6));
+    $factors = new InMemoryMfaFactorStore();
+    $recovery = new OtpRecoveryCodeService(
+        new RecoveryCodes(new OtpRecoveryCodeStore($factors), str_repeat('k', 32)),
+        defaultCount: 3,
+    );
+
+    $runtime = RuntimeContext::standalone();
+    $request = RequestContext::create($runtime);
+    CacheRunwire::bind($runtime);
+    try {
+        CacheRunwire::share($request, null, static function () use ($accountId, $recovery, $request): void {
+            $request->cancel(CancellationReason::HOST_CANCELLED);
+            expect(fn() => $recovery->generate($accountId))->toThrow(CancelledException::class);
+        }, $runtime);
+    } finally {
+        $request->complete();
+        CacheRunwire::release($runtime);
+    }
+
+    expect($factors->findForAccount($accountId))->toBe([]);
+    $codes = $recovery->generate($accountId);
+    expect($codes)->toHaveCount(3);
+    $code = $codes[0];
+    $original = $factors->findForAccount($accountId)[0]->metadata['otp_recovery']['hashes'];
+
+    $runtime = RuntimeContext::standalone();
+    $request = RequestContext::create($runtime);
+    CacheRunwire::bind($runtime);
+    try {
+        CacheRunwire::share($request, null, static function () use ($accountId, $code, $recovery, $request): void {
+            $request->cancel(CancellationReason::HOST_CANCELLED);
+            expect(fn() => $recovery->verify($accountId, $code))->toThrow(CancelledException::class);
+        }, $runtime);
+    } finally {
+        $request->complete();
+        CacheRunwire::release($runtime);
+    }
+
+    expect($factors->findForAccount($accountId)[0]->metadata['otp_recovery']['hashes'])->toBe($original)
+        ->and($recovery->verify($accountId, $code)->verified)->toBeTrue()
+        ->and($factors->findForAccount($accountId)[0]->metadata['otp_recovery']['hashes'])->toHaveCount(2)
+        ->and($recovery->verify($accountId, $code)->verified)->toBeFalse();
 });
