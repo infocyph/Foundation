@@ -55,20 +55,21 @@ final class ConfigRepository extends Config
         return $repository;
     }
 
-    /** @return array<string, mixed> */
+    /** @return array<array-key, mixed> */
     #[\Override]
     public function all(): array
     {
         $this->materializeLazyConfig();
 
-        $items = [];
-        foreach (parent::all() as $key => $value) {
-            if (is_string($key)) {
-                $items[$key] = $value;
-            }
-        }
+        return parent::all();
+    }
 
-        return $items;
+    #[\Override]
+    public function changed(string $snapshot = 'default'): bool
+    {
+        $this->materializeLazyConfig();
+
+        return parent::changed($snapshot);
     }
 
     public function cacheDirectory(): ?string
@@ -79,6 +80,20 @@ final class ConfigRepository extends Config
     public function clearLazyCache(): void
     {
         $this->lazyConfig?->clearNamespaceCache();
+    }
+
+    #[\Override]
+    public function exportCache(string $path): bool
+    {
+        $this->materializeLazyConfig();
+
+        return parent::exportCache($path);
+    }
+
+    #[\Override]
+    public function get(string|int|array|null $key = null, mixed $default = null): mixed
+    {
+        return $key === null ? $this->all() : parent::get($key, $default);
     }
 
     public function env(?string $default = null): ?string
@@ -110,7 +125,15 @@ final class ConfigRepository extends Config
     /** @return list<string> */
     public function lazyNamespaces(): array
     {
-        return array_keys($this->lazyNamespaces);
+        return array_map(static fn(int|string $namespace): string => (string) $namespace, array_keys($this->lazyNamespaces));
+    }
+
+    #[\Override]
+    public function snapshot(string $name = 'default'): bool
+    {
+        $this->materializeLazyConfig();
+
+        return parent::snapshot($name);
     }
 
     public function warmLazyCache(): void
@@ -119,13 +142,20 @@ final class ConfigRepository extends Config
     }
 
     #[\Override]
+    protected function assertWritable(): void
+    {
+        parent::assertWritable();
+        $this->materializeLazyConfig();
+    }
+
+    #[\Override]
     protected function resolveRawValue(int|string $key): mixed
     {
-        if ($this->lazyConfig === null || !is_string($key)) {
+        if ($this->lazyConfig === null) {
             return parent::resolveRawValue($key);
         }
 
-        return $this->lazyConfig->get($key, $this->missingValueMarker());
+        return $this->lazyConfig->get((string) $key, $this->missingValueMarker());
     }
 
     private function materializeLazyConfig(): void

@@ -56,6 +56,66 @@ PHP,
     }
 });
 
+it('materializes numeric lazy namespaces before mutation and snapshot without losing referenced values', function (): void {
+    $project = arrayKitConfigProject([
+        'config/0.php' => <<<'PHP'
+<?php
+
+return ['flags' => ['original', 'second']];
+PHP,
+        'config/app.php' => <<<'PHP'
+<?php
+
+return ['name' => 'source', 'nested' => ['stable' => true]];
+PHP,
+    ]);
+
+    try {
+        $repository = ConfigRepository::fromLazyFiles(
+            directory: $project . '/config',
+            cacheDirectory: null,
+            fallback: [],
+            overrides: [],
+            namespaces: ['0', 'app'],
+        );
+
+        expect($repository->lazyNamespaces())->toBe(['0', 'app'])
+            ->and($repository->get('0.flags.0'))->toBe('original')
+            ->and($repository->get(0))->toBe(['flags' => ['original', 'second']])
+            ->and($repository->get()['app']['name'] ?? null)->toBe('source')
+            ->and($repository->all())->toHaveKey(0);
+
+        expect($repository->snapshot('original'))->toBeTrue()
+            ->and($repository->changed('original'))->toBeFalse()
+            ->and($repository->set('0.flags.0', 'modified'))->toBeTrue()
+            ->and($repository->fill('app.new', 'filled'))->toBeTrue()
+            ->and($repository->merge(['app' => ['merged' => true]]))->toBeTrue()
+            ->and($repository->forget('app.name'))->toBeTrue()
+            ->and($repository->changed('original'))->toBeTrue()
+            ->and($repository->restore('original'))->toBeTrue()
+            ->and($repository->get('0.flags.0'))->toBe('original')
+            ->and($repository->get('app.name'))->toBe('source')
+            ->and($repository->get('app.new', null))->toBeNull();
+
+        $referenced = ['name' => 'before'];
+        expect($repository->set('app.link', ['entry' => &$referenced]))->toBeTrue()
+            ->and($repository->snapshot('pinned'))->toBeTrue();
+        $referenced['name'] = 'after';
+        expect($repository->changed('pinned'))->toBeTrue()
+            ->and($repository->restore('pinned'))->toBeTrue()
+            ->and($repository->get('app.link.entry.name'))->toBe('before');
+
+        $cache = $project . '/export.php';
+        expect($repository->exportCache($cache))->toBeTrue();
+        $restored = new ConfigRepository();
+        expect($restored->loadCache($cache))->toBeTrue()
+            ->and($restored->get(0))->toBe(['flags' => ['original', 'second']])
+            ->and($restored->get('app.link.entry.name'))->toBe('before');
+    } finally {
+        arrayKitConfigRemove($project);
+    }
+});
+
 it('preserves configured environment file order and ArrayKit interpolation semantics', function (): void {
     $keys = [
         'FOUNDATION_AK52_BASE',
