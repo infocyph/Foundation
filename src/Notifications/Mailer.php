@@ -11,6 +11,8 @@ use Infocyph\TalkingBytes\Email\ValueObject\EmailAddress;
 
 /**
  * Application mail orchestration over native TalkingBytes EmailMessage/Emailer.
+ *
+ * @api
  */
 final readonly class Mailer
 {
