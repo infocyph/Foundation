@@ -2,14 +2,21 @@
 
 declare(strict_types=1);
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Validation\FormRequest;
 use Infocyph\Foundation\Validation\ValidatorFactory;
 use Infocyph\ReqShield\Bridge\DBLayerDatabaseProvider;
 use Infocyph\ReqShield\Rule;
+use Infocyph\Runwire\Exception\CancelledException;
+use Infocyph\Runwire\RequestContext;
+use Infocyph\Runwire\Runtime\Enum\CancellationReason;
+use Infocyph\Runwire\RuntimeContext;
+use Infocyph\Webrick\Request\Request;
 
-it('validates database-backed ReqShield 3.2 rules through the native DBLayer 5.1 bridge', function (): void {
+it('validates database-backed ReqShield 3.3 rules through the native DBLayer 6.1 bridge', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-validation-db-' . uniqid('', true);
     mkdir($basePath . '/database', 0775, true);
 
@@ -119,6 +126,39 @@ it('validates database-backed ReqShield 3.2 rules through the native DBLayer 5.1
                         'soft_delete_column' => 'deleted_at',
                     ],
                 ]))->toBe([5]);
+
+            // The same DB-backed exists rule must reject host cancellation before query admission.
+            $form = new class($validators) extends FormRequest {
+                protected function rules(Request $request): array
+                {
+                    unset($request);
+
+                    return ['category_id' => 'required|integer|exists:categories,id'];
+                }
+            };
+            $input = Request::fake(
+                post: ['category_id' => 1],
+                method: 'POST',
+                headers: ['Host' => 'localhost'],
+            );
+            $beforeQueries = $database->getStats()['queries'];
+            $runtime = RuntimeContext::standalone();
+            $hostRequest = RequestContext::create($runtime);
+            CacheRunwire::bind($runtime);
+
+            try {
+                CacheRunwire::share($hostRequest, null, static function () use ($form, $hostRequest, $input): void {
+                    $hostRequest->cancel(CancellationReason::HOST_CANCELLED);
+                    expect(fn() => $form->validate($input))->toThrow(CancelledException::class);
+                }, $runtime);
+            } finally {
+                $hostRequest->complete();
+                CacheRunwire::release($runtime);
+            }
+
+            expect($database->getStats()['queries'])->toBe($beforeQueries)
+                ->and($form->validate($input)->passes())->toBeTrue()
+                ->and($database->getStats()['queries'])->toBeGreaterThan($beforeQueries);
         });
     } finally {
         DB::purge();
