@@ -24,6 +24,11 @@ use Psr\Cache\CacheItemPoolInterface;
 use Psr\Container\ContainerInterface;
 use Psr\SimpleCache\CacheInterface as SimpleCacheInterface;
 
+/**
+ * Built-in application service provider, selected through Foundation composition.
+ *
+ * @api
+ */
 final class CacheServiceProvider extends ServiceProvider
 {
     #[\Override]
