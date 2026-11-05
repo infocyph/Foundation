@@ -33,9 +33,7 @@ final readonly class LogTailer
                 usleep($sleepMicros);
             }
         } finally {
-            if (is_resource($stream)) {
-                fclose($stream);
-            }
+            fclose($stream);
         }
     }
 
@@ -162,9 +160,11 @@ final readonly class LogTailer
         }
 
         if ($this->identityChanged($streamStat, $pathStat)) {
+            // Retain the current stream if the rotated replacement cannot be opened.
+            $replacement = $this->open($path);
             fclose($stream);
 
-            return $this->open($path);
+            return $replacement;
         }
 
         $size = $pathStat['size'] ?? null;
