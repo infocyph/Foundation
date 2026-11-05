@@ -110,7 +110,7 @@ final readonly class OAuthConfigValidator
             return;
         }
 
-        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $scheme = strtolower($parts['scheme'] ?? '');
         if ($production && $scheme !== 'https') {
             $issues[] = new ConfigIssue('auth.oauth.issuer must use HTTPS in production.', 'auth.oauth.issuer');
         }
