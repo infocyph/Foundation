@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Command;
 
+/**
+ * Application-facing command progress reporting.
+ *
+ * @api
+ */
 final readonly class ProgressIndicator
 {
     private const array SPINNER = ['|', '/', '-', '\\'];
