@@ -53,7 +53,11 @@ final class GeneratedRuntimeCompiler
         $this->assertNoSkippedDefinitions($report['skipped']);
         GeneratedRuntimeMetadata::write(
             $artifactPath,
-            GeneratedRuntimeMetadata::create($graph, $report),
+            GeneratedRuntimeMetadata::create($graph, [
+                'compiled' => $report['compiled'],
+                'skipped' => $report['skipped'],
+                'digest' => $report['digest'],
+            ]),
         );
         $metadataSha256 = hash_file('sha256', GeneratedRuntimeMetadata::path($artifactPath));
         if (!is_string($metadataSha256)) {
