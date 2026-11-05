@@ -18,6 +18,11 @@ use Infocyph\Pathwise\StreamHandler\UploadProcessor;
 use League\Flysystem\FilesystemOperator;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Built-in application service provider selected through Foundation composition.
+ *
+ * @api
+ */
 final class FilesystemServiceProvider extends ServiceProvider
 {
     public static function download(FilesystemTransferFactory $transfers): DownloadProcessor
