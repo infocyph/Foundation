@@ -47,6 +47,11 @@ use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Built-in application service provider, selected through Foundation composition.
+ *
+ * @api
+ */
 final class AuthServiceProvider extends ServiceProvider
 {
     /**
