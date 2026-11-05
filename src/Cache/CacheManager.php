@@ -57,6 +57,7 @@ final class CacheManager
      * factory supplied by CacheGraphFactory.
      *
      * @param callable(Connection, ClusterOutbox):mixed $callback
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function transactionalInvalidation(
         string $cluster,

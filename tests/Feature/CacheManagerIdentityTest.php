@@ -3,8 +3,13 @@
 declare(strict_types=1);
 
 use Infocyph\CacheLayer\Cache\Cache;
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Runwire\Exception\CancelledException;
+use Infocyph\Runwire\RequestContext;
+use Infocyph\Runwire\Runtime\Enum\CancellationReason;
+use Infocyph\Runwire\RuntimeContext;
 
 it('canonicalizes default and explicit cache store identity in both access orders', function (): void {
     $first = Foundation::cli([
@@ -167,5 +172,75 @@ it('reuses generation-owned lock providers without sharing lock handles', functi
     } finally {
         $default->release($first);
         $explicit->release($second);
+    }
+});
+
+it('isolates native cache operations through borrowed Fiber contexts and restores after cancellation', function (): void {
+    $app = Foundation::worker([
+        'app' => ['capabilities' => ['cache', 'runwire']],
+        'cache' => [
+            'default' => 'memory',
+            'prefix' => 'foundation-cache-fiber-context:',
+            'stores' => ['memory' => ['driver' => 'memory']],
+        ],
+    ])->boot();
+    $store = $app->make(CacheManager::class)->store();
+    $runtime = RuntimeContext::standalone();
+    $first = RequestContext::create($runtime);
+    $second = RequestContext::create($runtime);
+
+    $create = static fn(RequestContext $request, string $key): Fiber => new Fiber(
+        static fn(): mixed => CacheRunwire::share(
+            $request,
+            null,
+            static fn(): mixed => $app->execution()->run(
+                static function () use ($app, $store, $request, $key): string {
+                    expect(CacheRunwire::current()?->request)->toBe($request)
+                        ->and($store->set($key, $key, 60))->toBeTrue();
+
+                    $captured = $app->runtime()->captureScopeContext();
+                    $child = new Fiber(static fn(): mixed => $app->execution()->withinBorrowedScope(
+                        $captured,
+                        static fn(): array => [
+                            CacheRunwire::current()?->request,
+                            $store->get($key),
+                        ],
+                    ));
+                    $child->start();
+                    expect($child->getReturn())->toBe([$request, $key]);
+
+                    Fiber::suspend($key);
+                    CacheRunwire::checkpoint();
+
+                    return $store->get($key);
+                },
+                [RuntimeContext::class => $runtime, RequestContext::class => $request],
+            ),
+            $runtime,
+        ),
+    );
+
+    try {
+        $left = $create($first, 'first');
+        $right = $create($second, 'second');
+        expect($left->start())->toBe('first')
+            ->and($right->start())->toBe('second')
+            ->and(CacheRunwire::current())->toBeNull()
+            ->and($store->get('first'))->toBe('first')
+            ->and($store->get('second'))->toBe('second');
+
+        $first->cancel(CancellationReason::HOST_CANCELLED);
+        expect(fn() => $left->resume())->toThrow(CancelledException::class)
+            ->and($first->cancelled())->toBeTrue()
+            ->and($second->cancelled())->toBeFalse();
+        $right->resume();
+
+        expect($right->getReturn())->toBe('second')
+            ->and(CacheRunwire::current())->toBeNull()
+            ->and(CacheRunwire::runtime())->toBeNull()
+            ->and($store->get('second'))->toBe('second');
+    } finally {
+        $first->complete();
+        $second->complete();
     }
 });
