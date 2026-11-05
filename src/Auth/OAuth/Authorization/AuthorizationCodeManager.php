@@ -19,6 +19,11 @@ use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 
+/**
+ * Application-facing OAuth authorization code lifecycle manager.
+ *
+ * @api
+ */
 final readonly class AuthorizationCodeManager
 {
     /**
