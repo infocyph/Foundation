@@ -10,6 +10,11 @@ use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
+/**
+ * Built-in application service provider selected through Foundation composition.
+ *
+ * @api
+ */
 final class JsonDispatchServiceProvider extends ServiceProvider
 {
     #[\Override]
