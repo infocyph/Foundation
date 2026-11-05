@@ -9,6 +9,9 @@ use Infocyph\Foundation\Auth\Device\DeviceStoreInterface;
 
 final readonly class DBLayerDeviceStore extends ClockedDBLayerStore implements DeviceStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function find(string $deviceId): ?DeviceRecord
     {
@@ -19,6 +22,12 @@ final readonly class DBLayerDeviceStore extends ClockedDBLayerStore implements D
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function findForAccount(string $accountId): array
     {
@@ -29,18 +38,37 @@ final readonly class DBLayerDeviceStore extends ClockedDBLayerStore implements D
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function markTrusted(string $deviceId, bool $trusted): void
     {
         $this->updateWhere('devices', ['trusted' => $trusted ? 1 : 0], 'id = ?', [$deviceId]);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function revoke(string $deviceId): void
     {
         $this->updateWhere('devices', ['trusted' => 0, 'revoked_at' => $this->now()], 'id = ?', [$deviceId]);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function save(DeviceRecord $device): void
     {
@@ -57,6 +85,12 @@ final readonly class DBLayerDeviceStore extends ClockedDBLayerStore implements D
         ]);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function touch(string $deviceId, int $lastSeenAt): void
     {

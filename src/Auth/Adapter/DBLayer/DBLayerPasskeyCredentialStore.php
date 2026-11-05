@@ -46,6 +46,9 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
             ->update($record) === 1;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function findByCredentialId(string $credentialId): ?PasskeyCredential
     {
@@ -58,6 +61,12 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
         return $credential?->credentialId === $credentialId ? $credential : null;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function findForAccount(string $accountId): array
     {
@@ -68,6 +77,12 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function revoke(string $credentialId): void
     {
@@ -79,6 +94,13 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function save(PasskeyCredential $credential): void
     {
@@ -87,6 +109,7 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
 
     /**
      * @throws \RuntimeException
+     * @throws \Throwable
      */
     #[\Override]
     public function updateUsage(string $credentialId, int $signCount, int $usedAt): void

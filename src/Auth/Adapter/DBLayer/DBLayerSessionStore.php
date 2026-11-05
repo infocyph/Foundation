@@ -9,6 +9,12 @@ use Infocyph\Foundation\Auth\Contract\Storage\SessionStoreInterface;
 
 final readonly class DBLayerSessionStore extends DBLayerStore implements SessionStoreInterface
 {
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function create(AuthSession $session): void
     {
@@ -24,6 +30,9 @@ final readonly class DBLayerSessionStore extends DBLayerStore implements Session
         ]);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function find(string $sessionId): ?AuthSession
     {
@@ -34,12 +43,24 @@ final readonly class DBLayerSessionStore extends DBLayerStore implements Session
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function revoke(string $sessionId): void
     {
         $this->deleteWhere('sessions', 'id = ?', [$sessionId]);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function revokeAllForAccount(string $accountId, ?string $exceptSessionId = null): void
     {
@@ -52,6 +73,11 @@ final readonly class DBLayerSessionStore extends DBLayerStore implements Session
         $this->deleteWhere('sessions', 'account_id = ?', [$accountId]);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function rotate(AuthSession $current, AuthSession $replacement, int $now): bool
     {
@@ -81,6 +107,12 @@ final readonly class DBLayerSessionStore extends DBLayerStore implements Session
         }, attempts: 3) === true;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function touch(string $sessionId, int $lastSeenAt): void
     {

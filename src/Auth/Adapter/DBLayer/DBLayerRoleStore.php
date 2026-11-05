@@ -12,6 +12,9 @@ final readonly class DBLayerRoleStore extends ClockedDBLayerStore implements Rol
 {
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function assignRole(string $accountId, string $roleId): void
@@ -31,6 +34,9 @@ final readonly class DBLayerRoleStore extends ClockedDBLayerStore implements Rol
 
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function revokeRole(string $accountId, string $roleId): void
@@ -43,6 +49,9 @@ final readonly class DBLayerRoleStore extends ClockedDBLayerStore implements Rol
 
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function rolesForAccount(string $accountId): array
@@ -56,6 +65,10 @@ final readonly class DBLayerRoleStore extends ClockedDBLayerStore implements Rol
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     #[\Override]
     public function save(Role $role): void

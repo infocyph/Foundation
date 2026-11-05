@@ -58,6 +58,12 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
             ->update($record) === 1;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function findForAccount(string $accountId): array
     {
@@ -70,12 +76,25 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function remove(string $factorId): void
     {
         $this->deleteWhere('mfaFactors', 'id = ?', [$factorId]);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function save(MfaFactor $factor): void
     {
@@ -83,6 +102,9 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
     }
 
     /** @param array<string, mixed> $row */
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function mapFactor(array $row): MfaFactor
     {
         $factor = new MfaFactor(
