@@ -49,7 +49,7 @@ final class JsonLogger extends AbstractLogger
      * @throws \RuntimeException
      */
     #[\Override]
-    public function log($level, string|\Stringable $message, array $context = []): void
+    public function log(mixed $level, string|\Stringable $message, array $context = []): void
     {
         $level = is_string($level) ? strtolower($level) : '';
         if (!isset(self::LEVELS[$level])) {
