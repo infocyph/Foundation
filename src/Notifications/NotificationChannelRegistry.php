@@ -7,6 +7,11 @@ namespace Infocyph\Foundation\Notifications;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Application-facing notification channel registry.
+ *
+ * @api
+ */
 final readonly class NotificationChannelRegistry
 {
     public function __construct(
