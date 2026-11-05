@@ -10,6 +10,11 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
 use Infocyph\Foundation\Runtime\ExecutionId;
 
+/**
+ * Application command-line dispatch entrypoint.
+ *
+ * @api
+ */
 final readonly class CommandDispatcher
 {
     private const string SUPERVISED_ENV = 'INFOCYPH_FOUNDATION_SUPERVISED';
