@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
@@ -13,7 +14,12 @@ use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Consumer\Command\ConsumeRequest;
 use Infocyph\Omnibus\Consumer\Command\ConsumerTask;
 use Infocyph\Omnibus\Envelope\Envelope;
+use Infocyph\Omnibus\Integration\Runwire\RunwireBinding;
 use Infocyph\Omnibus\MessageBus;
+use Infocyph\Runwire\Exception\CancelledException;
+use Infocyph\Runwire\RequestContext;
+use Infocyph\Runwire\Runtime\Enum\CancellationReason;
+use Infocyph\Runwire\RuntimeContext;
 use Infocyph\Omnibus\Scheduling\ScheduledMessageDispatcher;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
@@ -253,6 +259,42 @@ it('isolates concurrent Fiber message executions in distinct Foundation scopes',
 
     expect(array_column(FoundationFiberMessageHandler::$handled, 'before'))
         ->toContain($scopeA, $scopeB);
+});
+
+it('keeps real Omnibus bus and consumer delivery bound only to the live host request', function (): void {
+    $app = foundationMessagingApplication();
+    $bus = $app->make(MessageBus::class);
+    $consumer = $app->make(ConsumerTask::class);
+    $binding = $app->make(RunwireBinding::class);
+
+    expect($binding->request())->toBeNull();
+
+    $runtime = RuntimeContext::standalone();
+    $host = RequestContext::create($runtime);
+    CacheRunwire::bind($runtime);
+
+    try {
+        CacheRunwire::share($host, null, static function () use ($bus, $consumer, $binding, $host): void {
+            expect($binding->request())->toBe($host);
+
+            $bus->dispatch(new FoundationMessage('host-bound'));
+            expect($consumer->run(new ConsumeRequest(limit: 1))->succeeded)->toBe(1);
+
+            $host->cancel(CancellationReason::HOST_CANCELLED);
+            expect(fn() => $bus->dispatch(new FoundationMessage('cancelled')))
+                ->toThrow(CancelledException::class);
+        }, $runtime);
+    } finally {
+        $host->complete();
+        CacheRunwire::release($runtime);
+    }
+
+    expect($binding->request())->toBeNull();
+
+    $bus->dispatch(new FoundationMessage('ordinary'));
+    expect($consumer->run(new ConsumeRequest(limit: 1))->succeeded)->toBe(1)
+        ->and(array_column(FoundationMessageHandler::$handled, 'value'))
+        ->toBe(['host-bound', 'ordinary']);
 });
 
 it('dispatches named scheduled messages through the configured route map', function (): void {
