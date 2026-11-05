@@ -6,6 +6,11 @@ namespace Infocyph\Foundation\Testing;
 
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 
+/**
+ * Deterministic public testing clock.
+ *
+ * @api
+ */
 final class FrozenClock implements ClockInterface
 {
     public function __construct(private int $timestamp) {}
