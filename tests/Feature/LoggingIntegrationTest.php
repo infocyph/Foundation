@@ -187,14 +187,14 @@ it('reopens a rotated log before relinquishing the original descriptor', functio
     mkdir($directory, 0775, true);
     $path = $directory . '/app.log';
     $archived = $directory . '/app.log.1';
-    file_put_contents($path, "original\\n");
+    file_put_contents($path, "original\n");
     $original = fopen($path, 'rb');
     expect(is_resource($original))->toBeTrue();
 
     $replacement = null;
     try {
         rename($path, $archived);
-        file_put_contents($path, "replacement\\n");
+        file_put_contents($path, "replacement\n");
 
         $refresh = new ReflectionMethod(LogTailer::class, 'refreshStream');
         $replacement = $refresh->invoke(new LogTailer(), $original, $path);
@@ -202,7 +202,7 @@ it('reopens a rotated log before relinquishing the original descriptor', functio
         expect(is_resource($original))->toBeFalse()
             ->and(is_resource($replacement))->toBeTrue();
 
-        expect(fgets($replacement))->toBe("replacement\\n");
+        expect(fgets($replacement))->toBe("replacement\n");
     } finally {
         if (is_resource($replacement)) {
             fclose($replacement);
