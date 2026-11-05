@@ -46,6 +46,9 @@ final class MessagingSystemCommand extends SystemCommand
         return $this->io()->confirm($question, false);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function failed(): int
     {
         $failures = $this->failures()->all($this->positiveIntOption('limit', 100, 1_000));
@@ -115,6 +118,9 @@ final class MessagingSystemCommand extends SystemCommand
         ];
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function failures(): FailureStore
     {
         return $this->application->make(FailureStore::class);
@@ -234,6 +240,9 @@ final class MessagingSystemCommand extends SystemCommand
         return (int) $value;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function pruneFailed(): int
     {
         $hours = $this->positiveIntOption('hours', 168, 24 * 365 * 10);
@@ -260,6 +269,9 @@ final class MessagingSystemCommand extends SystemCommand
         ], sprintf('Retried failed message "%s".', $id));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function transport(): \Infocyph\Omnibus\Transport\Sender
     {
         return $this->application->make(TransportRegistry::class)->get($this->transportName());

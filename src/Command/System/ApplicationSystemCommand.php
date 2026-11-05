@@ -59,6 +59,9 @@ final class ApplicationSystemCommand extends SystemCommand
         };
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function about(): int
     {
         $modules = [];
@@ -142,6 +145,12 @@ final class ApplicationSystemCommand extends SystemCommand
         return $this->emit(['removed' => $removed], $removed ? 'Command manifest cleared.' : 'Command manifest is already clear.');
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function configCache(): int
     {
         $type = new ConfigCacheManager($this->application)->write();
@@ -149,6 +158,9 @@ final class ApplicationSystemCommand extends SystemCommand
         return $this->emit(['type' => $type], 'Configuration cached using ' . $type . '.');
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function configClear(): int
     {
         $removed = new ConfigCacheManager($this->application)->clear();
@@ -348,7 +360,10 @@ final class ApplicationSystemCommand extends SystemCommand
         return $capabilities;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function releaseConfig(): array
     {
         $config = $this->application->config()->all();

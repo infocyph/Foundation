@@ -23,6 +23,9 @@ final class OAuthSystemCommand extends SystemCommand
 {
     public function __construct(private readonly Application $application) {}
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     protected function handle(): int
     {
@@ -52,6 +55,9 @@ final class OAuthSystemCommand extends SystemCommand
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function auditor(): OAuthAuditRecorder
     {
         return $this->application->make(OAuthAuditRecorder::class);
@@ -72,6 +78,9 @@ final class OAuthSystemCommand extends SystemCommand
         ];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function authorizationList(): int
     {
         $authorizations = array_map(
@@ -114,6 +123,9 @@ final class OAuthSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function authorizationStore(): OAuthAuthorizationStoreInterface
     {
         return $this->application->make(OAuthAuthorizationStoreInterface::class);
@@ -190,6 +202,9 @@ final class OAuthSystemCommand extends SystemCommand
         ];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function clientList(): int
     {
         $clients = array_map(
@@ -200,6 +215,9 @@ final class OAuthSystemCommand extends SystemCommand
         return $this->emit(['clients' => $clients, 'count' => count($clients)]);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function clientRotateSecret(): int
     {
         $clientId = $this->requiredArgument();
@@ -211,6 +229,9 @@ final class OAuthSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function clients(): OAuthClientManager
     {
         return $this->application->make(OAuthClientManager::class);
@@ -248,11 +269,17 @@ final class OAuthSystemCommand extends SystemCommand
         ]);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function clientStore(): OAuthClientStoreInterface
     {
         return $this->application->make(OAuthClientStoreInterface::class);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function clock(): ClockInterface
     {
         return $this->application->make(ClockInterface::class);
