@@ -17,6 +17,8 @@ use Infocyph\DBLayer\Connection\Connection;
  * CacheLayer APIs. Foundation owns application/generation identity for named
  * stores and lock providers so consumers selecting the same resource share one
  * configured instance without introducing process-static cache state.
+  *
+ * @api
  */
 final class CacheManager
 {
