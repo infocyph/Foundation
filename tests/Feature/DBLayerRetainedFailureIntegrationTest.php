@@ -14,6 +14,7 @@ it('rolls back failed statements while retaining the error and reuses native DBL
     ?string $dsnVariable,
     ?string $usernameVariable,
     ?string $passwordVariable,
+    bool $statementCacheEnabled,
 ): void {
     $connection = ['driver' => $driver, 'database' => ':memory:'];
 
@@ -47,6 +48,9 @@ it('rolls back failed statements while retaining the error and reuses native DBL
         ];
     }
 
+    $connection['statement_cache_enabled'] = $statementCacheEnabled;
+    $connection['statement_cache_size'] = 8;
+
     $app = Foundation::worker([
         'app' => ['env' => 'testing', 'capabilities' => ['database']],
         'database' => [
@@ -73,14 +77,16 @@ it('rolls back failed statements while retaining the error and reuses native DBL
                 "CREATE TABLE {$table} (id INTEGER PRIMARY KEY, payload VARCHAR(64) NOT NULL)",
             ))->toBeTrue();
 
+            $pdo = $database->getPdo();
+            $insert = "INSERT INTO {$table} (id, payload) VALUES (?, ?)";
             $database->beginTransaction();
-            $database->statement("INSERT INTO {$table} (id, payload) VALUES (?, ?)", [1, 'rolled-back']);
+            $database->statement($insert, [1, 'rolled-back']);
 
             // Preserve the original failure and its PDO stack while the same
             // connection rolls back and is used by a later transaction.
             $retainedFailure = null;
             try {
-                $database->statement("INSERT INTO {$table} (id, payload) VALUES (?, ?)", [1, 'duplicate']);
+                $database->statement($insert, [1, 'duplicate']);
             } catch (ConnectionException $failure) {
                 $retainedFailure = $failure;
             }
@@ -96,11 +102,13 @@ it('rolls back failed statements while retaining the error and reuses native DBL
 
             expect($database->transactionLevel())->toBe(0)
                 ->and((int) $database->scalar("SELECT COUNT(*) FROM {$table}"))->toBe(0)
-                ->and($factory->connection())->toBe($database);
+                ->and($factory->connection())->toBe($database)
+                ->and($database->getPdo())->toBe($pdo);
 
             $result = $database->transaction(
-                static function (Connection $current) use ($table): string {
-                    $current->statement("INSERT INTO {$table} (id, payload) VALUES (?, ?)", [2, 'committed']);
+                static function (Connection $current) use ($insert): string {
+                    // Reuse the failed prepared SQL after rollback, including with statement caching on.
+                    $current->statement($insert, [1, 'committed']);
 
                     return 'committed';
                 },
@@ -109,7 +117,8 @@ it('rolls back failed statements while retaining the error and reuses native DBL
 
             expect($result)->toBe('committed')
                 ->and((int) $database->scalar("SELECT COUNT(*) FROM {$table}"))->toBe(1)
-                ->and($database->scalar("SELECT payload FROM {$table} WHERE id = ?", [2]))->toBe('committed')
+                ->and($database->scalar("SELECT payload FROM {$table} WHERE id = ?", [1]))->toBe('committed')
+                ->and($database->getPdo())->toBe($pdo)
                 ->and($database->transactionLevel())->toBe(0)
                 ->and($retainedFailure)->toBeInstanceOf(ConnectionException::class);
         } finally {
@@ -121,9 +130,12 @@ it('rolls back failed statements while retaining the error and reuses native DBL
         }
     });
 })->with([
-    'sqlite' => ['sqlite', null, null, null],
-    'mysql' => ['mysql', 'IC_MYSQL_DSN', 'IC_MYSQL_USER', 'IC_MYSQL_PASSWORD'],
-    'postgresql' => ['pgsql', 'IC_POSTGRES_DSN', 'IC_POSTGRES_USER', 'IC_POSTGRES_PASSWORD'],
+    'sqlite uncached' => ['sqlite', null, null, null, false],
+    'sqlite cached' => ['sqlite', null, null, null, true],
+    'mysql uncached' => ['mysql', 'IC_MYSQL_DSN', 'IC_MYSQL_USER', 'IC_MYSQL_PASSWORD', false],
+    'mysql cached' => ['mysql', 'IC_MYSQL_DSN', 'IC_MYSQL_USER', 'IC_MYSQL_PASSWORD', true],
+    'postgresql uncached' => ['pgsql', 'IC_POSTGRES_DSN', 'IC_POSTGRES_USER', 'IC_POSTGRES_PASSWORD', false],
+    'postgresql cached' => ['pgsql', 'IC_POSTGRES_DSN', 'IC_POSTGRES_USER', 'IC_POSTGRES_PASSWORD', true],
 ]);
 
 it('releases failed SQLite write contention for a later transaction while retaining the failure event', function (): void {
@@ -154,13 +166,15 @@ it('releases failed SQLite write contention for a later transaction while retain
 
             try {
                 $writer->statement("CREATE TABLE {$table} (id INTEGER PRIMARY KEY, payload TEXT NOT NULL)");
-                $contender->getPdo()->exec('PRAGMA busy_timeout = 30');
+                $contenderPdo = $contender->getPdo();
+                $contenderPdo->exec('PRAGMA busy_timeout = 30');
+                $insert = "INSERT INTO {$table} (id, payload) VALUES (?, ?)";
                 $writer->beginTransaction();
                 $writer->statement("INSERT INTO {$table} (id, payload) VALUES (?, ?)", [1, 'writer']);
 
                 $retainedFailure = null;
                 try {
-                    $contender->statement("INSERT INTO {$table} (id, payload) VALUES (?, ?)", [2, 'blocked']);
+                    $contender->statement($insert, [2, 'blocked']);
                 } catch (ConnectionException $failure) {
                     $retainedFailure = $failure;
                 }
@@ -168,16 +182,15 @@ it('releases failed SQLite write contention for a later transaction while retain
                 expect($retainedFailure)->toBeInstanceOf(ConnectionException::class)
                     ->and($captured)->toHaveCount(1)
                     ->and($captured[0]->exception)->toBe($retainedFailure)
-                    ->and($captured[0]->connection)->toBe($contender);
+                    ->and($captured[0]->connection)->toBe($contender)
+                    ->and($contender->getPdo())->toBe($contenderPdo);
 
                 $writer->rollbackTransaction();
 
-                expect($contender->statement(
-                    "INSERT INTO {$table} (id, payload) VALUES (?, ?)",
-                    [3, 'after-rollback'],
-                ))->toBeTrue()
+                expect($contender->statement($insert, [2, 'after-rollback']))->toBeTrue()
                     ->and((int) $contender->scalar("SELECT COUNT(*) FROM {$table}"))->toBe(1)
-                    ->and($contender->scalar("SELECT payload FROM {$table} WHERE id = ?", [3]))
+                    ->and($contender->scalar("SELECT payload FROM {$table} WHERE id = ?", [2]))
+                    ->and($contender->getPdo())->toBe($contenderPdo)
                     ->toBe('after-rollback')
                     ->and($captured)->toHaveCount(1);
             } finally {
