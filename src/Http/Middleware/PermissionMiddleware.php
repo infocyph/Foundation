@@ -11,6 +11,11 @@ use Infocyph\Foundation\Http\Response\AuthResponseFactory;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
+/**
+ * Public permission authorization middleware.
+ *
+ * @api
+ */
 final readonly class PermissionMiddleware
 {
     /**
