@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Infocyph\DBLayer\Connection\Connection;
+use Infocyph\DBLayer\Events\DatabaseEvents\QueryFailed;
+use Infocyph\DBLayer\Events\Events;
 use Infocyph\DBLayer\Exceptions\ConnectionException;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
@@ -58,6 +60,13 @@ it('rolls back failed statements while retaining the error and reuses native DBL
     $app->execution()->run(static function () use ($app, $table): void {
         $factory = $app->make(DBLayerFactory::class);
         $database = $factory->connection();
+        $failedEvents = [];
+        $listener = static function (QueryFailed $event) use ($table, &$failedEvents): void {
+            if (str_contains($event->sql, $table)) {
+                $failedEvents[] = $event;
+            }
+        };
+        Events::listen('db.query.failed', $listener);
 
         try {
             expect($database->statement(
@@ -77,6 +86,10 @@ it('rolls back failed statements while retaining the error and reuses native DBL
             }
 
             expect($retainedFailure)->toBeInstanceOf(ConnectionException::class)
+                ->and($failedEvents)->toHaveCount(1)
+                ->and($failedEvents[0]->exception)->toBe($retainedFailure)
+                ->and($failedEvents[0]->connection)->toBe($database)
+                ->and($failedEvents[0]->attempts)->toBeGreaterThanOrEqual(1)
                 ->and($database->transactionLevel())->toBe(1);
 
             $database->rollbackTransaction();
@@ -100,6 +113,7 @@ it('rolls back failed statements while retaining the error and reuses native DBL
                 ->and($database->transactionLevel())->toBe(0)
                 ->and($retainedFailure)->toBeInstanceOf(ConnectionException::class);
         } finally {
+            Events::forget('db.query.failed', $listener);
             while ($database->transactionLevel() > 0) {
                 $database->rollbackTransaction();
             }
@@ -111,3 +125,78 @@ it('rolls back failed statements while retaining the error and reuses native DBL
     'mysql' => ['mysql', 'IC_MYSQL_DSN', 'IC_MYSQL_USER', 'IC_MYSQL_PASSWORD'],
     'postgresql' => ['pgsql', 'IC_POSTGRES_DSN', 'IC_POSTGRES_USER', 'IC_POSTGRES_PASSWORD'],
 ]);
+
+it('releases failed SQLite write contention for a later transaction while retaining the failure event', function (): void {
+    $file = sys_get_temp_dir() . '/foundation-db-contention-' . bin2hex(random_bytes(8)) . '.sqlite';
+    $app = Foundation::worker([
+        'app' => ['env' => 'testing', 'capabilities' => ['database']],
+        'database' => [
+            'default' => 'sqlite',
+            'connections' => [
+                'sqlite' => ['driver' => 'sqlite', 'database' => $file],
+            ],
+        ],
+    ])->boot();
+    $table = 'foundation_lock_' . bin2hex(random_bytes(6));
+    $captured = [];
+
+    try {
+        $app->execution()->run(static function () use ($app, $table, &$captured): void {
+            $factory = $app->make(DBLayerFactory::class);
+            $writer = $factory->connection();
+            $contender = $factory->connection(fresh: true);
+            $listener = static function (QueryFailed $event) use ($table, &$captured): void {
+                if (str_contains($event->sql, $table)) {
+                    $captured[] = $event;
+                }
+            };
+            Events::listen('db.query.failed', $listener);
+
+            try {
+                $writer->statement("CREATE TABLE {$table} (id INTEGER PRIMARY KEY, payload TEXT NOT NULL)");
+                $contender->getPdo()->exec('PRAGMA busy_timeout = 30');
+                $writer->beginTransaction();
+                $writer->statement("INSERT INTO {$table} (id, payload) VALUES (?, ?)", [1, 'writer']);
+
+                $retainedFailure = null;
+                try {
+                    $contender->statement("INSERT INTO {$table} (id, payload) VALUES (?, ?)", [2, 'blocked']);
+                } catch (ConnectionException $failure) {
+                    $retainedFailure = $failure;
+                }
+
+                expect($retainedFailure)->toBeInstanceOf(ConnectionException::class)
+                    ->and($captured)->toHaveCount(1)
+                    ->and($captured[0]->exception)->toBe($retainedFailure)
+                    ->and($captured[0]->connection)->toBe($contender);
+
+                $writer->rollbackTransaction();
+
+                expect($contender->statement(
+                    "INSERT INTO {$table} (id, payload) VALUES (?, ?)",
+                    [3, 'after-rollback'],
+                ))->toBeTrue()
+                    ->and((int) $contender->scalar("SELECT COUNT(*) FROM {$table}"))->toBe(1)
+                    ->and($contender->scalar("SELECT payload FROM {$table} WHERE id = ?", [3]))
+                    ->toBe('after-rollback')
+                    ->and($captured)->toHaveCount(1);
+            } finally {
+                Events::forget('db.query.failed', $listener);
+                while ($writer->transactionLevel() > 0) {
+                    $writer->rollbackTransaction();
+                }
+                while ($contender->transactionLevel() > 0) {
+                    $contender->rollbackTransaction();
+                }
+                $writer->statement("DROP TABLE IF EXISTS {$table}");
+            }
+        });
+    } finally {
+        unset($app);
+        foreach ([$file, $file . '-shm', $file . '-wal'] as $candidate) {
+            if (is_file($candidate)) {
+                unlink($candidate);
+            }
+        }
+    }
+});
