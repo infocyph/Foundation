@@ -48,6 +48,9 @@ final readonly class MaintenanceManager
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
      * @throws \UnexpectedValueException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function enable(?int $retryAfter = null, ?string $message = null): array
     {
@@ -71,6 +74,9 @@ final readonly class MaintenanceManager
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
      * @throws \UnexpectedValueException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function status(): array
     {

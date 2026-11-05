@@ -142,6 +142,9 @@ final class CommandExecutionCoordinator
     /**
      * @param list<string> $argv
      * @throws \LogicException
+     * @throws \RuntimeException
+     * @throws \Throwable
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     private function isolated(
         CommandDescriptor $descriptor,
@@ -188,6 +191,10 @@ final class CommandExecutionCoordinator
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function lockProvider(): LockProviderInterface
     {
         if ($this->locks !== null) {

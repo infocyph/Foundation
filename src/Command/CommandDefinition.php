@@ -35,7 +35,10 @@ final class CommandDefinition
 
     private bool $scoped = false;
 
-    /** @param list<string> $capabilities */
+    /**
+     * @param list<string> $capabilities
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         string $name = '',
         string $description = '',
@@ -249,6 +252,9 @@ final class CommandDefinition
         return $this->hidden;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function name(string $name): self
     {
         $this->assertCommandName($name, 'name');
@@ -340,7 +346,10 @@ final class CommandDefinition
         return $this;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \LogicException
+     */
     public function toManifest(): array
     {
         $this->assertComplete();

@@ -15,6 +15,9 @@ final readonly class ExecutionHistory
 
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \RuntimeException
+     */
     public function clear(): bool
     {
         return $this->withLock(true, function (): bool {
@@ -38,6 +41,7 @@ final readonly class ExecutionHistory
     /**
      * @return list<array<string,mixed>>
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function find(string $executionId): array
     {
@@ -66,6 +70,7 @@ final readonly class ExecutionHistory
     /**
      * @return array<string,mixed>|null
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function latestByMetadata(string $kind, string $key, string $value): ?array
     {
@@ -104,6 +109,7 @@ final readonly class ExecutionHistory
     /**
      * @return list<array<string, mixed>>
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function recent(int $limit = 100, ?string $kind = null, ?string $name = null): array
     {
@@ -128,7 +134,10 @@ final readonly class ExecutionHistory
         });
     }
 
-    /** @param array<string, scalar|null> $metadata */
+    /**
+     * @param array<string, scalar|null> $metadata
+     * @throws \RuntimeException
+     */
     public function record(
         string $kind,
         string $executionId,
