@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Database\DBLayerFactory;
@@ -17,6 +18,10 @@ use Infocyph\Omnibus\Integration\DBLayer\DBLayerTransport;
 use Infocyph\Omnibus\MessageBus;
 use Infocyph\Omnibus\Serialization\EnvelopeSerializer;
 use Infocyph\Omnibus\Serialization\MessageCodec;
+use Infocyph\Runwire\Exception\CancelledException;
+use Infocyph\Runwire\RequestContext;
+use Infocyph\Runwire\Runtime\Enum\CancellationReason;
+use Infocyph\Runwire\RuntimeContext;
 
 final readonly class FoundationOmnibusDurableMessage
 {
@@ -111,6 +116,46 @@ it('composes current Omnibus DBLayer transport, failure store and schema only wh
             ->and($failures[0]->envelope?->message)->toEqual(
                 new FoundationOmnibusDurableMessage('fail'),
             );
+    } finally {
+        unset($app);
+        foundationOmnibusRemoveDatabase($database);
+    }
+});
+
+it('preserves a durable reservation for the next consumer after host cancellation', function (): void {
+    [$app, $database] = foundationOmnibusDurableApp();
+
+    try {
+        $app->make(MessagingDatabaseSchema::class)->install();
+        $transport = $app->make(DBLayerTransport::class);
+        $consumer = $app->make(ConsumerFactory::class)->make('database');
+
+        $app->make(MessageBus::class)->dispatch(new FoundationOmnibusDurableMessage('after-cancellation'));
+        expect($transport->size('work'))->toBe(1);
+
+        $runtime = RuntimeContext::standalone();
+        $request = RequestContext::create($runtime);
+        CacheRunwire::bind($runtime);
+        try {
+            CacheRunwire::share($request, null, static function () use ($consumer, $request): void {
+                $request->cancel(CancellationReason::HOST_CANCELLED);
+                expect(fn() => $consumer->run('work'))->toThrow(CancelledException::class);
+            }, $runtime);
+        } finally {
+            $request->complete();
+            CacheRunwire::release($runtime);
+        }
+
+        expect($transport->size('work'))->toBe(1)
+            ->and($app->make(DBLayerFailureStore::class)->all())->toBe([])
+            ->and(FoundationOmnibusDurableHandler::$handled)->toBe([]);
+
+        $result = $consumer->run('work');
+
+        expect($result->succeeded)->toBe(1)
+            ->and($transport->size('work'))->toBe(0)
+            ->and($app->make(DBLayerFailureStore::class)->all())->toBe([])
+            ->and(FoundationOmnibusDurableHandler::$handled)->toBe(['after-cancellation']);
     } finally {
         unset($app);
         foundationOmnibusRemoveDatabase($database);
