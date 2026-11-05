@@ -295,7 +295,6 @@ it('preserves HOTP counters across a cancelled borrowed request and forwards nat
         ->and($verifier->verify($challenge, $code)->verified)->toBeFalse();
 });
 
-
 it('keeps recovery-code issuance and consumption atomic across cancelled borrowed Runwire requests', function (): void {
     $accountId = 'acct-recovery-cancel-' . bin2hex(random_bytes(6));
     $factors = new InMemoryMfaFactorStore();
