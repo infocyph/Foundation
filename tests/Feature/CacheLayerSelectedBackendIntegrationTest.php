@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\CacheLayer\Cache\AtomicCacheProviderInterface;
+use Infocyph\CacheLayer\Exceptions\CacheBackendException;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\PathManager;
@@ -156,3 +157,62 @@ it('qualifies selected Redis, Valkey and Memcached stores against live service d
     'valkey' => ['valkey', 'IC_VALKEY_HOST', 'IC_VALKEY_PORT', 'IC_VALKEY_PASSWORD'],
     'memcached' => ['memcache', 'IC_MEMCACHED_HOST', 'IC_MEMCACHED_PORT', null],
 ]);
+
+it('rejects mismatched integrity keys and object payloads in configured native SQLite cache', function (): void {
+    $root = sys_get_temp_dir() . '/foundation-cache-integrity-' . bin2hex(random_bytes(8));
+    mkdir($root . '/storage/cache', 0700, true);
+
+    $make = static function (string $integrityKey) use ($root): \Infocyph\CacheLayer\Cache\CacheInterface {
+        $factory = new CacheLayerFactory(
+            new ConfigRepository([
+                'app' => ['base_path' => $root],
+                'cache' => [
+                    'security' => ['integrity_key' => $integrityKey],
+                    'serialization' => ['allow_object_payloads' => false],
+                    'stores' => [
+                        'secure' => [
+                            'driver' => 'sqlite',
+                            'file' => 'storage/cache/signed.sqlite',
+                            'namespace' => 'foundation-signed-fixture',
+                            'fail_open' => false,
+                        ],
+                    ],
+                ],
+            ]),
+            new PathManager($root, ['cache' => 'storage/cache']),
+            static fn(?string $name = null): never => throw new LogicException(sprintf(
+                'Signed SQLite cache must not resolve DBLayer connection "%s".',
+                $name ?? 'default',
+            )),
+        );
+
+        return $factory->make('secure');
+    };
+
+    try {
+        $producer = $make(str_repeat('a', 32));
+        $consumer = $make(str_repeat('a', 32));
+        $untrusted = $make(str_repeat('b', 32));
+
+        expect($producer->set('same-key', ['value' => 'trusted'], 60))->toBeTrue()
+            ->and($consumer->get('same-key'))->toBe(['value' => 'trusted'])
+            ->and($untrusted->get('same-key'))->toBeNull()
+            ->and($producer->set('new-signed-key', 'verified', 60))->toBeTrue()
+            ->and($consumer->get('new-signed-key'))->toBe('verified')
+            ->and(fn() => $producer->set('object-value', new stdClass(), 60))
+            ->toThrow(CacheBackendException::class)
+            ->and($consumer->get('object-value'))->toBeNull();
+    } finally {
+        unset($producer, $consumer, $untrusted);
+        $entries = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST,
+        );
+        foreach ($entries as $entry) {
+            $entry->isDir() && !$entry->isLink()
+                ? rmdir($entry->getPathname())
+                : unlink($entry->getPathname());
+        }
+        rmdir($root);
+    }
+});
