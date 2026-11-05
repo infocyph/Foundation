@@ -46,6 +46,13 @@ catalog, not evidence that every host is installed or certified on this machine.
 
 ## Trusted bootstrap for both paths
 
+Release selection is deployment-owned. Set `INFOCYPH_FOUNDATION_RELEASE_ROOT` and
+`INFOCYPH_FOUNDATION_RELEASE_MANIFEST_SHA256` in the **actual process environment**
+(e.g. supervisor, systemd, container or FPM pool), not only PHP `$_ENV` or
+`$_SERVER`. The bootstrap reads these values through `getenv()`; request-time
+superglobal overlays cannot choose a different generation. The manifest digest
+must match the compiled Foundation generation before it is accepted.
+
 Normal PHP/FPM uses the existing SAPI entrypoint, without starting Runwire:
 
 ```php
