@@ -46,6 +46,11 @@ use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\EventDispatcher\ListenerProviderInterface;
 
+/**
+ * Built-in application service provider, selected through Foundation composition.
+ *
+ * @api
+ */
 final class MessagingServiceProvider extends ServiceProvider
 {
     /**
