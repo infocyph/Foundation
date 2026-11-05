@@ -88,7 +88,7 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
 
     /**
      * Account-linked notifications resolve the recipient from authoritative account
-     * state; only verification uses its validated, purpose-specific new address.
+     * state, including the explicit destination of verification notifications.
      */
     private function passwordlessRecipient(AuthNotification $notification): ?string
     {
@@ -149,9 +149,19 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         }
 
         try {
-            return EmailAddress::fromMailbox($email)->email;
+            $recipient = EmailAddress::fromMailbox($email)->email;
         } catch (\InvalidArgumentException $exception) {
             throw new \RuntimeException('Email verification destination is invalid.', 0, $exception);
         }
+
+        $account = $notification->accountId === null
+            ? null
+            : $this->accounts->findById($notification->accountId);
+        $trusted = $account === null ? null : $this->storedAddress($account);
+        if ($trusted === null || strcasecmp($trusted, $recipient) !== 0) {
+            throw new \RuntimeException('Email verification requires an account-stored destination.');
+        }
+
+        return $recipient;
     }
 }

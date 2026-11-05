@@ -98,7 +98,12 @@ constructor receives both the account write store and a separately bound
 callers must pass the account provider after the account store. An arbitrary new
 address is not a supported verification purpose: a privileged email-change
 feature needs a separate authenticated update and pending-address contract,
-not a `context.email` override.
+not a `context.email` override. The TalkingBytes notifier independently checks
+the `EMAIL_VERIFICATION_REQUESTED` notification's explicit destination against
+the account's **current stored address** immediately before sending. Directly
+constructing a notification with a different address, or an unknown account,
+fails closed even if a caller bypasses the domain manager. This is verification
+of an existing address, **not** authorization for an email-address change.
 
 During token redemption, the manager also requires a destination-conditional
 `AccountStoreInterface::markVerifiedForEmail($accountId, $email, $verifiedAt)`

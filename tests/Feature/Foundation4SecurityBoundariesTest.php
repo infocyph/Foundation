@@ -75,13 +75,23 @@ it('delivers account password resets only to the authoritative stored address', 
         ['email' => 'attacker@example.test', 'token' => 'test'],
     )))->toThrow(RuntimeException::class, 'existing account recipient');
 
-    // Email verification carries an explicit destination chosen by its manager.
+    // The notifier independently enforces account ownership, even for a
+    // directly constructed verification notification bypassing its manager.
     $notifier->send(new AuthNotification(
         AuthNotificationType::EMAIL_VERIFICATION_REQUESTED,
         'victim',
-        ['email' => 'new-address@example.test', 'token' => 'verification-token'],
+        ['email' => 'victim@example.test', 'token' => 'verification-token'],
     ));
-    $mailer->assertable()->assertSentTo('new-address@example.test');
+    expect(fn() => $notifier->send(new AuthNotification(
+        AuthNotificationType::EMAIL_VERIFICATION_REQUESTED,
+        'victim',
+        ['email' => 'new-address@example.test', 'token' => 'forged-token'],
+    )))->toThrow(RuntimeException::class, 'account-stored destination');
+    expect(fn() => $notifier->send(new AuthNotification(
+        AuthNotificationType::EMAIL_VERIFICATION_REQUESTED,
+        'unknown-account',
+        ['email' => 'attacker@example.test', 'token' => 'forged-token'],
+    )))->toThrow(RuntimeException::class, 'account-stored destination');
 
     // Passwordless issuance is keyed to the requested identifier; ancillary
     // caller-supplied email fields may not redirect its bearer token.
