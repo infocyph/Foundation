@@ -15,6 +15,11 @@ use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\OTP\TOTP;
 
+/**
+ * Selectable application OTP provider contributed to the service graph.
+ *
+ * @api
+ */
 final class AuthOtpServiceProvider extends ServiceProvider
 {
     /**
