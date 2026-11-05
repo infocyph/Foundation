@@ -9,6 +9,11 @@ use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
 use Infocyph\Webrick\Request\Request;
 
+/**
+ * Public OAuth HTTP request input and validation contract.
+ *
+ * @api
+ */
 final readonly class OAuthHttpInput
 {
     private const string ASSERTION_TYPE = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer';
