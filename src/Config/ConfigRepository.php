@@ -11,7 +11,7 @@ final class ConfigRepository extends Config
 {
     private ?LayeredLazyFileConfig $lazyConfig = null;
 
-    /** @var array<string, true> */
+    /** @var array<array-key, true> */
     private array $lazyNamespaces = [];
 
     /**
@@ -55,21 +55,20 @@ final class ConfigRepository extends Config
         return $repository;
     }
 
-    /** @return array<array-key, mixed> */
+    /** @return array<string, mixed> */
     #[\Override]
     public function all(): array
     {
         $this->materializeLazyConfig();
 
-        return parent::all();
-    }
+        $items = [];
+        foreach (parent::all() as $key => $value) {
+            if (is_string($key)) {
+                $items[$key] = $value;
+            }
+        }
 
-    #[\Override]
-    public function changed(string $snapshot = 'default'): bool
-    {
-        $this->materializeLazyConfig();
-
-        return parent::changed($snapshot);
+        return $items;
     }
 
     public function cacheDirectory(): ?string
@@ -80,6 +79,14 @@ final class ConfigRepository extends Config
     public function clearLazyCache(): void
     {
         $this->lazyConfig?->clearNamespaceCache();
+    }
+
+    #[\Override]
+    public function changed(string $snapshot = 'default'): bool
+    {
+        $this->materializeLazyConfig();
+
+        return parent::changed($snapshot);
     }
 
     #[\Override]

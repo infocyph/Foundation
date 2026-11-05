@@ -83,7 +83,7 @@ PHP,
             ->and($repository->get('0.flags.0'))->toBe('original')
             ->and($repository->get(0))->toBe(['flags' => ['original', 'second']])
             ->and($repository->get()['app']['name'] ?? null)->toBe('source')
-            ->and($repository->all())->toHaveKey(0);
+            ->and($repository->all())->not->toHaveKey(0);
 
         expect($repository->snapshot('original'))->toBeTrue()
             ->and($repository->changed('original'))->toBeFalse()
