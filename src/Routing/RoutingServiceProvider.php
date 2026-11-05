@@ -18,6 +18,11 @@ use Infocyph\Webrick\Router\Route\Collection;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
+/**
+ * Built-in application service provider selected through Foundation composition.
+ *
+ * @api
+ */
 final class RoutingServiceProvider extends ServiceProvider
 {
     /** @throws \Infocyph\Foundation\Exception\ConfigurationException */
