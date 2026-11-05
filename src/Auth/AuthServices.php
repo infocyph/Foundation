@@ -34,6 +34,11 @@ use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Application-facing access to configured authentication service contracts.
+ *
+ * @api
+ */
 final readonly class AuthServices
 {
     public function __construct(
