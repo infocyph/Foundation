@@ -2,6 +2,12 @@
 
 Date: 2026-11-05 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Psalm-first Batch 35 corrective review — PHPStan dead-catch recovery (QA pending)
+
+- **Exact-head `e168c6d7` official [Security & Standards 42026508939](https://github.com/infocyph/Foundation/actions/runs/42026508939):** Psalm **1,065 errors per PHP version**, down **27** from Batch 34's 1,092; PHPStan **failed** a single `catch.neverThrown` diagnostic in `OAuthSigningKeyResolver::resolve()`. Four functional PHPForge stable/lowest lanes, production consumers, clean install and benchmarks passed, as did [native hosts 42026509002](https://github.com/infocyph/Foundation/actions/runs/42026509002). Batch 35 remains **unaccepted** until restored exact-head PHPStan and Psalm validation.
+- **Correction:** Preserve the existing readiness-exception mapping to `ConfigurationException`, audit failure recording and general `Throwable` rethrow; consolidate dead specialized catch into the existing broad catch with explicit runtime type dispatch. Current Epicrypt 3.3 `KeyRing` constructor does not advertise a `SigningKeyReadinessException`, so do not add an untruthful `@throws` annotation simply to silence PHPStan. Require exact-head official matrix before accepting Batch 35.
+- **Formal criteria:** unchanged **53/90 checked, 37 open**. Maintain `dev-main@dev` PHPForge, strict gates and no suppressions or release actions.
+
 ## Psalm-first Batch 35 — native contract follow-up (QA pending)
 
 - **Batch 34 official exact-head acceptance:** Source `03690813` / [Security & Standards 42024734571](https://github.com/infocyph/Foundation/actions/runs/42024734571) passed PHPStan, all four PHP 8.4/8.5 stable/lowest functional lanes, four production consumers, clean install and two benchmarks. Strict Psalm has **1,092 errors per PHP version**, down **81** from 1,173; [native-host 42024733966](https://github.com/infocyph/Foundation/actions/runs/42024733966) passed all four Swoole/OpenSwoole serving jobs. Accept the Batch 34 **81 net reduction**, not strict Psalm completion.

@@ -31,12 +31,12 @@ final readonly class OAuthSigningKeyResolver
     {
         try {
             $resolved = $this->resolveConfigured();
-        } catch (SigningKeyReadinessException $exception) {
-            $this->recordReadiness(['result' => 'failure'], AuthEventSeverity::CRITICAL);
-
-            throw new ConfigurationException('OAuth signing key material is not ready.', 0, $exception);
         } catch (\Throwable $exception) {
             $this->recordReadiness(['result' => 'failure'], AuthEventSeverity::CRITICAL);
+
+            if ($exception instanceof SigningKeyReadinessException) {
+                throw new ConfigurationException('OAuth signing key material is not ready.', 0, $exception);
+            }
 
             throw $exception;
         }
