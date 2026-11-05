@@ -65,7 +65,7 @@ final readonly class GrpcInboundWorker implements WorkerProvider
     {
         $value = hrtime(true);
 
-        return is_int($value) ? $value : (int) ((float) $value * 1_000_000_000.0);
+        return is_int($value) ? $value : (int) ($value * 1_000_000_000.0);
     }
 
     private function cancellationSignal(WorkerRuntime $runtime): CancellationSignal
