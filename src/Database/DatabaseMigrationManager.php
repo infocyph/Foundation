@@ -15,6 +15,11 @@ use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\RuntimeContainerInterface;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Application-facing DBLayer migration and seeding orchestration.
+ *
+ * @api
+ */
 final readonly class DatabaseMigrationManager
 {
     public function __construct(

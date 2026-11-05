@@ -8,6 +8,11 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ProviderFileLoader;
 use Infocyph\Foundation\Application\ServiceProviderInterface;
 
+/**
+ * Application-owned configuration cache publication and cleanup.
+ *
+ * @api
+ */
 final readonly class ConfigCacheManager
 {
     public function __construct(private Application $application) {}

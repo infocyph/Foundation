@@ -13,6 +13,11 @@ use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 
+/**
+ * Application-facing OAuth client registration and authentication.
+ *
+ * @api
+ */
 final readonly class OAuthClientManager
 {
     private const int MAX_AUDIENCES = 16;

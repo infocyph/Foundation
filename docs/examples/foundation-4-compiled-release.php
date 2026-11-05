@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 // Run from a Composer-installed, all-specialist production --no-dev consumer.
 // The caller deliberately owns this smoke's transient build directory.
-require getcwd() . '/vendor/autoload.php';
+$workingDirectory = getcwd();
+if ($workingDirectory === false) {
+    throw new RuntimeException('Unable to resolve the Composer consumer working directory.');
+}
+require $workingDirectory . '/vendor/autoload.php';
 
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;

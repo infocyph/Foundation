@@ -29,6 +29,7 @@ final class HttpTestClient
      * @param array<string,mixed> $query
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function delete(string $uri, array $query = []): TestResponse
     {
@@ -39,6 +40,7 @@ final class HttpTestClient
      * @param array<string,mixed> $query
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function get(string $uri, array $query = []): TestResponse
     {
@@ -49,6 +51,7 @@ final class HttpTestClient
      * @param array<string,mixed> $data
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function patch(string $uri, array $data = []): TestResponse
     {
@@ -59,6 +62,7 @@ final class HttpTestClient
      * @param array<string,mixed> $data
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function post(string $uri, array $data = []): TestResponse
     {
@@ -69,6 +73,7 @@ final class HttpTestClient
      * @param array<string,mixed> $data
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function put(string $uri, array $data = []): TestResponse
     {

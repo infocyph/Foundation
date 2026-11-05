@@ -14,7 +14,11 @@ use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
 use Infocyph\Foundation\Worker\WorkerTopology;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 
-/** Coordinates one immutable Foundation release generation across all runtimes. */
+/**
+ * Coordinates immutable Foundation release generations across all runtimes.
+ *
+ * @api
+ */
 final readonly class FoundationReleaseCompiler
 {
     public function __construct(
