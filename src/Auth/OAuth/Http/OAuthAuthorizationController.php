@@ -13,6 +13,11 @@ use Infocyph\Foundation\Session\SessionConfig;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
+/**
+ * Application-facing OAuth authorization endpoint controller.
+ *
+ * @api
+ */
 final readonly class OAuthAuthorizationController
 {
     public function __construct(
