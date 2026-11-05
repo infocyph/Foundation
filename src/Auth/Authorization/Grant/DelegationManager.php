@@ -13,6 +13,11 @@ use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
 use Infocyph\Foundation\Auth\Support\ContextValue;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
+/**
+ * Application-facing authorization delegation manager.
+ *
+ * @api
+ */
 final readonly class DelegationManager
 {
     public function __construct(
