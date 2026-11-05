@@ -14,6 +14,12 @@ final readonly class InterMixExecutionScope implements ExecutionScope
 {
     public function __construct(private FoundationExecutionScope $execution) {}
 
+    /**
+     * The caller owns exception handling for failed message execution.
+     *
+     * @throws \LogicException
+     * @throws \Throwable
+     */
     #[\Override]
     public function run(Envelope $envelope, callable $handler): mixed
     {
