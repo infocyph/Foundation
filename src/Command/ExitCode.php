@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Command;
 
+/**
+ * Public command process exit code constants.
+ *
+ * @api
+ */
 final class ExitCode
 {
     public const int CANNOT_EXECUTE = 126;
