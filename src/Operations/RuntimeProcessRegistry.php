@@ -8,6 +8,11 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\UID\Id;
 
+/**
+ * Application-facing runtime process registry and heartbeat lifecycle.
+ *
+ * @api
+ */
 final readonly class RuntimeProcessRegistry
 {
     public function __construct(private Application $application) {}

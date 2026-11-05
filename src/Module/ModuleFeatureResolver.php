@@ -37,6 +37,8 @@ namespace Infocyph\Foundation\Module;
  *     schema_version:2,selected:list<string>,root_known:bool,
  *     states:array<string,FeatureState>,blockers:list<string>
  * }
+  *
+ * @api
  */
 final readonly class ModuleFeatureResolver
 {

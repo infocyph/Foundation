@@ -11,6 +11,11 @@ use Infocyph\Foundation\Cache\FoundationCacheKey;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\UID\Id;
 
+/**
+ * Application-facing runtime control and signal contract.
+ *
+ * @api
+ */
 final readonly class RuntimeControl
 {
     public function __construct(private Application $application) {}

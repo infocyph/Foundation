@@ -12,6 +12,11 @@ use Infocyph\Pathwise\StreamHandler\UploadSource;
 use Infocyph\Webrick\Request\Core\UploadedFile;
 use Infocyph\Webrick\Request\Request;
 
+/**
+ * Application-facing upload request handling and chunk finalization.
+ *
+ * @api
+ */
 final readonly class FilesystemUploadRequestHandler
 {
     public function __construct(private FilesystemTransferFactory $transfers) {}

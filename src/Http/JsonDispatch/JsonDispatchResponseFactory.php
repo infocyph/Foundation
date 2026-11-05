@@ -11,6 +11,11 @@ use Infocyph\ReqShield\Support\ValidationResult;
 use Infocyph\Webrick\Response\Response;
 use JsonSerializable;
 
+/**
+ * Public JSON dispatch response assembly contract.
+ *
+ * @api
+ */
 final readonly class JsonDispatchResponseFactory
 {
     public const string SPECIFICATION_VERSION = '3.0.0';

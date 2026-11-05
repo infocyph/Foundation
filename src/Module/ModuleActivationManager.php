@@ -10,6 +10,8 @@ use Infocyph\Foundation\Config\ConfigCacheManager;
 
 /**
  * @phpstan-import-type Context from ModuleFeatureResolver
+  *
+ * @api
  */
 final readonly class ModuleActivationManager
 {

@@ -19,6 +19,11 @@ use Infocyph\Webrick\Router\Route\Collection;
 use Infocyph\Webrick\Router\Url\SignedUrlConfig;
 use Psr\Log\LoggerInterface;
 
+/**
+ * Public development-mode Webrick router composition.
+ *
+ * @api
+ */
 final class WebrickRouterFactory
 {
     private ?RouterKernel $kernel = null;

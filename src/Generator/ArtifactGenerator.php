@@ -15,6 +15,11 @@ use Infocyph\ReqShield\Contracts\Rule;
 use Infocyph\ReqShield\Validator;
 use Infocyph\TalkingBytes\Email\Emailer;
 
+/**
+ * Application-facing artifact generation service.
+ *
+ * @api
+ */
 final readonly class ArtifactGenerator
 {
     /** @var array<string, array{directory:string,namespace:string,suffix:string,stub:string,requires?:class-string,install?:string}> */

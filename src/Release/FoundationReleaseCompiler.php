@@ -57,30 +57,34 @@ final readonly class FoundationReleaseCompiler
         $generation ??= gmdate('YmdHis') . '-' . bin2hex(random_bytes(8));
         $this->assertGeneration($generation);
         $lock = FoundationReleaseBuildLock::acquire($releaseRoot);
-        $stage = null;
 
         try {
+            // Keep the release lock even if the generation directory cannot be prepared.
             [$stage, $final] = $this->generationPaths($releaseRoot, $generation);
-            $manifest = $this->compileGeneration($config, $stage, $final, $generation, $capabilities);
-            FoundationReleaseManifest::write($stage . '/foundation.php', $manifest);
-            $this->verifyStage($stage, $manifest);
-            $this->publishStage($stage, $final, $generation);
-            $stage = null;
-            $manifestPath = $final . '/foundation.php';
-            $manifestSha256 = $this->sha256($manifestPath, 'Foundation release manifest');
-            $activePointer = $this->active->activate($releaseRoot, $generation);
 
-            return [
-                'generation' => $generation,
-                'manifest' => $manifestPath,
-                'manifest_sha256' => $manifestSha256,
-                'active_pointer' => $activePointer,
-                'release' => $manifest,
-            ];
-        } finally {
-            if ($stage !== null && is_dir($stage)) {
-                $this->removeDirectory($stage);
+            try {
+                $manifest = $this->compileGeneration($config, $stage, $final, $generation, $capabilities);
+                FoundationReleaseManifest::write($stage . '/foundation.php', $manifest);
+                $this->verifyStage($stage, $manifest);
+                $this->publishStage($stage, $final, $generation);
+                $manifestPath = $final . '/foundation.php';
+                $manifestSha256 = $this->sha256($manifestPath, 'Foundation release manifest');
+                $activePointer = $this->active->activate($releaseRoot, $generation);
+
+                return [
+                    'generation' => $generation,
+                    'manifest' => $manifestPath,
+                    'manifest_sha256' => $manifestSha256,
+                    'active_pointer' => $activePointer,
+                    'release' => $manifest,
+                ];
+            } finally {
+                // Publication moves the stage out of this path; failures leave it here.
+                if (is_dir($stage)) {
+                    $this->removeDirectory($stage);
+                }
             }
+        } finally {
             $lock->release();
         }
     }

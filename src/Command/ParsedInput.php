@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Command;
 
+/**
+ * Public parsed command-line input contract.
+ *
+ * @api
+ */
 final readonly class ParsedInput
 {
     /** @var array<string, array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}> */
