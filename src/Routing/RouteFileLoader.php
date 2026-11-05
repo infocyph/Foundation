@@ -59,7 +59,6 @@ final readonly class RouteFileLoader
                 continue;
             }
 
-            /** @var class-string $class */
             $resolved[] = $class;
         }
 
