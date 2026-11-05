@@ -8,6 +8,11 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Runtime\ExecutionId;
 
+/**
+ * Public scheduler-scoped runtime execution service.
+ *
+ * @api
+ */
 final readonly class SchedulerRuntime
 {
     /**
