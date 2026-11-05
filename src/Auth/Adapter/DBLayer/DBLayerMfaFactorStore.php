@@ -101,8 +101,8 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
         $this->upsertRecord('mfaFactors', 'id', $this->record($factor));
     }
 
-    /** @param array<string, mixed> $row */
     /**
+     * @param array<string, mixed> $row
      * @throws \InvalidArgumentException
      */
     private function mapFactor(array $row): MfaFactor

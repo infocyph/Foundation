@@ -2,6 +2,11 @@
 
 Date: 2026-11-05 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Psalm-first Batch 31 — verified 101 direct findings; PHPStan repair submitted
+
+- **Batch 31 source `0568a058` official analyzer evidence:** [Security & Standards 42019416403](https://github.com/infocyph/Foundation/actions/runs/42019416403) confirms **1,275 strict Psalm errors on each of PHP 8.4 and PHP 8.5**, reduced **101** from the previous verified 1,376. Correctly documented actual DBLayer authentication-storage exception contracts across six stores; restored PHPStan-valid `TerminalIO::widths()` list construction. **Not green yet:** PHPStan found one missing iterable-value annotation at `DBLayerMfaFactorStore::mapFactor` caused by a new `@throws` docblock unintentionally separating its existing `@param` annotation. This follow-up merges the two docblocks without changing behavior; verify PHPStan/Psalm and official functional QA on the follow-up exact head before acceptance.
+- **Batch sizing:** target at least **50 net verified strict Psalm findings per batch**, not 50 edits. A strict Psalm finding reduction never substitutes for green PHPStan, Rector, all functional lanes, consumer installations, and native host checks. Continue Psalm only; P0–P6 formal acceptance remains **53/90**, 37 open.
+
 ## Psalm-first stabilization — 2026-11-05
 
 - **Priority:** pause remaining feature/release batches until official strict Psalm on PHP 8.4 and 8.5 is green. Maintain official PHPForge `dev-main@dev` and all unchanged analysis/security/functional quality gates. No suppressions, baseline additions, weakened rules or custom Psalm workers.
