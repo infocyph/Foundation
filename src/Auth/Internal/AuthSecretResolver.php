@@ -56,7 +56,7 @@ final readonly class AuthSecretResolver
         }
 
         $requiredBytes = max($minimumBytes, $this->config->isProduction() ? 32 : 0);
-        if ($requiredBytes > 0 && strlen($resolved) < $requiredBytes) {
+        if (strlen($resolved) < $requiredBytes) {
             throw new ConfigurationException(sprintf(
                 'Authentication token secret must be at least %d bytes for the selected token policy.',
                 $requiredBytes,
