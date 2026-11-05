@@ -37,6 +37,7 @@ final class ArrayKitConfigCache
     /**
      * @param array<string,mixed> $config
      * @return list<string>
+     * @throws \RuntimeException
      */
     public function writeSharded(array $config, string $directory): array
     {
@@ -166,6 +167,7 @@ final class ArrayKitConfigCache
         }
     }
 
+    /** @throws \RuntimeException */
     private function assertNativeGenerationsSafe(string $directory): void
     {
         $root = rtrim($directory, DIRECTORY_SEPARATOR);

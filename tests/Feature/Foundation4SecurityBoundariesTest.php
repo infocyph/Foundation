@@ -205,8 +205,13 @@ it('binds every security notification purpose to a trusted recipient despite nes
             : 'notification-owner';
         $notifier->send(new AuthNotification($type, $accountId, $payload));
         $mailer->assertable()->assertSentCount(++$issued);
-        $metadata = $mailer->assertable()->lastMessage()?->metadata();
-        expect($metadata['auth_notification_type'] ?? null)->toBe($type->value)
+        $message = $mailer->assertable()->lastMessage();
+        $metadata = $message?->metadata();
+        expect($message?->envelope()->to)->toHaveCount(1)
+            ->and($message?->envelope()->to[0]->email)->toBe('recipient@example.test')
+            ->and($message?->envelope()->cc)->toBeEmpty()
+            ->and($message?->envelope()->bcc)->toBeEmpty()
+            ->and($metadata['auth_notification_type'] ?? null)->toBe($type->value)
             ->and($metadata['account_id'] ?? null)->toBe($accountId);
     }
 

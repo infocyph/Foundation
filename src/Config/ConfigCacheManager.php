@@ -12,6 +12,7 @@ final readonly class ConfigCacheManager
 {
     public function __construct(private Application $application) {}
 
+    /** @throws \RuntimeException */
     public function clear(string $path = 'bootstrap/cache/config'): bool
     {
         $directory = $this->path($path);
@@ -33,6 +34,12 @@ final readonly class ConfigCacheManager
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function write(string $path = 'bootstrap/cache/config', ?string $type = null): string
     {
         $directory = $this->path($path);

@@ -17,6 +17,7 @@ final readonly class ConfiguredCapabilities
     /** @var array<string,bool>|null */
     private ?array $featureSelections;
 
+    /** @throws \UnexpectedValueException */
     public function __construct(private ConfigRepository $config)
     {
         $this->featureSelections = ModuleFeatureCapabilityPolicy::fromConfig($config);
