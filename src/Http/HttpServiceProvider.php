@@ -22,6 +22,11 @@ use Infocyph\Webrick\Router\Kernel\ErrorHandler;
 use Infocyph\Webrick\Router\Kernel\RouterKernel;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Built-in application service provider selected through Foundation composition.
+ *
+ * @api
+ */
 final class HttpServiceProvider extends ServiceProvider
 {
     #[\Override]
