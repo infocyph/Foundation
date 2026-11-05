@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Command;
 
+/**
+ * Application-facing base class for custom commands.
+ *
+ * @api
+ */
 abstract class Command implements CommandHandlerInterface
 {
     private ?CommandContext $context = null;
