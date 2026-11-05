@@ -2,11 +2,23 @@
 
 declare(strict_types=1);
 
+use Infocyph\CacheLayer\Cache\Cache;
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpChallengeFactorService;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpMfaVerifier;
+use Infocyph\Foundation\Auth\Mfa\MfaChallenge;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
+use Infocyph\Foundation\Auth\Mfa\MfaFactorType;
+use Infocyph\Foundation\Auth\Support\InMemoryMfaFactorStore;
 use Infocyph\Foundation\Auth\Otp\OtpManager;
 use Infocyph\Foundation\Foundation;
 use Infocyph\OTP\AOTP;
 use Infocyph\OTP\GridOTP;
+use Infocyph\OTP\HOTP;
+use Infocyph\Runwire\Exception\CancelledException;
+use Infocyph\Runwire\RequestContext;
+use Infocyph\Runwire\Runtime\Enum\CancellationReason;
+use Infocyph\Runwire\RuntimeContext;
 use Infocyph\OTP\MobileOTP;
 use Infocyph\OTP\ValueObjects\AotpChallenge;
 use Infocyph\OTP\ValueObjects\GridChallenge;
@@ -221,4 +233,61 @@ it('preserves GridOTP state after cancellation of a borrowed Runwire operation',
             $response,
         )->successful())->toBeTrue();
     });
+});
+
+it('preserves HOTP counters across a cancelled borrowed request and forwards native verification state', function (): void {
+    $secret = HOTP::generateSecret();
+    $factor = new MfaFactor(
+        id: 'factor-hotp-' . bin2hex(random_bytes(6)),
+        accountId: 'account-hotp',
+        type: MfaFactorType::HOTP->value,
+        label: 'HOTP',
+        enabled: true,
+        createdAt: time(),
+        metadata: ['otp' => [
+            'secret' => $secret,
+            'digits' => 6,
+            'counter' => 0,
+            'look_ahead' => 0,
+            'algorithm' => 'sha1',
+        ]],
+    );
+    $factors = new InMemoryMfaFactorStore();
+    $factors->save($factor);
+    $verifier = new OtpMfaVerifier(
+        $factors,
+        new OtpChallengeFactorService(Cache::memory('foundation-hotp-' . bin2hex(random_bytes(8)))),
+    );
+    $challenge = new MfaChallenge(
+        id: 'challenge-hotp',
+        accountId: $factor->accountId,
+        factorId: $factor->id,
+        purpose: 'login',
+        issuedAt: time(),
+        expiresAt: time() + 90,
+    );
+    $code = new HOTP($secret, 6, 'sha1')->generate(0);
+    $runtime = RuntimeContext::standalone();
+    $request = RequestContext::create($runtime);
+    CacheRunwire::bind($runtime);
+
+    try {
+        CacheRunwire::share(
+            $request,
+            null,
+            static function () use ($verifier, $challenge, $code, $request): void {
+                $request->cancel(CancellationReason::HOST_CANCELLED);
+                expect(fn() => $verifier->verify($challenge, $code))->toThrow(CancelledException::class);
+            },
+            $runtime,
+        );
+    } finally {
+        $request->complete();
+        CacheRunwire::release($runtime);
+    }
+
+    expect($factors->findForAccount($factor->accountId)[0]->metadata['otp']['counter'])->toBe(0)
+        ->and($verifier->verify($challenge, $code)->verified)->toBeTrue()
+        ->and($factors->findForAccount($factor->accountId)[0]->metadata['otp']['counter'])->toBe(1)
+        ->and($verifier->verify($challenge, $code)->verified)->toBeFalse();
 });

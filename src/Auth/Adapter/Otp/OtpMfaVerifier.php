@@ -209,6 +209,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         return trim($value);
     }
 
+    /** @throws \InvalidArgumentException */
     private function verifyHotp(MfaFactor $factor, string $code): MfaVerificationResult
     {
         $config = $this->otpConfig($factor);
@@ -224,6 +225,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
             $code,
             $config['counter'],
             $config['look_ahead'],
+            runwire: CacheRunwire::current(),
         );
 
         if (!$result->matched) {
@@ -246,6 +248,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         ]);
     }
 
+    /** @throws \InvalidArgumentException */
     private function verifyOcra(MfaChallenge $challenge, MfaFactor $factor, string $code): MfaVerificationResult
     {
         $config = $this->otpConfig($factor);
@@ -299,6 +302,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         ]);
     }
 
+    /** @throws \InvalidArgumentException */
     private function verifyTotp(MfaFactor $factor, string $code): MfaVerificationResult
     {
         $config = $this->otpConfig($factor);

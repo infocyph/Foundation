@@ -58,12 +58,6 @@ final class DBLayerFactory
         }
     }
 
-    /**
-     * @throws \Infocyph\Foundation\Exception\ConfigurationException
-     * @throws \LogicException
-     * @throws \Psr\Container\ContainerExceptionInterface
-     * @throws \Psr\Container\NotFoundExceptionInterface
-     */
     public function connection(?string $name = null, bool $fresh = false): Connection
     {
         $name = $this->resolver->connectionName($name);
@@ -86,8 +80,6 @@ final class DBLayerFactory
      * that retains its PDO independently of an execution scope.
      *
      * Application repositories and request/job work must use connection().
-     *
-     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function infrastructureConnection(?string $name = null): Connection
     {
