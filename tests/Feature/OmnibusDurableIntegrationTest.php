@@ -10,6 +10,7 @@ use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Messaging\ConsumerFactory;
 use Infocyph\Foundation\Messaging\MessagingDatabaseSchema;
+use Infocyph\Foundation\Messaging\OmnibusWorkerFactory;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Integration\DBLayer\AfterCommitDispatcher;
@@ -230,6 +231,67 @@ it('recovers an in-flight host-cancelled durable message after its original visi
     }
 });
 
+it('keeps a configured durable worker on its selected transport and recovers after terminal host cancellation', function (
+    CancellationReason $reason,
+): void {
+    [$app, $database] = foundationOmnibusDurableApp(workers: [
+        'durable' => [
+            'transport' => 'database',
+            'queue' => 'work',
+            'prefetch' => 1,
+            'max_messages' => 1,
+            'handle_signals' => false,
+            'pool' => ['enabled' => false],
+        ],
+    ]);
+
+    try {
+        $app->make(MessagingDatabaseSchema::class)->install();
+        $factory = $app->make(OmnibusWorkerFactory::class);
+        $worker = $factory->make('durable');
+        $transport = $app->make(DBLayerTransport::class);
+
+        expect($factory->transport('durable'))->toBe('database')
+            ->and($factory->pool('durable')['enabled'])->toBeFalse()
+            ->and($worker->runwireBinding()->request())->toBeNull();
+
+        $app->make(MessageBus::class)->dispatch(new FoundationOmnibusDurableMessage('worker-delivery'));
+        $runtime = RuntimeContext::standalone();
+        $request = RequestContext::create($runtime);
+        CacheRunwire::bind($runtime);
+
+        try {
+            CacheRunwire::share($request, null, static function () use ($worker, $request, $reason): void {
+                expect($worker->runwireBinding()->request())->toBe($request);
+                $request->cancel($reason);
+                expect(fn() => $worker->run())->toThrow(CancelledException::class);
+            }, $runtime);
+        } finally {
+            $request->complete();
+            CacheRunwire::release($runtime);
+        }
+
+        expect($worker->runwireBinding()->request())->toBeNull()
+            ->and($transport->size('work'))->toBe(1)
+            ->and(FoundationOmnibusDurableHandler::$handled)->toBe([])
+            ->and($app->make(DBLayerFailureStore::class)->all())->toBe([]);
+
+        // Reuse the same native Worker after the host-owned request has ended.
+        $worker->run();
+
+        expect(FoundationOmnibusDurableHandler::$handled)->toBe(['worker-delivery'])
+            ->and($transport->size('work'))->toBe(0)
+            ->and($app->make(DBLayerFailureStore::class)->all())->toBe([])
+            ->and($worker->runwireBinding()->request())->toBeNull();
+    } finally {
+        unset($app);
+        foundationOmnibusRemoveDatabase($database);
+    }
+})->with([
+    'host cancelled' => [CancellationReason::HOST_CANCELLED],
+    'deadline exceeded' => [CancellationReason::DEADLINE_EXCEEDED],
+]);
+
 it('retries a transient durable delivery once without losing or duplicating the message', function (): void {
     [$app, $database] = foundationOmnibusDurableApp(retryMaximumAttempts: 2);
 
@@ -431,7 +493,7 @@ it('keeps the DBLayer durable graph cold when durable messaging is disabled', fu
 });
 
 /** @return array{0:\Infocyph\Foundation\Application\Application,1:string} */
-function foundationOmnibusDurableApp(?array $selectedFeatures = null, int $retryMaximumAttempts = 1): array
+function foundationOmnibusDurableApp(?array $selectedFeatures = null, int $retryMaximumAttempts = 1, ?array $workers = null): array
 {
     $database = foundationOmnibusDatabasePath();
     $config = [
@@ -466,7 +528,7 @@ function foundationOmnibusDurableApp(?array $selectedFeatures = null, int $retry
                 'maximum_delay_seconds' => 0.0,
                 'jitter_ratio' => 0.0,
             ],
-            'workers' => [],
+            'workers' => $workers ?? [],
         ],
     ];
     if ($selectedFeatures !== null) {
