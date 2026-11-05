@@ -12,6 +12,9 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
 {
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function assignPermissionToAccount(string $accountId, string $permissionId): void
@@ -31,6 +34,9 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
 
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function assignPermissionToRole(string $roleId, string $permissionId): void
@@ -82,6 +88,9 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
 
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function revokePermissionFromAccount(string $accountId, string $permissionId): void
@@ -94,6 +103,9 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
 
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function revokePermissionFromRole(string $roleId, string $permissionId): void

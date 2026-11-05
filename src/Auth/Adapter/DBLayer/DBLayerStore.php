@@ -35,6 +35,9 @@ abstract readonly class DBLayerStore
      * @param callable(array<string, mixed>): TResult $mapper
      * @param list<mixed> $bindings
      * @return list<TResult>
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     protected function allMapped(string $sql, callable $mapper, array $bindings = []): array
     {
@@ -58,6 +61,10 @@ abstract readonly class DBLayerStore
 
     /**
      * @param list<mixed> $bindings
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     protected function deleteWhere(string $table, string $where, array $bindings = []): void
     {
@@ -109,6 +116,10 @@ abstract readonly class DBLayerStore
 
     /**
      * @param array<string, mixed> $record
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     protected function insertRecord(string $table, array $record): void
     {
@@ -177,6 +188,10 @@ abstract readonly class DBLayerStore
     /**
      * @param array<string, mixed> $values
      * @param list<mixed> $bindings
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     protected function updateWhere(string $table, array $values, string $where, array $bindings = []): void
     {
@@ -186,6 +201,10 @@ abstract readonly class DBLayerStore
     /**
      * @param array<string, mixed> $record
      * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     protected function upsertRecord(string $table, string $keyColumn, array $record): void
     {
