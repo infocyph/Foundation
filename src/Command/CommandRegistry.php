@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Command;
 
+/**
+ * Application-facing CLI command registration and resolution.
+ *
+ * @api
+ */
 final class CommandRegistry
 {
     /** @var array<string, CommandDescriptor> */
