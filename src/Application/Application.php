@@ -19,6 +19,11 @@ use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Published Foundation application lifecycle and container entrypoint.
+ *
+ * @api
+ */
 final class Application
 {
     private bool $booted = false;
