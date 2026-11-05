@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\Otp;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Auth\Mfa\RecoveryCodeServiceInterface;
 use Infocyph\Foundation\Auth\Mfa\RecoveryCodeVerificationResult;
 use Infocyph\OTP\RecoveryCodes;
+use Infocyph\OTP\Support\RunwireState;
 
 final readonly class OtpRecoveryCodeService implements RecoveryCodeServiceInterface
 {
@@ -19,6 +21,8 @@ final readonly class OtpRecoveryCodeService implements RecoveryCodeServiceInterf
     #[\Override]
     public function generate(string $accountId, int $count = 0): array
     {
+        RunwireState::checkpoint(CacheRunwire::current());
+
         $result = $this->recoveryCodes->generate(
             $this->binding($accountId),
             $count > 0 ? $count : $this->defaultCount,
@@ -31,6 +35,8 @@ final readonly class OtpRecoveryCodeService implements RecoveryCodeServiceInterf
     #[\Override]
     public function verify(string $accountId, string $code): RecoveryCodeVerificationResult
     {
+        RunwireState::checkpoint(CacheRunwire::current());
+
         $result = $this->recoveryCodes->consume($this->binding($accountId), $code);
 
         return new RecoveryCodeVerificationResult(
