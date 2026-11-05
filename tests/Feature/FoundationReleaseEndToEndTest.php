@@ -783,6 +783,57 @@ function foundationPhase8ReleaseRemove(string $directory): void
     rmdir($directory);
 }
 
+it('uses only process environment to select a trusted release generation', function (): void {
+    $rootName = FoundationReleaseBootstrap::RELEASE_ROOT_ENV;
+    $digestName = FoundationReleaseBootstrap::MANIFEST_SHA256_ENV;
+    $previous = [];
+
+    foreach ([$rootName, $digestName] as $name) {
+        $previous[$name] = [
+            'process' => getenv($name),
+            'envExists' => array_key_exists($name, $_ENV),
+            'env' => $_ENV[$name] ?? null,
+            'serverExists' => array_key_exists($name, $_SERVER),
+            'server' => $_SERVER[$name] ?? null,
+        ];
+    }
+
+    try {
+        putenv($rootName);
+        putenv($digestName);
+        $_ENV[$rootName] = '/request-controlled/one';
+        $_SERVER[$rootName] = '/request-controlled/two';
+        $_ENV[$digestName] = str_repeat('a', 64);
+        $_SERVER[$digestName] = str_repeat('b', 64);
+
+        expect(FoundationReleaseBootstrap::fromEnvironment())->toBeNull();
+
+        $trustedRoot = sys_get_temp_dir() . '/foundation-process-root-' . bin2hex(random_bytes(6));
+        $trustedDigest = str_repeat('c', 64);
+        putenv($rootName . '=' . $trustedRoot);
+        putenv($digestName . '=' . $trustedDigest);
+
+        $bootstrap = FoundationReleaseBootstrap::fromEnvironment();
+        expect($bootstrap)->toBeInstanceOf(FoundationReleaseBootstrap::class)
+            ->and($bootstrap->releaseRoot)->toBe($trustedRoot)
+            ->and($bootstrap->trustedFoundationManifestSha256)->toBe($trustedDigest);
+    } finally {
+        foreach ($previous as $name => $state) {
+            putenv($state['process'] === false ? $name : $name . '=' . $state['process']);
+            if ($state['envExists']) {
+                $_ENV[$name] = $state['env'];
+            } else {
+                unset($_ENV[$name]);
+            }
+            if ($state['serverExists']) {
+                $_SERVER[$name] = $state['server'];
+            } else {
+                unset($_SERVER[$name]);
+            }
+        }
+    }
+});
+
 function foundationPhase8ReleaseSetEnvironment(string $name, ?string $value): void
 {
     if ($value === null) {
