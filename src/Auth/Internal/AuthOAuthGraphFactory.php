@@ -35,7 +35,7 @@ final class AuthOAuthGraphFactory
         $parts = parse_url($issuer);
         if (!is_array($parts)
             || !isset($parts['scheme'], $parts['host'])
-            || strtolower((string) $parts['scheme']) !== 'https'
+            || strtolower($parts['scheme']) !== 'https'
         ) {
             throw new ConfigurationException('OAuth issuer must be an absolute HTTPS URI.');
         }
