@@ -164,6 +164,75 @@ it('does not treat a display-name mailbox username as the trusted account recipi
         ->toThrow(RuntimeException::class);
 });
 
+it('binds every security notification purpose to a trusted recipient despite nested overrides', function (): void {
+    $accounts = new InMemoryAccountStore();
+    $accounts->save(new Account('notification-owner', 'recipient@example.test'));
+    $accounts->save(new Account('missing-email', 'username-only', metadata: [
+        'email' => 'not-a-valid-address',
+    ]));
+    $mailer = Emailer::fake();
+    $notifier = new TalkingBytesAuthNotifier(
+        $mailer,
+        new AuthNotificationMapper(new NotificationTemplateRegistry(new ConfigRepository())),
+        $accounts,
+        from: 'sender@example.test',
+    );
+
+    $issued = 0;
+    foreach (AuthNotificationType::cases() as $type) {
+        $payload = [
+            'email' => 'attacker@example.test',
+            'identifier' => 'attacker@example.test',
+            'recipient_email' => 'attacker@example.test',
+            'account_email' => 'attacker@example.test',
+            'token' => 'purpose-' . $type->value,
+            'challenge_id' => 'challenge-' . $type->value,
+            'context' => [
+                'email' => 'attacker@example.test',
+                'account_email' => 'attacker@example.test',
+                'recipient_email' => 'attacker@example.test',
+            ],
+        ];
+        if ($type === AuthNotificationType::EMAIL_VERIFICATION_REQUESTED) {
+            $payload['email'] = 'recipient@example.test';
+        }
+        if ($type === AuthNotificationType::PASSWORDLESS_LOGIN_REQUESTED) {
+            $payload['identifier'] = 'recipient@example.test';
+        }
+
+        $accountId = $type === AuthNotificationType::PASSWORDLESS_LOGIN_REQUESTED
+            ? null
+            : 'notification-owner';
+        $notifier->send(new AuthNotification($type, $accountId, $payload));
+        $mailer->assertable()->assertSentCount(++$issued);
+        $metadata = $mailer->assertable()->lastMessage()?->metadata();
+        expect($metadata['auth_notification_type'] ?? null)->toBe($type->value)
+            ->and($metadata['account_id'] ?? null)->toBe($accountId);
+    }
+
+    expect($issued)->toBeCount(13);
+    $mailer->assertable()->assertSentTo('recipient@example.test');
+    expect(fn() => $mailer->assertable()->assertSentTo('attacker@example.test'))
+        ->toThrow(RuntimeException::class);
+
+    expect(fn() => $notifier->send(new AuthNotification(
+        AuthNotificationType::PASSWORD_RESET_REQUESTED,
+        'missing-email',
+        ['token' => 'blocked'],
+    )))->toThrow(RuntimeException::class, 'valid trusted email recipient');
+    $notifier->send(new AuthNotification(
+        AuthNotificationType::LOGIN_ALERT,
+        'missing-email',
+        ['email' => 'attacker@example.test'],
+    ));
+    $notifier->send(new AuthNotification(
+        AuthNotificationType::PASSWORDLESS_LOGIN_REQUESTED,
+        null,
+        ['identifier' => 'unknown@example.test', 'email' => 'attacker@example.test'],
+    ));
+    $mailer->assertable()->assertSentCount($issued);
+});
+
 it('redacts nested credentials at the shared authentication audit recorder boundary', function (): void {
     $audit = new InMemoryAuditEventStore();
     AuthEventRecorder::record(
