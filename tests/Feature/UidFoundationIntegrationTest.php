@@ -110,3 +110,52 @@ it('preserves unique UID 6 generation across interleaved Fibers and borrowed Run
         $request->complete();
     }
 });
+
+it('keeps native UID generation isolated across sequential executions on a reused Foundation worker', function (): void {
+    $app = Foundation::worker([
+        'app' => [
+            'env' => 'testing',
+            'capabilities' => ['runwire' => true],
+        ],
+    ])->boot();
+    $runtime = RuntimeContext::standalone();
+    $ids = new UidAuthIdGenerator(new ConfigRepository());
+    $accounts = [];
+    $correlations = [];
+    $executions = [];
+
+    for ($cycle = 0; $cycle < 16; ++$cycle) {
+        $request = RequestContext::create($runtime);
+        try {
+            [$account, $correlation, $execution] = $app->execution()->run(
+                static fn(): array => [
+                    $ids->accountId(),
+                    $ids->correlationId(),
+                    (string) ExecutionId::generate(),
+                ],
+                seeds: [
+                    RuntimeContext::class => $runtime,
+                    RequestContext::class => $request,
+                ],
+            );
+
+            $accounts[] = $account;
+            $correlations[] = $correlation;
+            $executions[] = $execution;
+        } finally {
+            $request->complete();
+        }
+    }
+
+    expect($accounts)->toHaveCount(16)
+        ->and(array_unique($accounts))->toHaveCount(16)
+        ->and(array_unique($correlations))->toHaveCount(16)
+        ->and(array_unique($executions))->toHaveCount(16);
+
+    foreach ($accounts as $account) {
+        expect($account)->toMatch('/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/');
+    }
+    foreach ([...$correlations, ...$executions] as $value) {
+        expect($value)->toMatch('/^[0-9A-HJKMNP-TV-Z]{26}$/');
+    }
+});

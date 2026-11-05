@@ -323,6 +323,7 @@ final class ConfigLoader
 
     /**
      * @return array{_format:int,_schema:string,_source:string,_type:string,_namespaces:list<string>,_complete:bool}
+     * @throws \RuntimeException
      */
     private function shardedCachePayload(
         ConfigRepository $config,
