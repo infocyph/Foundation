@@ -81,6 +81,8 @@ final readonly class ScheduleManager
      * @throws \InvalidArgumentException
      * @throws \LogicException
      * @throws \UnexpectedValueException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Throwable
      */
     public function runNamed(
         string $name,

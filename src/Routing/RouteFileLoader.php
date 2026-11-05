@@ -24,6 +24,10 @@ final readonly class RouteFileLoader
         private array $files = ['web.php', 'api.php', 'auth.php'],
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
     public function load(Registrar $router): void
     {
         $this->presets->register();
@@ -38,6 +42,8 @@ final readonly class RouteFileLoader
      * can preserve alias-parameter override semantics. Once discovery is
      * complete, the immutable route collection tells us the exact alias set
      * needed by HandlerCompiler and the generated artifact.
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
      */
     public function loadForRelease(Registrar $router): void
     {

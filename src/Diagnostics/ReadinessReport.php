@@ -24,6 +24,7 @@ final readonly class ReadinessReport
     /**
      * @return array{schema_version:int,ready:bool,checks:array<string,array{ready:bool,detail:string}>}
      * @throws \UnexpectedValueException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     public function generate(): array
     {
@@ -63,7 +64,10 @@ final readonly class ReadinessReport
         }
     }
 
-    /** @param array<string,array{ready:bool,detail:string}> $checks */
+    /**
+     * @param array<string,array{ready:bool,detail:string}> $checks
+     * @throws \UnexpectedValueException
+     */
     private function appendLegacyModuleChecks(array &$checks): void
     {
         if ($this->application->config()->has('modules.features')) {

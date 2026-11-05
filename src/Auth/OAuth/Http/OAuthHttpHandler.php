@@ -101,6 +101,9 @@ final readonly class OAuthHttpHandler
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function introspection(Request $request): Response
     {
         try {
@@ -140,12 +143,16 @@ final readonly class OAuthHttpHandler
 
     /**
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function openIdMetadata(): Response
     {
         return $this->responses->metadata($this->oauth->openIdMetadata());
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function revocation(Request $request): Response
     {
         try {
@@ -163,6 +170,9 @@ final readonly class OAuthHttpHandler
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function token(Request $request): Response
     {
         try {

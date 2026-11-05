@@ -46,6 +46,8 @@ final class CommandRegistry
     /**
      * @param array<string, mixed> $manifest
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public static function fromManifest(array $manifest): self
     {

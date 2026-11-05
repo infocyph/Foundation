@@ -2,6 +2,12 @@
 
 Date: 2026-11-05 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Psalm-first Batch 38b — propagated exception contracts (QA pending)
+
+- **Batch 38 initial exact source `dda19456`:** official [Security & Standards 42038129093](https://github.com/infocyph/Foundation/actions/runs/42038129093) verified strict Psalm **894 → 853** errors on both PHP 8.4 and 8.5 (**41 net reduced**); PHPStan, all four functional QA stable/lowest lanes, four consumer installs, clean install and benchmarks passed. [Native-host 42038128501](https://github.com/infocyph/Foundation/actions/runs/42038128501) passed its four Swoole/OpenSwoole serving jobs; final aggregate status must be separately checked. Strict Psalm still fails.
+- **Batch 38b additional source changes (not yet accepted):** Extend this same batch using **47 newly reported `MissingThrowsDocblock` locations across 13 source files**, including direct child token services affected by abstract-service exception contracts, CLI command/configuration, scheduling, OTP, routing and session stores. Do not count 47 as net reductions; verify official combined exact-head analyzer delta and new propagation. No behavior, dependency, workflow, analyzer baseline or suppressions changed.
+- **Acceptance:** Require **at least 50 net strict Psalm errors removed relative to Batch 37's 894**, PHPStan and all four functional QA configurations passing, production consumers, benchmarks, clean install and native hosts. Formal upgrade tracker stays **53/90 checked, 37 open**. PR remains draft and unmerged.
+
 ## Psalm-first Batch 38 — native exception contracts (exact-head QA pending)
 
 - **Batch 37 officially accepted:** At exact source `e3ee393f`, [PHPForge Security & Standards 42033431136](https://github.com/infocyph/Foundation/actions/runs/42033431136) reports **894 strict Psalm errors on both PHP 8.4 and PHP 8.5**, a **net reduction of 80** from Batch 36's 974. PHPStan passes, all four PHPForge stable/lowest functional QA lanes pass, four production consumer installs pass, clean install and both benchmarks pass; [native-host 42033430366](https://github.com/infocyph/Foundation/actions/runs/42033430366) passed. Strict Psalm remains a required failing gate.

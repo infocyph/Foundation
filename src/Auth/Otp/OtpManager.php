@@ -68,6 +68,7 @@ final readonly class OtpManager
     /**
      * @param array<string, mixed> $context
      * @throws \InvalidArgumentException
+     * @throws \OverflowException
      */
     public function completeAotpEnrollment(
         string $accountId,
@@ -96,6 +97,8 @@ final readonly class OtpManager
     /**
      * @param array<string, mixed> $context
      * @throws \Infocyph\Runwire\Exception\CancelledException
+     * @throws \InvalidArgumentException
+     * @throws \OverflowException
      */
     public function completeEnrollment(
         string $accountId,
@@ -122,6 +125,7 @@ final readonly class OtpManager
     /**
      * @param array<string, mixed> $context
      * @throws \InvalidArgumentException
+     * @throws \OverflowException
      */
     public function completeGridEnrollment(
         string $accountId,

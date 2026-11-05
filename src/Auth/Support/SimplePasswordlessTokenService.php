@@ -11,6 +11,10 @@ final readonly class SimplePasswordlessTokenService extends AbstractSimpleTimedT
 {
     private const string PURPOSE = 'passwordless';
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function issue(string $identifier, array $context = []): string
     {
@@ -23,6 +27,10 @@ final readonly class SimplePasswordlessTokenService extends AbstractSimpleTimedT
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function verify(string $token): TokenVerificationResult
     {

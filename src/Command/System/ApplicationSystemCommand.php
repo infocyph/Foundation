@@ -238,6 +238,9 @@ final class ApplicationSystemCommand extends SystemCommand
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
      * @throws \UnexpectedValueException
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     private function optimize(): int
     {
@@ -385,6 +388,9 @@ final class ApplicationSystemCommand extends SystemCommand
     /**
      * @throws \RuntimeException
      * @throws \InvalidArgumentException
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     private function serve(): int
     {

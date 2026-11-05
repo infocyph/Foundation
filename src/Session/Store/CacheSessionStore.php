@@ -18,6 +18,8 @@ final readonly class CacheSessionStore implements SessionStoreInterface
 
     /**
      * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     #[\Override]
     public function delete(string $id): void
@@ -27,6 +29,8 @@ final readonly class CacheSessionStore implements SessionStoreInterface
 
     /**
      * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     #[\Override]
     public function load(string $id, int $now): ?SessionPayload
@@ -54,6 +58,8 @@ final readonly class CacheSessionStore implements SessionStoreInterface
     /**
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     #[\Override]
     public function save(string $id, SessionPayload $payload): void
