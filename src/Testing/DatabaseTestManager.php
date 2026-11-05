@@ -7,6 +7,11 @@ namespace Infocyph\Foundation\Testing;
 use Infocyph\Foundation\Database\DatabaseMigrationManager;
 use Infocyph\Foundation\Database\DBLayerFactory;
 
+/**
+ * Public database testing and transaction helpers.
+ *
+ * @api
+ */
 final readonly class DatabaseTestManager
 {
     public function __construct(
