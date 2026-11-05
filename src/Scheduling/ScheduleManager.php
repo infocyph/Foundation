@@ -21,6 +21,11 @@ use Infocyph\Foundation\Process\ProcessTerminationReason;
 use Infocyph\Foundation\Runtime\CleanupGuard;
 use Infocyph\Foundation\Runtime\ExecutionId;
 
+/**
+ * Application-facing scheduling and coordination manager.
+ *
+ * @api
+ */
 final readonly class ScheduleManager
 {
     private const int MANIFEST_VERSION = 1;
