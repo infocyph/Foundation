@@ -17,6 +17,11 @@ use Infocyph\ReqShield\Schema\SchemaRegistry;
 use Infocyph\ReqShield\Validator;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Built-in application service provider, selected through Foundation composition.
+ *
+ * @api
+ */
 final class ValidationServiceProvider extends ServiceProvider
 {
     /**
