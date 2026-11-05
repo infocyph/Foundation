@@ -9,6 +9,8 @@ use Infocyph\DBLayer\Query\ConnectionRepository;
 /**
  * Container-facing bridge that applies Foundation connection selection to a
  * native DBLayer instance-owned repository.
+  *
+ * @api
  */
 abstract class DatabaseRepository extends ConnectionRepository
 {
