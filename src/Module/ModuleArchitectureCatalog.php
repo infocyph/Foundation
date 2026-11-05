@@ -45,6 +45,8 @@ use Infocyph\Foundation\Module\Internal\ModuleArchitectureValidator;
  *     description:string,
  *     features:array<string,ArchitectureFeature>
  * }
+  *
+ * @api
  */
 final class ModuleArchitectureCatalog
 {
