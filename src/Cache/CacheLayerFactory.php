@@ -204,7 +204,10 @@ final readonly class CacheLayerFactory
         return $name ?? $this->stringConfig('cache.default', 'memory');
     }
 
-    /** @param array<string,mixed> $store */
+    /**
+     * @param array<string,mixed> $store
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function applyLock(CacheInterface $cache, array $store, CacheDriver $driver): CacheInterface
     {
         $global = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
@@ -465,7 +468,10 @@ final readonly class CacheLayerFactory
         );
     }
 
-    /** @param array<string,mixed> $store */
+    /**
+     * @param array<string,mixed> $store
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function nodeLockProvider(array $store): ?LockProviderInterface
     {
         $global = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));

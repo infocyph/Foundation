@@ -14,6 +14,7 @@ use Psr\Container\ContainerInterface;
 
 final class CacheGraphFactory
 {
+    /** @throws \Infocyph\Foundation\Exception\ConfigurationException */
     public static function counters(CacheLayerFactory $factory, string $name): AtomicCounterStoreInterface
     {
         return $factory->counters($name);

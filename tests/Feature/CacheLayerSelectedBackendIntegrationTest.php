@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Infocyph\CacheLayer\Cache\AtomicCacheProviderInterface;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\PathManager;
@@ -24,7 +25,10 @@ it('qualifies local and SQLite native CacheLayer operations through Foundation c
         $factory = new CacheLayerFactory(
             $config,
             new PathManager($root, ['cache' => 'storage/cache']),
-            static fn(?string $name = null): never => throw new LogicException('Local cache must not resolve DBLayer.'),
+            static fn(?string $name = null): never => throw new LogicException(sprintf(
+                'Local cache must not resolve DBLayer connection "%s".',
+                $name ?? 'default',
+            )),
         );
 
         foreach (['local', 'sqlite'] as $name) {
@@ -37,6 +41,23 @@ it('qualifies local and SQLite native CacheLayer operations through Foundation c
                 ->and($second->get($key))->toBe($name)
                 ->and($second->delete($key))->toBeTrue()
                 ->and($first->get($key))->toBeNull();
+
+            if ($name === 'sqlite') {
+                if (!$first instanceof AtomicCacheProviderInterface || !$second instanceof AtomicCacheProviderInterface) {
+                    throw new LogicException('SQLite selected cache must provide native atomic operations.');
+                }
+
+                $writer = $first->atomic();
+                $reader = $second->atomic();
+                expect($writer)->not->toBeNull()
+                    ->and($reader)->not->toBeNull()
+                    ->and($writer?->setIfAbsent('atomic-' . $key, 0, 60))->toBeTrue()
+                    ->and($reader?->setIfAbsent('atomic-' . $key, 1, 60))->toBeFalse()
+                    ->and($reader?->compareAndSet('atomic-' . $key, 0, 2, 60))->toBeTrue()
+                    ->and($writer?->compareAndSet('atomic-' . $key, 0, 3, 60))->toBeFalse()
+                    ->and($writer?->getAndDelete('atomic-' . $key))->toBe(2)
+                    ->and($reader?->getAndDelete('atomic-' . $key, 'missing'))->toBe('missing');
+            }
         }
     } finally {
         $entries = new RecursiveIteratorIterator(
@@ -95,7 +116,10 @@ it('qualifies selected Redis, Valkey and Memcached stores against live service d
                 ],
             ]),
             new PathManager(sys_get_temp_dir(), ['cache' => 'cache']),
-            static fn(?string $name = null): never => throw new LogicException('Remote cache must not resolve DBLayer.'),
+            static fn(?string $name = null): never => throw new LogicException(sprintf(
+                'Remote cache must not resolve DBLayer connection "%s".',
+                $name ?? 'default',
+            )),
         );
         $producer = $factory->make('selected');
         $consumer = $factory->make('selected');
@@ -106,6 +130,20 @@ it('qualifies selected Redis, Valkey and Memcached stores against live service d
             ->and($consumer->get($key))->toBe('native-operation')
             ->and($consumer->delete($key))->toBeTrue()
             ->and($producer->get($key))->toBeNull();
+
+        if (!$producer instanceof AtomicCacheProviderInterface || !$consumer instanceof AtomicCacheProviderInterface) {
+            throw new LogicException('Selected remote cache must provide native atomic operations.');
+        }
+        $writer = $producer->atomic();
+        $reader = $consumer->atomic();
+        expect($writer)->not->toBeNull()
+            ->and($reader)->not->toBeNull()
+            ->and($writer?->setIfAbsent('atomic-' . $key, 0, 60))->toBeTrue()
+            ->and($reader?->setIfAbsent('atomic-' . $key, 1, 60))->toBeFalse()
+            ->and($reader?->compareAndSet('atomic-' . $key, 0, 2, 60))->toBeTrue()
+            ->and($writer?->compareAndSet('atomic-' . $key, 0, 3, 60))->toBeFalse()
+            ->and($writer?->getAndDelete('atomic-' . $key))->toBe(2)
+            ->and($reader?->getAndDelete('atomic-' . $key, 'missing'))->toBe('missing');
     } finally {
         if ($client instanceof Redis) {
             $client->close();
