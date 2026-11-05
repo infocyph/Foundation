@@ -14,6 +14,11 @@ use Infocyph\Foundation\Auth\Contract\Storage\RefreshTokenStoreInterface;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
+/**
+ * Application-facing token issuance, verification and revocation.
+ *
+ * @api
+ */
 final readonly class TokenAuthManager
 {
     public function __construct(

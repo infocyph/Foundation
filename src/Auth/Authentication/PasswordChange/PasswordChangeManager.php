@@ -20,6 +20,11 @@ use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
+/**
+ * Application-facing password change and notification orchestration.
+ *
+ * @api
+ */
 final readonly class PasswordChangeManager
 {
     public function __construct(

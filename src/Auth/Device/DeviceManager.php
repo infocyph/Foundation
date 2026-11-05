@@ -8,6 +8,11 @@ use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
+/**
+ * Application-facing registered device lifecycle operations.
+ *
+ * @api
+ */
 final readonly class DeviceManager
 {
     public function __construct(

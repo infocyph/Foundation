@@ -6,6 +6,11 @@ namespace Infocyph\Foundation\Session;
 
 use Infocyph\Foundation\Config\ConfigRepository;
 
+/**
+ * Public immutable session configuration contract.
+ *
+ * @api
+ */
 final readonly class SessionConfig
 {
     public function __construct(

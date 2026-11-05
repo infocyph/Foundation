@@ -9,6 +9,11 @@ use Infocyph\Foundation\Auth\Contract\Cache\TtlStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
+/**
+ * Application-facing step-up authentication policy operations.
+ *
+ * @api
+ */
 final readonly class StepUpManager
 {
     private const int MAX_STEP_UP_SECONDS = 86400;
