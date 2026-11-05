@@ -25,6 +25,11 @@ use League\Flysystem\FilesystemOperator;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\EventDispatcher\ListenerProviderInterface;
 
+/**
+ * Public test harness for Foundation application integrations.
+ *
+ * @api
+ */
 final readonly class TestKit
 {
     public function __construct(private Application $application) {}
