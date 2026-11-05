@@ -4,12 +4,19 @@ declare(strict_types=1);
 
 use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\DBLayer\Schema\SchemaManager;
+use Infocyph\Foundation\Auth\Account\Account;
+use Infocyph\Foundation\Auth\Account\AccountStatus;
+use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerAccountStore;
+use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailDestinationChanged;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationRequest;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetRequest;
 use Infocyph\Foundation\Auth\Authentication\Session\AuthSession;
 use Infocyph\Foundation\Auth\Passkey\PasskeyCredential;
+use Infocyph\Foundation\Auth\Support\SystemClock;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
+use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Tests\Fixtures\AuthContentionFixture;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 /** @return array<string, mixed> */
 function persistedAuthConnection(string $driver, string $directory): array
@@ -173,6 +180,75 @@ it('commits one persisted auth transition across independent competing processes
             expect($credentials->findByCredentialId($opaque))->toBeNull()
                 ->and($credentials->findByCredentialId(strtolower($opaque)))->not->toBeNull();
         });
+
+        // Run the destination-conditional account mutation against the same
+        // selected real SQLite/MySQL/PostgreSQL backend and installed schema.
+        // This must not be a SQLite-only SQL grammar claim.
+        $accounts = new DBLayerAccountStore(
+            new RuntimeStateContainer([DBLayerFactory::class => $fixture->factory]),
+            $fixture->tables,
+        );
+        $accounts->save(new Account('email-cas-direct', 'direct-cas@example.test', AccountStatus::PENDING_VERIFICATION));
+        $accounts->save(new Account(
+            'email-cas-username',
+            'username-cas',
+            AccountStatus::PENDING_VERIFICATION,
+            metadata: ['email' => 'previous-cas@example.test', 'label' => 'preserved'],
+        ));
+
+        expect($accounts->markVerifiedForEmail('email-cas-direct', 'attacker@example.test', $now))->toBeFalse()
+            ->and($accounts->markVerifiedForEmail('email-cas-direct', 'DIRECT-CAS@example.test', $now))->toBeTrue()
+            ->and($accounts->findById('email-cas-direct')?->status())->toBe(AccountStatus::ACTIVE)
+            ->and($accounts->markVerifiedForEmail('email-cas-username', 'attacker@example.test', $now))->toBeFalse();
+
+        $accounts->updateMetadata('email-cas-username', [
+            'email' => 'current-cas@example.test',
+            'label' => 'preserved',
+        ]);
+        expect($accounts->markVerifiedForEmail('email-cas-username', 'previous-cas@example.test', $now))->toBeFalse()
+            ->and($accounts->markVerifiedForEmail('email-cas-username', 'CURRENT-CAS@example.test', $now))->toBeTrue()
+            ->and($accounts->findById('email-cas-username')?->status())->toBe(AccountStatus::ACTIVE)
+            ->and($accounts->findById('email-cas-username')?->metadata()['label'] ?? null)->toBe('preserved')
+            ->and($accounts->findById('email-cas-username')?->metadata()['verified_at'] ?? null)->toBe($now);
+
+        // A real request-store transaction must commit successful verification
+        // together with consumption and roll back a destination denial.
+        $emailRequests = $fixture->store('email');
+        $accounts->save(new Account(
+            'email-cas-pending',
+            'pending-cas',
+            AccountStatus::PENDING_VERIFICATION,
+            metadata: ['email' => 'pending-cas@example.test'],
+        ));
+        $emailRequests->save(new EmailVerificationRequest(
+            'cas-success', 'email-cas-pending', 'pending-cas@example.test', $now, $now + 300,
+        ));
+        expect($emailRequests->consumeAndApply('cas-success', static function () use ($accounts, $now): void {
+            if (!$accounts->markVerifiedForEmail('email-cas-pending', 'pending-cas@example.test', $now)) {
+                throw new EmailDestinationChanged('Unexpected trusted destination rejection.');
+            }
+        }))->toBeTrue()
+            ->and($emailRequests->find('cas-success')?->isConsumed())->toBeTrue()
+            ->and($accounts->findById('email-cas-pending')?->status())->toBe(AccountStatus::ACTIVE);
+
+        $accounts->save(new Account(
+            'email-cas-stale',
+            'stale-cas',
+            AccountStatus::PENDING_VERIFICATION,
+            metadata: ['email' => 'outdated-cas@example.test'],
+        ));
+        $emailRequests->save(new EmailVerificationRequest(
+            'cas-stale', 'email-cas-stale', 'outdated-cas@example.test', $now, $now + 300,
+        ));
+        $accounts->updateMetadata('email-cas-stale', ['email' => 'changed-cas@example.test']);
+        expect(fn() => $emailRequests->consumeAndApply('cas-stale', static function () use ($accounts, $now): void {
+            if (!$accounts->markVerifiedForEmail('email-cas-stale', 'outdated-cas@example.test', $now)) {
+                throw new EmailDestinationChanged('Verification destination changed before account mutation.');
+            }
+        }))->toThrow(EmailDestinationChanged::class)
+            ->and($emailRequests->find('cas-stale')?->isConsumed())->toBeFalse()
+            ->and($accounts->findById('email-cas-stale')?->status())->toBe(AccountStatus::PENDING_VERIFICATION)
+            ->and($accounts->findById('email-cas-stale')?->metadata()['verified_at'] ?? null)->toBeNull();
     } finally {
         foreach ($processes as [$process, $stdout, $stderr]) {
             proc_terminate($process);

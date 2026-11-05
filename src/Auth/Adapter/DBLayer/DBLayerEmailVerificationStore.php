@@ -11,12 +11,21 @@ use Infocyph\Foundation\Auth\Contract\Storage\EmailVerificationStoreInterface;
 
 final readonly class DBLayerEmailVerificationStore extends DBLayerConsumableStore implements EmailVerificationStoreInterface
 {
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function consume(string $requestId): void
     {
         $this->consumeRequest('emailVerifications', $requestId);
     }
 
+    /**
+     * @throws EmailDestinationChanged
+     * @throws TransactionException
+     */
     #[\Override]
     public function consumeAndApply(string $requestId, callable $apply): bool
     {
@@ -55,6 +64,7 @@ final readonly class DBLayerEmailVerificationStore extends DBLayerConsumableStor
         return $this->findRequest('emailVerifications', $this->mapRequest(...), $requestId);
     }
 
+    /** @throws \InvalidArgumentException */
     #[\Override]
     public function save(EmailVerificationRequest $request): void
     {
