@@ -183,7 +183,6 @@ final class WorkerTopology
                 ));
             }
 
-            /** @var class-string<WorkerProvider> $provider */
             $workers[$name] = [
                 'provider' => $provider,
                 'singleton' => ValueNormalizer::bool($options['singleton'] ?? null, false),
