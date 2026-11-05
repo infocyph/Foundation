@@ -7,6 +7,11 @@ namespace Infocyph\Foundation\Http\Resource;
 use Closure;
 use JsonSerializable;
 
+/**
+ * Public JSON resource collection transformer.
+ *
+ * @api
+ */
 final readonly class ResourceCollection implements JsonSerializable
 {
     /** @var Closure(mixed): mixed */
