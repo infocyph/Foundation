@@ -76,17 +76,17 @@ final class ConfigRepository extends Config
         return $this->lazyConfig?->namespaceCacheDirectory();
     }
 
-    public function clearLazyCache(): void
-    {
-        $this->lazyConfig?->clearNamespaceCache();
-    }
-
     #[\Override]
     public function changed(string $snapshot = 'default'): bool
     {
         $this->materializeLazyConfig();
 
         return parent::changed($snapshot);
+    }
+
+    public function clearLazyCache(): void
+    {
+        $this->lazyConfig?->clearNamespaceCache();
     }
 
     #[\Override]
