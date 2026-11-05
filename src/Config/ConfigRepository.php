@@ -89,6 +89,15 @@ final class ConfigRepository extends Config
         $this->lazyConfig?->clearNamespaceCache();
     }
 
+    public function env(?string $default = null): ?string
+    {
+        $env = $this->getString('app.env', $default);
+
+        return is_string($env) && $env !== ''
+            ? $env
+            : $default;
+    }
+
     #[\Override]
     public function exportCache(string $path): bool
     {
@@ -101,15 +110,6 @@ final class ConfigRepository extends Config
     public function get(string|int|array|null $key = null, mixed $default = null): mixed
     {
         return $key === null ? $this->all() : parent::get($key, $default);
-    }
-
-    public function env(?string $default = null): ?string
-    {
-        $env = $this->getString('app.env', $default);
-
-        return is_string($env) && $env !== ''
-            ? $env
-            : $default;
     }
 
     public function isCompiled(): bool
