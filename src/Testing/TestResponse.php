@@ -6,6 +6,11 @@ namespace Infocyph\Foundation\Testing;
 
 use Infocyph\Webrick\Response\Response;
 
+/**
+ * Public fluent HTTP response test assertions.
+ *
+ * @api
+ */
 final readonly class TestResponse
 {
     public function __construct(private Response $response) {}
