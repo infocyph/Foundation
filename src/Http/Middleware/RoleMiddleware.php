@@ -10,6 +10,11 @@ use Infocyph\Foundation\Http\Response\AuthResponseFactory;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
+/**
+ * Public role authorization middleware.
+ *
+ * @api
+ */
 final readonly class RoleMiddleware
 {
     /** @var array<string, true> */
