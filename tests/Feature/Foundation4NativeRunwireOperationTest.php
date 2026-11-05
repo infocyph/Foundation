@@ -188,3 +188,65 @@ it('propagates passed native context to ordinary bus consumer and worker operati
         $request->complete();
     }
 });
+
+it('rejects a deferred database cursor from a completed host request without poisoning a reused connection', function (): void {
+    $app = Foundation::worker([
+        'app' => ['capabilities' => ['database']],
+        'database' => [
+            'default' => 'test',
+            'connections' => ['test' => ['driver' => 'sqlite', 'database' => ':memory:']],
+        ],
+    ])->boot();
+    $factory = $app->make(DBLayerFactory::class);
+    $infrastructure = $factory->infrastructureConnection();
+    $runtime = RuntimeContext::standalone();
+    $first = RequestContext::create($runtime);
+    $second = RequestContext::create($runtime);
+
+    try {
+        expect($infrastructure->runwireBinding())->toBeNull()
+            ->and($infrastructure->scalar('SELECT 1'))->toBe(1);
+
+        $deferred = $app->execution()->run(
+            static function () use ($factory, $infrastructure, $first): \Generator {
+                expect($factory->infrastructureConnection())->toBe($infrastructure)
+                    ->and($infrastructure->runwireBinding()['request'])->toBe($first);
+
+                return $infrastructure->stream('SELECT 5');
+            },
+            [RuntimeContext::class => $runtime, RequestContext::class => $first],
+        );
+
+        // A lazy iterator captures its original request. A later borrowed
+        // scope must not grant it the new request's lifetime or privileges.
+        $first->complete();
+
+        $app->execution()->run(
+            static function () use ($infrastructure, $deferred, $second): void {
+                expect($infrastructure->runwireBinding()['request'])->toBe($second)
+                    ->and($infrastructure->scalar('SELECT 6'))->toBe(6)
+                    ->and(fn() => iterator_to_array($deferred))
+                    ->toThrow(\Infocyph\DBLayer\Exceptions\ConnectionException::class, 'Completed Runwire request');
+
+                expect($infrastructure->transaction(
+                    static function (\Infocyph\DBLayer\Connection\Connection $connection) use ($second): mixed {
+                        expect($connection->runwireBinding()['request'])->toBe($second);
+
+                        return $connection->scalar('SELECT 7');
+                    },
+                    attempts: 2,
+                ))->toBe(7);
+            },
+            [RuntimeContext::class => $runtime, RequestContext::class => $second],
+        );
+
+        expect($infrastructure->runwireBinding())->toBeNull();
+        $app->execution()->run(static function () use ($infrastructure): void {
+            expect($infrastructure->runwireBinding())->toBeNull()
+                ->and($infrastructure->scalar('SELECT 8'))->toBe(8);
+        });
+    } finally {
+        $first->complete();
+        $second->complete();
+    }
+});
