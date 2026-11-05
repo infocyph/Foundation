@@ -18,6 +18,7 @@ use Infocyph\Omnibus\Integration\DBLayer\DBLayerTransport;
 use Infocyph\Omnibus\MessageBus;
 use Infocyph\Omnibus\Serialization\EnvelopeSerializer;
 use Infocyph\Omnibus\Serialization\MessageCodec;
+use Infocyph\Omnibus\Transport\InvalidReservation;
 use Infocyph\Runwire\Exception\CancelledException;
 use Infocyph\Runwire\RequestContext;
 use Infocyph\Runwire\Runtime\Enum\CancellationReason;
@@ -156,6 +157,41 @@ it('preserves a durable reservation for the next consumer after host cancellatio
             ->and($transport->size('work'))->toBe(0)
             ->and($app->make(DBLayerFailureStore::class)->all())->toBe([])
             ->and(FoundationOmnibusDurableHandler::$handled)->toBe(['after-cancellation']);
+    } finally {
+        unset($app);
+        foundationOmnibusRemoveDatabase($database);
+    }
+});
+
+it('rejects a stale durable lease receipt after a newer consumer reclaims the message', function (): void {
+    [$app, $database] = foundationOmnibusDurableApp();
+
+    try {
+        $app->make(MessagingDatabaseSchema::class)->install();
+        $transport = $app->make(DBLayerTransport::class);
+        $connection = $app->make(DBLayerFactory::class)->infrastructureConnection('main');
+
+        $app->make(MessageBus::class)->dispatch(new FoundationOmnibusDurableMessage('reclaimed'));
+        $stale = [...$transport->receive('work')][0];
+        expect($transport->size('work'))->toBe(0);
+
+        // Model lease expiration deterministically without sleeping or altering the receipt.
+        $connection->update(
+            'UPDATE omnibus_messages SET reserved_until = 0 WHERE receipt = ?',
+            [$stale->receipt],
+        );
+        $current = [...$transport->receive('work')][0];
+
+        expect($current->receipt)->not->toBe($stale->receipt)
+            ->and($current->attempt)->toBe($stale->attempt + 1)
+            ->and(fn() => $transport->acknowledge($stale))->toThrow(InvalidReservation::class)
+            ->and(fn() => $transport->release($stale))->toThrow(InvalidReservation::class)
+            ->and((int) $connection->scalar('SELECT COUNT(*) FROM omnibus_messages'))->toBe(1);
+
+        $transport->acknowledge($current);
+
+        expect((int) $connection->scalar('SELECT COUNT(*) FROM omnibus_messages'))->toBe(0)
+            ->and($app->make(DBLayerFailureStore::class)->all())->toBe([]);
     } finally {
         unset($app);
         foundationOmnibusRemoveDatabase($database);
