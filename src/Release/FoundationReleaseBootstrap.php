@@ -130,7 +130,9 @@ final readonly class FoundationReleaseBootstrap implements RuntimeApplicationFac
 
     private static function environment(string $name): ?string
     {
-        $value = $_ENV[$name] ?? $_SERVER[$name] ?? getenv($name);
+        // Release identity is a deployment process setting, never a request-populated
+        // PHP superglobal. Do not let application/request overlays select artifacts.
+        $value = getenv($name);
 
         return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
