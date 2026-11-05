@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Logging;
 
+/**
+ * Application-facing log reading and following utility.
+ *
+ * @api
+ */
 final readonly class LogTailer
 {
     /**
