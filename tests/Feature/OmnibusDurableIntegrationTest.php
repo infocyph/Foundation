@@ -19,6 +19,7 @@ use Infocyph\Omnibus\MessageBus;
 use Infocyph\Omnibus\Serialization\EnvelopeSerializer;
 use Infocyph\Omnibus\Serialization\MessageCodec;
 use Infocyph\Omnibus\Transport\InvalidReservation;
+use Infocyph\Omnibus\Transport\ReservationReceipt;
 use Infocyph\Runwire\Exception\CancelledException;
 use Infocyph\Runwire\RequestContext;
 use Infocyph\Runwire\Runtime\Enum\CancellationReason;
@@ -176,9 +177,10 @@ it('rejects a stale durable lease receipt after a newer consumer reclaims the me
         expect($transport->size('work'))->toBe(0);
 
         // Model lease expiration deterministically without sleeping or altering the receipt.
+        [, $staleToken] = ReservationReceipt::decode($stale->receipt);
         $connection->update(
             'UPDATE omnibus_messages SET reserved_until = 0 WHERE receipt = ?',
-            [$stale->receipt],
+            [$staleToken],
         );
         $current = [...$transport->receive('work')][0];
 
