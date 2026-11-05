@@ -14,6 +14,11 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
+/**
+ * HTTP route endpoint handler dispatched by the native Webrick registrar.
+ *
+ * @api
+ */
 final readonly class OAuthHttpHandler
 {
     public function __construct(
