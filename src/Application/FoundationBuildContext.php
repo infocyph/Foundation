@@ -9,6 +9,11 @@ use Infocyph\Foundation\Module\ModuleFeatureCapabilityPolicy;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\Support\TraceLevelEnum;
 
+/**
+ * Public immutable context supplied to application service providers.
+ *
+ * @api
+ */
 final readonly class FoundationBuildContext
 {
     /**
