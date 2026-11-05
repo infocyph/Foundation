@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Config;
 
+/**
+ * Application API configuration preset.
+ *
+ * @api
+ */
 final class ApiPreset implements FoundationPreset
 {
     #[\Override]
