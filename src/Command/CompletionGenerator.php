@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Command;
 
+/**
+ * Public command-line shell completion generator.
+ *
+ * @api
+ */
 final readonly class CompletionGenerator
 {
     public function __construct(private CommandRegistry $registry) {}
