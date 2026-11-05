@@ -8,6 +8,11 @@ use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
+/**
+ * Public OAuth scope authorization middleware.
+ *
+ * @api
+ */
 final readonly class OAuthScopeMiddleware
 {
     /**
