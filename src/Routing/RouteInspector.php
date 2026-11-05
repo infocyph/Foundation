@@ -10,6 +10,11 @@ use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Facade\Router;
 use Infocyph\Webrick\Router\Route\Collection;
 
+/**
+ * Public development-time route inspection service.
+ *
+ * @api
+ */
 final readonly class RouteInspector
 {
     public function __construct(private Application $application) {}
