@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Validation;
 
+/**
+ * Public authentication request schema collection.
+ *
+ * @api
+ */
 final class AuthRequestSchemas
 {
     /**
