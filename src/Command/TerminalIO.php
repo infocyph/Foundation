@@ -381,7 +381,7 @@ final readonly class TerminalIO implements CommandIO
             }
         }
 
-        return array_values($widths);
+        return $widths;
     }
 
     /**

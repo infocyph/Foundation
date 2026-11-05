@@ -53,9 +53,7 @@ final readonly class AuthorizationServerMetadata
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        $metadata = $this->epicrypt()->toArray();
-
-        return $metadata;
+        return $this->epicrypt()->toArray();
     }
 
     /**
