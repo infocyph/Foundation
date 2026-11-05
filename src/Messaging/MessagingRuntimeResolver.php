@@ -19,6 +19,8 @@ final readonly class MessagingRuntimeResolver
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function callable(mixed $definition): callable
     {
@@ -156,6 +158,8 @@ final readonly class MessagingRuntimeResolver
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function service(mixed $definition): object
     {
