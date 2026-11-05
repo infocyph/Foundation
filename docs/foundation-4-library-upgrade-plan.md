@@ -2,6 +2,12 @@
 
 Date: 2026-11-05 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Psalm-first Batch 34 — native exception contracts (exact-head QA pending)
+
+- **Verified starting point:** Source `179149e` / [Security & Standards 42021647972](https://github.com/infocyph/Foundation/actions/runs/42021647972) has **1,173 strict Psalm errors per PHP version**, down 31 from 1,204. PHPStan, all four functional QA lanes, four production consumers, clean install, both benchmarks and [native hosts 42021647322](https://github.com/infocyph/Foundation/actions/runs/42021647322) passed. Psalm still fails.
+- **Batch 34 submitted changes (not yet accepted):** Add **122 explicit exception-contract annotations across 21 production files**, corresponding to **140 previously reported `MissingThrowsDocblock` diagnostic locations** in session, communication, DBLayer token state, bootstrap, principal resolvers, release, routing, scheduling, worker, security, module, notification and validator owners. These are *targeted findings*, not a claim of net issue reduction: propagation can create new caller diagnostics. No runtime behavior, dependency policy, analyzer suppression, or gate changed.
+- **Required acceptance:** Check new exact-head PHP 8.4 and PHP 8.5 official PHPForge `dev-main@dev` Psalm/PHPStan, all four stable/lowest functional QA lanes, production-consumer installs, benchmarks and native host smoke before recording a net delta or another batch. Keep **53/90 plan criteria accepted, 37 open**; strict Psalm and P1–P6 remain open. No merge/tag/release.
+
 ## Psalm-first Batches 32–33 — 50+ verified diagnostic reductions
 
 - **Batch 32 (`e939d7f`) verified analyzer delta:** official [Security & Standards 42020513916](https://github.com/infocyph/Foundation/actions/runs/42020513916) reports **1,204 strict Psalm findings on both PHP 8.4 and PHP 8.5**, down **71** from verified Batch 31's 1,275. **PHPStan passes on both PHP versions and all four functional PHPForge QA stable/lowest lanes pass.** Nine native auth/OAuth DBLayer persistence classes received precise actual exception documentation. Native-host workflow [42020513308](https://github.com/infocyph/Foundation/actions/runs/42020513308) requires an independent final status check; strict Psalm remains a blocking gate.

@@ -72,6 +72,9 @@ final class Bootstrapper
         HttpServiceProvider::class,
     ];
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function boot(Application $app): void
     {
         $app->providers()->boot($app);
@@ -81,6 +84,10 @@ final class Bootstrapper
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
+     * @throws \LogicException
+     */
     public function compose(
         ContainerBuilder $builder,
         FoundationBuildContext $context,
@@ -109,6 +116,9 @@ final class Bootstrapper
         return $registry;
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function contribute(
         ContainerBuilder $builder,
         FoundationBuildContext $context,
@@ -220,7 +230,10 @@ final class Bootstrapper
         return $dependency === null || class_exists($dependency);
     }
 
-    /** @return list<ServiceProviderInterface> */
+    /**
+     * @return list<ServiceProviderInterface>
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
+     */
     private function providerFileProviders(FoundationBuildContext $context): array
     {
         if ($context->compiledConfig) {

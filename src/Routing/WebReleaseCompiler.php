@@ -31,6 +31,10 @@ final readonly class WebReleaseCompiler
      * @return array<string, mixed>
      * @throws \RuntimeException
      * @throws \UnexpectedValueException
+     * @throws \Exception
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     public function compile(
         array|ConfigRepository $config,

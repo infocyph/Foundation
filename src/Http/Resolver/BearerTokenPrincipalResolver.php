@@ -30,6 +30,11 @@ final class BearerTokenPrincipalResolver extends AbstractPrincipalResolver
         return 'bearer';
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function resolve(Request $request): ?PrincipalInterface
     {

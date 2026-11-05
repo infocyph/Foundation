@@ -46,7 +46,15 @@ final class MaintenanceRuntimeState implements MaintenanceStateInterface
         return $this->status()['retry_after'] ?? $this->defaultRetryAfter;
     }
 
-    /** @return array{enabled:bool,enabled_at:?string,retry_after:?int,message:?string,driver:string} */
+    /**
+     * @return array{enabled:bool,enabled_at:?string,retry_after:?int,message:?string,driver:string}
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     public function status(): array
     {
         $now = hrtime(true);

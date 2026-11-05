@@ -130,6 +130,8 @@ final class BrowserSession
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function flash(string $key, mixed $value): void
     {
@@ -224,7 +226,11 @@ final class BrowserSession
         }
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function oldInput(): array
     {
         $input = $this->get('_old_input', []);
@@ -242,6 +248,10 @@ final class BrowserSession
         return $normalized;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function pull(string $key, mixed $default = null): mixed
     {
         $value = $this->get($key, $default);

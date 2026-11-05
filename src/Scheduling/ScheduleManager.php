@@ -196,6 +196,9 @@ final readonly class ScheduleManager
         return $path;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function executable(): string
     {
         $configured = $this->application->config()->get('command.executable');
@@ -210,6 +213,12 @@ final readonly class ScheduleManager
             : dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'infbyte';
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \Throwable
+     */
     private function executeProcess(ScheduledCommand $entry, ?Closure $heartbeat): ProcessResult
     {
         return new ProcessRunner()->run(
@@ -251,6 +260,9 @@ final readonly class ScheduleManager
         return false;
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function load(string $routes, string $manifest): Schedule
     {
         if ($manifest !== '') {
@@ -387,7 +399,10 @@ final readonly class ScheduleManager
         };
     }
 
-    /** @param array<string, scalar|null> $metadata */
+    /**
+     * @param array<string, scalar|null> $metadata
+     * @throws \RuntimeException
+     */
     private function record(
         ExecutionHistory $history,
         ExecutionId $executionId,
@@ -406,6 +421,9 @@ final readonly class ScheduleManager
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function runEntry(ScheduledCommand $entry): ScheduleRun
     {
         $executionId = ExecutionId::generate();
@@ -495,6 +513,9 @@ final readonly class ScheduleManager
     /**
      * @param array<string,scalar|null> $identity
      * @return array{?LockProviderInterface,?LockHandle,?ScheduleRun}
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     private function scheduleLock(
         ScheduledCommand $entry,

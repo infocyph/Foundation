@@ -33,6 +33,10 @@ final readonly class FreshModuleSchemaRunner
 
     /**
      * @phpstan-return FreshSchemaRun
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \Throwable
      */
     public function run(
         ?string $module = null,
@@ -69,6 +73,7 @@ final readonly class FreshModuleSchemaRunner
 
     /**
      * @return list<string>
+     * @throws \RuntimeException
      */
     private function command(
         ?string $module,

@@ -30,6 +30,11 @@ final class RememberMePrincipalResolver extends AbstractPrincipalResolver
         return 'remember';
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function resolve(Request $request): ?PrincipalInterface
     {

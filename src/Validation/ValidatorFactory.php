@@ -34,6 +34,9 @@ final readonly class ValidatorFactory
         return new CompiledValidator($this->make($schema));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function make(string $schema): Validator
     {
         return $this->configure(
@@ -96,7 +99,10 @@ final readonly class ValidatorFactory
         }
     }
 
-    /** @param array<string,mixed> $options */
+    /**
+     * @param array<string,mixed> $options
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function configureLimits(Validator $validator, array $options): void
     {
         $limits = ValueNormalizer::associativeArray($options['limits'] ?? []);

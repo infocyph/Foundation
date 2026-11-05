@@ -18,6 +18,11 @@ final readonly class EnvironmentFileProtector
 
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function decrypt(
         ?string $input = null,
         ?string $output = null,
@@ -35,6 +40,11 @@ final readonly class EnvironmentFileProtector
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function encrypt(
         ?string $input = null,
         ?string $output = null,

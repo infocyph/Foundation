@@ -19,6 +19,9 @@ final readonly class OAuthHttpThrottleFactory
         private OAuthAuditRecorder $audit,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function forEndpoint(
         string $endpoint,
         ?CacheItemPoolInterface $pool = null,
@@ -40,6 +43,7 @@ final readonly class OAuthHttpThrottleFactory
     /**
      * @return array{max:int,window:int,scope:string}
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function policy(string $endpoint): array
     {

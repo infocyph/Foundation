@@ -11,6 +11,10 @@ use Psr\Container\ContainerInterface;
 
 final class SessionGraphFactory
 {
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
     public static function config(ConfigRepository $config, PathManager $paths): SessionConfig
     {
         $session = SessionConfig::fromRepository($config, $paths->sessions());
@@ -19,6 +23,11 @@ final class SessionGraphFactory
         return $session;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public static function current(SessionManager $sessions): BrowserSession
     {
         return $sessions->current();

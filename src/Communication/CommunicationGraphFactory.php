@@ -47,6 +47,9 @@ final class CommunicationGraphFactory
         return $profiles->grpcInbound($handlers);
     }
 
+    /**
+     * @throws \LogicException
+     */
     public static function http(CommunicationProfiles $profiles): HttpClient
     {
         return $profiles->http();
@@ -89,6 +92,10 @@ final class CommunicationGraphFactory
         return $profiles->webhookReceiver($profile, $replayStore, $ttl);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public static function webhookReceiver(
         CommunicationProfiles $profiles,
         ConfigRepository $config,
@@ -99,11 +106,19 @@ final class CommunicationGraphFactory
         return $profiles->webhookReceiver($profile);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public static function webhookSender(CommunicationProfiles $profiles): WebhookSender
     {
         return $profiles->webhookSender();
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public static function webhookVerifier(CommunicationProfiles $profiles): WebhookVerifier
     {
         return $profiles->webhookVerifier();

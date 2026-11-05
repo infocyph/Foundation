@@ -28,26 +28,41 @@ final readonly class EpicryptTokenPolicyResolver
             ?? throw new ConfigurationException('security.jwt.algorithm must be HS256, HS384, or HS512.');
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function audience(): string
     {
         return $this->requiredValue('audience');
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function issuer(): string
     {
         return $this->requiredValue('issuer');
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function leewaySeconds(): int
     {
         return $this->nonNegativeInt('leeway_seconds', 0);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function maximumLifetimeSeconds(): int
     {
         return $this->positiveInt('maximum_lifetime_seconds', 1209600);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function minimumKeyBytes(): int
     {
         return match ($this->algorithm()) {

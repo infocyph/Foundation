@@ -34,6 +34,10 @@ final readonly class WorkerRuntime
      * @param callable(ExecutionId):T $handler
      * @param array<string, mixed> $context
      * @return T
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
+     * @throws \LogicException
+     * @throws \Throwable
      */
     public function execute(
         callable $handler,

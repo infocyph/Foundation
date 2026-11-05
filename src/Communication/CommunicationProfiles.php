@@ -36,13 +36,21 @@ final readonly class CommunicationProfiles
 {
     public function __construct(private ConfigRepository $config) {}
 
-    /** @param callable(GrpcRequest):GrpcResponse $caller */
+    /**
+     * @param callable(GrpcRequest):GrpcResponse $caller
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function grpc(callable $caller, ?string $profile = null): GrpcClient
     {
         return $this->grpcFactory()->using($caller, $this->grpcConfig($profile));
     }
 
-    /** @param array<string, string> $methodMap */
+    /**
+     * @param array<string, string> $methodMap
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function grpcGeneratedStub(
         object $stubClient,
         array $methodMap = [],
@@ -61,6 +69,10 @@ final readonly class CommunicationProfiles
         return new GrpcInboundDispatcher($handlers);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function grpcNative(
         NativeGrpcInvoker $invoker,
         ?NativeGrpcStreamingInvoker $streamingInvoker = null,
@@ -93,6 +105,9 @@ final readonly class CommunicationProfiles
         return $factory->fromConfig($config, $array);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function httpConfig(?string $profile = null): HttpClientConfig
     {
         return HttpClientConfig::fromArray($this->httpConfigArray($profile));

@@ -16,6 +16,7 @@ final readonly class NotificationChannelRegistry
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function channel(string $name): NotificationChannel
     {
@@ -61,6 +62,8 @@ final readonly class NotificationChannelRegistry
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     private function resolve(string $name): NotificationChannel
     {

@@ -9,6 +9,9 @@ use Infocyph\Foundation\Auth\Contract\Storage\RememberTokenStoreInterface;
 
 final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore implements RememberTokenStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function find(string $recordId): ?RememberTokenRecord
     {
@@ -19,6 +22,9 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function findBySelector(string $selector): ?RememberTokenRecord
     {
@@ -29,6 +35,12 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function markUsed(string $recordId, int $usedAt): void
     {
@@ -74,6 +86,13 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function save(RememberTokenRecord $record): void
     {

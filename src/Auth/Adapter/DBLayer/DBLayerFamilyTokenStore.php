@@ -6,16 +6,33 @@ namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 
 abstract readonly class DBLayerFamilyTokenStore extends ClockedDBLayerStore
 {
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     protected function markTokenRotated(string $table, string $recordId): void
     {
         $this->updateWhere($table, ['rotated_at' => $this->now()], 'id = ?', [$recordId]);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     protected function revokeTokenFamily(string $table, string $familyId): void
     {
         $this->updateWhere($table, ['revoked_at' => $this->now()], 'family_id = ? AND revoked_at IS NULL', [$familyId]);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     protected function rotateTokenIfActive(
         string $table,
         string $tokenId,
@@ -50,6 +67,9 @@ abstract readonly class DBLayerFamilyTokenStore extends ClockedDBLayerStore
         }, attempts: 3) === true;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     protected function tokenFamilyWasRevoked(string $table, string $familyId): bool
     {
         return $this->first(
