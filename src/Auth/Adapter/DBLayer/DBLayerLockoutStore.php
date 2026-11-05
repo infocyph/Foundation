@@ -11,6 +11,9 @@ final readonly class DBLayerLockoutStore extends ClockedDBLayerStore implements 
 {
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function isLocked(string $accountId): bool

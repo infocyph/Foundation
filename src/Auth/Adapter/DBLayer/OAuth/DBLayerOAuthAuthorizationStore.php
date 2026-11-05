@@ -27,6 +27,9 @@ final readonly class DBLayerOAuthAuthorizationStore extends DBLayerStore impleme
     /**
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function recent(int $limit = 100, ?string $clientId = null): array
@@ -65,6 +68,10 @@ final readonly class DBLayerOAuthAuthorizationStore extends DBLayerStore impleme
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     #[\Override]
     public function save(OAuthAuthorization $authorization): void

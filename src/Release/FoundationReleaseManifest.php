@@ -120,6 +120,8 @@ final class FoundationReleaseManifest
      * a path replacement between digest verification and PHP evaluation.
      *
      * @return array<string,mixed>
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public static function loadTrusted(string $path, string $sha256): array
     {
@@ -277,7 +279,10 @@ final class FoundationReleaseManifest
         return $value;
     }
 
-    /** @param array<string,mixed> $web */
+    /**
+     * @param array<string,mixed> $web
+     * @throws \UnexpectedValueException
+     */
     private static function matcherCache(array $web): void
     {
         if (!array_key_exists('matcher_cache_path', $web)) {

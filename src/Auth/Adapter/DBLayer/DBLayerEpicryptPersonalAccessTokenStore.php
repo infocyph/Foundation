@@ -78,6 +78,9 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
     /**
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function listForSubject(string $subject, int $limit = 100): array

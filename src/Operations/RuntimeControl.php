@@ -23,6 +23,8 @@ final readonly class RuntimeControl
     /**
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function signal(string $scope, ?string $name = null): string
     {
@@ -228,6 +230,8 @@ final readonly class RuntimeControl
      * @return array<string,mixed>
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     private function read(): array
     {
@@ -257,6 +261,8 @@ final readonly class RuntimeControl
      * @param array<string,mixed> $state
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     private function write(array $state): void
     {

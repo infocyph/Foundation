@@ -24,6 +24,12 @@ final readonly class DatabaseMigrationManager
         private ?CacheManager $cache = null,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function runner(?string $connection = null): MigrationRunner
     {
         return new MigrationRunner(
@@ -39,6 +45,12 @@ final readonly class DatabaseMigrationManager
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function seed(?string $connection = null, bool $transactional = true): int
     {
         return new SeedRunner($this->factory->connection($connection))->run(
@@ -94,7 +106,10 @@ final readonly class DatabaseMigrationManager
         return $this->cache->lock($store);
     }
 
-    /** @return list<Migration> */
+    /**
+     * @return list<Migration>
+     * @throws \InvalidArgumentException
+     */
     private function migrations(): array
     {
         $migrations = [];
@@ -133,7 +148,10 @@ final readonly class DatabaseMigrationManager
         return $resolved;
     }
 
-    /** @return list<Seeder|callable> */
+    /**
+     * @return list<Seeder|callable>
+     * @throws \InvalidArgumentException
+     */
     private function seeders(): array
     {
         $seeders = [];

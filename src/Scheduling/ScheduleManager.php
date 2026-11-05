@@ -48,13 +48,19 @@ final readonly class ScheduleManager
         return is_file($this->path($routes));
     }
 
-    /** @return list<ScheduledCommand> */
+    /**
+     * @return list<ScheduledCommand>
+     * @throws \UnexpectedValueException
+     */
     public function entries(string $routes = 'routes/schedule.php', string $manifest = 'bootstrap/cache/schedule.php'): array
     {
         return $this->load($routes, $manifest)->entries();
     }
 
-    /** @return list<ScheduleRun> */
+    /**
+     * @return list<ScheduleRun>
+     * @throws \UnexpectedValueException
+     */
     public function runDue(
         string $routes = 'routes/schedule.php',
         string $manifest = 'bootstrap/cache/schedule.php',
@@ -73,6 +79,8 @@ final readonly class ScheduleManager
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \UnexpectedValueException
      */
     public function runNamed(
         string $name,
@@ -347,7 +355,10 @@ final readonly class ScheduleManager
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function processCommand(ScheduledCommand $entry): array
     {
         $process = [PHP_BINARY];
@@ -516,6 +527,7 @@ final readonly class ScheduleManager
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \RuntimeException
      */
     private function scheduleLock(
         ScheduledCommand $entry,

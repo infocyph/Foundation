@@ -42,6 +42,12 @@ final readonly class SessionDatabaseSchema
         ];
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function schema(?string $connection): SchemaManager
     {
         return new SchemaManager(

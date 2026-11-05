@@ -142,6 +142,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function monitor(): int
     {
         $connection = $this->database->connection($this->connectionName());
@@ -253,6 +259,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return $this->emit(['seeded' => $count], sprintf('Ran %d database seeder(s).', $count));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function showDatabase(): int
     {
         $connection = $this->database->connection($this->connectionName());
@@ -302,6 +314,9 @@ final class DatabaseSystemCommand extends SystemCommand
 
     /**
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     private function showTable(): int
     {
@@ -331,6 +346,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return $exists ? ExitCode::SUCCESS : ExitCode::FAILURE;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function wipe(): int
     {
         if (!$this->authorizeDestructive('db:wipe')) {

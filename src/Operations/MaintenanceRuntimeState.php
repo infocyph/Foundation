@@ -30,6 +30,14 @@ final class MaintenanceRuntimeState implements MaintenanceStateInterface
         }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     #[\Override]
     public function message(): ?string
     {

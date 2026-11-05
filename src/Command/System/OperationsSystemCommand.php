@@ -176,6 +176,9 @@ final class OperationsSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function executionClear(): int
     {
         if (!$this->authorize('Clear all execution history?')) {
@@ -188,6 +191,7 @@ final class OperationsSystemCommand extends SystemCommand
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     private function executionList(): int
     {
@@ -214,6 +218,7 @@ final class OperationsSystemCommand extends SystemCommand
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     private function executionShow(): int
     {
@@ -293,6 +298,9 @@ final class OperationsSystemCommand extends SystemCommand
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
      * @throws \UnexpectedValueException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     private function maintenanceEnable(): int
     {
@@ -307,6 +315,9 @@ final class OperationsSystemCommand extends SystemCommand
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
      * @throws \UnexpectedValueException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     private function maintenanceStatus(): int
     {
@@ -380,6 +391,10 @@ final class OperationsSystemCommand extends SystemCommand
         return $resolved;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function runtimeReload(): int
     {
         $token = $this->control()->signal('runtime');
@@ -387,6 +402,10 @@ final class OperationsSystemCommand extends SystemCommand
         return $this->emit(['scope' => 'runtime', 'token' => $token], 'Persistent runtime reload requested.');
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function scheduleInterrupt(): int
     {
         $token = $this->control()->signal('schedule');
@@ -396,6 +415,7 @@ final class OperationsSystemCommand extends SystemCommand
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     private function workerRestart(): int
     {
@@ -414,6 +434,7 @@ final class OperationsSystemCommand extends SystemCommand
     /**
      * @throws \InvalidArgumentException
      * @throws \UnexpectedValueException
+     * @throws \RuntimeException
      */
     private function workerStatus(): int
     {

@@ -171,6 +171,9 @@ final readonly class OAuthManager
         return $response;
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function grantConsent(PrincipalInterface $principal, AuthorizationRequest $request): OAuthConsent
     {
         $consent = $this->consents->grant($principal, $request);
@@ -183,6 +186,9 @@ final readonly class OAuthManager
         return $consent;
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function hasConsent(PrincipalInterface $principal, AuthorizationRequest $request): bool
     {
         return $this->consents->hasConsent($principal, $request);
@@ -251,6 +257,7 @@ final readonly class OAuthManager
     /**
      * @return array<string, mixed>
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function openIdMetadata(): array
     {
@@ -273,6 +280,9 @@ final readonly class OAuthManager
         $this->revocations->revoke($token, $authentication, $tokenTypeHint);
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function revokeConsent(PrincipalInterface $principal, string $clientId): int
     {
         $count = $this->consents->revoke($principal, $clientId);

@@ -70,6 +70,7 @@ final class ModuleSystemCommand extends SystemCommand
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     private function inspect(): int
     {
@@ -162,6 +163,7 @@ final class ModuleSystemCommand extends SystemCommand
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function mutateFeature(): int
     {
@@ -201,6 +203,7 @@ final class ModuleSystemCommand extends SystemCommand
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     private function plan(): int
     {
@@ -227,6 +230,7 @@ final class ModuleSystemCommand extends SystemCommand
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function publishConfig(): int
     {

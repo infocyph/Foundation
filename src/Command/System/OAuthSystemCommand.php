@@ -80,6 +80,7 @@ final class OAuthSystemCommand extends SystemCommand
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     private function authorizationList(): int
     {
@@ -91,6 +92,9 @@ final class OAuthSystemCommand extends SystemCommand
         return $this->emit(['authorizations' => $authorizations, 'count' => count($authorizations)]);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function authorizationRevoke(): int
     {
         $authorizationId = $this->requiredArgument();
@@ -147,6 +151,7 @@ final class OAuthSystemCommand extends SystemCommand
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     private function clientCreate(): int
     {
@@ -204,6 +209,7 @@ final class OAuthSystemCommand extends SystemCommand
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     private function clientList(): int
     {
@@ -217,6 +223,7 @@ final class OAuthSystemCommand extends SystemCommand
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     private function clientRotateSecret(): int
     {
@@ -237,6 +244,9 @@ final class OAuthSystemCommand extends SystemCommand
         return $this->application->make(OAuthClientManager::class);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function clientSetEnabled(bool $enabled): int
     {
         $clientId = $this->requiredArgument();
@@ -252,6 +262,9 @@ final class OAuthSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function clientShow(): int
     {
         $clientId = $this->requiredArgument();

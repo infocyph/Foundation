@@ -2,6 +2,12 @@
 
 Date: 2026-11-05 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Psalm-first Batch 36 — remaining command, database and release exception contracts (QA pending)
+
+- **Batch 35 exact-head acceptance:** Source `2805d4ab` / [official PHPForge Security & Standards 42030437806](https://github.com/infocyph/Foundation/actions/runs/42030437806) confirmed **1,065 strict Psalm errors per PHP version** on PHP 8.4/8.5, a **27 net reduction** from 1,092. PHPStan passed on both versions after the `OAuthSigningKeyResolver` dead-catch correction; all four stable/lowest QA lanes, four production consumers, clean install and both benchmarks passed; [native hosts 42030437332](https://github.com/infocyph/Foundation/actions/runs/42030437332) passed. Strict Psalm remains a hard release gate and Batch 35 did not reach the desired 50-net-reduction batch target.
+- **Batch 36 submitted source only:** Using the verified exact Batch 35 Psalm report, document reported native exception boundaries across **23 production files** in system commands, database/migrations/schema, DBLayer token persistence, OAuth, modules, scheduling, runtime controls, release compilation, session and testing helpers. These source files covered **162 preexisting `MissingThrowsDocblock` locations**; entries are *targeted findings*, not a claim of 162 net fixes. No behavior changes, suppressions, baseline, dependency, workflow or release changes.
+- **Acceptance:** Compare exact-head official PHP 8.4/8.5 strict Psalm/PHPStan count against 1,065 and check any caller propagation; verify four functional PHPForge QA lanes, consumer installs, benchmarks and native Swoole/OpenSwoole smoke. Continue with further Psalm batches and repairs until both analyzers are green. Formal P0–P6 tracker remains **53/90 accepted, 37 open**, P0 **20/20**.
+
 ## Psalm-first Batch 35 corrective review — PHPStan dead-catch recovery (QA pending)
 
 - **Exact-head `e168c6d7` official [Security & Standards 42026508939](https://github.com/infocyph/Foundation/actions/runs/42026508939):** Psalm **1,065 errors per PHP version**, down **27** from Batch 34's 1,092; PHPStan **failed** a single `catch.neverThrown` diagnostic in `OAuthSigningKeyResolver::resolve()`. Four functional PHPForge stable/lowest lanes, production consumers, clean install and benchmarks passed, as did [native hosts 42026509002](https://github.com/infocyph/Foundation/actions/runs/42026509002). Batch 35 remains **unaccepted** until restored exact-head PHPStan and Psalm validation.

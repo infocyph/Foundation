@@ -41,6 +41,10 @@ final readonly class AuthSchemaInstaller
      *   missing_tables: list<string>,
      *   missing_columns: list<string>
      * }
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function readiness(?string $connection = null): array
     {
@@ -85,6 +89,12 @@ final readonly class AuthSchemaInstaller
         ];
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function runner(?string $connection = null): MigrationRunner
     {
         $migrations = [

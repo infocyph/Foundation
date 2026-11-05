@@ -31,6 +31,9 @@ final readonly class MiddlewareConfigValidator
 
     public function __construct(private ConfigRepository $config) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function validate(): void
     {
         $middleware = $this->middleware();

@@ -12,6 +12,12 @@ use Infocyph\DBLayer\Query\ConnectionRepository;
  */
 abstract class DatabaseRepository extends ConnectionRepository
 {
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function __construct(DBLayerFactory $database)
     {
         parent::__construct($database->connection($this->connectionName()));

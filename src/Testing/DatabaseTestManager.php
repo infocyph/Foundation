@@ -14,6 +14,12 @@ final readonly class DatabaseTestManager
         private DatabaseMigrationManager $migrations,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function begin(?string $connection = null): void
     {
         $this->database->connection($connection)->begin();
@@ -25,6 +31,12 @@ final readonly class DatabaseTestManager
         return $this->migrations->runner($connection)->refresh(true);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function rollback(?string $connection = null): void
     {
         $database = $this->database->connection($connection);

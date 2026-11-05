@@ -25,7 +25,13 @@ use Psr\Container\ContainerInterface;
 
 final class DatabaseServiceProvider extends ServiceProvider
 {
-    /** One native exportable InterMix recipe for a Foundation execution-owned DBLayer connection. */
+    /**
+     * One native exportable InterMix recipe for a Foundation execution-owned DBLayer connection.
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public static function scopedConnection(DBLayerFactory $factory): Connection
     {
         return $factory->connection();

@@ -47,6 +47,12 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
         $this->updateWhere('rememberTokens', ['last_used_at' => $usedAt], 'id = ? AND revoked_at IS NULL', [$recordId]);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function revokeFamily(string $familyId): void
     {
@@ -65,6 +71,11 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
         }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function rotateIfActive(RememberTokenRecord $current, RememberTokenRecord $replacement): bool
     {
@@ -99,6 +110,9 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
         $this->upsertRecord('rememberTokens', 'id', $this->record($record));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function wasFamilyRevoked(string $familyId): bool
     {

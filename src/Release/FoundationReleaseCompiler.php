@@ -217,6 +217,10 @@ final readonly class FoundationReleaseCompiler
      * @return array<string,mixed>
      * @throws \RuntimeException
      * @throws \UnexpectedValueException
+     * @throws \Exception
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     private function compileGeneration(
         array $config,
@@ -289,6 +293,10 @@ final readonly class FoundationReleaseCompiler
      * @param array<int|string,mixed> $capabilities
      * @return array<string,mixed>
      * @throws \RuntimeException
+     * @throws \Exception
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     private function compileNonWebSection(
         array $config,

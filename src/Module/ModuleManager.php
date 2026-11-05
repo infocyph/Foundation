@@ -27,7 +27,13 @@ final readonly class ModuleManager
         return new ModuleStateResolver($this->application, $this->catalog)->all();
     }
 
-    /** @return array{published:list<string>,existing:list<string>} */
+    /**
+     * @return array{published:list<string>,existing:list<string>}
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \Throwable
+     */
     public function publishConfig(string $module, bool $force = false): array
     {
         $configured = $this->catalog->resolve($module)['config'];
