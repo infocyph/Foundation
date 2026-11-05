@@ -20,6 +20,11 @@ use Infocyph\TalkingBytes\Webhook\WebhookSender;
 use Infocyph\TalkingBytes\Webhook\WebhookVerifier;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Built-in application service provider, selected through Foundation composition.
+ *
+ * @api
+ */
 final class CommunicationServiceProvider extends ServiceProvider
 {
     /**
