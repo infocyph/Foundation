@@ -368,6 +368,89 @@ it('rejects a stale durable lease receipt after a newer consumer reclaims the me
     }
 });
 
+
+it('preserves durable receipts and retries on selected production SQL engines', function (
+    string $driver,
+    string $dsnVariable,
+    string $usernameVariable,
+    string $passwordVariable,
+): void {
+    $databaseConfig = foundationOmnibusSelectedDatabaseConfig(
+        $driver,
+        $dsnVariable,
+        $usernameVariable,
+        $passwordVariable,
+    );
+    $prefix = 'f4q_' . bin2hex(random_bytes(5));
+    $tables = [
+        'messages' => $prefix . '_messages',
+        'failures' => $prefix . '_failures',
+        'workflows' => $prefix . '_workflows',
+        'workflow_items' => $prefix . '_items',
+    ];
+
+    [$app, $database] = foundationOmnibusDurableApp(
+        retryMaximumAttempts: 2,
+        databaseConfig: $databaseConfig,
+        durableTables: $tables,
+    );
+    $connection = $app->make(DBLayerFactory::class)->infrastructureConnection('main');
+
+    try {
+        $schema = $app->make(MessagingDatabaseSchema::class);
+        expect($schema->readiness()['installed'])->toBeFalse();
+        $schema->install();
+        expect($schema->readiness()['installed'])->toBeTrue();
+
+        $bus = $app->make(MessageBus::class);
+        $transport = $app->make(DBLayerTransport::class);
+        $consumer = $app->make(ConsumerFactory::class)->make('database');
+
+        $bus->dispatch(new FoundationOmnibusDurableMessage('reclaimed'));
+        $stale = [...$transport->receive('work')][0];
+        [, $staleToken] = ReservationReceipt::decode($stale->receipt);
+        $connection->update(
+            "UPDATE {$tables['messages']} SET reserved_until = 0 WHERE receipt = ?",
+            [$staleToken],
+        );
+        $current = [...$transport->receive('work')][0];
+
+        expect($current->attempt)->toBe(2)
+            ->and($current->receipt)->not->toBe($stale->receipt)
+            ->and(fn() => $transport->acknowledge($stale))->toThrow(InvalidReservation::class)
+            ->and(fn() => $transport->release($stale))->toThrow(InvalidReservation::class)
+            ->and((int) $connection->scalar("SELECT COUNT(*) FROM {$tables['messages']}"))->toBe(1);
+
+        $transport->acknowledge($current);
+        expect((int) $connection->scalar("SELECT COUNT(*) FROM {$tables['messages']}"))->toBe(0);
+
+        $bus->dispatch(new FoundationOmnibusDurableMessage('transient'));
+        $first = $consumer->run('work');
+        expect($first->released)->toBe(1)
+            ->and($first->failed)->toBe(0)
+            ->and($transport->size('work'))->toBe(1);
+
+        $second = $consumer->run('work');
+        expect($second->succeeded)->toBe(1)
+            ->and($second->failed)->toBe(0)
+            ->and(FoundationOmnibusDurableHandler::$transientAttempts)->toBe(2)
+            ->and(FoundationOmnibusDurableHandler::$handled)->toBe(['transient'])
+            ->and($transport->size('work'))->toBe(0)
+            ->and((int) $connection->scalar("SELECT COUNT(*) FROM {$tables['messages']}"))->toBe(0)
+            ->and($app->make(DBLayerFailureStore::class)->all())->toBe([]);
+    } finally {
+        // Per-test tables avoid modifying any shared selected CI database schema.
+        foreach (['workflow_items', 'workflows', 'failures', 'messages'] as $name) {
+            $connection->statement("DROP TABLE IF EXISTS {$tables[$name]}");
+        }
+        unset($app);
+        foundationOmnibusRemoveDatabase($database);
+    }
+})->with([
+    'MySQL' => ['mysql', 'IC_MYSQL_DSN', 'IC_MYSQL_USER', 'IC_MYSQL_PASSWORD'],
+    'PostgreSQL' => ['pgsql', 'IC_POSTGRES_DSN', 'IC_POSTGRES_USER', 'IC_POSTGRES_PASSWORD'],
+]);
+
 it('reads existing serialized queue rows through the current DB transport', function (): void {
     [$app, $database] = foundationOmnibusDurableApp();
 
@@ -493,16 +576,23 @@ it('keeps the DBLayer durable graph cold when durable messaging is disabled', fu
 });
 
 /** @return array{0:\Infocyph\Foundation\Application\Application,1:string} */
-function foundationOmnibusDurableApp(?array $selectedFeatures = null, int $retryMaximumAttempts = 1, ?array $workers = null): array
+function foundationOmnibusDurableApp(
+    ?array $selectedFeatures = null,
+    int $retryMaximumAttempts = 1,
+    ?array $workers = null,
+    ?array $databaseConfig = null,
+    ?array $durableTables = null,
+): array
 {
     $database = foundationOmnibusDatabasePath();
     $config = [
-        'database' => foundationOmnibusDatabaseConfig($database),
+        'database' => $databaseConfig ?? foundationOmnibusDatabaseConfig($database),
         'messaging' => [
             'durable' => [
                 'enabled' => true,
                 'connection' => 'main',
                 'failure_store' => 'database',
+                'tables' => $durableTables ?? [],
             ],
             'serialization' => [
                 'message_codecs' => [FoundationOmnibusDurableMessageCodec::class],
@@ -537,6 +627,48 @@ function foundationOmnibusDurableApp(?array $selectedFeatures = null, int $retry
     $app = Foundation::worker($config)->boot();
 
     return [$app, $database];
+}
+
+/** @return array<string, mixed> */
+function foundationOmnibusSelectedDatabaseConfig(
+    string $driver,
+    string $dsnVariable,
+    string $usernameVariable,
+    string $passwordVariable,
+): array {
+    $dsn = getenv($dsnVariable);
+    if (!is_string($dsn) || !str_starts_with($dsn, $driver . ':')) {
+        throw new RuntimeException(sprintf('Selected durable queue test requires %s.', $dsnVariable));
+    }
+
+    $properties = [];
+    foreach (explode(';', substr($dsn, strlen($driver) + 1)) as $part) {
+        if (str_contains($part, '=')) {
+            [$key, $value] = explode('=', $part, 2);
+            $properties[$key] = $value;
+        }
+    }
+    $database = $properties['dbname'] ?? null;
+    if (!is_string($database) || $database === '') {
+        throw new RuntimeException(sprintf('%s must include a database name.', $dsnVariable));
+    }
+
+    $username = getenv($usernameVariable);
+    $password = getenv($passwordVariable);
+
+    return [
+        'default' => 'main',
+        'connections' => [
+            'main' => [
+                'driver' => $driver,
+                'host' => $properties['host'] ?? '127.0.0.1',
+                'port' => (int) ($properties['port'] ?? ($driver === 'mysql' ? '3306' : '5432')),
+                'database' => $database,
+                'username' => is_string($username) ? $username : '',
+                'password' => is_string($password) ? $password : '',
+            ],
+        ],
+    ];
 }
 
 /** @return array<string,mixed> */
