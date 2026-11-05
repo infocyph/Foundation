@@ -53,6 +53,7 @@ final readonly class ModuleFeatureLifecycleExecutor
      * @phpstan-return Outcome
      * @throws \RuntimeException
      * @throws \InvalidArgumentException
+     * @throws \Throwable
      */
     public function apply(
         string $operation,

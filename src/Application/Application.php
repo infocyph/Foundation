@@ -106,6 +106,8 @@ final class Application
 
     /**
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
      */
     public function boot(): self
     {

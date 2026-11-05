@@ -23,6 +23,7 @@ final readonly class StorageRegistry
 
     /**
      * @param array<array-key, mixed> $drivers Optional Pathwise custom-driver factories.
+     * @throws \InvalidArgumentException
      */
     public function __construct(
         ConfigRepository $config,

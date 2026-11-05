@@ -12,6 +12,9 @@ final class SessionExecutionState
 
     public ?SessionStoreInterface $store = null;
 
+    /**
+     * @throws \Throwable
+     */
     public function __destruct()
     {
         $this->reset(false);

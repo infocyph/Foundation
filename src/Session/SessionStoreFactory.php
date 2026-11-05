@@ -54,6 +54,7 @@ final class SessionStoreFactory
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     private function databaseStore(): DatabaseSessionStore
     {

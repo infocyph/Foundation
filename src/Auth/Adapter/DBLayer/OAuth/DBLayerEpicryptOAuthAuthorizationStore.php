@@ -48,6 +48,7 @@ final readonly class DBLayerEpicryptOAuthAuthorizationStore extends DBLayerStore
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function find(string $authorizationId): ?OAuthAuthorizationRecord
@@ -59,6 +60,7 @@ final readonly class DBLayerEpicryptOAuthAuthorizationStore extends DBLayerStore
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function revoke(string $authorizationId, int $revokedAt): ?OAuthAuthorizationRecord

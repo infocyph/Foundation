@@ -21,11 +21,17 @@ final readonly class ConfigValidator
 {
     public function __construct(private ConfigRepository $config) {}
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     public function validate(): ConfigValidationResult
     {
         return $this->runChecks($this->config->isProduction());
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     public function validateForProduction(): ConfigValidationResult
     {
         return $this->runChecks(true);

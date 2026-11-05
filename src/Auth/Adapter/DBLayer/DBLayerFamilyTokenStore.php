@@ -32,6 +32,7 @@ abstract readonly class DBLayerFamilyTokenStore extends ClockedDBLayerStore
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     protected function rotateTokenIfActive(
         string $table,

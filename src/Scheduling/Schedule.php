@@ -16,6 +16,9 @@ final class Schedule
         return $this;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function command(string $command): ScheduledCommand
     {
         $scheduled = new ScheduledCommand($command);

@@ -14,6 +14,11 @@ final readonly class RouteInspector
 {
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     */
     public function routes(?string $routes = null): Collection
     {
         $config = $this->application->config()->all();

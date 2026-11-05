@@ -77,6 +77,7 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function register(OAuthClient $client, array $redirectUris, array $scopes): void
@@ -92,6 +93,7 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function replaceRedirectUris(string $clientId, array $redirectUris, int $createdAt): void
@@ -106,6 +108,7 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function replaceScopes(string $clientId, array $scopes, int $createdAt): void

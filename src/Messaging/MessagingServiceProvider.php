@@ -115,6 +115,7 @@ final class MessagingServiceProvider extends ServiceProvider
     /**
      * @param array<array-key, mixed> $messaging
      * @return array{enabled:bool,failure_driver:string}
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     private function durableState(FoundationBuildContext $context, array $messaging): array
     {

@@ -77,6 +77,9 @@ final readonly class MessagingDatabaseSchema
         ];
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function connection(?string $connection): Connection
     {
         return $this->database->infrastructureConnection($connection ?? $this->connectionName());

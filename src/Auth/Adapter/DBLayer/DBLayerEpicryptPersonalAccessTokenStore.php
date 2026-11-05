@@ -19,6 +19,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function create(PersonalAccessTokenRecord $record): bool
@@ -51,6 +52,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function find(string $tokenId): ?PersonalAccessTokenRecord
@@ -105,6 +107,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function revoke(string $tokenId, string $subject, int $revokedAt): ?PersonalAccessTokenRecord
@@ -132,6 +135,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function revokeAll(string $subject, int $revokedAt): int
@@ -155,6 +159,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function touch(

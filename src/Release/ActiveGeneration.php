@@ -78,6 +78,7 @@ final class ActiveGeneration
     /**
      * @return array{generation:string,manifest:string}
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function current(string $releaseRoot): array
     {

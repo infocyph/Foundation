@@ -250,6 +250,7 @@ final class ModuleArchitectureCatalog
      *
      * @phpstan-param array<string,ArchitectureModule>|null $modules
      * @psalm-param array<string,ArchitectureModule>|null $modules
+     * @throws \LogicException
      */
     public function validate(?array $modules = null): void
     {

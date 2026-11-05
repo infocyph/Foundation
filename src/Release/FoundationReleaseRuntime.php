@@ -278,7 +278,10 @@ final readonly class FoundationReleaseRuntime
         );
     }
 
-    /** @param array<string,mixed> $web */
+    /**
+     * @param array<string,mixed> $web
+     * @throws \UnexpectedValueException
+     */
     private function matcherCachePath(array $web, string $directory): ?string
     {
         $path = $web['matcher_cache_path'] ?? null;

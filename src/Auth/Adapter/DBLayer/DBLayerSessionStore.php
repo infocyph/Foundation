@@ -77,6 +77,7 @@ final readonly class DBLayerSessionStore extends DBLayerStore implements Session
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function rotate(AuthSession $current, AuthSession $replacement, int $now): bool

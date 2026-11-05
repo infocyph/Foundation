@@ -29,6 +29,7 @@ final readonly class WorkerManager
      * @return array<string, array<string, mixed>>
      * @throws \UnexpectedValueException
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function all(string $routes = 'routes/workers.php'): array
     {

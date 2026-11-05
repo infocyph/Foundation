@@ -32,6 +32,7 @@ final class FilesystemServiceProvider extends ServiceProvider
 
     /**
      * @throws \Infocyph\Pathwise\Exceptions\UploadException
+     * @throws \LogicException
      */
     public static function upload(FilesystemTransferFactory $transfers): UploadProcessor
     {

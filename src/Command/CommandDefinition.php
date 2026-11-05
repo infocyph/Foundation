@@ -61,6 +61,7 @@ final class CommandDefinition
     /**
      * @param array<string, mixed> $manifest
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     public static function fromManifest(array $manifest): self
     {

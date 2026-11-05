@@ -18,6 +18,7 @@ final readonly class FilesystemUploadRequestHandler
 
     /**
      * @throws \Infocyph\Pathwise\Exceptions\UploadException
+     * @throws \LogicException
      */
     public function finalizeChunkUpload(string $uploadId, ?string $directory = null, ?string $disk = null): string
     {
@@ -30,6 +31,7 @@ final readonly class FilesystemUploadRequestHandler
     /**
      * @throws \Infocyph\Pathwise\Exceptions\UploadException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function processChunkUploadRequest(
         Request $request,
@@ -77,6 +79,7 @@ final readonly class FilesystemUploadRequestHandler
     /**
      * @throws \Infocyph\Pathwise\Exceptions\UploadException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function processUploadRequest(
         Request $request,

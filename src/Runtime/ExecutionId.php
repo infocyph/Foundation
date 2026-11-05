@@ -24,6 +24,9 @@ final readonly class ExecutionId implements \Stringable
         return $this->value;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function generate(): self
     {
         return new self(Id::ulid());

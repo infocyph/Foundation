@@ -59,6 +59,7 @@ final readonly class DBLayerEpicryptAccessTokenStatusStore extends DBLayerStore 
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function revoke(string $issuer, string $tokenId, int $revokedAt): ?OAuthAccessTokenStatusRecord

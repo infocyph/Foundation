@@ -224,6 +224,9 @@ final class WebrickRouterFactory
         $register($registrar);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function signedUrlConfig(): ?SignedUrlConfig
     {
         return new SignedUrlKeyResolver($this->config)->resolve();

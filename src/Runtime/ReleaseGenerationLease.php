@@ -86,6 +86,7 @@ final class ReleaseGenerationLease
     /**
      * @param int<0, 7> $operation
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private static function acquire(string $releaseRoot, string $generation, int $operation): ?self
     {

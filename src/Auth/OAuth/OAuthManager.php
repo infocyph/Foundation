@@ -218,7 +218,10 @@ final readonly class OAuthManager
         return $this->jwks->jwks();
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \LogicException
+     */
     public function metadata(): array
     {
         return $this->metadata->toArray();

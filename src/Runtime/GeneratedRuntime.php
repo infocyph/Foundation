@@ -231,6 +231,7 @@ final readonly class GeneratedRuntime
     /**
      * @param array<string,mixed> $metadata
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     private static function finishBoot(
         RuntimeMode $runtime,

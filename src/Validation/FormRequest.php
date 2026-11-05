@@ -16,6 +16,9 @@ use Infocyph\Webrick\Request\Request;
  */
 abstract class FormRequest
 {
+    /**
+     * @throws \LogicException
+     */
     public function __construct(private readonly ValidatorFactory $validators) {}
 
     final public function __invoke(Request $request): ValidationResult

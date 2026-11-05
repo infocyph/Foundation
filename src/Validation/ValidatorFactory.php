@@ -54,6 +54,7 @@ final readonly class ValidatorFactory
      *
      * @param array<string,mixed> $rules
      * @param array<string,mixed> $overrides
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function makeRules(array $rules, array $overrides = []): Validator
     {

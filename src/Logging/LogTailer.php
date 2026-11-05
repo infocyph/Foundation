@@ -149,6 +149,7 @@ final readonly class LogTailer
     /**
      * @param resource $stream
      * @return resource
+     * @throws \RuntimeException
      */
     private function refreshStream($stream, string $path)
     {

@@ -36,6 +36,7 @@ final readonly class OmnibusDurableFactory
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \LogicException
      */
     public function afterCommit(MessageBus $bus): AfterCommitDispatcher
     {

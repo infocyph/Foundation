@@ -56,6 +56,9 @@ final readonly class TestKit
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function fakeCache(?CacheInterface $store = null, ?string $name = null): CacheInterface
     {
         return $this->cache()->useStore(

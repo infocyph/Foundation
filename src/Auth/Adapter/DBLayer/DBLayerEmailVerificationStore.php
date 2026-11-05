@@ -29,6 +29,7 @@ final readonly class DBLayerEmailVerificationStore extends DBLayerConsumableStor
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws EmailDestinationChanged
      * @throws TransactionException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function consumeAndApply(string $requestId, callable $apply): bool

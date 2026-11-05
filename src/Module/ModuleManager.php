@@ -21,7 +21,10 @@ final readonly class ModuleManager
         private ModuleCatalog $catalog,
     ) {}
 
-    /** @phpstan-return list<ModuleState> */
+    /**
+     * @phpstan-return list<ModuleState>
+     * @throws \UnexpectedValueException
+     */
     public function all(): array
     {
         return new ModuleStateResolver($this->application, $this->catalog)->all();

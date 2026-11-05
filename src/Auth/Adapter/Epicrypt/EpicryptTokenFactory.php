@@ -38,6 +38,9 @@ final readonly class EpicryptTokenFactory
         return $this->issuer;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function jwtIssuer(string $type): SymmetricJwt
     {
         return SymmetricJwt::issuer(
@@ -48,6 +51,9 @@ final readonly class EpicryptTokenFactory
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function jwtVerifier(string $type): SymmetricJwt
     {
         return SymmetricJwt::verifier(

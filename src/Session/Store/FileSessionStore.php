@@ -24,6 +24,9 @@ final readonly class FileSessionStore implements SessionStoreInterface
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function load(string $id, int $now): ?SessionPayload
     {

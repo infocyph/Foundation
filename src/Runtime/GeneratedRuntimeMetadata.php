@@ -227,6 +227,9 @@ final class GeneratedRuntimeMetadata
         return $value;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private static function configFingerprint(NonWebGraphComposition $graph): string
     {
         ConfigExportValidator::assertExportable($graph->context->config);

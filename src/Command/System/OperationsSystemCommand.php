@@ -111,6 +111,9 @@ final class OperationsSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function configValidate(): int
     {
         $production = $this->flag('production') || $this->application->isProduction();

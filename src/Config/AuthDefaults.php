@@ -8,6 +8,7 @@ final class AuthDefaults
 {
     /**
      * @return array<string, mixed>
+     * @throws \UnexpectedValueException
      */
     public static function all(): array
     {

@@ -47,6 +47,7 @@ final class JsonLogger extends AbstractLogger
     /**
      * @param array<string, mixed> $context
      * @throws \RuntimeException
+     * @throws \Psr\Log\InvalidArgumentException
      */
     #[\Override]
     public function log(mixed $level, string|\Stringable $message, array $context = []): void

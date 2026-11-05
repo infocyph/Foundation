@@ -35,6 +35,7 @@ final readonly class ModuleFeatureComposerExecutor
      * @phpstan-param Context $context
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \Throwable
      */
     public function applyPackages(
         string $operation,

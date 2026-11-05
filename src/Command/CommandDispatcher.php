@@ -91,6 +91,7 @@ final readonly class CommandDispatcher
     /**
      * @param list<string> $argv
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function run(array $argv, ?CommandIO $io = null): int
     {

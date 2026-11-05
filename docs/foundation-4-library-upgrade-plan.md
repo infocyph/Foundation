@@ -2,6 +2,12 @@
 
 Date: 2026-11-05 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Psalm-first Batch 40 — final documented native exception contracts (QA pending)
+
+- **Batch 39 official analyzer baseline:** exact source `243e380b` / [Security & Standards 42041602121](https://github.com/infocyph/Foundation/actions/runs/42041602121) reported **778 strict Psalm errors per PHP version**, 29 lower than accepted Batch 38b's 807, while PHPStan passed. The official four stable/lowest functional lanes and native smoke require exact-head final-status confirmation; no premature full batch acceptance.
+- **Batch 40 source-only work (unverified):** Using Batch 39's official per-file diagnostics, documented the remaining **71 `MissingThrowsDocblock` locations** across **53 production PHP files** in authentication and OAuth, DBLayer, filesystem, routing, commands, configuration, messaging, modules, releases, runtime, sessions and validation. These are the **previous report's locations, not a verified net error reduction**; newly propagated call sites may require a further batch. No suppression, analyzer configuration, dependency or runtime logic changes.
+- **Acceptance requirement:** Run official PHPForge `dev-main@dev` PHPStan/Psalm on PHP 8.4 and PHP 8.5 plus all four functional stable/lowest lanes, production consumers, clean install, benchmarks and Swoole/OpenSwoole host smoke. Triage new caller propagation and PHPStan contract regressions before accepting. Formal P0–P6 tracker remains **53/90 accepted, 37 open**, P0 20/20. Keep PR open/draft; no merge/tag/release.
+
 ## Psalm-first Batch 39 — remaining native exception propagation (QA pending)
 
 - **Batch 38b officially verified:** Combined exact-head source `d2455f5a` / [Security & Standards 42039352064](https://github.com/infocyph/Foundation/actions/runs/42039352064) reports **807 strict Psalm errors per version**, down **87 from the Batch 37 baseline of 894**, both PHP 8.4 and PHP 8.5. PHPStan passed, all four functional stable/lowest PHPForge QA lanes, four production consumers, clean install and both benchmarks passed; [native hosts 42039351676](https://github.com/infocyph/Foundation/actions/runs/42039351676) passed all four Swoole/OpenSwoole cases. Accept 87 net strict Psalm reductions for Batch 38 (including 38b); strict gate remains failing.

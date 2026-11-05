@@ -20,6 +20,7 @@ final readonly class AuthProductionGuard
 
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \UnexpectedValueException
      */
     public function guard(AuthDriverResolver $drivers): void
     {

@@ -31,6 +31,7 @@ final readonly class PasskeyManager
 
     /**
      * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
      */
     public function finishAuthentication(PasskeyAuthenticationResult $result, array $context = []): PasskeyAuthenticationOutcome
     {

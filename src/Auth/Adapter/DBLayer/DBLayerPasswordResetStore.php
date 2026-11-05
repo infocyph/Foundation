@@ -25,6 +25,7 @@ final readonly class DBLayerPasswordResetStore extends DBLayerConsumableStore im
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function consumeAndApply(string $requestId, callable $apply): bool

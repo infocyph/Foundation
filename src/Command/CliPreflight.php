@@ -46,6 +46,7 @@ final readonly class CliPreflight
      * Returns an exit code when handled, otherwise null to continue to command execution.
      *
      * @param list<string> $argv
+     * @throws \InvalidArgumentException
      */
     public function handle(array $argv, CommandIO $io): ?int
     {

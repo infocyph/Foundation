@@ -78,6 +78,7 @@ final class ModuleFeatureCapabilityPolicy
 
     /**
      * @param array<string,bool>|null $selections
+     * @throws \InvalidArgumentException
      */
     public static function selected(string $feature, ?array $selections): bool
     {

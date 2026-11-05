@@ -40,6 +40,7 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function inspect(#[\SensitiveParameter] RefreshTokenRecord $record, int $now): RefreshTokenInspectionStatus
@@ -126,6 +127,7 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function rotate(

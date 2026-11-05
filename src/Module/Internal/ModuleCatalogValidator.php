@@ -271,6 +271,7 @@ final class ModuleCatalogValidator
     /**
      * @param array<string,string> $owners
      * @phpstan-param ModuleDefinition $definition
+     * @throws \LogicException
      */
     private function registerModuleAliases(array &$owners, string $name, array $definition): void
     {
