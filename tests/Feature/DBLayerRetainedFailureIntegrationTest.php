@@ -190,8 +190,8 @@ it('releases failed SQLite write contention for a later transaction while retain
                 expect($contender->statement($insert, [2, 'after-rollback']))->toBeTrue()
                     ->and((int) $contender->scalar("SELECT COUNT(*) FROM {$table}"))->toBe(1)
                     ->and($contender->scalar("SELECT payload FROM {$table} WHERE id = ?", [2]))
-                    ->and($contender->getPdo())->toBe($contenderPdo)
                     ->toBe('after-rollback')
+                    ->and($contender->getPdo())->toBe($contenderPdo)
                     ->and($captured)->toHaveCount(1);
             } finally {
                 Events::forget('db.query.failed', $listener);
