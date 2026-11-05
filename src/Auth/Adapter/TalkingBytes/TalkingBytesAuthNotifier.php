@@ -124,7 +124,10 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
     private function storedAddress(AccountInterface $account): ?string
     {
         foreach ([$account->identifier(), $account->metadata()['email'] ?? null] as $candidate) {
-            if (!is_string($candidate) || $candidate === '') {
+            // Match the verification manager's authoritative-email rule:
+            // a username that looks like a display-name mailbox is not an
+            // account email and must not shadow stored metadata.email.
+            if (!is_string($candidate) || filter_var($candidate, FILTER_VALIDATE_EMAIL) === false) {
                 continue;
             }
 

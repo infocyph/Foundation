@@ -127,6 +127,43 @@ it('delivers account password resets only to the authoritative stored address', 
     )))->toThrow(RuntimeException::class, 'explicit destination');
 });
 
+it('does not treat a display-name mailbox username as the trusted account recipient', function (): void {
+    $accounts = new InMemoryAccountStore();
+    $accounts->save(new Account(
+        'username-owner',
+        'Eve <attacker@example.test>',
+        metadata: ['email' => 'trusted-owner@example.test'],
+    ));
+    $mailer = Emailer::fake();
+    $notifier = new TalkingBytesAuthNotifier(
+        $mailer,
+        new AuthNotificationMapper(new NotificationTemplateRegistry(new ConfigRepository())),
+        $accounts,
+        from: 'sender@example.test',
+    );
+
+    $notifier->send(new AuthNotification(
+        AuthNotificationType::PASSWORD_RESET_REQUESTED,
+        'username-owner',
+        ['token' => 'reset-token', 'recipient_email' => 'attacker@example.test'],
+    ));
+    expect(fn() => $notifier->send(new AuthNotification(
+        AuthNotificationType::EMAIL_VERIFICATION_REQUESTED,
+        'username-owner',
+        ['email' => 'attacker@example.test', 'token' => 'forged-token'],
+    )))->toThrow(RuntimeException::class, 'account-stored destination');
+    $notifier->send(new AuthNotification(
+        AuthNotificationType::EMAIL_VERIFICATION_REQUESTED,
+        'username-owner',
+        ['email' => 'trusted-owner@example.test', 'token' => 'trusted-token'],
+    ));
+
+    $mailer->assertable()->assertSentCount(2);
+    $mailer->assertable()->assertSentTo('trusted-owner@example.test');
+    expect(fn() => $mailer->assertable()->assertSentTo('attacker@example.test'))
+        ->toThrow(RuntimeException::class);
+});
+
 it('redacts nested credentials at the shared authentication audit recorder boundary', function (): void {
     $audit = new InMemoryAuditEventStore();
     AuthEventRecorder::record(

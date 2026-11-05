@@ -102,8 +102,13 @@ not a `context.email` override. The TalkingBytes notifier independently checks
 the `EMAIL_VERIFICATION_REQUESTED` notification's explicit destination against
 the account's **current stored address** immediately before sending. Directly
 constructing a notification with a different address, or an unknown account,
-fails closed even if a caller bypasses the domain manager. This is verification
-of an existing address, **not** authorization for an email-address change.
+fails closed even if a caller bypasses the domain manager. The notifier
+only treats an identifier as a stored email when it is a bare validated address;
+a username formatted as `Display Name <address>` must not shadow the
+canonical `metadata.email` field even though the underlying email library
+also supports display-name mailboxes for normal message composition. This is
+verification of an existing address, **not** authorization for an email-address
+change.
 
 During token redemption, the manager also requires a destination-conditional
 `AccountStoreInterface::markVerifiedForEmail($accountId, $email, $verifiedAt)`

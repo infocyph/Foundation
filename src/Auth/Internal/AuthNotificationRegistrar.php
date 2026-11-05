@@ -18,7 +18,11 @@ use Infocyph\TalkingBytes\Email\Emailer;
 
 final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
 {
-    /** @param list<string> $criticalTypes */
+    /**
+     * @param list<string> $criticalTypes
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public static function talkingBytes(
         EmailProfiles $profiles,
         AuthNotificationMapper $mapper,
@@ -37,6 +41,7 @@ final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
         );
     }
 
+    /** @throws \LogicException */
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->notifications() === AuthNotificationDriver::TALKINGBYTES) {
