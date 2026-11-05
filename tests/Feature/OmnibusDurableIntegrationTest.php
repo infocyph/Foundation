@@ -67,8 +67,13 @@ final class FoundationOmnibusDurableHandler
     /** @var list<string> */
     public static array $handled = [];
 
+    public static int $transientAttempts = 0;
+
     public function __invoke(FoundationOmnibusDurableMessage $message): void
     {
+        if ($message->value === 'transient' && ++self::$transientAttempts === 1) {
+            throw new RuntimeException('expected transient durable handler failure');
+        }
         if ($message->value === 'fail') {
             throw new RuntimeException('expected durable handler failure');
         }
@@ -79,6 +84,7 @@ final class FoundationOmnibusDurableHandler
 
 beforeEach(function (): void {
     FoundationOmnibusDurableHandler::$handled = [];
+    FoundationOmnibusDurableHandler::$transientAttempts = 0;
 });
 
 it('keeps the established serialized message alias readable after the library upgrade', function (): void {
@@ -158,6 +164,46 @@ it('preserves a durable reservation for the next consumer after host cancellatio
             ->and($transport->size('work'))->toBe(0)
             ->and($app->make(DBLayerFailureStore::class)->all())->toBe([])
             ->and(FoundationOmnibusDurableHandler::$handled)->toBe(['after-cancellation']);
+    } finally {
+        unset($app);
+        foundationOmnibusRemoveDatabase($database);
+    }
+});
+
+it('retries a transient durable delivery once without losing or duplicating the message', function (): void {
+    [$app, $database] = foundationOmnibusDurableApp(retryMaximumAttempts: 2);
+
+    try {
+        $app->make(MessagingDatabaseSchema::class)->install();
+        $transport = $app->make(DBLayerTransport::class);
+        $connection = $app->make(DBLayerFactory::class)->infrastructureConnection('main');
+        $consumer = $app->make(ConsumerFactory::class)->make('database');
+
+        $app->make(MessageBus::class)->dispatch(new FoundationOmnibusDurableMessage('transient'));
+
+        $first = $consumer->run('work');
+        expect($first->received)->toBe(1)
+            ->and($first->released)->toBe(1)
+            ->and($first->succeeded)->toBe(0)
+            ->and($first->failed)->toBe(0)
+            ->and($transport->size('work'))->toBe(1)
+            ->and((int) $connection->scalar('SELECT attempts FROM omnibus_messages'))->toBe(1)
+            ->and($app->make(DBLayerFailureStore::class)->all())->toBe([])
+            ->and(FoundationOmnibusDurableHandler::$handled)->toBe([]);
+
+        $second = $consumer->run('work');
+        expect($second->received)->toBe(1)
+            ->and($second->succeeded)->toBe(1)
+            ->and($second->released)->toBe(0)
+            ->and($second->failed)->toBe(0)
+            ->and(FoundationOmnibusDurableHandler::$transientAttempts)->toBe(2)
+            ->and(FoundationOmnibusDurableHandler::$handled)->toBe(['transient'])
+            ->and($transport->size('work'))->toBe(0)
+            ->and($app->make(DBLayerFailureStore::class)->all())->toBe([])
+            ->and((int) $connection->scalar('SELECT COUNT(*) FROM omnibus_messages'))->toBe(0);
+
+        expect($consumer->run('work')->received)->toBe(0)
+            ->and(FoundationOmnibusDurableHandler::$handled)->toBe(['transient']);
     } finally {
         unset($app);
         foundationOmnibusRemoveDatabase($database);
@@ -325,7 +371,7 @@ it('keeps the DBLayer durable graph cold when durable messaging is disabled', fu
 });
 
 /** @return array{0:\Infocyph\Foundation\Application\Application,1:string} */
-function foundationOmnibusDurableApp(?array $selectedFeatures = null): array
+function foundationOmnibusDurableApp(?array $selectedFeatures = null, int $retryMaximumAttempts = 1): array
 {
     $database = foundationOmnibusDatabasePath();
     $config = [
@@ -354,7 +400,7 @@ function foundationOmnibusDurableApp(?array $selectedFeatures = null): array
             ],
             'consumer' => ['transport' => 'database'],
             'retry' => [
-                'maximum_attempts' => 1,
+                'maximum_attempts' => $retryMaximumAttempts,
                 'initial_delay_seconds' => 0.0,
                 'multiplier' => 1.0,
                 'maximum_delay_seconds' => 0.0,
