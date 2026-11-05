@@ -9,6 +9,9 @@ use Infocyph\Foundation\Auth\Contract\Storage\LockoutStoreInterface;
 
 final readonly class DBLayerLockoutStore extends ClockedDBLayerStore implements LockoutStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function isLocked(string $accountId): bool
     {
@@ -31,6 +34,13 @@ final readonly class DBLayerLockoutStore extends ClockedDBLayerStore implements 
         return true;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function lock(string $accountId, LockoutReason $reason, ?int $until = null): void
     {
@@ -41,6 +51,12 @@ final readonly class DBLayerLockoutStore extends ClockedDBLayerStore implements 
         ]);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function unlock(string $accountId): void
     {

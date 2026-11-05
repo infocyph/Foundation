@@ -9,6 +9,9 @@ use Infocyph\Foundation\Auth\Contract\Storage\RefreshTokenStoreInterface;
 
 final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore implements RefreshTokenStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function find(string $tokenId): ?RefreshTokenRecord
     {
@@ -58,6 +61,13 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function save(RefreshTokenRecord $record): void
     {

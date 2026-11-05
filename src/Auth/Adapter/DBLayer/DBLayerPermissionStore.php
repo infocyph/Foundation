@@ -56,6 +56,9 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
 
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function permissionsForAccount(string $accountId): array
@@ -69,6 +72,9 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
 
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function permissionsForRoles(array $roleIds): array
@@ -118,6 +124,10 @@ final readonly class DBLayerPermissionStore extends ClockedDBLayerStore implemen
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     #[\Override]
     public function save(Permission $permission): void

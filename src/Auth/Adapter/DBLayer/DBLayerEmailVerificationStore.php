@@ -67,7 +67,13 @@ final readonly class DBLayerEmailVerificationStore extends DBLayerConsumableStor
         return $this->findRequest('emailVerifications', $this->mapRequest(...), $requestId);
     }
 
-    /** @throws \InvalidArgumentException */
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function save(EmailVerificationRequest $request): void
     {

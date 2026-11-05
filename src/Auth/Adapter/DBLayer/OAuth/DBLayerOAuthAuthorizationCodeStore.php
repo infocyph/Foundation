@@ -16,6 +16,9 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
 {
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function consume(
@@ -61,6 +64,12 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
         return $result;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function save(OAuthAuthorizationCode $code): void
     {
@@ -82,6 +91,9 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
         ]);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function find(Connection $connection, string $codeHash): ?OAuthAuthorizationCode
     {
         $rows = $connection->select(

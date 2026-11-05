@@ -15,6 +15,11 @@ final readonly class DBLayerPasswordResetStore extends DBLayerConsumableStore im
         $this->consumeRequest('passwordResets', $requestId);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function consumeAndApply(string $requestId, callable $apply): bool
     {
@@ -39,6 +44,13 @@ final readonly class DBLayerPasswordResetStore extends DBLayerConsumableStore im
         return $this->findRequest('passwordResets', $this->mapRequest(...), $requestId);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function save(PasswordResetRequest $request): void
     {

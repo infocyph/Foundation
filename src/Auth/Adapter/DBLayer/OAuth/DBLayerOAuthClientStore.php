@@ -31,6 +31,9 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
     /**
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function list(int $limit = 100): array
@@ -50,6 +53,9 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
 
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function redirectUris(string $clientId): array
@@ -112,6 +118,10 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     #[\Override]
     public function save(OAuthClient $client): void
@@ -121,6 +131,9 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
 
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function scopes(string $clientId): array
