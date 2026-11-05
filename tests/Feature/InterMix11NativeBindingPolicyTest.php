@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -90,3 +91,76 @@ it('keeps optional InterMix class auto-binding disabled in every native Foundati
     [RuntimeMode::Worker, 'prevalidated'],
     [RuntimeMode::Scheduler, 'prevalidated'],
 ]);
+
+it('isolates native InterMix definition-cache entries across Foundation environments', function (): void {
+    $pool = Cache::memory('foundation-imx11-env-' . bin2hex(random_bytes(8)));
+    $build = static function (?string $environment, mixed $value) use ($pool): mixed {
+        $config = new ConfigRepository([
+            'app' => ['container' => ['environment' => $environment]],
+        ]);
+        $context = FoundationBuildContext::fromConfig($config, RuntimeMode::Cli, []);
+        $builder = FoundationGraph::compose($context);
+        $builder->definitionCache($pool, 'foundation-intermix-test', 'release-1', failOpen: false)
+            ->factory('cached.probe', static fn(): mixed => $value)
+            ->cacheDefinition('cached.probe');
+
+        return $builder->build()->get('cached.probe');
+    };
+
+    // The absence of an environment is distinct from literal "default";
+    // previously cached int zero must be a hit, not a fallback miss.
+    expect($build(null, 0))->toBe(0)
+        ->and($build(null, 99))->toBe(0)
+        ->and($build('default', 'literal-default'))->toBe('literal-default')
+        ->and($build('production', false))->toBeFalse()
+        ->and($build('default', 'unexpected'))->toBe('literal-default')
+        ->and($build('production', true))->toBeFalse();
+});
+
+it('caches only safe scalar null and nested values from native Foundation InterMix factories', function (): void {
+    $pool = Cache::memory('foundation-imx11-types-' . bin2hex(random_bytes(8)));
+    $build = static function (array $values) use ($pool): \Infocyph\InterMix\DI\Container {
+        $context = FoundationBuildContext::fromConfig(
+            new ConfigRepository(['app' => ['container' => ['environment' => 'testing']]]),
+            RuntimeMode::Cli,
+            [],
+        );
+        $builder = FoundationGraph::compose($context);
+        $builder->definitionCache($pool, 'foundation-intermix-types', 'release-1', failOpen: false);
+
+        foreach ($values as $name => $value) {
+            $id = 'cached.' . $name;
+            $builder->factory($id, static fn(): mixed => $value)->cacheDefinition($id);
+        }
+
+        return $builder->build();
+    };
+
+    $firstObject = (object) ['source' => 'first'];
+    $first = $build([
+        'zero' => 0,
+        'false' => false,
+        'null' => null,
+        'nested' => ['safe' => [0, null, false]],
+        'object' => $firstObject,
+    ]);
+    expect($first->get('cached.zero'))->toBe(0)
+        ->and($first->get('cached.false'))->toBeFalse()
+        ->and($first->get('cached.null'))->toBeNull()
+        ->and($first->get('cached.nested'))->toBe(['safe' => [0, null, false]])
+        ->and($first->get('cached.object'))->toBe($firstObject);
+
+    $secondObject = (object) ['source' => 'second'];
+    $second = $build([
+        'zero' => 1,
+        'false' => true,
+        'null' => 'changed',
+        'nested' => ['changed' => true],
+        'object' => $secondObject,
+    ]);
+    expect($second->get('cached.zero'))->toBe(0)
+        ->and($second->get('cached.false'))->toBeFalse()
+        ->and($second->get('cached.null'))->toBeNull()
+        ->and($second->get('cached.nested'))->toBe(['safe' => [0, null, false]])
+        ->and($second->get('cached.object'))->toBe($secondObject);
+});
