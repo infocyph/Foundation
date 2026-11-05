@@ -13,6 +13,8 @@ use Infocyph\Webrick\Request\Request;
  *
  * ReqShield owns validation mechanics. Foundation supplies request input,
  * application defaults, and an explicit request-to-validator composition point.
+  *
+ * @api
  */
 abstract class FormRequest
 {
