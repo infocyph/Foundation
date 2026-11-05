@@ -25,6 +25,10 @@ final class GeneratedRuntimeCompiler
      *   capabilities:array<string,bool>
      * }
      * @throws \RuntimeException
+     * @throws \Exception
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     public function compile(
         array $config,

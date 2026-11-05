@@ -72,6 +72,7 @@ final readonly class ModuleActivationManager
      * @param array<string,bool> $flags
      * @param list<string> $features
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function assertFeatureGraph(array $flags, array $context, string $operation, array $features): void
     {
@@ -165,6 +166,7 @@ final readonly class ModuleActivationManager
      * @param Closure(array<string,mixed>):array<string,mixed> $change
      * @phpstan-param Context $context
      * @throws \RuntimeException
+     * @throws \Throwable
      */
     private function mutate(Closure $change, array $context): string
     {
@@ -221,6 +223,7 @@ final readonly class ModuleActivationManager
      * @phpstan-param Context $context
      * @param list<string> $features
      * @return array<string,mixed>
+     * @throws \RuntimeException
      */
     private function updateFeatureFlags(array $config, array $changes, array $context, string $operation, array $features): array
     {

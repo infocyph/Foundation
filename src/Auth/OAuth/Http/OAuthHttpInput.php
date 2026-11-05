@@ -39,7 +39,10 @@ final readonly class OAuthHttpInput
         }
     }
 
-    /** @return array<string, string> */
+    /**
+     * @return array<string, string>
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function authorizationQuery(Request $request): array
     {
         $parameters = $this->parseEncoded(
@@ -136,6 +139,7 @@ final readonly class OAuthHttpInput
     /**
      * @param array<string, string> $parameters
      * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     * @throws \InvalidArgumentException
      */
     private function basicAuthentication(string $authorization, array $parameters): OAuthClientAuthentication
     {
@@ -176,6 +180,7 @@ final readonly class OAuthHttpInput
     /**
      * @param array<string, string> $parameters
      * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     * @throws \InvalidArgumentException
      */
     private function bodyAuthentication(array $parameters): OAuthClientAuthentication
     {
@@ -231,6 +236,7 @@ final readonly class OAuthHttpInput
 
     /**
      * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     * @throws \InvalidArgumentException
      */
     private function privateKeyJwtAuthentication(
         string $clientId,

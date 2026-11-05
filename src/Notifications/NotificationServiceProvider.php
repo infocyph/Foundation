@@ -29,6 +29,10 @@ use Psr\Container\ContainerInterface;
 
 final class NotificationServiceProvider extends ServiceProvider
 {
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public static function emailer(EmailProfiles $profiles): Emailer
     {
         return $profiles->sender();
@@ -48,6 +52,10 @@ final class NotificationServiceProvider extends ServiceProvider
         return new RawEmailParser(limits: $limits);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public static function spoolReceiver(EmailProfiles $profiles): SpoolEmailReceiver
     {
         return $profiles->spoolReceiver();

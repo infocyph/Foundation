@@ -35,6 +35,9 @@ final class RuntimeExecutionState
     /** @var array<int, Connection> */
     private array $freshConnections = [];
 
+    /**
+     * @throws \Throwable
+     */
     public function __destruct()
     {
         $this->cleanup(false);
@@ -70,6 +73,9 @@ final class RuntimeExecutionState
         }
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function connection(string $name, ConnectionConfig $config): Connection
     {
         $this->assertOpen();
@@ -82,6 +88,7 @@ final class RuntimeExecutionState
      * temporary resource. Callbacks run once in reverse acquisition order.
      *
      * @param callable():void $cleanup
+     * @throws \LogicException
      */
     public function deferCleanup(callable $cleanup): void
     {
@@ -89,6 +96,9 @@ final class RuntimeExecutionState
         $this->cleanupCallbacks[] = Closure::fromCallable($cleanup);
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function freshConnection(string $name, ConnectionConfig $config): Connection
     {
         $this->assertOpen();
@@ -108,6 +118,7 @@ final class RuntimeExecutionState
 
     /**
      * Own one exclusive DBLayer lease for this execution/name until cleanup.
+     * @throws \LogicException
      */
     public function leasedConnection(string $name, PoolManager $pool): Connection
     {

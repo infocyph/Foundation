@@ -18,6 +18,8 @@ final readonly class EnvironmentSecretManager
 
     /**
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
      */
     public function generate(bool $force = false): string
     {

@@ -32,6 +32,7 @@ final readonly class TerminalIO implements CommandIO
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
@@ -61,6 +62,9 @@ final readonly class TerminalIO implements CommandIO
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function confirm(string $question, bool $default = false): bool
     {
@@ -168,6 +172,9 @@ final readonly class TerminalIO implements CommandIO
         return $this->quietMode;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function read(string $question, ?string $default = null): string
     {

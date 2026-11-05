@@ -18,6 +18,9 @@ final readonly class ConsentManager
         private ClockInterface $clock,
     ) {}
 
+    /**
+     * @throws \LogicException
+     */
     public function grant(PrincipalInterface $principal, AuthorizationRequest $request): OAuthConsent
     {
         $accountId = $this->accountId($principal);
@@ -43,6 +46,9 @@ final readonly class ConsentManager
         return $consent;
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function hasConsent(PrincipalInterface $principal, AuthorizationRequest $request): bool
     {
         $accountId = $this->accountId($principal);
@@ -57,6 +63,9 @@ final readonly class ConsentManager
         ) instanceof OAuthConsent;
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function revoke(PrincipalInterface $principal, string $clientId): int
     {
         return $this->consents->revoke($this->accountId($principal), $clientId, $this->clock->now());

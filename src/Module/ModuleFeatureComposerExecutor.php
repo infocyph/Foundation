@@ -130,6 +130,10 @@ final readonly class ModuleFeatureComposerExecutor
 
     /**
      * @param list<string> $packages
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \Throwable
      */
     private function runComposer(string $operation, array $packages, bool $dryRun): ProcessResult
     {

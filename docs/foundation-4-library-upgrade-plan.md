@@ -2,7 +2,13 @@
 
 Date: 2026-11-05 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
-## Psalm-first Batch 34 — native exception contracts (exact-head QA pending)
+## Psalm-first Batch 35 — native contract follow-up (QA pending)
+
+- **Batch 34 official exact-head acceptance:** Source `03690813` / [Security & Standards 42024734571](https://github.com/infocyph/Foundation/actions/runs/42024734571) passed PHPStan, all four PHP 8.4/8.5 stable/lowest functional lanes, four production consumers, clean install and two benchmarks. Strict Psalm has **1,092 errors per PHP version**, down **81** from 1,173; [native-host 42024733966](https://github.com/infocyph/Foundation/actions/runs/42024733966) passed all four Swoole/OpenSwoole serving jobs. Accept the Batch 34 **81 net reduction**, not strict Psalm completion.
+- **Batch 35 source-only work (unverified):** Added precise native exception contracts to **24 existing production files** spanning authentication/OAuth storage, runtime, workers, DBLayer, module lifecycle and notifications, chosen from **118 prior `MissingThrowsDocblock` diagnostic locations** in the exact Batch 34 report. New API behavior is unchanged. These are *targeted prior diagnostics*, not a verified net reduction. Keep PHPForge `dev-main@dev` and every strict gate unchanged.
+- **Next acceptance:** Verify new-head official PHPStan and Psalm on PHP 8.4 and 8.5, all four functional QA lanes, consumers, benchmarks and native hosts; check for throw propagation and source regressions. **53/90 formal implementation criteria checked, 37 open**; P1–P6 release work paused until Psalm green; no merge or release.
+
+## Psalm-first Batch 34 — native exception contracts (verified: −81 Psalm errors)
 
 - **Verified starting point:** Source `179149e` / [Security & Standards 42021647972](https://github.com/infocyph/Foundation/actions/runs/42021647972) has **1,173 strict Psalm errors per PHP version**, down 31 from 1,204. PHPStan, all four functional QA lanes, four production consumers, clean install, both benchmarks and [native hosts 42021647322](https://github.com/infocyph/Foundation/actions/runs/42021647322) passed. Psalm still fails.
 - **Batch 34 submitted changes (not yet accepted):** Add **122 explicit exception-contract annotations across 21 production files**, corresponding to **140 previously reported `MissingThrowsDocblock` diagnostic locations** in session, communication, DBLayer token state, bootstrap, principal resolvers, release, routing, scheduling, worker, security, module, notification and validator owners. These are *targeted findings*, not a claim of net issue reduction: propagation can create new caller diagnostics. No runtime behavior, dependency policy, analyzer suppression, or gate changed.

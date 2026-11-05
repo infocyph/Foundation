@@ -41,6 +41,9 @@ final readonly class DBLayerEpicryptAccessTokenStatusStore extends DBLayerStore 
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function find(string $issuer, string $tokenId): ?OAuthAccessTokenStatusRecord
     {
@@ -52,6 +55,11 @@ final readonly class DBLayerEpicryptAccessTokenStatusStore extends DBLayerStore 
         return is_array($row) ? $this->map($row, $issuer, $tokenId) : null;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function revoke(string $issuer, string $tokenId, int $revokedAt): ?OAuthAccessTokenStatusRecord
     {

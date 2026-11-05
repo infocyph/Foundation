@@ -204,6 +204,9 @@ final readonly class OAuthSigningKeyResolver
         return trim($value);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function resolveConfigured(): OAuthSigningKeySet
     {
         $issuer = $this->requiredString('auth.oauth.issuer');

@@ -43,6 +43,9 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
         parent::__construct($config, $builder);
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function register(AuthDriverResolver $drivers): void
     {
         $this->bindRememberTokens();
@@ -114,6 +117,9 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
         ]);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function registerEpicryptTokens(): void
     {
         $minimumKeyBytes = $this->epicrypt->minimumKeyBytes();

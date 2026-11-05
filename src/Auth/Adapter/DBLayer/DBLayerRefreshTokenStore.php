@@ -22,6 +22,12 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function revokeFamily(string $familyId): void
     {
@@ -40,6 +46,11 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
         }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function rotateIfActive(RefreshTokenRecord $current, RefreshTokenRecord $replacement): bool
     {
@@ -74,6 +85,9 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
         $this->upsertRecord('refreshTokens', 'id', $this->record($record));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function wasFamilyRevoked(string $familyId): bool
     {

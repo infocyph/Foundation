@@ -17,6 +17,10 @@ final readonly class OAuthRouteRegistrar
         private RoutePresetRegistrar $presets,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
     public function register(Registrar $router): void
     {
         if ($this->config->get('auth.oauth.enabled', false) !== true) {

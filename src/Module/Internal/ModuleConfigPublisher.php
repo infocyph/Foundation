@@ -13,6 +13,9 @@ final readonly class ModuleConfigPublisher
     /**
      * @param list<string> $configured
      * @return array{published:list<string>,existing:list<string>}
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
+     * @throws \Throwable
      */
     public function publish(array $configured, bool $force): array
     {

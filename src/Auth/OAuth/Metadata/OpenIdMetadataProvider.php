@@ -18,7 +18,11 @@ final readonly class OpenIdMetadataProvider
         private ConfigRepository $config,
     ) {}
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     */
     public function toArray(): array
     {
         return new OpenIdProviderMetadata(
@@ -77,7 +81,10 @@ final readonly class OpenIdMetadataProvider
         return $normalized;
     }
 
-    /** @return list<OpenIdSubjectType> */
+    /**
+     * @return list<OpenIdSubjectType>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function subjectTypes(): array
     {
         $types = $this->stringList('auth.oauth.oidc.subject_types');

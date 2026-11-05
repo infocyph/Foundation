@@ -9,6 +9,12 @@ use Infocyph\Foundation\Auth\Contract\Storage\PasswordResetStoreInterface;
 
 final readonly class DBLayerPasswordResetStore extends DBLayerConsumableStore implements PasswordResetStoreInterface
 {
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function consume(string $requestId): void
     {
@@ -38,6 +44,9 @@ final readonly class DBLayerPasswordResetStore extends DBLayerConsumableStore im
         }, attempts: 3) === true;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function find(string $requestId): ?PasswordResetRequest
     {
@@ -64,6 +73,9 @@ final readonly class DBLayerPasswordResetStore extends DBLayerConsumableStore im
         ]);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function wasConsumed(string $requestId): bool
     {

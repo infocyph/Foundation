@@ -32,6 +32,10 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
         private ClockInterface $clock,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function finishAuthentication(PasskeyAuthenticationResult $result): PasskeyVerificationResult
     {
@@ -76,6 +80,7 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     #[\Override]
     public function finishRegistration(PasskeyRegistrationResult $result): PasskeyCredential
@@ -112,6 +117,9 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function startAuthentication(?string $accountId = null): PasskeyChallenge
     {

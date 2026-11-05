@@ -28,6 +28,7 @@ final readonly class WorkerManager
     /**
      * @return array<string, array<string, mixed>>
      * @throws \UnexpectedValueException
+     * @throws \RuntimeException
      */
     public function all(string $routes = 'routes/workers.php'): array
     {
@@ -216,6 +217,7 @@ final readonly class WorkerManager
     /**
      * @return \Closure():bool
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function generationStopRequested(): \Closure
     {
@@ -300,6 +302,7 @@ final readonly class WorkerManager
      * @return array<string, array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
      * @throws \RuntimeException
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     private function providerDefinitions(
         string $routes,
@@ -332,6 +335,8 @@ final readonly class WorkerManager
      * @throws \LogicException
      * @throws \Exception
      * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     private function runMessaging(
         string $name,

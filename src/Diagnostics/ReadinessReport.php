@@ -21,7 +21,10 @@ final readonly class ReadinessReport
 
     public function __construct(private Application $application) {}
 
-    /** @return array{schema_version:int,ready:bool,checks:array<string,array{ready:bool,detail:string}>} */
+    /**
+     * @return array{schema_version:int,ready:bool,checks:array<string,array{ready:bool,detail:string}>}
+     * @throws \UnexpectedValueException
+     */
     public function generate(): array
     {
         $checks = $this->baseChecks();
@@ -119,7 +122,10 @@ final readonly class ReadinessReport
         }
     }
 
-    /** @return array<string,array{ready:bool,detail:string}> */
+    /**
+     * @return array<string,array{ready:bool,detail:string}>
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function baseChecks(): array
     {
         return [
@@ -142,7 +148,10 @@ final readonly class ReadinessReport
         ];
     }
 
-    /** @return array{ready:bool,detail:string} */
+    /**
+     * @return array{ready:bool,detail:string}
+     * @throws \UnexpectedValueException
+     */
     private function configurationReadiness(): array
     {
         $config = $this->application->config();

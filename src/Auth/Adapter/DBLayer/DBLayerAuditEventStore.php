@@ -9,6 +9,12 @@ use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 
 final readonly class DBLayerAuditEventStore extends DBLayerStore implements AuditEventStoreInterface
 {
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function record(AuthEvent $event): void
     {
