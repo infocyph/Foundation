@@ -23,6 +23,7 @@ final readonly class JobMiddlewarePipeline implements HandlerMiddleware
         $this->middleware = $normalized;
     }
 
+    /** @throws \InvalidArgumentException */
     #[\Override]
     public function process(
         object $message,
