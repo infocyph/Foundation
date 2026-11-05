@@ -8,6 +8,11 @@ use Closure;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Application-facing browser session management service.
+ *
+ * @api
+ */
 final readonly class SessionManager
 {
     public function __construct(
