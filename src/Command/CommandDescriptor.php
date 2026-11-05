@@ -6,7 +6,10 @@ namespace Infocyph\Foundation\Command;
 
 final readonly class CommandDescriptor
 {
-    /** @param class-string<CommandHandlerInterface>|null $handler */
+    /**
+     * @param class-string<CommandHandlerInterface>|null $handler
+     * @throws \LogicException
+     */
     public function __construct(
         public CommandDefinition $definition,
         public ?string $handler = null,
@@ -18,6 +21,7 @@ final readonly class CommandDescriptor
     /**
      * @throws \InvalidArgumentException
      * @throws \UnexpectedValueException
+     * @throws \LogicException
      */
     public static function fromClass(string $handler, ?string $routeName = null): self
     {
@@ -75,7 +79,10 @@ final readonly class CommandDescriptor
         return new self(CommandDefinition::fromManifest(self::associative($definition)), $handler, $system);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \LogicException
+     */
     public function toManifest(): array
     {
         return [

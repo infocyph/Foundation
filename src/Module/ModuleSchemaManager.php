@@ -19,6 +19,7 @@ final readonly class ModuleSchemaManager
 
     /**
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
+     * @throws \InvalidArgumentException
      */
     public function install(string $module, ?string $connection = null, bool $applicableOnly = false): array
     {
@@ -68,6 +69,7 @@ final readonly class ModuleSchemaManager
 
     /**
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
+     * @throws \InvalidArgumentException
      */
     public function status(string $module, ?string $connection = null): array
     {

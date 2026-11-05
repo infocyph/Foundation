@@ -24,6 +24,10 @@ final readonly class Mailer
         return $this->sendEmail($message->toEmail(), $message->senderProfile());
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function sendEmail(EmailMessage $message, ?string $profile = null): CommunicationResult
     {
         return $this->profiles->sender($profile)->send($this->applyDefaultFrom($message));

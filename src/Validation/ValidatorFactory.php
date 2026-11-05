@@ -29,6 +29,9 @@ final readonly class ValidatorFactory
         private ?DatabaseProvider $database = null,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function compile(string $schema): CompiledValidator
     {
         return new CompiledValidator($this->make($schema));
@@ -60,7 +63,10 @@ final readonly class ValidatorFactory
         );
     }
 
-    /** @param array<string,mixed> $options */
+    /**
+     * @param array<string,mixed> $options
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function configure(Validator $validator, array $options): Validator
     {
         $validator->setFailFast(ValueNormalizer::bool($options['fail_fast'] ?? true, true));

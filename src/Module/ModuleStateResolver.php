@@ -117,6 +117,7 @@ final readonly class ModuleStateResolver
 
     /**
      * @phpstan-return list<ModuleState>
+     * @throws \UnexpectedValueException
      */
     public function all(): array
     {
@@ -151,7 +152,10 @@ final readonly class ModuleStateResolver
         return array_values($modules);
     }
 
-    /** @return array{known:bool,requirements:array<string,string>,error:?string} */
+    /**
+     * @return array{known:bool,requirements:array<string,string>,error:?string}
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function rootRequirements(): array
     {
         $path = $this->application->basePath('composer.json');

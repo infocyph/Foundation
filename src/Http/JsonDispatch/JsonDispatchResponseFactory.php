@@ -33,6 +33,7 @@ final readonly class JsonDispatchResponseFactory
 
     /**
      * @param list<Issue> $issues
+     * @throws \InvalidArgumentException
      */
     public function error(
         array $issues,
@@ -44,6 +45,7 @@ final readonly class JsonDispatchResponseFactory
 
     /**
      * @param list<Issue> $issues
+     * @throws \InvalidArgumentException
      */
     public function fail(
         array $issues,

@@ -102,6 +102,7 @@ abstract class Command implements CommandHandlerInterface
      * Process an iterable with progress feedback. Pass null total for spinner-style feedback.
      *
      * @param iterable<mixed> $items
+     * @throws \Throwable
      */
     final protected function progress(
         iterable $items,
@@ -135,6 +136,8 @@ abstract class Command implements CommandHandlerInterface
      * @template T
      * @param callable():T $task
      * @return T
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
      */
     final protected function task(string $label, callable $task): mixed
     {

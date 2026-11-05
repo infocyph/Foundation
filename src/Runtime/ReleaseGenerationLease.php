@@ -63,6 +63,9 @@ final class ReleaseGenerationLease
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public static function tryExclusive(string $releaseRoot, string $generation): ?self
     {
         return self::acquire($releaseRoot, $generation, LOCK_EX | LOCK_NB);
@@ -110,6 +113,9 @@ final class ReleaseGenerationLease
         return new self($handle);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function path(string $releaseRoot, string $generation): string
     {
         self::validateGeneration($generation);

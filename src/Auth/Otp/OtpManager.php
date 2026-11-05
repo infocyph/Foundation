@@ -40,6 +40,9 @@ final readonly class OtpManager
         private OtpMfaVerifier $verifier,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function beginEnrollment(
         string $accountId,
         ?string $label = null,
@@ -116,7 +119,10 @@ final readonly class OtpManager
         );
     }
 
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
+     */
     public function completeGridEnrollment(
         string $accountId,
         string $factorId,
@@ -141,6 +147,9 @@ final readonly class OtpManager
         return $this->activateVerifiedFactor($accountId, $factor, $verification, $context);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function enrollAotp(
         string $accountId,
         string $publicKey,
@@ -165,6 +174,9 @@ final readonly class OtpManager
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function enrollGridOtp(
         string $accountId,
         ?string $label = null,
@@ -202,6 +214,9 @@ final readonly class OtpManager
         return new GridOtpEnrollmentResult($enrollment, $secret);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function importLegacyMobileOtp(
         string $accountId,
         #[\SensitiveParameter]
@@ -276,7 +291,10 @@ final readonly class OtpManager
         return $this->verifier->challengeFactors()->issueAotp($factor, $context, $ttlSeconds);
     }
 
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
+     */
     public function issueGridChallenge(
         string $accountId,
         string $factorId,
@@ -311,7 +329,11 @@ final readonly class OtpManager
         return $this->verifier->verifyEnrollment($factor, $code);
     }
 
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
+     * @throws \OverflowException
+     */
     private function activateVerifiedFactor(
         string $accountId,
         MfaFactor $factor,

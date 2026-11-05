@@ -47,6 +47,8 @@ final readonly class RuntimeControl
      * @return array<string,array{token:string,signaled_at:string}>
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function status(): array
     {

@@ -55,6 +55,9 @@ final readonly class WebReleaseConfiguration
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public function configFingerprint(): string
     {
         $config = $this->context->config;
@@ -155,6 +158,9 @@ final readonly class WebReleaseConfiguration
         return is_int($value) ? $value : (is_string($value) && $value !== '' ? (int) $value : null);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function signedUrlConfig(): ?SignedUrlConfig
     {
         return new SignedUrlKeyResolver($this->config())->resolve();

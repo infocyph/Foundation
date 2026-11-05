@@ -30,6 +30,8 @@ final readonly class ModuleFeatureConfigPublisher
      * @phpstan-param Context $context
      * @return array{planned:list<string>,published:list<string>,existing:list<string>}
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
      */
     public function publish(array $features, array $context, bool $dryRun = false): array
     {

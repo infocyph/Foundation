@@ -23,6 +23,8 @@ final readonly class OAuthAuthorizationController
 
     /**
      * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function authorization(Request $request): Response
     {
@@ -50,6 +52,7 @@ final readonly class OAuthAuthorizationController
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     private function authorizationGet(Request $request, AuthorizationRequest $authorization): Response
     {

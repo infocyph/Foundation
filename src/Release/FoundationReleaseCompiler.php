@@ -39,6 +39,9 @@ final readonly class FoundationReleaseCompiler
      * }
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     public function buildAndActivate(
         array $config,

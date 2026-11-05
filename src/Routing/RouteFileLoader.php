@@ -112,6 +112,10 @@ final readonly class RouteFileLoader
         AttributeRouteLoader::registerFromDirs($router, $directories, $filter);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
     private function loadRoutes(Registrar $router): void
     {
         $this->oauth->register($router);

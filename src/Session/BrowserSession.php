@@ -142,6 +142,8 @@ final class BrowserSession
     /**
      * @param array<string, mixed> $input
      * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function flashInput(array $input): void
     {

@@ -22,6 +22,7 @@ final readonly class SimpleAccessTokenService implements AccessTokenServiceInter
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function issue(AccessTokenClaims $claims): string
@@ -40,6 +41,10 @@ final readonly class SimpleAccessTokenService implements AccessTokenServiceInter
             ], $claims->subjectId);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function verify(string $token): TokenVerificationResult
     {

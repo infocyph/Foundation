@@ -34,7 +34,10 @@ final readonly class AuthorizationRequestValidator
         return $this->protocolResult($parameters);
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function redirectContext(array $parameters): AuthorizationRedirectContext
     {
         return $this->redirectContextFor($parameters, $this->protocolResult($parameters));
@@ -70,7 +73,10 @@ final readonly class AuthorizationRequestValidator
         );
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function validate(array $parameters): AuthorizationRequest
     {
         return $this->validateResult($this->protocolResult($parameters));

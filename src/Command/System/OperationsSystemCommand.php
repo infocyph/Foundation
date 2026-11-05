@@ -89,6 +89,9 @@ final class OperationsSystemCommand extends SystemCommand
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     private function authPrune(): int
     {

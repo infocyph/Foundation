@@ -21,6 +21,9 @@ use Webauthn\PublicKeyCredential;
 
 final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
 {
+    /**
+     * @throws \LogicException
+     */
     public function register(AuthDriverResolver $drivers): void
     {
         $driver = $drivers->passkey();

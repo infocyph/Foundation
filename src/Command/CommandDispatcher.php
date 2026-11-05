@@ -87,7 +87,10 @@ final readonly class CommandDispatcher
         return $this->registry;
     }
 
-    /** @param list<string> $argv */
+    /**
+     * @param list<string> $argv
+     * @throws \InvalidArgumentException
+     */
     public function run(array $argv, ?CommandIO $io = null): int
     {
         $coarse = ParsedInput::fromArgv($argv);
@@ -180,6 +183,7 @@ final readonly class CommandDispatcher
     /**
      * @throws \InvalidArgumentException
      * @throws \UnexpectedValueException
+     * @throws \Throwable
      */
     private function application(RuntimeMode $runtime, ParsedInput $input): Application
     {

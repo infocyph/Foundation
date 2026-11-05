@@ -26,6 +26,9 @@ final readonly class MfaSecretProtector
         private StringProtector $protector = new StringProtector(),
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function protect(MfaFactor $factor): MfaFactor
     {
         $metadata = $factor->metadata;
@@ -75,6 +78,7 @@ final readonly class MfaSecretProtector
 
     /**
      * @throws \Infocyph\Epicrypt\Exception\Crypto\DecryptionException
+     * @throws \InvalidArgumentException
      */
     public function unprotectResult(MfaFactor $factor): MfaSecretProtectionResult
     {

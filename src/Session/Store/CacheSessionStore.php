@@ -64,6 +64,10 @@ final readonly class CacheSessionStore implements SessionStoreInterface
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function key(string $id): string
     {
         return FoundationCacheKey::security(

@@ -86,6 +86,9 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->storage() === AuthStorageDriver::DATABASE) {
@@ -115,6 +118,9 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         ]);
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function bindMfaDbStore(?string $connection, bool $protectSecrets): void
     {
         $arguments = [

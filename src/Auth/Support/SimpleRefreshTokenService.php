@@ -24,6 +24,7 @@ final readonly class SimpleRefreshTokenService implements RefreshTokenServiceInt
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function issue(RefreshTokenClaims $claims): IssuedRefreshToken
@@ -55,6 +56,10 @@ final readonly class SimpleRefreshTokenService implements RefreshTokenServiceInt
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function verify(string $token): TokenVerificationResult
     {

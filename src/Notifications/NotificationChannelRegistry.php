@@ -17,6 +17,8 @@ final readonly class NotificationChannelRegistry
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function channel(string $name): NotificationChannel
     {

@@ -69,6 +69,8 @@ final class HttpTestClient
      * @param array<string,mixed> $query
      * @param array<string,mixed> $post
      * @param array<string,string|list<string>> $headers
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
      */
     public function request(
         string $method,

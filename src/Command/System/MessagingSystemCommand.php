@@ -130,6 +130,9 @@ final class MessagingSystemCommand extends SystemCommand
         return $this->application->make(FailureStore::class);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function flush(): int
     {
         if (!$this->authorize('Flush every failed message?')) {
@@ -141,6 +144,9 @@ final class MessagingSystemCommand extends SystemCommand
         return $this->emit(['flushed' => $count], sprintf('Flushed %d failed message(s).', $count));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function forget(): int
     {
         $id = $this->argument(0) ?? throw new \LogicException('Validated failed-message id is unavailable.');
@@ -253,6 +259,7 @@ final class MessagingSystemCommand extends SystemCommand
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     private function pruneFailed(): int
     {

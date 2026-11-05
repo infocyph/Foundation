@@ -223,6 +223,9 @@ final readonly class ModuleFeatureCommandSnapshot
         return ['known' => true, 'requirements' => $requirements];
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function sourceConfiguration(): ConfigRepository
     {
         $existing = $this->application->config();

@@ -25,6 +25,7 @@ final readonly class ModuleActivationManager
      * @phpstan-param Context $context
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \Throwable
      */
     public function applyFeatures(string $operation, array $features, array $context): string
     {
@@ -224,6 +225,7 @@ final readonly class ModuleActivationManager
      * @param list<string> $features
      * @return array<string,mixed>
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function updateFeatureFlags(array $config, array $changes, array $context, string $operation, array $features): array
     {

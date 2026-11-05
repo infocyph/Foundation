@@ -12,7 +12,11 @@ final class CommandRegistry
     /** @var array<string, CommandDescriptor> */
     private array $commands = [];
 
-    /** @param array<array-key, mixed> $applicationCommands */
+    /**
+     * @param array<array-key, mixed> $applicationCommands
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function __construct(
         array $applicationCommands = [],
         ?CommandCatalog $catalog = null,

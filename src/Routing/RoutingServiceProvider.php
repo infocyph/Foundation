@@ -30,6 +30,9 @@ final class RoutingServiceProvider extends ServiceProvider
         return $factory->routes();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {

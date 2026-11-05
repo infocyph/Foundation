@@ -16,6 +16,9 @@ use Infocyph\Foundation\Exception\ConfigurationException;
 
 final class AuthOAuthGraphFactory
 {
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function authorizationCodeKeys(OAuthProtectionKeyResolver $resolver): KeyRing
     {
         return $resolver->authorizationCodeKeys();
@@ -70,6 +73,9 @@ final class AuthOAuthGraphFactory
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function refreshTokenKeys(OAuthProtectionKeyResolver $resolver): KeyRing
     {
         return $resolver->refreshTokenKeys();

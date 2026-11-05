@@ -23,6 +23,9 @@ final readonly class AuthPersonalAccessTokenRegistrar extends AbstractAuthRegist
 
     private const string KEYS = 'foundation.auth.personal-access-token.keys';
 
+    /**
+     * @throws \LogicException
+     */
     public function register(): void
     {
         if (!$this->boolConfig('auth.personal_access_tokens.enabled', false)) {

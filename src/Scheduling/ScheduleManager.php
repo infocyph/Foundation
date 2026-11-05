@@ -434,6 +434,8 @@ final readonly class ScheduleManager
 
     /**
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Throwable
      */
     private function runEntry(ScheduledCommand $entry): ScheduleRun
     {

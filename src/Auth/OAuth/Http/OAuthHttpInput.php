@@ -57,6 +57,7 @@ final readonly class OAuthHttpInput
     /**
      * @param array<string, string> $parameters
      * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     * @throws \InvalidArgumentException
      */
     public function clientAuthentication(Request $request, array $parameters): OAuthClientAuthentication
     {

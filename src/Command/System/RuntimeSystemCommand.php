@@ -356,6 +356,9 @@ final class RuntimeSystemCommand extends SystemCommand
 
     /**
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     private function sessionPrune(): int
     {
@@ -367,6 +370,7 @@ final class RuntimeSystemCommand extends SystemCommand
 
     /**
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
      */
     private function storageLink(): int
     {
@@ -377,6 +381,7 @@ final class RuntimeSystemCommand extends SystemCommand
 
     /**
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
      */
     private function storageStatus(): int
     {
@@ -403,6 +408,7 @@ final class RuntimeSystemCommand extends SystemCommand
 
     /**
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
      */
     private function storageUnlink(): int
     {
