@@ -18,7 +18,10 @@ final class ConfigLoader
 
     private const int CACHE_FORMAT = 6;
 
-    /** @param array<string, mixed> $inline */
+    /**
+     * @param array<string, mixed> $inline
+     * @throws \UnexpectedValueException
+     */
     public function load(array $inline = []): ConfigRepository
     {
         $normalized = $this->normalizeInput($inline);
@@ -314,6 +317,7 @@ final class ConfigLoader
         return $input;
     }
 
+    /** @throws \UnexpectedValueException */
     private function schemaFingerprint(): string
     {
         $defaults = $this->defaults();

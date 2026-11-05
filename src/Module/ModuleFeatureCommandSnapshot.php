@@ -123,7 +123,8 @@ final readonly class ModuleFeatureCommandSnapshot
             throw new \RuntimeException('Module configuration directory must not be symlinked.');
         }
         $sources = [];
-        foreach (glob($directory . '/*.php') ?: [] as $file) {
+        $files = glob($directory . '/*.php');
+        foreach ($files === false ? [] : $files as $file) {
             if (is_link($file)) {
                 throw new \RuntimeException('Module configuration sources must not be symlinked.');
             }

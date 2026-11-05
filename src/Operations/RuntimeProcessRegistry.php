@@ -26,7 +26,8 @@ final readonly class RuntimeProcessRegistry
         $visibility = $this->visibility();
         $host = $this->host();
         $records = [];
-        foreach (glob($directory . DIRECTORY_SEPARATOR . '*.json') ?: [] as $path) {
+        $paths = glob($directory . DIRECTORY_SEPARATOR . '*.json');
+        foreach ($paths === false ? [] : $paths as $path) {
             $record = $this->read($path);
             if ($record === null) {
                 continue;

@@ -203,7 +203,7 @@ final readonly class ModuleFeaturePlanner
         $usedPackages = [];
 
         foreach ($otherRequired as $feature) {
-            foreach ($this->catalog->resolve($feature)['definition']['packages'] as $package => $constraint) {
+            foreach (array_keys($this->catalog->resolve($feature)['definition']['packages']) as $package) {
                 $usedPackages[$package] = true;
             }
         }

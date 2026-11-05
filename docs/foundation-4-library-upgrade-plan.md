@@ -2,6 +2,12 @@
 
 Date: 2026-11-05 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Psalm-first Batch 41 — exact-head exception and diagnostic correctness follow-up (QA pending)
+
+- **Verified Batch 40b:** `c601e91e` / [Security & Standards 42045560134](https://github.com/infocyph/Foundation/actions/runs/42045560134) reports strict Psalm **716 errors on each PHP 8.4/8.5**, down 33 from Batch 40's 749, with PHPStan passing; all four functional stable/lowest lanes, four production consumers, clean install and both benchmarks passed. [Native HTTP host 42045558588](https://github.com/infocyph/Foundation/actions/runs/42045558588) passed all four Swoole/OpenSwoole serving jobs. Batch 40b's net 33 reduction is accepted; strict Psalm remains blocking.
+- **Batch 41 submitted source (not yet verified):** Document last nine reported `MissingThrowsDocblock` locations at actual call boundaries, including validating FormRequest invocations; repair three strict-false-vs-empty truthiness diagnostics in module/operations code and avoid copying an unused module package constraint. These are **targeted reported findings, not a guaranteed net reduction**. Public exception-class finality, dynamic route bindings, retained release cleanup and security taint findings require separate behavioral/ownership review, not blanket changes.
+- **Acceptance:** Official PHPForge `dev-main@dev` strict Psalm/PHPStan on PHP 8.4/8.5, all four functional stable/lowest lanes, production consumers, clean install, benchmarks and native hosts on the new exact SHA. Compare against **716**, inspect exception propagation, do not mark strict Psalm green or change formal criteria prematurely. Formal plan remains **53/90 accepted, 37 open**, P0 **20/20**; PR stays draft and unmerged.
+
 ## Psalm-first Batch 40b — propagated native exception contracts (exact-head QA pending)
 
 - **Batch 40 measured source `3a68eb06`:** [official Security & Standards 42043764861](https://github.com/infocyph/Foundation/actions/runs/42043764861) reports **749 strict Psalm errors per PHP version**, down 29 from Batch 39's 778. PHPStan, all four functional PHP 8.4/8.5 stable/lowest lanes, consumers, clean install and benchmarks passed; [native host 42043764489](https://github.com/infocyph/Foundation/actions/runs/42043764489) passed all serving jobs. Psalm remains failing.

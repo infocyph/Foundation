@@ -22,6 +22,10 @@ abstract class FormRequest
      */
     public function __construct(private readonly ValidatorFactory $validators) {}
 
+    /**
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     final public function __invoke(Request $request): ValidationResult
     {
         return $this->validate($request);
@@ -30,6 +34,10 @@ abstract class FormRequest
     /** @return array<string,mixed> */
     abstract protected function rules(Request $request): array;
 
+    /**
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     final public function validate(Request $request): ValidationResult
     {
         $validator = $this->validators->makeRules($this->rules($request), $this->options($request));
@@ -46,7 +54,11 @@ abstract class FormRequest
             );
     }
 
-    /** @return array<int|string,mixed> */
+    /**
+     * @return array<int|string,mixed>
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     final public function validated(Request $request): array
     {
         return $this->validate($request)->throw()->typed();

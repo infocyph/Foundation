@@ -30,6 +30,7 @@ final class HttpRuntimeFactory
         );
     }
 
+    /** @throws \Infocyph\Foundation\Exception\ConfigurationException */
     public static function routerKernel(WebrickRouterFactory $factory, ErrorHandler $errorHandler): RouterKernel
     {
         return $factory->kernel($errorHandler);

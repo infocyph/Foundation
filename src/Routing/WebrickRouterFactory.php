@@ -107,6 +107,7 @@ final class WebrickRouterFactory
         return $registrar;
     }
 
+    /** @throws \Infocyph\Foundation\Exception\ConfigurationException */
     public function routes(): Collection
     {
         $this->router();
@@ -138,6 +139,7 @@ final class WebrickRouterFactory
         return $aliases;
     }
 
+    /** @throws \Infocyph\Foundation\Exception\ConfigurationException */
     private function bindUrlServices(): void
     {
         $callback = $this->bindUrlServicesCallback();

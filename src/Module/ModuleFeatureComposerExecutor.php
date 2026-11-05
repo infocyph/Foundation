@@ -103,7 +103,8 @@ final readonly class ModuleFeatureComposerExecutor
         }
 
         try {
-            $composer = json_decode(file_get_contents($path) ?: '', true, flags: JSON_THROW_ON_ERROR);
+            $contents = file_get_contents($path);
+            $composer = json_decode($contents === false ? '' : $contents, true, flags: JSON_THROW_ON_ERROR);
         } catch (\JsonException $failure) {
             throw new \RuntimeException('Application composer.json is malformed.', previous: $failure);
         }

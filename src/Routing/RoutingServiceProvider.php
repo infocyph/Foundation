@@ -25,6 +25,7 @@ final class RoutingServiceProvider extends ServiceProvider
         return $factory->router();
     }
 
+    /** @throws \Infocyph\Foundation\Exception\ConfigurationException */
     public static function routes(WebrickRouterFactory $factory): Collection
     {
         return $factory->routes();
