@@ -342,7 +342,6 @@ it('keeps recovery-code issuance and consumption atomic across cancelled borrowe
         ->and($recovery->verify($accountId, $code)->verified)->toBeFalse();
 });
 
-
 it('rejects recovery consumption when cancellation arrives after state read but before CAS', function (): void {
     $accountId = 'acct-recovery-interleave-' . bin2hex(random_bytes(6));
     $backing = new InMemoryMfaFactorStore();
@@ -358,7 +357,7 @@ it('rejects recovery consumption when cancellation arrives after state read but 
             private readonly RequestContext $request,
         ) {}
 
-        #[\\Override]
+        #[\Override]
         public function findForAccount(string $accountId): array
         {
             $found = $this->backing->findForAccount($accountId);
@@ -370,7 +369,7 @@ it('rejects recovery consumption when cancellation arrives after state read but 
             return $found;
         }
 
-        #[\\Override]
+        #[\Override]
         public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool
         {
             $this->writes++;
@@ -378,13 +377,13 @@ it('rejects recovery consumption when cancellation arrives after state read but 
             return $this->backing->compareAndSwap($expected, $updated);
         }
 
-        #[\\Override]
+        #[\Override]
         public function remove(string $factorId): void
         {
             $this->backing->remove($factorId);
         }
 
-        #[\\Override]
+        #[\Override]
         public function save(MfaFactor $factor): void
         {
             $this->backing->save($factor);
