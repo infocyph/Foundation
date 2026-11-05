@@ -31,7 +31,10 @@ final readonly class ParsedInput
         public array $raw,
     ) {}
 
-    /** @param list<string> $argv */
+    /**
+     * @param list<string> $argv
+     * @throws \InvalidArgumentException
+     */
     public static function fromArgv(array $argv, ?CommandDefinition $definition = null): self
     {
         $tokens = array_slice($argv, 1);

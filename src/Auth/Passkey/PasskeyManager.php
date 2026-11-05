@@ -210,6 +210,9 @@ final readonly class PasskeyManager
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function persistVerifiedCredential(PasskeyVerificationResult $verification): ?PasskeyVerificationResult
     {
         if (

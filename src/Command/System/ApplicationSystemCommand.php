@@ -320,6 +320,7 @@ final class ApplicationSystemCommand extends SystemCommand
 
     /**
      * @throws \UnexpectedValueException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     private function ready(): int
     {

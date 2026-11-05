@@ -86,6 +86,9 @@ final readonly class ConfigValidator
         return $normalized;
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function runChecks(bool $assumeProduction): ConfigValidationResult
     {
         $issues = [...new RuntimeConfigValidator($this->config)->validate()];

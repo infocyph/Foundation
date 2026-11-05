@@ -19,6 +19,7 @@ final class AuthPasskeyGraphFactory
 {
     /**
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public static function passkey(
         WebAuthnConfigResolver $config,

@@ -459,6 +459,7 @@ final class CommandDefinition
     /**
      * @param array<string, mixed> $manifest
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     private static function definitionFromScalars(array $manifest): self
     {

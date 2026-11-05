@@ -281,6 +281,7 @@ final readonly class AuthActions
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \UnexpectedValueException
+     * @throws \RuntimeException
      */
     public function verifyEmail(array $payload): EmailVerificationResult
     {

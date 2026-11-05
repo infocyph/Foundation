@@ -59,6 +59,7 @@ final readonly class StepUpManager
 
     /**
      * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
      */
     public function requiresStepUp(AuthSession $session, string $ability, array $context = []): bool
     {

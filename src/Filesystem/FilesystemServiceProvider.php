@@ -30,6 +30,9 @@ final class FilesystemServiceProvider extends ServiceProvider
         return $storage->disk();
     }
 
+    /**
+     * @throws \Infocyph\Pathwise\Exceptions\UploadException
+     */
     public static function upload(FilesystemTransferFactory $transfers): UploadProcessor
     {
         return $transfers->upload();

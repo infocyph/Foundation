@@ -212,6 +212,9 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         ];
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function registerDBLayerStores(bool $protectMfaSecrets): void
     {
         $connection = $this->authConnection();

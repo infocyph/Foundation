@@ -23,6 +23,9 @@ final readonly class OAuthAccessTokenValidator
         private AccountProviderInterface $accounts,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException
+     */
     public function verify(#[\SensitiveParameter] string $token, string $expectedAudience): OAuthVerifiedAccessToken
     {
         return $this->verifyResource($token, $expectedAudience, 'GET', $expectedAudience);

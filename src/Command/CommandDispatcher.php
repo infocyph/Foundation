@@ -30,6 +30,7 @@ final readonly class CommandDispatcher
      * @param array<string, mixed> $config
      * @throws \InvalidArgumentException
      * @throws \UnexpectedValueException
+     * @throws \LogicException
      */
     public static function project(
         array $config = [],

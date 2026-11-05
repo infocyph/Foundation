@@ -38,6 +38,9 @@ final readonly class DBLayerEpicryptJwtReplayStore extends DBLayerStore implemen
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function isRevoked(string $namespace, string $tokenId, int $expiresAt): bool
     {

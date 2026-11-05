@@ -19,6 +19,10 @@ final readonly class Mailer
         private ConfigRepository $config,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function send(MailMessage $message): CommunicationResult
     {
         return $this->sendEmail($message->toEmail(), $message->senderProfile());

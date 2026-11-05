@@ -258,6 +258,7 @@ final readonly class CacheSchemaManager
     /**
      * @param array<string,mixed> $store
      * @return array{pdo:?PDO,detail:string,state:string}
+     * @throws \RuntimeException
      */
     private function sqlitePdo(array $store, bool $forInstall): array
     {

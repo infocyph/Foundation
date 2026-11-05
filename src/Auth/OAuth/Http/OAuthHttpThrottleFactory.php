@@ -21,6 +21,7 @@ final readonly class OAuthHttpThrottleFactory
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function forEndpoint(
         string $endpoint,

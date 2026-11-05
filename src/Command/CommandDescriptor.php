@@ -55,6 +55,7 @@ final readonly class CommandDescriptor
     /**
      * @param array<string, mixed> $manifest
      * @throws \UnexpectedValueException
+     * @throws \LogicException
      */
     public static function fromManifest(array $manifest): self
     {

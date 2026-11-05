@@ -50,7 +50,10 @@ final readonly class AuthorizationServerMetadata
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \LogicException
+     */
     public function toArray(): array
     {
         return $this->epicrypt()->toArray();

@@ -25,6 +25,7 @@ final readonly class OAuthAuthorizationController
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     public function authorization(Request $request): Response
     {

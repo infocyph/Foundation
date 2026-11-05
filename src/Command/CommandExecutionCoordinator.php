@@ -204,7 +204,10 @@ final class CommandExecutionCoordinator
         return $this->locks = $this->application->make(CacheLayerFactory::class)->lock();
     }
 
-    /** @param array<string, scalar|null> $metadata */
+    /**
+     * @param array<string, scalar|null> $metadata
+     * @throws \RuntimeException
+     */
     private function record(
         ExecutionHistory $history,
         ExecutionId $executionId,

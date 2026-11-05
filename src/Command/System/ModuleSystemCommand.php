@@ -231,6 +231,7 @@ final class ModuleSystemCommand extends SystemCommand
     /**
      * @throws \RuntimeException
      * @throws \InvalidArgumentException
+     * @throws \Throwable
      */
     private function publishConfig(): int
     {

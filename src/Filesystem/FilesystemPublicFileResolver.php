@@ -18,6 +18,9 @@ final readonly class FilesystemPublicFileResolver
         private PathManager $paths,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function resolve(string $relativePath): PublicFileResolution
     {
         return new PublicFileResolver()->resolve(

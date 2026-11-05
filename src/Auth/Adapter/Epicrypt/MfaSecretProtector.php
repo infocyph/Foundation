@@ -70,6 +70,7 @@ final readonly class MfaSecretProtector
 
     /**
      * @throws \Infocyph\Epicrypt\Exception\Crypto\DecryptionException
+     * @throws \InvalidArgumentException
      */
     public function unprotect(MfaFactor $factor): MfaFactor
     {

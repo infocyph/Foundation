@@ -74,6 +74,8 @@ final class Bootstrapper
 
     /**
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
      */
     public function boot(Application $app): void
     {

@@ -138,6 +138,9 @@ final class DBLayerFactory
         return $state;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function pooledConnection(
         RuntimeExecutionState $state,
         string $name,

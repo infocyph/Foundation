@@ -256,7 +256,10 @@ final class AuthDefaults
         ];
     }
 
-    /** @return list<mixed> */
+    /**
+     * @return list<mixed>
+     * @throws \UnexpectedValueException
+     */
     private static function otpSecretProtectionKeys(): array
     {
         return self::jsonListEnvironment(

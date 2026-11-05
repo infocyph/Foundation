@@ -104,6 +104,9 @@ final class Application
         return $this->paths()->base($path);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function boot(): self
     {
         if (!$this->booted) {

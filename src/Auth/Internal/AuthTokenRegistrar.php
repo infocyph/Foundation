@@ -45,6 +45,7 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
 
     /**
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function register(AuthDriverResolver $drivers): void
     {

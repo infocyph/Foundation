@@ -13,6 +13,7 @@ final class ArtifactSystemCommand extends SystemCommand
 
     /**
      * @throws \LogicException
+     * @throws \RuntimeException
      */
     #[\Override]
     protected function handle(): int

@@ -26,6 +26,7 @@ final class CacheSystemCommand extends SystemCommand
 
     /**
      * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     private function forget(): int
     {

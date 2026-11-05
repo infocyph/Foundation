@@ -151,6 +151,9 @@ final readonly class CacheLayerFactory
             ?? $this->storeName();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function make(?string $name = null): CacheInterface
     {
         $name = $this->storeName($name);

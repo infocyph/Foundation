@@ -64,6 +64,9 @@ final readonly class EpicryptTokenFactory
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function key(): string
     {
         return $this->secrets->tokenSecret($this->minimumKeyBytes);

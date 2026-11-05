@@ -325,6 +325,8 @@ final class RuntimeSystemCommand extends SystemCommand
      * @throws \InvalidArgumentException
      * @throws \LogicException
      * @throws \UnexpectedValueException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Throwable
      */
     private function scheduleTest(): int
     {

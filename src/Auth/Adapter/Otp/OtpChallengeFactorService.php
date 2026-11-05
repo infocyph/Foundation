@@ -102,6 +102,9 @@ final readonly class OtpChallengeFactorService
         return $this->verification($factor, $result);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function verifyGrid(MfaFactor $factor, MfaChallenge $challenge, string $response): MfaVerificationResult
     {
         $payload = ValueNormalizer::associativeArray($challenge->metadata['grid_challenge'] ?? null);

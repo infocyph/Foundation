@@ -13,6 +13,9 @@ use Infocyph\InterMix\DI\Support\FactoryDefinition;
 /** Core path services have no dependency on the optional filesystem module. */
 final class PathServiceProvider extends ServiceProvider
 {
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     #[\Override]
     public function boot(Application $app): void
     {

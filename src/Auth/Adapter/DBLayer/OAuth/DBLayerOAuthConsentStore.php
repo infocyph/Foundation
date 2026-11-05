@@ -27,6 +27,9 @@ final readonly class DBLayerOAuthConsentStore extends DBLayerStore implements OA
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function findActive(string $accountId, string $clientId, string $scopeFingerprint): ?OAuthConsent
     {

@@ -70,6 +70,7 @@ final readonly class FilesystemTransferFactory
 
     /**
      * @throws \Infocyph\Pathwise\Exceptions\UploadException
+     * @throws \LogicException
      */
     public function upload(?string $directory = null, ?string $disk = null): UploadProcessor
     {

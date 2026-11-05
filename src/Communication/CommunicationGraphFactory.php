@@ -55,6 +55,9 @@ final class CommunicationGraphFactory
         return $profiles->http();
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function httpConfig(CommunicationProfiles $profiles): HttpClientConfig
     {
         return $profiles->httpConfig();

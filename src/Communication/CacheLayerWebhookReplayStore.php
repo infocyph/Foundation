@@ -25,6 +25,7 @@ final readonly class CacheLayerWebhookReplayStore implements WebhookReplayStore
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     #[\Override]
     public function claim(string $namespace, string $deliveryId, int $ttlSeconds): bool

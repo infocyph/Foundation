@@ -30,6 +30,7 @@ final readonly class CliPreflight
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function __construct(
         private CommandRegistry $registry = new CommandRegistry(),

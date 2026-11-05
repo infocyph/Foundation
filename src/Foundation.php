@@ -10,7 +10,12 @@ use Infocyph\Foundation\Config\FoundationPreset;
 
 final class Foundation
 {
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     */
     public static function cli(array $config = []): Application
     {
         return self::createFor(RuntimeMode::Cli, $config);
@@ -20,6 +25,9 @@ final class Foundation
      * Apply an environment/application preset independently from the selected runtime.
      *
      * @param array<string, mixed> $config
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     public static function preset(RuntimeMode $runtime, FoundationPreset $preset, array $config = []): Application
     {
@@ -28,19 +36,34 @@ final class Foundation
         return self::createFor($runtime, $config);
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     */
     public static function scheduler(array $config = []): Application
     {
         return self::createFor(RuntimeMode::Scheduler, $config);
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     */
     public static function web(array $config = []): Application
     {
         return self::createFor(RuntimeMode::Web, $config);
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     */
     public static function worker(array $config = []): Application
     {
         return self::createFor(RuntimeMode::Worker, $config);

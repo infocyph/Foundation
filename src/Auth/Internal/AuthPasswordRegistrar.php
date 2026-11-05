@@ -16,6 +16,9 @@ use Infocyph\Foundation\Auth\Support\NativePasswordVerifier;
 
 final readonly class AuthPasswordRegistrar extends AbstractAuthRegistrar
 {
+    /**
+     * @throws \LogicException
+     */
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->passwords() === AuthPasswordDriver::SECURITY) {
