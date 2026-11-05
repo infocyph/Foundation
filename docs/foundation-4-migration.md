@@ -155,6 +155,14 @@ The former public 11-entry module names, including `module:install database` and
 
 ## Rebuild trusted release artifacts
 
+When booting a compiled generation, supply
+`INFOCYPH_FOUNDATION_RELEASE_ROOT` and
+`INFOCYPH_FOUNDATION_RELEASE_MANIFEST_SHA256` as process environment values.
+`FoundationReleaseBootstrap::fromEnvironment()` reads only `getenv()`:
+assignments to `$_ENV` or `$_SERVER` are not deployment configuration and
+cannot override the release identity. Configure them at the service/process
+manager boundary before PHP begins handling requests.
+
 Build a single immutable Foundation 4 generation from normalized configuration and
 the declared capability topology. The release must contain a matching
 InterMix graph, Webrick 6 format-3 router manifest, non-web compiled
