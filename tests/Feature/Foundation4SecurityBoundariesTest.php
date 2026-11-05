@@ -210,7 +210,7 @@ it('binds every security notification purpose to a trusted recipient despite nes
             ->and($metadata['account_id'] ?? null)->toBe($accountId);
     }
 
-    expect($issued)->toBeCount(13);
+    expect($issued)->toBe(count(AuthNotificationType::cases()));
     $mailer->assertable()->assertSentTo('recipient@example.test');
     expect(fn() => $mailer->assertable()->assertSentTo('attacker@example.test'))
         ->toThrow(RuntimeException::class);
