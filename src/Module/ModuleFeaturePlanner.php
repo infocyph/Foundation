@@ -18,7 +18,7 @@ namespace Infocyph\Foundation\Module;
  *     effects:array{require:array<string,string>,remove:list<string>,activate:array<string,bool>,publish:list<string>,schemas:list<string>},
  *     blockers:list<string>,warnings:list<string>,applicable:bool
  * }
-  *
+ *
  * @api
  */
 final readonly class ModuleFeaturePlanner
