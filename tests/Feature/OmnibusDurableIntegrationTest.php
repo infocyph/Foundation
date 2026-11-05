@@ -69,8 +69,16 @@ final class FoundationOmnibusDurableHandler
 
     public static int $transientAttempts = 0;
 
+    public static ?RequestContext $cancelDuringDelivery = null;
+
     public function __invoke(FoundationOmnibusDurableMessage $message): void
     {
+        if ($message->value === 'cancel-inflight' && self::$cancelDuringDelivery !== null) {
+            $request = self::$cancelDuringDelivery;
+            self::$cancelDuringDelivery = null;
+            $request->cancel(CancellationReason::HOST_CANCELLED);
+            $request->cancellation->throwIfCancelled();
+        }
         if ($message->value === 'transient' && ++self::$transientAttempts === 1) {
             throw new RuntimeException('expected transient durable handler failure');
         }
@@ -85,6 +93,7 @@ final class FoundationOmnibusDurableHandler
 beforeEach(function (): void {
     FoundationOmnibusDurableHandler::$handled = [];
     FoundationOmnibusDurableHandler::$transientAttempts = 0;
+    FoundationOmnibusDurableHandler::$cancelDuringDelivery = null;
 });
 
 it('keeps the established serialized message alias readable after the library upgrade', function (): void {
@@ -164,6 +173,57 @@ it('preserves a durable reservation for the next consumer after host cancellatio
             ->and($transport->size('work'))->toBe(0)
             ->and($app->make(DBLayerFailureStore::class)->all())->toBe([])
             ->and(FoundationOmnibusDurableHandler::$handled)->toBe(['after-cancellation']);
+    } finally {
+        unset($app);
+        foundationOmnibusRemoveDatabase($database);
+    }
+});
+
+it('recovers an in-flight host-cancelled durable message after its original visibility lease expires', function (): void {
+    [$app, $database] = foundationOmnibusDurableApp();
+
+    try {
+        $app->make(MessagingDatabaseSchema::class)->install();
+        $transport = $app->make(DBLayerTransport::class);
+        $connection = $app->make(DBLayerFactory::class)->infrastructureConnection('main');
+        $consumer = $app->make(ConsumerFactory::class)->make('database');
+
+        $app->make(MessageBus::class)->dispatch(new FoundationOmnibusDurableMessage('cancel-inflight'));
+        $runtime = RuntimeContext::standalone();
+        $request = RequestContext::create($runtime);
+        FoundationOmnibusDurableHandler::$cancelDuringDelivery = $request;
+        CacheRunwire::bind($runtime);
+
+        try {
+            CacheRunwire::share($request, null, static function () use ($consumer): void {
+                expect(fn() => $consumer->run('work'))->toThrow(CancelledException::class);
+            }, $runtime);
+        } finally {
+            FoundationOmnibusDurableHandler::$cancelDuringDelivery = null;
+            $request->complete();
+            CacheRunwire::release($runtime);
+        }
+
+        // Omnibus leaves an in-flight cancelled delivery leased until visibility
+        // expiry. It must not acknowledge it or turn host cancellation into a
+        // permanent delivery failure.
+        expect((int) $connection->scalar('SELECT COUNT(*) FROM omnibus_messages'))->toBe(1)
+            ->and((int) $connection->scalar('SELECT attempts FROM omnibus_messages'))->toBe(1)
+            ->and($transport->size('work'))->toBe(0)
+            ->and($app->make(DBLayerFailureStore::class)->all())->toBe([])
+            ->and(FoundationOmnibusDurableHandler::$handled)->toBe([]);
+
+        $connection->update('UPDATE omnibus_messages SET reserved_until = 0 WHERE reserved_until IS NOT NULL');
+
+        $recovered = $consumer->run('work');
+
+        expect($recovered->received)->toBe(1)
+            ->and($recovered->succeeded)->toBe(1)
+            ->and(FoundationOmnibusDurableHandler::$handled)->toBe(['cancel-inflight'])
+            ->and($transport->size('work'))->toBe(0)
+            ->and($app->make(DBLayerFailureStore::class)->all())->toBe([])
+            ->and((int) $connection->scalar('SELECT COUNT(*) FROM omnibus_messages'))->toBe(0)
+            ->and($consumer->run('work')->received)->toBe(0);
     } finally {
         unset($app);
         foundationOmnibusRemoveDatabase($database);
