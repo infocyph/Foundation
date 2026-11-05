@@ -12,6 +12,11 @@ use Infocyph\Webrick\Middleware\ThrottleMiddleware;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
+/**
+ * Public OAuth endpoint throttle middleware.
+ *
+ * @api
+ */
 final readonly class OAuthRateLimitMiddleware
 {
     /**
