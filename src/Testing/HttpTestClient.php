@@ -7,6 +7,11 @@ namespace Infocyph\Foundation\Testing;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Webrick\Request\Request;
 
+/**
+ * Public HTTP integration test client.
+ *
+ * @api
+ */
 final class HttpTestClient
 {
     /** @var array<string,string|list<string>> */
