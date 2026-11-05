@@ -13,6 +13,11 @@ use Infocyph\InterMix\DI\Support\ServiceReference;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
+/**
+ * Built-in application service provider selected through Foundation composition.
+ *
+ * @api
+ */
 final class LoggingServiceProvider extends ServiceProvider
 {
     #[\Override]
