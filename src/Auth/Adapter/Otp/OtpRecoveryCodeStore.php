@@ -69,6 +69,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
         throw new RuntimeException('Unable to atomically consume recovery state after concurrent updates.');
     }
 
+    /** @throws \RuntimeException */
     #[\Override]
     public function metadata(string $binding): array
     {
