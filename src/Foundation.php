@@ -8,6 +8,11 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Config\FoundationPreset;
 
+/**
+ * Public factory for runtime-specific Foundation applications.
+ *
+ * @api
+ */
 final class Foundation
 {
     /**
