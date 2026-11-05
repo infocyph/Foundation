@@ -28,7 +28,12 @@ final readonly class OAuthAudienceMiddleware
         }
     }
 
-    /** @param callable(Request): Response $next */
+    /**
+     * @param callable(Request): Response $next
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function __invoke(Request $request, callable $next): Response
     {
         $principal = $this->principals->get();
