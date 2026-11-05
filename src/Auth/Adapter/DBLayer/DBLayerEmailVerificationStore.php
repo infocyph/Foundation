@@ -23,6 +23,9 @@ final readonly class DBLayerEmailVerificationStore extends DBLayerConsumableStor
     }
 
     /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws EmailDestinationChanged
      * @throws TransactionException
      */

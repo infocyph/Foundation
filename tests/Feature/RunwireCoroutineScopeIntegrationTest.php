@@ -226,12 +226,20 @@ it('runs Foundation execution cleanup while Runwire owns the live scheduler and 
         'foundation-cleanup-order',
     );
     $request = RequestContext::create($runtime);
+    $coroutines = new CoroutineRuntime();
     $events = [];
 
     try {
-        $result = (new CoroutineRuntime())->runRequest(
+        $result = $coroutines->runRequest(
             $request,
-            static function (CoroutineScope $scope) use ($app, $runtime, $request, &$events): string {
+            static function (CoroutineScope $scope) use ($app, $runtime, $request, $coroutines, &$events): string {
+                // A scope-owned shutdown must execute before Runwire releases
+                // the active scheduler, but not during Foundation cleanup.
+                $scope->registerShutdown(static function () use ($coroutines, &$events): void {
+                    $events[] = $coroutines->activeTaskCount() > 0
+                        ? 'scope-shutdown-in-loop'
+                        : 'scope-shutdown-after-loop';
+                });
                 expect(static function () use ($app, $runtime, $request, $scope, &$events): void {
                     $app->execution()->run(
                         static function () use ($app, $scope, &$events): void {
@@ -270,6 +278,7 @@ it('runs Foundation execution cleanup while Runwire owns the live scheduler and 
                 'cleanup-error',
                 'cleanup-ok',
                 'host-owns-scope',
+                'scope-shutdown-in-loop',
             ]);
     } finally {
         $request->complete();
