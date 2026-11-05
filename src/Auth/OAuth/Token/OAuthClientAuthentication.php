@@ -6,6 +6,11 @@ namespace Infocyph\Foundation\Auth\OAuth\Token;
 
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
 
+/**
+ * Public OAuth client authentication value contract.
+ *
+ * @api
+ */
 final readonly class OAuthClientAuthentication
 {
     /**
