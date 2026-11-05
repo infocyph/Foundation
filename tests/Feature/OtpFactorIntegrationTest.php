@@ -10,6 +10,7 @@ use Infocyph\Foundation\Auth\Adapter\Otp\OtpRecoveryCodeService;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpRecoveryCodeStore;
 use Infocyph\Foundation\Auth\Mfa\MfaChallenge;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
+use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorType;
 use Infocyph\Foundation\Auth\Support\InMemoryMfaFactorStore;
 use Infocyph\Foundation\Auth\Otp\OtpManager;
@@ -339,4 +340,77 @@ it('keeps recovery-code issuance and consumption atomic across cancelled borrowe
         ->and($recovery->verify($accountId, $code)->verified)->toBeTrue()
         ->and($factors->findForAccount($accountId)[0]->metadata['otp_recovery']['hashes'])->toHaveCount(2)
         ->and($recovery->verify($accountId, $code)->verified)->toBeFalse();
+});
+
+
+it('rejects recovery consumption when cancellation arrives after state read but before CAS', function (): void {
+    $accountId = 'acct-recovery-interleave-' . bin2hex(random_bytes(6));
+    $backing = new InMemoryMfaFactorStore();
+    $runtime = RuntimeContext::standalone();
+    $request = RequestContext::create($runtime);
+    $store = new class ($backing, $request) implements MfaFactorCompareAndSwapStoreInterface {
+        public bool $cancelOnFind = false;
+
+        public int $writes = 0;
+
+        public function __construct(
+            private readonly InMemoryMfaFactorStore $backing,
+            private readonly RequestContext $request,
+        ) {}
+
+        #[\\Override]
+        public function findForAccount(string $accountId): array
+        {
+            $found = $this->backing->findForAccount($accountId);
+            if ($this->cancelOnFind) {
+                $this->cancelOnFind = false;
+                $this->request->cancel(CancellationReason::HOST_CANCELLED);
+            }
+
+            return $found;
+        }
+
+        #[\\Override]
+        public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool
+        {
+            $this->writes++;
+
+            return $this->backing->compareAndSwap($expected, $updated);
+        }
+
+        #[\\Override]
+        public function remove(string $factorId): void
+        {
+            $this->backing->remove($factorId);
+        }
+
+        #[\\Override]
+        public function save(MfaFactor $factor): void
+        {
+            $this->backing->save($factor);
+        }
+    };
+    $recovery = new OtpRecoveryCodeService(new RecoveryCodes(
+        new OtpRecoveryCodeStore($store),
+        str_repeat('k', 32),
+    ));
+    $code = $recovery->generate($accountId)[0];
+    $initial = $backing->findForAccount($accountId)[0]->metadata['otp_recovery']['hashes'];
+    expect($store->writes)->toBe(1);
+
+    CacheRunwire::bind($runtime);
+    try {
+        CacheRunwire::share($request, null, static function () use ($accountId, $code, $recovery, $request, $store): void {
+            $store->cancelOnFind = true;
+            expect(fn() => $recovery->verify($accountId, $code))->toThrow(CancelledException::class);
+        }, $runtime);
+    } finally {
+        $request->complete();
+        CacheRunwire::release($runtime);
+    }
+
+    expect($store->writes)->toBe(1)
+        ->and($backing->findForAccount($accountId)[0]->metadata['otp_recovery']['hashes'])->toBe($initial)
+        ->and($recovery->verify($accountId, $code)->verified)->toBeTrue()
+        ->and($store->writes)->toBe(2);
 });
