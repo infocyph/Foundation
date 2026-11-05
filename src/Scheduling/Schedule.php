@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Scheduling;
 
+/**
+ * Public application schedule registration contract.
+ *
+ * @api
+ */
 final class Schedule
 {
     /** @var list<ScheduledCommand> */
