@@ -348,7 +348,6 @@ final readonly class WorkerManager
             $this->assertPoolParentClean();
         }
 
-        /** @var OmnibusWorkerFactory $factory */
         $factory = $this->application->make(OmnibusWorkerFactory::class);
         $factory->options($name);
         $pool = $factory->pool($name);
