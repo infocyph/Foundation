@@ -61,6 +61,8 @@ use Infocyph\Foundation\Module\Internal\ModuleCatalogValidator;
  *     dependencies:list<ModuleDependency>,
  *     platform:PlatformRequirement
  * }
+  *
+ * @api
  */
 final class ModuleCatalog
 {
