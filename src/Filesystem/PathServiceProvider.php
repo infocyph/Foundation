@@ -10,7 +10,11 @@ use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
-/** Core path services have no dependency on the optional filesystem module. */
+/**
+ * Core path services have no dependency on the optional filesystem module.
+ *
+ * @api
+ */
 final class PathServiceProvider extends ServiceProvider
 {
     /**
