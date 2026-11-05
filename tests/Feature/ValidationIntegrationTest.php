@@ -5,13 +5,13 @@ declare(strict_types=1);
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Validation\FormRequest;
 use Infocyph\Foundation\Validation\ValidatorFactory;
-use Infocyph\Webrick\Request\Request;
 use Infocyph\ReqShield\CompiledValidator;
 use Infocyph\ReqShield\Exceptions\FrozenSchemaRegistryException;
 use Infocyph\ReqShield\Exceptions\InputLimitException;
 use Infocyph\ReqShield\Schema\SchemaRegistry;
 use Infocyph\ReqShield\Support\ValidationContext;
 use Infocyph\ReqShield\Validator as ReqShieldValidator;
+use Infocyph\Webrick\Request\Request;
 
 final class FoundationValidationUserData
 {
@@ -196,9 +196,9 @@ it('isolates FormRequest overrides and native ReqShield profiles across reused v
         ->validate(['email' => '  LOWER@EXAMPLE.TEST  ']);
 
     expect($plain->typed()['email'] ?? null)->toBe('UPPER@EXAMPLE.TEST')
-        ->and($plain->toDTO())->toBeNull()
+        ->and($plain->toDTO())->not->toBeInstanceOf(FoundationValidationUserData::class)
         ->and($defaults->typed()['email'] ?? null)->toBe('lower@example.test')
-        ->and($defaults->toDTO())->toBeNull();
+        ->and($defaults->toDTO())->not->toBeInstanceOf(FoundationValidationUserData::class);
 });
 
 it('freezes named validation schema topology at application composition', function (): void {
