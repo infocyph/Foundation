@@ -52,6 +52,7 @@ final class AuthServiceProvider extends ServiceProvider
     /**
      * @throws \LogicException
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \UnexpectedValueException
      */
     #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void

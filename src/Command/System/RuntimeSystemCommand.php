@@ -176,6 +176,11 @@ final class RuntimeSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     */
     private function routeList(): int
     {
         $routes = new RouteInspector($this->application)->routes($this->option('routes'))->all();
@@ -422,6 +427,7 @@ final class RuntimeSystemCommand extends SystemCommand
     /**
      * @throws \RuntimeException
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     private function workerList(): int
     {

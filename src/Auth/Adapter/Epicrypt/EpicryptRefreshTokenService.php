@@ -19,6 +19,9 @@ final readonly class EpicryptRefreshTokenService implements RefreshTokenServiceI
         private EpicryptTokenFactory $factory,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     #[\Override]
     public function issue(RefreshTokenClaims $claims): IssuedRefreshToken
     {
@@ -49,6 +52,9 @@ final readonly class EpicryptRefreshTokenService implements RefreshTokenServiceI
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     #[\Override]
     public function verify(string $token): TokenVerificationResult
     {

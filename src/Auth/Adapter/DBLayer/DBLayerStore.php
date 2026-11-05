@@ -39,6 +39,7 @@ abstract readonly class DBLayerStore
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     protected function allMapped(string $sql, callable $mapper, array $bindings = []): array
     {

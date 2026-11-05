@@ -189,7 +189,10 @@ final class ConfigLoader
             : $basePath . DIRECTORY_SEPARATOR . 'bootstrap/cache/config';
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \UnexpectedValueException
+     */
     private function defaults(): array
     {
         return $this->mergeConfigLayers([FoundationDefaults::all(), AuthDefaults::all()]);

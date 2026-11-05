@@ -56,6 +56,9 @@ final readonly class AuthManager
         return $this->drivers;
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     public function isProductionReady(): bool
     {
         return !new ConfigValidator($this->config)->validateForProduction()->fails();
@@ -77,6 +80,7 @@ final readonly class AuthManager
      *   issues: list<string>,
      *   drivers: array<string, string>
      * }
+     * @throws \UnexpectedValueException
      */
     public function readinessReport(): array
     {

@@ -116,6 +116,7 @@ final readonly class ModuleFeatureLifecycleExecutor
      * @phpstan-return Outcome
      * @throws \RuntimeException
      * @throws \InvalidArgumentException
+     * @throws \Throwable
      */
     private function applyInstallOrRepair(
         string $operation,

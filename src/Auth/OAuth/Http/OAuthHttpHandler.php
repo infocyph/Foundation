@@ -125,6 +125,9 @@ final readonly class OAuthHttpHandler
         return $this->responses->jwks($this->oauth->jwks());
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function metadata(): Response
     {
         return $this->responses->metadata($this->oauth->metadata());

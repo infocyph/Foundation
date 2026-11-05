@@ -35,6 +35,9 @@ final class WebrickRouterFactory
         private readonly LoggerInterface $logger,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function kernel(?ErrorHandler $errorHandler = null): RouterKernel
     {
         if ($this->kernel !== null) {
@@ -74,6 +77,9 @@ final class WebrickRouterFactory
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function router(): Registrar
     {
         if ($this->registrar !== null) {
@@ -142,6 +148,9 @@ final class WebrickRouterFactory
         $callback($this->routes());
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function bindUrlServicesCallback(): ?\Closure
     {
         $baseUri = $this->stringConfig('router.url_base_uri');

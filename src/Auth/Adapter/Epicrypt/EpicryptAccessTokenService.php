@@ -18,6 +18,9 @@ final readonly class EpicryptAccessTokenService implements AccessTokenServiceInt
         private EpicryptTokenFactory $factory,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     #[\Override]
     public function issue(AccessTokenClaims $claims): string
     {
@@ -38,6 +41,9 @@ final readonly class EpicryptAccessTokenService implements AccessTokenServiceInt
         ));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     #[\Override]
     public function verify(string $token): TokenVerificationResult
     {

@@ -87,6 +87,7 @@ final class GeneratedRuntimeMetadata
      *   intermix_digest:string,
      *   compiled_count:int
      * }
+     * @throws \RuntimeException
      */
     public static function create(NonWebGraphComposition $graph, array $report): array
     {

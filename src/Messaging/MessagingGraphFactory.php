@@ -34,6 +34,7 @@ final class MessagingGraphFactory
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \LogicException
      */
     public static function afterCommit(
         OmnibusDurableFactory $factory,

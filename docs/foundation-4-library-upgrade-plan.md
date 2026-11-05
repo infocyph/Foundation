@@ -2,6 +2,12 @@
 
 Date: 2026-11-05 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Psalm-first Batch 40b — propagated native exception contracts (exact-head QA pending)
+
+- **Batch 40 measured source `3a68eb06`:** [official Security & Standards 42043764861](https://github.com/infocyph/Foundation/actions/runs/42043764861) reports **749 strict Psalm errors per PHP version**, down 29 from Batch 39's 778. PHPStan, all four functional PHP 8.4/8.5 stable/lowest lanes, consumers, clean install and benchmarks passed; [native host 42043764489](https://github.com/infocyph/Foundation/actions/runs/42043764489) passed all serving jobs. Psalm remains failing.
+- **Batch 40b submitted changes (not yet verified):** Added exact reported exception documentation across **29 production PHP files**, targeting all **42 newly exposed `MissingThrowsDocblock` locations** in the Batch 40 analyzer report. New exception propagation may affect the actual net reduction. No runtime behavior, dependency, workflow, baseline or analyzer suppression changes.
+- **Acceptance:** Verify the new exact head with official PHPForge `dev-main@dev` Psalm/PHPStan on PHP 8.4/8.5, four stable/lowest functional lanes, consumers, benchmarks and native hosts; compare net result against 778 and require no new QA failures. Formal plan **53/90 accepted, 37 open**, P0 20/20; PR remains draft/unmerged.
+
 ## Psalm-first Batch 40 — final documented native exception contracts (QA pending)
 
 - **Batch 39 official analyzer baseline:** exact source `243e380b` / [Security & Standards 42041602121](https://github.com/infocyph/Foundation/actions/runs/42041602121) reported **778 strict Psalm errors per PHP version**, 29 lower than accepted Batch 38b's 807, while PHPStan passed. The official four stable/lowest functional lanes and native smoke require exact-head final-status confirmation; no premature full batch acceptance.

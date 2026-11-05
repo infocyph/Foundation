@@ -75,6 +75,7 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function rotateIfActive(RememberTokenRecord $current, RememberTokenRecord $replacement): bool

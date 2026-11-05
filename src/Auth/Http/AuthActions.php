@@ -34,6 +34,7 @@ final readonly class AuthActions
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     public function finishPasskeyAuthentication(array $payload): PasskeyAuthenticationOutcome
     {

@@ -31,6 +31,7 @@ final class ReleaseGenerationLease
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public static function acquireShared(string $releaseRoot, string $generation): self
     {
@@ -65,6 +66,7 @@ final class ReleaseGenerationLease
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public static function tryExclusive(string $releaseRoot, string $generation): ?self
     {

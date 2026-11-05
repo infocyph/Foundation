@@ -11,6 +11,9 @@ final readonly class EpicryptPasswordResetTokenService extends AbstractEpicryptT
 {
     private const string CONTEXT = 'auth.password_reset';
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     #[\Override]
     public function issue(string $accountId, array $context = []): string
     {
@@ -22,6 +25,9 @@ final readonly class EpicryptPasswordResetTokenService extends AbstractEpicryptT
         ]);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     #[\Override]
     public function verify(string $token): TokenVerificationResult
     {

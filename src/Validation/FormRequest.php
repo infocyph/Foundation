@@ -18,6 +18,7 @@ abstract class FormRequest
 {
     /**
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function __construct(private readonly ValidatorFactory $validators) {}
 

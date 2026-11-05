@@ -54,6 +54,7 @@ final readonly class MessagingDatabaseSchema
      *   missing_tables:list<string>,
      *   connection:string|null
      * }
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function readiness(?string $connection = null): array
     {

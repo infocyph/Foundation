@@ -61,6 +61,7 @@ final class ApplicationSystemCommand extends SystemCommand
 
     /**
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \UnexpectedValueException
      */
     private function about(): int
     {

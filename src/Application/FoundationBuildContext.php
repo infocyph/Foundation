@@ -79,6 +79,9 @@ final readonly class FoundationBuildContext
         return array_key_exists($capability, $this->capabilityOverrides);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function hasFeature(string $feature): bool
     {
         return ModuleFeatureCapabilityPolicy::selected($feature, $this->featureSelections);

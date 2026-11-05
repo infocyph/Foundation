@@ -48,6 +48,9 @@ use Psr\EventDispatcher\ListenerProviderInterface;
 
 final class MessagingServiceProvider extends ServiceProvider
 {
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {

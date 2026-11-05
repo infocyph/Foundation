@@ -24,6 +24,7 @@ final readonly class ModuleManager
     /**
      * @phpstan-return list<ModuleState>
      * @throws \UnexpectedValueException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     public function all(): array
     {

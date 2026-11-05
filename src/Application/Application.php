@@ -208,6 +208,7 @@ final class Application
     /**
      * @throws \LogicException
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function http(): HttpKernel
     {

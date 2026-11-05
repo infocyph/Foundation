@@ -50,6 +50,7 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     #[\Override]
     public function rotateIfActive(RefreshTokenRecord $current, RefreshTokenRecord $replacement): bool
