@@ -13,6 +13,11 @@ use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 
+/**
+ * Built-in application service provider selected through Foundation composition.
+ *
+ * @api
+ */
 final class SecurityServiceProvider extends ServiceProvider
 {
     /**
