@@ -668,6 +668,77 @@ it('rejects untrusted direct domain email verification destinations before token
     });
 });
 
+it('blocks queued verification mail after an address change and permits a newly bound request', function (): void {
+    $app = Foundation::web([
+        'app' => ['base_path' => sys_get_temp_dir()],
+        'router' => ['files' => []],
+    ]);
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $services = $app->make(AuthServices::class);
+        $account = $services->accounts()->create(
+            'queued-email-user',
+            metadata: ['email' => 'old-delivery@example.test'],
+            status: AccountStatus::PENDING_VERIFICATION,
+        )->account;
+        if ($account === null) {
+            throw new LogicException('Expected a username-backed account.');
+        }
+        $notifications = $app->make(AuthNotifierInterface::class);
+        if (!$notifications instanceof CollectingAuthNotifier) {
+            throw new LogicException('Expected a collecting notifier.');
+        }
+        $mailer = Emailer::fake();
+        $outbound = new TalkingBytesAuthNotifier(
+            $mailer,
+            new AuthNotificationMapper(new NotificationTemplateRegistry(new ConfigRepository())),
+            $services->accountProvider(),
+            from: 'sender@example.test',
+        );
+
+        $first = $services->emailVerification()->issue($account->id(), 'old-delivery@example.test');
+        $queued = $notifications->notifications();
+        expect($first->status)->toBe(EmailVerificationStatus::ISSUED)
+            ->and($queued)->toHaveCount(1)
+            ->and($queued[0]->accountId)->toBe($account->id())
+            ->and($queued[0]->payload['email'])->toBe('old-delivery@example.test');
+
+        expect($services->accounts()->updateMetadata(
+            $account->id(),
+            ['email' => 'new-delivery@example.test'],
+        )->successful())->toBeTrue();
+        expect(fn() => $outbound->send($queued[0]))->toThrow(
+            RuntimeException::class,
+            'account-stored destination',
+        );
+        $mailer->assertable()->assertSentCount(0);
+
+        if ($first->token === null) {
+            throw new LogicException('Expected an issued verification token.');
+        }
+        expect($services->emailVerification()->verify($first->token)->status)->toBe(EmailVerificationStatus::INVALID);
+
+        $second = $services->emailVerification()->issue($account->id(), 'new-delivery@example.test');
+        $newQueue = $notifications->notifications();
+        expect($second->status)->toBe(EmailVerificationStatus::ISSUED)
+            ->and($newQueue)->toHaveCount(2)
+            ->and($newQueue[1]->accountId)->toBe($account->id());
+        $outbound->send($newQueue[1]);
+
+        $mailer->assertable()->assertSentCount(1);
+        $mailer->assertable()->assertSentTo('new-delivery@example.test');
+        expect(fn() => $mailer->assertable()->assertSentTo('old-delivery@example.test'))
+            ->toThrow(RuntimeException::class);
+        $metadata = $mailer->assertable()->lastMessage()?->metadata();
+        expect($metadata['account_id'] ?? null)->toBe($account->id())
+            ->and($metadata['auth_notification_type'] ?? null)->toBe('email_verification_requested');
+
+        if ($second->token === null) {
+            throw new LogicException('Expected a replacement verification token.');
+        }
+        expect($services->emailVerification()->verify($second->token)->verified())->toBeTrue();
+    });
+});
+
 it('cannot verify a stale email token after the authoritative account email changes', function (): void {
     $app = Foundation::web([
         'app' => ['base_path' => sys_get_temp_dir()],
