@@ -81,6 +81,7 @@ final class HttpTestClient
      * @param array<string,string|list<string>> $headers
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function request(
         string $method,

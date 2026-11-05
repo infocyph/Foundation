@@ -53,7 +53,7 @@ final readonly class FoundationReleaseCompiler
         $generation ??= gmdate('YmdHis') . '-' . bin2hex(random_bytes(8));
         $this->assertGeneration($generation);
         $lock = FoundationReleaseBuildLock::acquire($releaseRoot);
-        $stage = '';
+        $stage = null;
 
         try {
             [$stage, $final] = $this->generationPaths($releaseRoot, $generation);
@@ -61,7 +61,7 @@ final readonly class FoundationReleaseCompiler
             FoundationReleaseManifest::write($stage . '/foundation.php', $manifest);
             $this->verifyStage($stage, $manifest);
             $this->publishStage($stage, $final, $generation);
-            $stage = '';
+            $stage = null;
             $manifestPath = $final . '/foundation.php';
             $manifestSha256 = $this->sha256($manifestPath, 'Foundation release manifest');
             $activePointer = $this->active->activate($releaseRoot, $generation);
@@ -74,7 +74,7 @@ final readonly class FoundationReleaseCompiler
                 'release' => $manifest,
             ];
         } finally {
-            if ($stage !== '' && is_dir($stage)) {
+            if ($stage !== null && is_dir($stage)) {
                 $this->removeDirectory($stage);
             }
             $lock->release();

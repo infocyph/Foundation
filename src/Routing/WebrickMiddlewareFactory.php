@@ -456,7 +456,11 @@ final readonly class WebrickMiddlewareFactory
             return $path;
         }
 
-        $basePath = $this->config->getString('app.base_path', getcwd() ?: '.') ?: (getcwd() ?: '.');
+        $cwd = getcwd() ?: '.';
+        $basePath = $this->config->getString('app.base_path', $cwd);
+        if ($basePath === null || $basePath === '') {
+            $basePath = $cwd;
+        }
 
         return rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR);
     }

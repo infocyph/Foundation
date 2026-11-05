@@ -10,6 +10,8 @@ use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidator;
 
+/** Public application-facing authentication services. */
+/** @api */
 final readonly class AuthManager
 {
     /**

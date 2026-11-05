@@ -226,6 +226,7 @@ final readonly class ModuleFeatureCommandSnapshot
 
     /**
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \UnexpectedValueException
      */
     private function sourceConfiguration(): ConfigRepository
     {
