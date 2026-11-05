@@ -331,8 +331,8 @@ final readonly class OAuthClientManager
             return false;
         }
 
-        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
-        $host = strtolower((string) ($parts['host'] ?? ''));
+        $scheme = strtolower($parts['scheme'] ?? '');
+        $host = strtolower($parts['host'] ?? '');
         if ($scheme === '' || $host === '') {
             return false;
         }
