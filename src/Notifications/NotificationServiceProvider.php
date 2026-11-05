@@ -27,6 +27,11 @@ use Infocyph\TalkingBytes\Email\Parser\RawEmailParser;
 use Infocyph\TalkingBytes\Email\Receiver\SpoolEmailReceiver;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Built-in application service provider, selected through Foundation composition.
+ *
+ * @api
+ */
 final class NotificationServiceProvider extends ServiceProvider
 {
     /**
