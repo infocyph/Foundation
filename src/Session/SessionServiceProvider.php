@@ -20,6 +20,11 @@ use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Built-in application service provider, selected through Foundation composition.
+ *
+ * @api
+ */
 final class SessionServiceProvider extends ServiceProvider
 {
     /**
