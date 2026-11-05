@@ -261,7 +261,7 @@ final readonly class ExecutionScope
         callable $callback,
         array $seeds,
         ?RunwireExecutionContext $native,
-    ): mixed {
+    ): void {
         if (!$this->container instanceof RuntimeContainerInterface) {
             throw new \LogicException('Foundation execution scopes require an InterMix runtime container.');
         }
@@ -281,7 +281,7 @@ final readonly class ExecutionScope
             }
         }
 
-        return $this->container->withinScope(
+        $this->container->withinScope(
             $scope,
             fn(ContainerInterface $container): mixed => $this->withinRunwireContext(
                 $native,
