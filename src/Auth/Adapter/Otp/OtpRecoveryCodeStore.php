@@ -13,6 +13,11 @@ use Infocyph\OTP\Contracts\RecoveryCodeStoreInterface;
 use Infocyph\OTP\Support\RunwireState;
 use RuntimeException;
 
+/**
+ * Application-backed OTP recovery-code storage implementation.
+ *
+ * @api
+ */
 final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
 {
     private const int MAX_CAS_ATTEMPTS = 5;
