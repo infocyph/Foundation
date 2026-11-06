@@ -11,6 +11,11 @@ use Infocyph\TalkingBytes\Email\Template\ArrayVariableRenderer;
 use Infocyph\TalkingBytes\Email\Template\TemplateRendererInterface;
 use Infocyph\TalkingBytes\Email\ValueObject\EmailAddress;
 
+/**
+ * TalkingBytes authentication notification mapping service used by application DI recipes.
+ *
+ * @api
+ */
 final readonly class AuthNotificationMapper
 {
     public function __construct(
