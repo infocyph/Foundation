@@ -16,6 +16,8 @@ use League\Flysystem\FilesystemOperator;
  * Named filesystem lifecycle, lazy operator creation, path identity, custom
  * drivers, and isolation are Pathwise-owned. Foundation only loads application
  * configuration and resolves relative local roots against the application base.
+ *
+ * @api
  */
 final readonly class StorageRegistry
 {
