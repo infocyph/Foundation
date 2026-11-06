@@ -19,6 +19,11 @@ use Infocyph\TalkingBytes\Webhook\WebhookSender;
 use Infocyph\TalkingBytes\Webhook\WebhookVerifier;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Generated runtime communication capability factory entrypoint.
+ *
+ * @api
+ */
 final class CommunicationGraphFactory
 {
     /**
