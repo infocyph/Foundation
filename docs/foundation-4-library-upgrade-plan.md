@@ -2,6 +2,13 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 73 — OTP cancellation-before-CAS and unbound recovery (exact-head QA pending)
+
+- **Starting verified head:** `e900b0fa` / [Security & Standards 42177101779](https://github.com/infocyph/Foundation/actions/runs/42177101779) and [native hosts 42177101334](https://github.com/infocyph/Foundation/actions/runs/42177101334) are both green across official PHP 8.4/8.5 analyzers, all four functional QA lanes, production consumers, clean install, benchmarks, and actual native host processes. Tracker **71/90 accepted, 19 open**.
+- **Batch 73 scope:** Under a real Foundation Webrick request scope, enroll a native OTP HOTP factor and issue a challenge, borrow a live Runwire host request through CacheLayer, cancel it before verifying a valid code, and require the native `CancelledException` rather than a false MFA code result. Verify the unchanged factor revision/counter after cancellation. Then verify the same valid code through ordinary unbound synchronous execution, confirm exactly one counter CAS and reject subsequent replay. This qualifies the Foundation-to-OTP request context and counter mutation boundary without caching contexts on singletons or synthesizing a host event loop.
+- **P3 acceptance candidate:** The existing `OtpPasskeyIntegrationTest`, `AdvancedCapabilityIntegrationTest` plus this cancellation/CAS recovery regression provide direct evidence for both per-operation borrowed Runwire context and Foundation-owned HOTP mutation checkpoints. Only promote the related checkboxes after exact-head official QA including native hosts passes. This does not by itself close separate canonical Base32, retained-state, passkey revision or exhaustive MFA factors gates.
+- **Release:** Formal tracker unchanged **71/90, 19 open**, P0 **20/20**. No acceptance inference from running jobs; retain P6 sustained matched-host certification open. Do not merge/tag/release.
+
 ## Foundation 4 Batch 72 — accepted dependency + compatibility/documentation contract audit
 
 - **Exact-source Batch 71 qualification:** `9fb02a5f` passed [PHPForge Security & Standards 42176222216](https://github.com/infocyph/Foundation/actions/runs/42176222216) (both PHP 8.4/8.5 Psalm/PHPStan zero blockers, four full QA, consumers, clean install, both benchmarks, Composer strict validation, two platform JSON checks and locked audit with zero advisories/one explicitly reported abandoned `doctrine/annotations`) and [native hosts 42176221613](https://github.com/infocyph/Foundation/actions/runs/42176221613). The Composer artifact preserves the exact dependency manifest/lock SHA, not an invented baseline.

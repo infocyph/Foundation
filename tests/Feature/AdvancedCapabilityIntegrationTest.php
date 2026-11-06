@@ -2,12 +2,19 @@
 
 declare(strict_types=1);
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpMfaVerifier;
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnConfig;
 use Infocyph\Foundation\Auth\AuthServices;
+use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorType;
 use Infocyph\Foundation\Foundation;
 use Infocyph\OTP\HOTP;
 use Infocyph\OTP\OCRA;
+use Infocyph\Runwire\Exception\CancelledException;
+use Infocyph\Runwire\RequestContext;
+use Infocyph\Runwire\Runtime\Enum\CancellationReason;
+use Infocyph\Runwire\RuntimeContext;
 use Infocyph\Webrick\Runtime\Http\RuntimeRequestContext;
 
 it('supports secure HOTP and OCRA MFA workflows', function (): void {
@@ -102,6 +109,71 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
         expect($ocraVerification->successful())->toBeTrue()
             ->and($replayedOcraVerification->successful())->toBeFalse()
             ->and($replayedOcraVerification->code)->toBe('mfa_code_replayed');
+    });
+});
+
+
+it('rejects host-cancelled native HOTP mutation and retains the unconsumed counter for ordinary execution', function (): void {
+    $app = Foundation::web([
+        'auth' => [
+            'drivers' => ['mfa' => 'otp', 'storage' => 'memory'],
+            'otp' => ['replay' => ['store' => 'otp-cancellation-state']],
+        ],
+        'cache' => [
+            'default' => 'otp-cancellation-state',
+            'stores' => [
+                'otp-cancellation-state' => [
+                    'driver' => 'memory',
+                    'namespace' => 'foundation-otp-cancel-' . bin2hex(random_bytes(8)),
+                    'fail_open' => false,
+                    'security' => ['integrity_key' => 'foundation-otp-cancellation-test-key'],
+                ],
+            ],
+        ],
+    ])->boot();
+
+    $app->container()->withinScope(RuntimeRequestContext::REQUEST_SCOPE, static function () use ($app): void {
+        $mfa = $app->make(AuthServices::class)->mfa();
+        $secret = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
+        $factor = $mfa->enrollFactor(
+            'account-cancelled-hotp',
+            MfaFactorType::HOTP,
+            'Cancelled native HOTP',
+            ['otp' => ['secret' => $secret, 'counter' => 0, 'digits' => 6]],
+            enabled: true,
+        )->factor;
+        expect($factor)->not->toBeNull();
+
+        $challenge = $mfa->issueChallenge('account-cancelled-hotp', factorId: $factor->id)->challenge;
+        expect($challenge)->not->toBeNull();
+
+        $verifier = $app->make(OtpMfaVerifier::class);
+        $store = $app->make(MfaFactorStoreInterface::class);
+        $code = new HOTP($secret)->generate(0);
+        $runtime = RuntimeContext::standalone();
+        $request = RequestContext::create($runtime);
+
+        try {
+            CacheRunwire::share($request, null, static function () use ($verifier, $challenge, $request, $code): void {
+                expect(CacheRunwire::current()?->request)->toBe($request);
+                $request->cancel(CancellationReason::HOST_CANCELLED);
+
+                expect(fn() => $verifier->verify($challenge, $code))->toThrow(CancelledException::class);
+            }, $runtime);
+        } finally {
+            $request->complete();
+        }
+
+        $before = $store->findForAccount('account-cancelled-hotp')[0] ?? null;
+        expect($before?->revision)->toBe(0)
+            ->and($before?->metadata['otp']['counter'] ?? null)->toBe(0)
+            ->and(CacheRunwire::current())->toBeNull();
+
+        expect($verifier->verify($challenge, $code)->successful())->toBeTrue();
+        $after = $store->findForAccount('account-cancelled-hotp')[0] ?? null;
+        expect($after?->revision)->toBe(1)
+            ->and($after?->metadata['otp']['counter'] ?? null)->toBe(1)
+            ->and($verifier->verify($challenge, $code)->successful())->toBeFalse();
     });
 });
 
