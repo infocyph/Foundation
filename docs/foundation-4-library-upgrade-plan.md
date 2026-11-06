@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 86 — signed WebAuthn RP-ID rejection and retained CAS (exact-head QA pending)
+
+- **Batch 85 live cluster:** The newly introduced [Native Redis Cluster job in Security & Standards 42232465543](https://github.com/infocyph/Foundation/actions/runs/42232465543) has passed against three real independent phpredis Redis Cluster nodes. Full PHPForge/native-host and release-evidence matrix still requires exact-head completion; the broad P3 cluster criterion remains open until that complete evidence is green.
+- **Batch 86 passkey negative:** Extend the current real OTP/WebAuthn P-256 authenticator assertion test with a *fresh* ceremony, authentic browser origin and authenticator signature over an intentionally wrong RP ID hash. Require the native OTP WebAuthn service to reject it through Foundation while preserving the exact stored opaque credential identity and revision=1. The existing valid ES256 assertion, replay rejection and wrong-origin negative stay in the same executable regression. This deliberately does not mint a replacement public-key store or bypass WebAuthn verification.
+- **Pending P3:** Actual credential registration, recovery-code race/exhaustion and longer-lived store/retained-state scenarios still require separate evidence. P3 broad OTP case is not accepted from this regression alone. Formal **77/90 accepted, 13 open** until official all-lane qualification. PR open/draft/unmerged, no tag/release.
+
 ## Foundation 4 Batch 85 — live Redis Cluster slots and native CacheLayer boundaries (exact-head QA pending)
 
 - **Native integration:** Add one isolated real three-node Redis Cluster to the existing Security & Standards workflow (not a competing/custom workflow). Each node owns distinct Redis slots; run a PHP 8.5 real `ext-redis` consumer with current published Foundation/CacheLayer packages. The dedicated `benchmarks/foundation4-redis-cluster-smoke.php` loads actual Foundation CLI cache managers in separate application instances with a real `redis_cluster` store. Assert 64-key multi-slot write/read, native single-use claim and compare-and-set, tagged invalidation visibility and cleanup. No fake adapter, production fallback, or "skip if unavailable" path.

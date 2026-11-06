@@ -186,5 +186,39 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
         );
         expect($services->passkeys()->finishAuthentication($wrongOriginResult)->successful())->toBeFalse()
             ->and($store->findByCredentialId($credentialId)?->revision)->toBe(1);
+
+        // A valid signature over a different RP ID hash must also fail without
+        // consuming a fresh ceremony or altering the stored credential revision.
+        $wrongRpChallenge = $service->startAuthentication('owner');
+        $wrongRpClientData = json_encode([
+            'type' => 'webauthn.get',
+            'challenge' => $wrongRpChallenge->challenge,
+            'origin' => 'https://foundation.test',
+        ], JSON_THROW_ON_ERROR);
+        $wrongRpAuthenticatorData = hash('sha256', 'another-rp.example.test', true) . "\x05" . pack('N', 2);
+        $wrongRpSignature = '';
+        if (!openssl_sign(
+            $wrongRpAuthenticatorData . hash('sha256', $wrongRpClientData, true),
+            $wrongRpSignature,
+            $key,
+            OPENSSL_ALGO_SHA256,
+        )) {
+            throw new RuntimeException('Unable to sign the wrong-RP authenticator fixture.');
+        }
+
+        $wrongRpPayload = json_decode($payload, true, flags: JSON_THROW_ON_ERROR);
+        $wrongRpPayload['response']['authenticatorData'] = \Infocyph\OTP\Support\Base64Url::encode($wrongRpAuthenticatorData);
+        $wrongRpPayload['response']['clientDataJSON'] = \Infocyph\OTP\Support\Base64Url::encode($wrongRpClientData);
+        $wrongRpPayload['response']['signature'] = \Infocyph\OTP\Support\Base64Url::encode($wrongRpSignature);
+        $wrongRpResult = new \Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationResult(
+            $wrongRpChallenge->id,
+            $credentialId,
+            '',
+            '',
+            '',
+            metadata: ['credential_json' => json_encode($wrongRpPayload, JSON_THROW_ON_ERROR)],
+        );
+        expect($services->passkeys()->finishAuthentication($wrongRpResult)->successful())->toBeFalse()
+            ->and($store->findByCredentialId($credentialId)?->revision)->toBe(1);
     });
 });
