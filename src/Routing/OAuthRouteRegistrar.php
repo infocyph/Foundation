@@ -145,5 +145,4 @@ final readonly class OAuthRouteRegistrar
 
         return $path;
     }
-
 }
