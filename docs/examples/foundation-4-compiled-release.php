@@ -104,7 +104,7 @@ try {
     } finally {
         $request->complete();
     }
-    fwrite(STDOUT, "Trusted Foundation 4 no-dev web/CLI/worker/scheduler generation passed.\n");
+
 } finally {
     if (is_dir($project)) {
         $files = new RecursiveIteratorIterator(

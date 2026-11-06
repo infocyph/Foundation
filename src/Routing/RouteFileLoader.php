@@ -119,19 +119,6 @@ final readonly class RouteFileLoader
     }
 
     /**
-     * Route files inherit the same explicit scope as the original loader:
-     * the route filename/path, native registrar and configured presets.
-     */
-    private function loadRouteFile(
-        string $file,
-        string $path,
-        Registrar $router,
-        RoutePresetRegistrar $presets,
-    ): void {
-        require $path;
-    }
-
-    /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
      * @throws \InvalidArgumentException
      */
@@ -146,7 +133,9 @@ final readonly class RouteFileLoader
                 continue;
             }
 
-            $this->loadRouteFile($file, $path, $router, $this->presets);
+            $presets = $this->presets;
+
+            require $path;
         }
 
         $this->loadAttributeRoutes($router);

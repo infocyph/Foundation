@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Psalm-first Batch 59 — restore route scope and correct quality failures (exact-head QA pending)
+
+- **Batch 58 official analyzers:** Source `16f04098` / [PHPForge QA 42165031059](https://github.com/infocyph/Foundation/actions/runs/42165031059) reduced strict Psalm **9 → 7 errors on both PHP versions**, with PHPStan passing. Four production consumer installs and clean install passed. Full QA was **not green**: the extracted PHPCS report identified three `UnusedFunctionParameter` warnings in the new route-file helper, including a router and preset handle deliberately consumed only by user route scripts; strict Psalm reported two corresponding `UnusedParam` errors. Rector was still processing files when the quality task ended unsuccessfully. Do not accept the batch as functionally qualified.
+- **Batch 59 source correction:** Restore the original direct `require` scope for route files (so generated app routes retain `$file`, `$path`, `$router` and `$presets` as before) rather than exposing a helper with statically unused parameters. The remaining apparent unused `$presets` is genuinely consumed by runtime-loaded user routes; no suppression or unrelated side-effect was added merely to silence Psalm. Remove the compiled-release smoke's post-execution success line because Psalm proves it unreachable after the host-owned execution path; exit status and all substantive runtime assertions remain unchanged. Preserve the static Composer consumer autoload path, generated class reference, catalog returns and obsolete helper removal from Batch 58.
+- **Acceptance:** Compare to 7-error baseline after both official analyzers and complete all functional, consumer, clean, benchmark and native host lanes on exact new head. Do not weaken PHPForge style/security gates or reduce the scope of source/host verification. Formal 53/90 accepted, 37 open; P0 20/20. No merge, tag or release.
+
 ## Psalm-first Batch 58 — route/example scope and obsolete module helper (exact-head QA pending)
 
 - **Official Batch 57 analyzers:** `2ddf5bfb` / [PHPForge 42164578713](https://github.com/infocyph/Foundation/actions/runs/42164578713) confirmed **14 → 9 strict Psalm errors on both PHP 8.4 and 8.5**, with PHPStan passing. Four production consumer installations and clean install passed at the analyzer checkpoint; functional and benchmark lanes remained in progress, so do not count the full batch accepted pending exact-head completion.
