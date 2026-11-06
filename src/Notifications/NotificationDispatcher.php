@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Notifications;
 
+/**
+ * Application notification dispatch service.
+ *
+ * @api
+ */
 final readonly class NotificationDispatcher
 {
     public function __construct(private NotificationChannelRegistry $channels) {}
