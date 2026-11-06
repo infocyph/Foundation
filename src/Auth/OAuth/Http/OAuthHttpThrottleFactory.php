@@ -10,6 +10,11 @@ use Infocyph\Webrick\Middleware\Throttle\AtomicCounterInterface;
 use Infocyph\Webrick\Middleware\ThrottleMiddleware;
 use Psr\Cache\CacheItemPoolInterface;
 
+/**
+ * Runtime-registered OAuth endpoint throttle service factory.
+ *
+ * @api
+ */
 final readonly class OAuthHttpThrottleFactory
 {
     private const array ENDPOINTS = ['authorization', 'token', 'revocation', 'introspection', 'userinfo'];
