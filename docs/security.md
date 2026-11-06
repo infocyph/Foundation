@@ -160,6 +160,34 @@ bounded fallback keys remain read-only for verification, and disabled/retired
 keys are ineligible. Generated release artifacts retain behavior options and
 environment locators only, never resolved signed-URL key material.
 
+### Verification after signing-key rotation
+
+Declare one active environment-backed key and retain a previous key as a
+**verification-only** fallback during an intentional rotation:
+
+```php
+'router' => [
+    'signed_urls' => [
+        'keys' => [
+            ['id' => 'current', 'environment' => 'SIGNED_URL_KEY_CURRENT', 'status' => 'active'],
+            ['id' => 'previous', 'environment' => 'SIGNED_URL_KEY_PREVIOUS', 'status' => 'fallback'],
+        ],
+        'options' => [
+            'default_ttl' => 300,
+            'payload_mode' => 'relative',
+        ],
+    ],
+],
+```
+
+Provision the two secret values in the deployment environment rather than
+embedding them in source or generated release artifacts. Webrick generates new
+links using only the active key, verifies existing links against eligible
+active/fallback keys, and rejects a missing, expired or tampered signature.
+Remove the fallback only after links signed by the previous key have expired.
+Neither Foundation nor the application should introduce a second signature
+canonicalizer or bypass Webrick's native verification middleware.
+
 ## Runtime and process safety
 
 Immutable cryptographic configuration/services may be reused according to their

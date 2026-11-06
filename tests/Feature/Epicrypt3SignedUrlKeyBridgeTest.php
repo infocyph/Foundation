@@ -5,6 +5,10 @@ declare(strict_types=1);
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Routing\SignedUrlKeyResolver;
+use Infocyph\Webrick\Exceptions\HttpException;
+use Infocyph\Webrick\Middleware\VerifySignedUrlMiddleware;
+use Infocyph\Webrick\Request\Request;
+use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Url\SignedUrlConfig;
 use Infocyph\Webrick\Router\Url\UrlGenerator;
 
@@ -73,6 +77,75 @@ it('keeps the previous signing key readable after active key rotation', function
         unset($_ENV[$oldEnvironment], $_ENV[$newEnvironment]);
     }
 });
+
+it('verifies rotated signed URLs with native Webrick and rejects tampering and expiration', function (): void {
+    $previousEnvironment = 'FOUNDATION_TEST_WEBRICK_ROTATED_SIGNED_URL_PREVIOUS';
+    $activeEnvironment = 'FOUNDATION_TEST_WEBRICK_ROTATED_SIGNED_URL_ACTIVE';
+    $_ENV[$previousEnvironment] = str_repeat('p', 32);
+    $_ENV[$activeEnvironment] = str_repeat('a', 32);
+
+    try {
+        $previous = new SignedUrlKeyResolver(new ConfigRepository([
+            'router' => ['signed_urls' => ['keys' => [
+                ['id' => 'previous', 'environment' => $previousEnvironment, 'status' => 'active'],
+            ]]],
+        ]))->resolve();
+        $rotated = new SignedUrlKeyResolver(new ConfigRepository([
+            'router' => ['signed_urls' => ['keys' => [
+                ['id' => 'active', 'environment' => $activeEnvironment, 'status' => 'active'],
+                ['id' => 'previous', 'environment' => $previousEnvironment, 'status' => 'fallback'],
+            ]]],
+        ]))->resolve();
+        expect($previous)->toBeInstanceOf(SignedUrlConfig::class)
+            ->and($rotated)->toBeInstanceOf(SignedUrlConfig::class);
+
+        $aliases = ['download' => ['/download/{id}', null]];
+        $previousGenerator = new UrlGenerator('', $aliases, signedConfig: $previous);
+        $activeGenerator = new UrlGenerator('', $aliases, signedConfig: $rotated);
+        $verifier = new VerifySignedUrlMiddleware($rotated);
+        $next = static fn(Request $request): Response => Response::plaintext($request->getMethod());
+
+        foreach ([$previousGenerator, $activeGenerator] as $generator) {
+            $signed = $generator->temporary(
+                'download',
+                ['id' => 42],
+                ['mode' => 'inline'],
+                ttl: 60,
+                absolute: false,
+            );
+            $path = parse_url($signed, PHP_URL_PATH);
+            $queryString = parse_url($signed, PHP_URL_QUERY);
+            if (!is_string($path) || !is_string($queryString)) {
+                throw new RuntimeException('Unable to parse generated signed URL.');
+            }
+            parse_str($queryString, $query);
+
+            $request = Request::fake(query: $query, uri: 'https://signed.example.test' . $path);
+            expect((string) $verifier($request, $next)->getBody())->toBe('GET');
+
+            expect(fn(): Response => $verifier(
+                Request::fake(
+                    query: [...$query, 'mode' => 'download'],
+                    uri: 'https://signed.example.test' . $path,
+                ),
+                $next,
+            ))->toThrow(HttpException::class, 'Invalid signature');
+
+            expect(fn(): Response => $verifier(
+                Request::fake(query: [...$query, '_exp' => '1'], uri: 'https://signed.example.test' . $path),
+                $next,
+            ))->toThrow(HttpException::class, 'URL expired');
+        }
+
+        expect(fn(): Response => $verifier(
+            Request::fake(uri: 'https://signed.example.test/download/42'),
+            $next,
+        ))->toThrow(HttpException::class, 'Missing signature');
+    } finally {
+        unset($_ENV[$previousEnvironment], $_ENV[$activeEnvironment]);
+    }
+});
+
 it('keeps Webrick behavior options artifact-safe and resolves keys only at runtime', function (): void {
     $resolver = new SignedUrlKeyResolver(new ConfigRepository([
         'router' => [
