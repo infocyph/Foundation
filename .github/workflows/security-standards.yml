@@ -286,6 +286,7 @@ jobs:
         shell: bash
         env:
           SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BASELINE_SOURCE_SHA: ${{ github.event.pull_request.base.sha || '' }}
         run: |
           set -euo pipefail
           directory=build/release-evidence
@@ -299,7 +300,25 @@ jobs:
           } > "$directory/manifest.env"
           php -m | sort > "$directory/php-extensions.txt"
           composer show --locked --format=json > "$directory/dependencies.json"
+          composer show --locked --direct --format=json > "$directory/dependencies-direct.json"
           sha256sum composer.lock > "$directory/composer-lock.sha256"
+          cp composer.json "$directory/candidate-composer.json"
+          if [[ -n "$BASELINE_SOURCE_SHA" ]]; then
+            [[ "$BASELINE_SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "Invalid pull request baseline SHA." >&2; exit 1; }
+            git fetch --no-tags --depth=1 origin "$BASELINE_SOURCE_SHA"
+            test "$(git rev-parse "$BASELINE_SOURCE_SHA^{commit}")" = "$BASELINE_SOURCE_SHA"
+            printf 'baseline_source_sha=%s\n' "$BASELINE_SOURCE_SHA" > "$directory/pre-upgrade-source.env"
+            git show "$BASELINE_SOURCE_SHA:composer.json" > "$directory/pre-upgrade-composer.json"
+            if git cat-file -e "$BASELINE_SOURCE_SHA:composer.lock" 2>/dev/null; then
+              git show "$BASELINE_SOURCE_SHA:composer.lock" > "$directory/pre-upgrade-composer.lock"
+              sha256sum "$directory/pre-upgrade-composer.lock" > "$directory/pre-upgrade-composer-lock.sha256"
+              printf 'baseline_lock=tracked\n' >> "$directory/pre-upgrade-source.env"
+            else
+              printf 'baseline_lock=not_tracked_in_source\n' >> "$directory/pre-upgrade-source.env"
+            fi
+          else
+            printf 'baseline_source_sha=not_a_pull_request\n' > "$directory/pre-upgrade-source.env"
+          fi
           php --ini=diff > "$directory/php-ini-diff.txt"
           git ls-files 'tests/*.php' 'tests/**/*.php' | sort > "$directory/test-files.txt"
           awk 'NF { count++ } END { printf "test_file_inventory=%d\n", count }' "$directory/test-files.txt" > "$directory/test-inventory.env"

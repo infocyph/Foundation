@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 83 — immutable pre-upgrade dependency evidence (exact-head QA pending)
+
+- **Last full source:** `8e90c6c3` / [PHPForge 42188454977](https://github.com/infocyph/Foundation/actions/runs/42188454977) and [native hosts 42188454419](https://github.com/infocyph/Foundation/actions/runs/42188454419) fully green. Batch 82 accepted **77/90, 13 open** by explicitly verifying P2 graceful Runwire draining and the P3 TalkingBytes borrowed context/factory policy against that exact source.
+- **P1 evidence hardening:** Extend the established `release-evidence` job rather than inventing a parallel workflow. Capture the candidate's exact tracked `composer.json` and split direct/complete locked Composer metadata. For PRs, fetch the **exact pull-request base commit SHA** without assuming the local checkout has its history, verify that commit, and preserve the base `composer.json` plus the original tracked `composer.lock` and SHA-256 **if it exists**. Explicitly record `baseline_lock=not_tracked_in_source` rather than manufacturing a pre-upgrade lock when absent. Existing platform and advisory JSON, PHP extension inventory, full source SHA and exact candidate Composer lock remain required. No dependency changes, no style/quality exclusions, and no CI job weakening.
+- **Acceptance pending:** The P1 metadata criterion is not yet accepted: a reproducible *resolved* prior dependency identity, complete selected transitive refs, published availability/advisory review and semantic native-API compatibility checks must be compared against the source snapshots. The additional evidence is a prerequisite, not a substitute for that review. Formal **77/90 accepted, 13 open**, PR draft/unmerged, P6 full paired-host certification still open.
+
 ## Foundation 4 Batch 82 — evidence-qualified Runwire drain and TalkingBytes (tracker-only)
 
 - **Exact source:** `8e90c6c3` passed [official PHPForge 42188454977](https://github.com/infocyph/Foundation/actions/runs/42188454977), including zero Psalm and PHPStan errors in PHP 8.4/8.5, all four functional stable/lowest QA lanes, four production consumer installs, both benchmarks, clean installation and release evidence. [Native hosts 42188454419](https://github.com/infocyph/Foundation/actions/runs/42188454419) passed FPM/native aggregate and four Swoole/OpenSwoole serving jobs. Paired-host sustained P6 is intentionally excluded from this PR smoke.
