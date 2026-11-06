@@ -32,42 +32,42 @@ final readonly class OAuthRouteRegistrar
             ...$this->presets->stack('web-auth'),
         ];
 
-        $router->get(
+        self::registerVerb($router, 'get', 
             '/.well-known/oauth-authorization-server',
             [OAuthHttpHandler::class, 'metadata'],
             'oauth.metadata',
         );
         if ($this->config->get('auth.oauth.oidc.enabled', false) === true) {
-            $router->get(
+            self::registerVerb($router, 'get', 
                 '/.well-known/openid-configuration',
                 [OAuthHttpHandler::class, 'openIdMetadata'],
                 'oidc.discovery',
             );
-            $router->get(
+            self::registerVerb($router, 'get', 
                 $this->openIdPath('userinfo_route'),
                 [OAuthHttpHandler::class, 'userInfo'],
                 ['as' => 'oidc.userinfo', 'middleware' => ['oauth-throttle:userinfo']],
             );
         }
 
-        $router->get(
+        self::registerVerb($router, 'get', 
             $this->path('jwks'),
             [OAuthHttpHandler::class, 'jwks'],
             'oauth.jwks',
         );
-        $router->get(
+        self::registerVerb($router, 'get', 
             $this->path('authorization'),
             [OAuthAuthorizationController::class, 'authorization'],
             ['as' => 'oauth.authorization', 'middleware' => $authorizationMiddleware],
         );
-        $router->post(
+        self::registerVerb($router, 'post', 
             $this->path('authorization'),
             [OAuthAuthorizationController::class, 'authorization'],
             ['as' => 'oauth.authorization.decision', 'middleware' => $authorizationMiddleware],
         );
 
         foreach (['token', 'revocation', 'introspection'] as $endpoint) {
-            $router->post(
+            self::registerVerb($router, 'post', 
                 $this->path($endpoint),
                 [OAuthHttpHandler::class, $endpoint],
                 [
@@ -104,5 +104,25 @@ final readonly class OAuthRouteRegistrar
         }
 
         return $path;
+    }
+
+    /**
+     * Register a native Webrick class-method route through its concrete verb
+     * dispatcher. Registrar accepts these handlers via __call(), whereas its
+     * PHPStan-only @method alias does not describe them to Psalm.
+     *
+     * @param 'get'|'post' $verb
+     * @param array{0:class-string,1:non-empty-string} $handler
+     * @param string|array{as:string,middleware:list<string>} $options
+     * @throws \BadMethodCallException
+     */
+    private static function registerVerb(
+        Registrar $router,
+        string $verb,
+        string $path,
+        array $handler,
+        string|array $options,
+    ): void {
+        $router->__call($verb, [$path, $handler, $options]);
     }
 }
