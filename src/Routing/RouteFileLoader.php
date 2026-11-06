@@ -30,8 +30,7 @@ final readonly class RouteFileLoader
      */
     public function load(Registrar $router): void
     {
-        $this->presets->register();
-        $this->loadRoutes($router);
+        $this->loadRoutes($router, $this->presets);
     }
 
     /**
@@ -47,8 +46,7 @@ final readonly class RouteFileLoader
      */
     public function loadForRelease(Registrar $router): void
     {
-        $this->presets->register();
-        $this->loadRoutes($router);
+        $this->loadRoutes($router, $this->presets);
         $requirements = $this->releaseMiddlewareRequirements($router);
 
         MiddlewareAliases::reset();
@@ -122,8 +120,9 @@ final readonly class RouteFileLoader
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
      * @throws \InvalidArgumentException
      */
-    private function loadRoutes(Registrar $router): void
+    private function loadRoutes(Registrar $router, RoutePresetRegistrar $presets): void
     {
+        $presets->register();
         $this->oauth->register($router);
 
         foreach ($this->files as $file) {
@@ -132,8 +131,6 @@ final readonly class RouteFileLoader
             if (!is_file($path)) {
                 continue;
             }
-
-            $presets = $this->presets;
 
             require $path;
         }

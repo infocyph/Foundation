@@ -25,7 +25,7 @@ it('keeps CLI and web boot graphs isolated', function (): void {
     mkdir($routesPath, 0775, true);
     file_put_contents(
         $routesPath . '/api.php',
-        '<?php file_put_contents(' . var_export($sentinel, true) . ", 'loaded');\n",
+        '<?php if (!isset($presets) || !($presets instanceof \\Infocyph\\Foundation\\Routing\\RoutePresetRegistrar)) { throw new \\LogicException("Route preset binding unavailable."); } file_put_contents(' . var_export($sentinel, true) . ", 'loaded');\n",
     );
 
     $options = [
