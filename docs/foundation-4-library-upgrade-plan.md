@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 81 — true in-flight native Runwire graceful drain (exact-head QA pending)
+
+- **Baseline:** `2116db66` (Batch 80) has official PHP 8.4/8.5 Psalm/PHPStan checks green and carries selected TalkingBytes email factory cancellation/reuse tests; full functional/host checks are required on that source and on this new head. Formal **75/90 accepted, 15 open**.
+- **Host-specific P2 regression:** Enhance the existing real FPM/native Runwire certification host program without touching measured JSON/native RPM windows, worker count matrix, HTTP protocol policy or the shared P6 comparison budgets. The benchmark-only `/slow` handler signals a **test-owned environment-gated entry marker** after it is entered by the serving worker. After warm-up/load, actual HTTP failure/cancellation and four-worker prefork replacement checks, start a **fresh in-flight 250ms request**, wait for its observed entry marker, SIGTERM the Runwire supervisor, require the accepted request's actual HTTP response to complete with 200, and verify the native supervisor plus original worker PIDs exit within a bounded period. Run the same proof in the existing native-host smoke and, where selected, the paired-host benchmark after timed measurements. This verifies real graceful termination semantics, not merely a shutdown method's existence or a dropped client.
+- **P2 candidate:** AUTO/explicit Swoole, portable/native, FPM/SAPI, native worker replacement, fork/generation protection already have exact-head tests/real host evidence. The extra in-flight drain proof is the missing P2 lifecycle check. Promote the remaining P2 checkbox **only after** exact-head PHPForge both PHP versions/all four QA and the complete native host aggregate pass. Preserve separate P6 matched sustained host trials (still skipped on ordinary PR CI). No performance threshold changes; no merge/tag/release.
+
 ## Foundation 4 Batch 80 — native email sender/mailbox/spool host scope (exact-head QA pending)
 
 - **Batch 79 source:** `e97b4f89` covers live mutable HTTP/gRPC default-profile switching with a 30-second host-owned monotonic deadline and cancellation before subsequent construction. The official PHP 8.4/8.5 Psalm/PHPStan analyzers passed; full functional/benchmark/native-host qualification is separate.

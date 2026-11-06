@@ -163,6 +163,68 @@ probe_failure_and_cancellation() {
     echo "Verified failed-request recovery and client cancellation for $url"
 }
 
+probe_runwire_graceful_drain() {
+    local url="$1" leader="$SERVICE_PID"
+    local marker="$OUTPUT/runwire-drain-entered" response="$OUTPUT/runwire-drain-response.json"
+    local code_file="$OUTPUT/runwire-drain-http-code" curl_pid="" state
+    local -a original_children=()
+    rm -f "$marker" "$response" "$code_file"
+    mapfile -t original_children < <(pgrep -P "$leader" || true)
+    (
+        curl --silent --show-error --max-time 15             -H "Authorization: $AUTHORIZATION"             --output "$response" --write-out '%{http_code}'             "$url/slow" > "$code_file"
+    ) &
+    curl_pid=$!
+
+    local entered=0
+    for _ in $(seq 1 100); do
+        if [[ -f "$marker" ]]; then
+            entered=1
+            break
+        fi
+        if ! kill -0 "$curl_pid" 2>/dev/null; then
+            break
+        fi
+        sleep 0.02
+    done
+    if (( entered == 0 )); then
+        wait "$curl_pid" 2>/dev/null || true
+        echo "Runwire drain probe never entered an actual request handler." >&2
+        return 1
+    fi
+
+    kill -TERM "$leader"
+    if ! wait "$curl_pid"; then
+        echo "Runwire drain aborted a request already accepted by a worker." >&2
+        return 1
+    fi
+    [[ "$(cat "$code_file")" == "200" && "$(cat "$response")" == '{"ok":true}' ]] || {
+        echo "Runwire drain did not retain the accepted request's HTTP response." >&2
+        return 1
+    }
+
+    local exited=0
+    for _ in $(seq 1 200); do
+        state="$(ps -o stat= -p "$leader" 2>/dev/null || true)"
+        if [[ -z "$state" || "$state" == Z* ]]; then
+            exited=1
+            break
+        fi
+        sleep 0.1
+    done
+    if (( exited == 0 )); then
+        echo "Runwire supervisor did not complete graceful termination." >&2
+        return 1
+    fi
+    for child in "${original_children[@]}"; do
+        state="$(ps -o stat= -p "$child" 2>/dev/null || true)"
+        if [[ -n "$state" && "$state" != Z* ]]; then
+            echo "Runwire graceful drain left worker $child active." >&2
+            return 1
+        fi
+    done
+    echo "Verified Runwire in-flight response completion and graceful worker shutdown."
+}
+
 probe_runwire_replacement() {
     local parent="$SERVICE_PID" original current
     local -a children=()
@@ -265,6 +327,7 @@ start_runwire() {
     local workers="$1" app="$2"
     FOUNDATION_HOST_APP="$app" \
     FOUNDATION_HOST_LISTEN="127.0.0.1:$PORT_RUNWIRE" \
+    FOUNDATION_HOST_SLOW_ENTRY_MARKER="$OUTPUT/runwire-drain-entered" \
         FOUNDATION_HOST_WORKERS="$workers" \
         "${SERVER_COMMAND[@]}" php \
         -d opcache.enable_cli=1 -d opcache.jit=disable -d opcache.jit_buffer_size=0 \
@@ -367,6 +430,9 @@ for host in "${hosts[@]}"; do
         fi
         if (( workers == 4 )); then
             run_soak "$host" "$url"
+        fi
+        if [[ "$host" == "runwire" ]]; then
+            probe_runwire_graceful_drain "$url"
         fi
         stop_service
     done

@@ -21,6 +21,11 @@ final readonly class Phase9ServerHandler
 
     public static function slow(): Response
     {
+        $marker = getenv('FOUNDATION_HOST_SLOW_ENTRY_MARKER');
+        if (is_string($marker) && $marker !== '') {
+            file_put_contents($marker, (string) getmypid());
+        }
+
         usleep(250_000);
 
         return Response::json(['ok' => true]);
