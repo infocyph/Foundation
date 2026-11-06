@@ -12,6 +12,11 @@ use Infocyph\Foundation\Session\Store\DatabaseSessionStore;
 use Infocyph\Foundation\Session\Store\FileSessionStore;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Generated-session store selection and construction entrypoint.
+ *
+ * @api
+ */
 final class SessionStoreFactory
 {
     private ?ArraySessionStore $arrayStore = null;
