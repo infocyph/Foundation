@@ -12,6 +12,11 @@ use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Generated runtime cache capability factory entrypoint.
+ *
+ * @api
+ */
 final class CacheGraphFactory
 {
     /** @throws \Infocyph\Foundation\Exception\ConfigurationException */
