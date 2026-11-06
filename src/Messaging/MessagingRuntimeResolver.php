@@ -12,6 +12,8 @@ use Psr\Container\ContainerInterface;
  * Explicit dynamic island for application-configured messaging service IDs.
  * The provider graph itself remains generated; user-selected callables and
  * middleware resolve from the finalized runtime container inside execution.
+ *
+ * @api
  */
 final readonly class MessagingRuntimeResolver
 {
