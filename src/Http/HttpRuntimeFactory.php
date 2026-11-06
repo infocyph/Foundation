@@ -15,7 +15,8 @@ use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
-/** Development-only Webrick kernel constructed from finalized runtime services.
+/**
+ * Development-only Webrick kernel constructed from finalized runtime services.
  *
  * @api
  */
