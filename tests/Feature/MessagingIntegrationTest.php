@@ -70,6 +70,10 @@ final class FoundationMessageHandler
             'envelope' => $this->application->make(Envelope::class) === $envelope,
             'message' => $this->application->make('omnibus.message') === $message,
         ];
+        if ($message->value === 'nested-borrowed-parent') {
+            $this->application->make(MessageBus::class)
+                ->dispatch(new FoundationMessage('nested-borrowed-child'));
+        }
     }
 }
 
@@ -295,6 +299,47 @@ it('keeps real Omnibus bus and consumer delivery bound only to the live host req
     expect($consumer->run(new ConsumeRequest(limit: 1))->succeeded)->toBe(1)
         ->and(array_column(FoundationMessageHandler::$handled, 'value'))
         ->toBe(['host-bound', 'ordinary']);
+});
+
+it('dispatches nested Omnibus messages in the original borrowed host context without retaining it afterward', function (): void {
+    $app = foundationMessagingApplication();
+    $bus = $app->make(MessageBus::class);
+    $consumer = $app->make(ConsumerTask::class);
+    $binding = $app->make(RunwireBinding::class);
+    $runtime = RuntimeContext::standalone();
+    $request = RequestContext::create($runtime);
+    CacheRunwire::bind($runtime);
+
+    try {
+        CacheRunwire::share($request, null, static function () use ($bus, $consumer, $binding, $request): void {
+            expect($binding->request())->toBe($request);
+            $bus->dispatch(new FoundationMessage('nested-borrowed-parent'));
+
+            expect($consumer->run(new ConsumeRequest(limit: 1))->succeeded)->toBe(1)
+                ->and($binding->request())->toBe($request)
+                ->and($consumer->run(new ConsumeRequest(limit: 1))->succeeded)->toBe(1)
+                ->and($binding->request())->toBe($request);
+
+            $request->cancel(CancellationReason::HOST_CANCELLED);
+            expect(fn() => $bus->dispatch(new FoundationMessage('post-cancel')))
+                ->toThrow(CancelledException::class);
+        }, $runtime);
+    } finally {
+        $request->complete();
+        CacheRunwire::release($runtime);
+    }
+
+    expect($binding->request())->toBeNull()
+        ->and(array_column(FoundationMessageHandler::$handled, 'value'))
+        ->toBe(['nested-borrowed-parent', 'nested-borrowed-child'])
+        ->and(FoundationMessageHandler::$handled[0]['sequence'])
+        ->not->toBe(FoundationMessageHandler::$handled[1]['sequence']);
+
+    $bus->dispatch(new FoundationMessage('ordinary-after-borrow'));
+    expect($consumer->run(new ConsumeRequest(limit: 1))->succeeded)->toBe(1)
+        ->and($binding->request())->toBeNull()
+        ->and(array_column(FoundationMessageHandler::$handled, 'value'))
+        ->toBe(['nested-borrowed-parent', 'nested-borrowed-child', 'ordinary-after-borrow']);
 });
 
 it('dispatches named scheduled messages through the configured route map', function (): void {

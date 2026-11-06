@@ -2,6 +2,13 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 69 — nested Omnibus dispatch under a borrowed Runwire host (exact-head QA pending)
+
+- **Baseline:** Batch 67 `98e07629` passed both official [PHPForge QA 42172043870](https://github.com/infocyph/Foundation/actions/runs/42172043870) and [native host 42172043447](https://github.com/infocyph/Foundation/actions/runs/42172043447). Batch 68 accepted six exact matching, previously implemented native integration criteria with tracked source/test evidence and moved the formal checklist to **63/90 accepted, 27 open**.
+- **New regression:** `MessagingIntegrationTest` dispatches one nested Omnibus child message from within a native handler while the same live `RunwireBinding` points to its host-owned `RequestContext`. Two separate `ConsumerTask` deliveries must produce distinct Foundation InterMix handler scopes, preserve parent host input identity across the nested dispatch, and reject a post-cancellation dispatch; afterward the exact same bus/consumer must resume synchronous unbound operation without retaining the completed request. Existing durable tests independently cover native after-commit transactions, MySQL/PostgreSQL receipts/retries, stale generation, cancellation/deadline, failure store and schedule route dispatch.
+- **Candidates, not yet accepted:** P3 Omnibus native operation-time binding/retries/deferred/nested/cancelled behavior and durable queue/outbox/failure/schedule semantics. Do not check either until the new test and all four exact-head PHPForge lanes pass, along with strict Psalm/PHPStan, consumers, benchmarks and native-host smoke. P1/P2/P4/P5/P6 remain separate, as does P3 DBLayer retained-state and selected production DB verification.
+- **Scope:** Source behavior remains unchanged except to route the test-only unique nested message through the existing handler; no change to production Omnibus graph, worker runtime selection, timeouts, lint gates, dependency floors or release artifacts. PR remains draft/open/unmerged; no tag/release.
+
 ## Foundation 4 Batch 68 — evidence-backed specialist acceptance on full green head
 
 - **Exact-head green:** `98e07629` / [PHPForge 42172043870](https://github.com/infocyph/Foundation/actions/runs/42172043870) passed strict Psalm/PHPStan on PHP 8.4/8.5, all four functional stable/lowest suites, four production consumers, clean install and both benchmarks. [Native hosts 42172043447](https://github.com/infocyph/Foundation/actions/runs/42172043447) passed real ordinary FPM and native Runwire aggregate plus all four Swoole/OpenSwoole PHP 8.4/8.5 serving jobs. This also certifies the exact Batch 67 Webrick signed-url request/rotation regressions.
