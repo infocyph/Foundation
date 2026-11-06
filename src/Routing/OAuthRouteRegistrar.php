@@ -114,7 +114,7 @@ final readonly class OAuthRouteRegistrar
      * @param 'get'|'post' $verb
      * @param array{0:class-string,1:non-empty-string} $handler
      * @param string|array{as:string,middleware:list<string>} $options
-     * @throws \BadMethodCallException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     private static function registerVerb(
         Registrar $router,
@@ -123,6 +123,13 @@ final readonly class OAuthRouteRegistrar
         array $handler,
         string|array $options,
     ): void {
-        $router->__call($verb, [$path, $handler, $options]);
+        try {
+            $router->__call($verb, [$path, $handler, $options]);
+        } catch (\BadMethodCallException $exception) {
+            throw new ConfigurationException(
+                sprintf('Webrick rejected the Foundation OAuth %s route at "%s".', strtoupper($verb), $path),
+                previous: $exception,
+            );
+        }
     }
 }
