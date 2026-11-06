@@ -77,6 +77,10 @@ current permissions so revocations and account isolation remain effective.
 - Optional transitive compatibility floors exclude PHP 8.4/8.5 implicit-nullability deprecations: Flysystem Local 3.25.1, MIME detection 1.16, PSR HTTP Factory 1.1, PKI Framework 1.6.2, Symfony Clock/PropertyAccess/PropertyInfo/Serializer/UID 6.4.3 (also excluding 7.0.0–7.0.2), and PHP 8.3 polyfill 1.30. Composer applies these conflicts when the package is present; optional feature installation remains explicit.
 - Development and production `--no-dev` configurations build standalone Foundation releases. Infbyte's stable dependency cutover follows actual Foundation 4 publication; application publication is a separate release.
 
+The [current API/compatibility audit](foundation-4-compatibility-audit.md) records
+retired library-major shims separately from retained key rotation, serialized
+message identity and application-owned configuration policy.
+
 ## Major-version contract
 
 Foundation 4.0 is a deliberate breaking major release. **There are no backwards-compatibility aliases or guarantees for previous Foundation or specialist major versions.** Consumers must use the current 4.0 public/provider/capability contracts and rebuild trusted release generations.

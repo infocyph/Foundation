@@ -98,11 +98,11 @@ final readonly class FoundationBuildContext
      */
     public function permitsCapability(string $capability): bool
     {
-        $legacyAllowed = $this->hasCapabilityOverride($capability)
+        $allowedByCapabilities = $this->hasCapabilityOverride($capability)
             ? $this->rawCapability($capability)
             : (!$this->capabilitiesExplicit || $this->rawCapability($capability));
 
-        return $legacyAllowed && ModuleFeatureCapabilityPolicy::permits($capability, $this->featureSelections);
+        return $allowedByCapabilities && ModuleFeatureCapabilityPolicy::permits($capability, $this->featureSelections);
     }
 
     /**

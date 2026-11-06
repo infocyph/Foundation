@@ -8,7 +8,7 @@ use Infocyph\Foundation\Config\ConfigRepository;
 
 /**
  * Compile-time-only policy for the staged 3-module/8-feature topology.
- * It constrains legacy capability allowlists; it cannot grant privileges.
+ * It constrains capability allowlists; it cannot grant privileges.
  * Core auth/cache/logging/session/notifications remain independently owned.
  */
 final class ModuleFeatureCapabilityPolicy
@@ -26,8 +26,9 @@ final class ModuleFeatureCapabilityPolicy
     ];
 
     /**
-     * A missing map retains legacy behavior until Batch 6 public cutover.
-     * A present map is an explicit selection, including an empty map.
+     * Without an explicit map, ordinary app.capabilities remains the
+     * application selection policy. A configured map, including an empty one,
+     * enforces explicit feature selection. This is not a library-major fallback.
      *
      * @return array<string,bool>|null
      * @throws \UnexpectedValueException

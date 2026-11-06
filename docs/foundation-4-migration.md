@@ -58,6 +58,11 @@ published versions are resolvable by Composer/Packagist. In particular,
 Webrick 6.0.4 requires InterMix 11.2.1 and its compiled ABI 3; generate a fresh trusted InterMix/Webrick release from the current 4.0 source. Do not work
 around missing package-index versions with transient dev aliases for release QA.
 
+See [the audited current dependency graph](foundation-4-dependency-qualification.md)
+for exact published commit references, selected platform requirements and
+locked CI evidence; the [compatibility audit](foundation-4-compatibility-audit.md)
+distinguishes removed library-major shims from current application/security policy.
+
 ## Explicit runtime and provider ownership
 
 Choose the explicit entrypoint
