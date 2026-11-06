@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 77 — repair generated Base32 test source (exact-head QA pending)
+
+- **Batch 76 official CI:** `5ee4f649` / [Security & Standards 42181399384](https://github.com/infocyph/Foundation/actions/runs/42181399384) passed PHP 8.4/8.5 strict Psalm/PHPStan and all unaffected source checks, but functional QA failed a **test-only PHP parse error** introduced at the newly generated malformed-Base32 fixture boundary in `AdvancedCapabilityIntegrationTest.php`. The malformed insertion also hid the original OCRA secret initialization; neither outcome is acceptable. No production code changed in that batch.
+- **Batch 77 source correction:** Restore the entire last-green test file from Batch 74 and reapply only the canonical TOTP case and two invalid-encoding probes as a bounded, verified block before the existing OCRA workflow. Use `chr(36)` for the invalid-dollar symbol in the fixture and retain the original OCRA initialization and every prior test assertion. Strict syntax/reference/Pest/Pint/PHPCS/Rector/Psalm and complete native-host QA must pass exact head. The previously accepted P3 token and TalkingBytes items remain founded on fully green Batch 75 evidence, not this failed test run.
+- **Tracker unchanged:** **75/90 accepted, 15 open**. The broad OTP canonical/Base32/ceremony criterion remains unaccepted until complete full-scope green QA. No merge/tag/release.
+
 ## Foundation 4 Batch 76 — accepted Epicrypt/TalkingBytes contracts and canonical OTP Base32 (exact-head QA pending)
 
 - **Batch 75 verified source `0f5e11e1`:** [Security & Standards 42180418485](https://github.com/infocyph/Foundation/actions/runs/42180418485) green strict Psalm/PHPStan on both PHP versions, all four full functional QA lanes, isolated production consumers, clean install, benchmarks and release evidence. [Native HTTP hosts 42180418140](https://github.com/infocyph/Foundation/actions/runs/42180418140) green all five real host lanes. No source/CI suppression.
