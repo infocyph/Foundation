@@ -15,7 +15,10 @@ use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
-/** Development-only Webrick kernel constructed from finalized runtime services. */
+/** Development-only Webrick kernel constructed from finalized runtime services.
+ *
+ * @api
+ */
 final class HttpRuntimeFactory
 {
     public static function errorHandler(ContainerInterface $container, bool $debug): ErrorHandler
