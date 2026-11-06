@@ -12,11 +12,9 @@ final readonly class ProviderFileLoader
 {
     private const array GROUPS = ['common', 'web', 'cli', 'worker', 'scheduler'];
 
-    private PathManager $paths;
-
-    public function __construct(PathManager $paths)
+    public function __construct(private PathManager $paths)
     {
-        $this->paths = $paths;
+        // Evaluate application-owned provider files only when groups() is requested.
     }
 
     /**
@@ -85,6 +83,7 @@ final readonly class ProviderFileLoader
     private function providerConfig(string $file): array
     {
         $source = new Config();
+
         try {
             if (!$source->loadFile($file)) {
                 throw new BootstrapException(sprintf('Provider file "%s" is not readable.', $file));
