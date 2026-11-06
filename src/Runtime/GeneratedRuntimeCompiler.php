@@ -6,7 +6,7 @@ namespace Infocyph\Foundation\Runtime;
 
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Container\FoundationGraph;
-use Infocyph\InterMix\DI\Build\StaticRuntimePlanner;
+use Infocyph\InterMix\Exceptions\ContainerException;
 
 /** Compiles one verified CLI, worker, or scheduler InterMix artifact. */
 final class GeneratedRuntimeCompiler
@@ -48,12 +48,22 @@ final class GeneratedRuntimeCompiler
         }
 
         $builder->validate(strict: true);
-        $planned = new StaticRuntimePlanner()->plan($builder->definitionGraph());
-        $this->assertNoSkippedDefinitions($planned['skipped']);
 
-        // InterMix 11 publishes an immutable build directory and activates its
-        // runtime symlink itself. Foundation publishes only its own metadata.
-        $report = $builder->compile($artifactPath);
+        // Native InterMix strict compilation rejects skipped definitions before
+        // publishing an artifact. Avoid separately planning the graph twice.
+        try {
+            $report = $builder->compile($artifactPath, strict: true);
+        } catch (ContainerException $exception) {
+            if (!str_starts_with($exception->getMessage(), 'Strict static compilation rejected unsupported definitions:')) {
+                throw $exception;
+            }
+
+            throw new \RuntimeException(
+                'Foundation generated runtime contains definitions that were not statically compiled: '
+                . $exception->getMessage(),
+                previous: $exception,
+            );
+        }
         $this->assertNoSkippedDefinitions($report['skipped']);
         GeneratedRuntimeMetadata::write(
             $artifactPath,
