@@ -83,7 +83,6 @@ final class ModuleArchitectureCatalog
     /** @var non-empty-array<string,string> */
     private const array FEATURE_VALIDATION_PACKAGES = ['infocyph/reqshield' => '^3.3.1'];
 
-    /** @var array<string,ArchitectureModule> */
     private const array MODULES = [
         'data' => [
             'description' => 'Database persistence and filesystem storage.',

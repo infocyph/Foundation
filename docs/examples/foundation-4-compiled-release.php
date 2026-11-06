@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 // Run from a Composer-installed, all-specialist production --no-dev consumer.
 // The caller deliberately owns this smoke's transient build directory.
-$workingDirectory = getcwd();
-if ($workingDirectory === false) {
-    throw new RuntimeException('Unable to resolve the Composer consumer working directory.');
-}
-require $workingDirectory . '/vendor/autoload.php';
+// The smoke runs from the production Composer consumer's working directory.
+require './vendor/autoload.php';
 
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
@@ -36,13 +33,19 @@ foreach (['bootstrap', 'routes', 'storage'] as $directory) {
 
 file_put_contents($project . '/bootstrap/providers.php', "<?php\n\nreturn ['common' => []];\n");
 file_put_contents($project . '/routes/workers.php', "<?php\n\nreturn [];\n");
-file_put_contents($project . '/routes/web.php', <<<'PHP'
+file_put_contents(
+    $project . '/routes/web.php',
+    sprintf(
+        <<<'PHP'
 <?php
 
 use Infocyph\Webrick\Router\Facade\Router;
 
-Router::get('/no-dev', FoundationNoDevReleaseSmokeHandler::class);
-PHP);
+Router::get('/no-dev', %s);
+PHP,
+        var_export(FoundationNoDevReleaseSmokeHandler::class, true),
+    ),
+);
 
 $config = [
     'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
