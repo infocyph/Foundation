@@ -206,6 +206,45 @@ it('rejects host-cancelled native HOTP mutation and retains the unconsumed count
         expect($after?->revision)->toBe(1)
             ->and($after?->metadata['otp']['counter'] ?? null)->toBe(1)
             ->and($verifier->verify($challenge, $code)->verified)->toBeFalse();
+
+        // A late host cancellation must not retroactively negate a committed
+        // native factor CAS. Later attempted reuse remains rejected.
+        $committedFactor = $mfa->enrollFactor(
+            'account-committed-hotp',
+            MfaFactorType::HOTP,
+            'Committed native HOTP',
+            ['otp' => ['secret' => $secret, 'counter' => 0, 'digits' => 6]],
+            enabled: true,
+        )->factor;
+        expect($committedFactor)->not->toBeNull();
+        $committedChallenge = $mfa->issueChallenge('account-committed-hotp', factorId: $committedFactor->id)->challenge;
+        expect($committedChallenge)->not->toBeNull();
+
+        $committedRuntime = RuntimeContext::standalone();
+        $committedRequest = RequestContext::create($committedRuntime);
+
+        try {
+            $committed = CacheRunwire::share(
+                $committedRequest,
+                null,
+                static function () use ($verifier, $committedChallenge, $committedRequest, $code): bool {
+                    $result = $verifier->verify($committedChallenge, $code);
+                    $committedRequest->cancel(CancellationReason::HOST_CANCELLED);
+
+                    return $result->verified;
+                },
+                $committedRuntime,
+            );
+            expect($committed)->toBeTrue();
+        } finally {
+            $committedRequest->complete();
+        }
+
+        $persisted = $store->findForAccount('account-committed-hotp')[0] ?? null;
+        expect($persisted?->revision)->toBe(1)
+            ->and($persisted?->metadata['otp']['counter'] ?? null)->toBe(1)
+            ->and($verifier->verify($committedChallenge, $code)->verified)->toBeFalse()
+            ->and(CacheRunwire::current())->toBeNull();
     });
 });
 

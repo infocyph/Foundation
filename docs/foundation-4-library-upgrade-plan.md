@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 84 — committed OTP counter CAS versus late host cancellation (exact-head QA pending)
+
+- **Batch 83 CI:** Adds PR-base immutable Composer manifest/optional tracked-lock snapshots and candidate direct/complete dependency metadata to the release-evidence job. No P1 acceptance is claimed merely from a snapshot; official PHPForge and host qualification applies to the new source.
+- **P3 OTP regression:** Extend `AdvancedCapabilityIntegrationTest.php`'s existing real Foundation-to-OTP HOTP/CacheLayer factor-store test. Verify an already cancelled host rejects OTP verification and leaves the factor counter unchanged; then use an independent native Runwire request to complete HOTP factor CAS before sending host cancellation. Require the already committed call to report success, persist factor revision/counter=1, and reject replay when synchronous execution later resumes. Check native CacheLayer context cleanup. This tests an actual Foundation-owned verified factor state transition, not a mock success bit.
+- **Acceptance boundaries:** This narrows the P3 atomic consumption/mutation criterion but does not yet prove exhaustion/tombstones, concurrent recovery-code races or all durable factor-store implementations. Do not mark the broad OTP/passkey checklist completed. Maintain **77/90 accepted, 13 open** until independent exact-head QA and other P3/P4/P6 gates pass. One commit per batch; PR draft/unmerged; no tag or release.
+
 ## Foundation 4 Batch 83 — immutable pre-upgrade dependency evidence (exact-head QA pending)
 
 - **Last full source:** `8e90c6c3` / [PHPForge 42188454977](https://github.com/infocyph/Foundation/actions/runs/42188454977) and [native hosts 42188454419](https://github.com/infocyph/Foundation/actions/runs/42188454419) fully green. Batch 82 accepted **77/90, 13 open** by explicitly verifying P2 graceful Runwire draining and the P3 TalkingBytes borrowed context/factory policy against that exact source.
