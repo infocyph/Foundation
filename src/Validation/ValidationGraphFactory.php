@@ -10,6 +10,11 @@ use Infocyph\ReqShield\Bridge\DBLayerDatabaseProvider;
 use Infocyph\ReqShield\Schema\SchemaRegistry;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Generated runtime validation capability factory entrypoint.
+ *
+ * @api
+ */
 final class ValidationGraphFactory
 {
     public static function databaseProvider(
