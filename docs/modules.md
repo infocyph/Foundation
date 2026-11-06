@@ -50,6 +50,95 @@ Removing requires a prior disable, preserves packages shared with selected sibli
 - Database-aware ReqShield requires `data.database`. PDO, fileinfo, hash, mbstring and ctype requirements depend on the selected feature. Sodium, PCNTL and POSIX are optional host accelerators and are not universal Core requirements.
 - Direct root dependency identity matters: a Composer-transitive package does not become an application-owned optional module.
 
+## Ordinary PHP/FPM and Runwire-bound selected features
+
+The same explicit `modules.features` selection works in an ordinary PHP/CLI/FPM
+process and a Runwire-managed worker or HTTP host. Foundation 4 requires
+**64-bit PHP 8.4+**, Composer 2 and its Core dependencies, including Runwire
+3.0. Installing Runwire does not start a listener or require PCNTL, POSIX,
+Swoole or OpenSwoole. A selected optional feature requires its Composer package
+*before compilation*; a missing package fails with the selected feature ID,
+package and minimum supported constraint instead of silently disabling it.
+
+| Selected feature | Selected-package/platform prerequisite | Ordinary PHP behavior | When a host supplies Runwire context |
+| --- | --- | --- | --- |
+| `data.database` | DBLayer `^6.1.4`, PDO and selected database driver | Native synchronous connection/query | Use the execution's native DBLayer binding; do not store a request in the connection factory |
+| `data.filesystem` | Pathwise `^4.2.1`, fileinfo; zip optional | Native disk, upload and stream operations | Bind the actual Pathwise processor operation, then restore the borrowed context; Webrick owns streamed HTTP responses |
+| `security.crypto` | Epicrypt `^3.3`; sodium where the chosen primitive requires it | Native local key/token/password operations | Preserve cancellation for a deliberately selected remote JOSE resolver; no extra runtime is created |
+| `security.validation` | ReqShield `^3.3.1`, fileinfo, hash, mbstring; select `data.database` for configured DB-backed validation | Same native rule and sanitizer contracts | Request scoping and database work remain with their respective owners |
+| `security.mfa` | OTP `^7.0.1`, ctype; select `security.crypto` when `auth.drivers.mfa=otp` | Native verification, counter CAS and recovery storage | Borrow the current execution context for stateful OTP issue/verify and replay operations; no singleton scope capture |
+| `security.passkey` | OTP `^7.0.1`, WebAuthn `^5.3.12`, ctype | Native RP/origin checks, ceremony verification and credential CAS | Bind each challenge and begin/finish operation; retain the same credential identity and single-use semantics |
+| `execution.messaging` | Omnibus `^3.0.3`; explicitly select `data.database` for durable messaging | Native synchronous dispatch and configured queue transport | Forward the current borrowed bus/consumer/worker scope; no implicit listener or second process pool |
+| `execution.communication` | TalkingBytes `^2.3.1`; transport-specific network/extension requirements | Native HTTP, SMTP, webhook and gRPC where installed | Pass the active context to the actual network operation, preserving deadlines, retries and transport cleanup |
+
+To install and activate a feature, keep package installation and feature activation
+as separate operations:
+
+```bash
+php infbyte module:install data.database
+php infbyte module:enable data.database
+php infbyte module:doctor data.database
+```
+
+For ordinary PHP/CLI/worker execution, use the normal Foundation entrypoint,
+select the feature in `modules.features`, and call native specialist operations
+inside `$app->execution()->run(...)` where their execution scope is active.
+For example, after installing DBLayer:
+
+```php
+use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Runtime\ExecutionId;
+
+$app = Foundation::worker([
+    'app' => [
+        'base_path' => __DIR__,
+        'env' => 'local',
+        'capabilities' => ['database'],
+    ],
+    '_config_cache' => false,
+    'modules' => ['features' => ['data.database' => true]],
+])->boot();
+
+$app->execution()->run(static function (ExecutionId $id): void {
+    // Resolve the configured native DBLayer operation inside this execution.
+    echo (string) $id;
+});
+```
+
+In a **host-owned** Runwire execution, do not manufacture a second
+`RuntimeContext`, `RequestContext`, `CoroutineScope`, event loop or worker
+pool. Pass the *exact live* objects supplied by the host to Foundation's
+execution inputs. Native specialist bindings then borrow that scope for the
+actual operation; the host, not Foundation, completes the host-owned request.
+
+```php
+use Infocyph\Foundation\Runtime\ExecutionId;
+use Infocyph\Runwire\RequestContext;
+use Infocyph\Runwire\RuntimeContext;
+
+// Within an existing host callback: $hostRuntime and $hostRequest are
+// the objects supplied by that host, not newly allocated stand-ins.
+$app->execution()->run(
+    static function (ExecutionId $id) use ($app, $hostRuntime, $hostRequest): void {
+        if ($app->make(RuntimeContext::class) !== $hostRuntime
+            || $app->make(RequestContext::class) !== $hostRequest
+        ) {
+            throw new \LogicException('Borrowed Runwire identity changed.');
+        }
+
+        // Execute selected native specialist work in this borrowed scope.
+    },
+    [RuntimeContext::class => $hostRuntime, RequestContext::class => $hostRequest],
+);
+```
+
+A runnable standalone *demonstration* that owns and completes its own test
+request is [`examples/foundation-4-runwire-worker.php`](examples/foundation-4-runwire-worker.php).
+Production hosts own their request completion instead. For HTTP hosts, Webrick
+retains response and request-scope ownership; see [Runtime hosting](runtime-hosting.md),
+[OTP](otp.md), [Messaging](messaging.md), [Communication](communication.md)
+and [Filesystem](filesystem.md).
+
 ## Feature-owned config and schema
 
 ```bash

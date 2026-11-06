@@ -12,7 +12,12 @@ final readonly class ProviderFileLoader
 {
     private const array GROUPS = ['common', 'web', 'cli', 'worker', 'scheduler'];
 
-    public function __construct(private PathManager $paths) {}
+    private PathManager $paths;
+
+    public function __construct(PathManager $paths)
+    {
+        $this->paths = $paths;
+    }
 
     /**
      * @return array{common:list<class-string<ServiceProviderInterface>>,web:list<class-string<ServiceProviderInterface>>,cli:list<class-string<ServiceProviderInterface>>,worker:list<class-string<ServiceProviderInterface>>,scheduler:list<class-string<ServiceProviderInterface>>}

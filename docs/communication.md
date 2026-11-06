@@ -295,7 +295,7 @@ loop.
 
 ## Runtime lifetime model
 
-Foundation follows TalkingBytes 2.1's state model rather than promoting all
+Foundation follows TalkingBytes 2.3.1's state model rather than promoting all
 protocol objects to process singletons:
 
 | Binding/object | Foundation lifetime | Reason |

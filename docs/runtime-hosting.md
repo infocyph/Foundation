@@ -143,6 +143,19 @@ Rebuild existing Foundation 4 candidate web artifacts: the compiled container
 now binds and validates normalized explicit capabilities alongside configuration.
 Previously compiled candidate artifacts intentionally fail identity validation.
 
+## Selected optional specialists across both hosting modes
+
+Feature selection is independent of server choice. All eight optional features
+have the same Composer requirements and explicit `modules.features` policy
+under ordinary PHP/FPM and Runwire hosts. Native specialist stateful operations
+borrow the live context only when one exists; a synchronous request must not
+start a Runwire host. The selected-feature/platform matrix and runnable
+ordinary/borrowed execution examples are in
+[Optional modules: execution paths](modules.md#ordinary-phpfpm-and-runwire-bound-selected-features).
+For an actual Runwire host, pass its existing context into Webrick or the
+Foundation non-web execution scope; never construct a substitute request or
+create a second event loop.
+
 ## Intermediary-library context forwarding
 
 When another library has already shared a native Runwire context, a non-web

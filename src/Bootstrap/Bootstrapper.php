@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Bootstrap;
 
+use Composer\InstalledVersions;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ProviderFileLoader;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProviderInterface;
-use Composer\InstalledVersions;
 use Infocyph\Foundation\Application\ServiceRegistry;
 use Infocyph\Foundation\Auth\AuthServiceProvider;
 use Infocyph\Foundation\Cache\CacheServiceProvider;
@@ -152,6 +152,37 @@ final class Bootstrapper
     }
 
     /**
+     * Selected optional features must fail before providers contribute a partial graph.
+     * Composer owns installation; Foundation reports the exact feature and package.
+     *
+     * @throws \LogicException
+     */
+    private function assertSelectedFeaturePackages(FoundationBuildContext $context): void
+    {
+        if ($context->featureSelections === null) {
+            return;
+        }
+
+        $catalog = new ModuleArchitectureCatalog();
+        foreach ($context->featureSelections as $id => $selected) {
+            if (!$selected) {
+                continue;
+            }
+
+            foreach ($catalog->resolve($id)['definition']['packages'] as $package => $constraint) {
+                if (!InstalledVersions::isInstalled($package)) {
+                    throw new \LogicException(sprintf(
+                        'Selected feature %s requires package %s (%s); install it before compiling the Foundation runtime.',
+                        $id,
+                        $package,
+                        $constraint,
+                    ));
+                }
+            }
+        }
+    }
+
+    /**
      * @return list<ServiceProviderInterface>
      * @throws \Infocyph\Foundation\Exception\BootstrapException
      */
@@ -273,37 +304,6 @@ final class Bootstrapper
         }
 
         return $normalized;
-    }
-
-    /**
-     * Selected optional features must fail before providers contribute a partial graph.
-     * Composer owns installation; Foundation reports the exact feature and package.
-     *
-     * @throws \LogicException
-     */
-    private function assertSelectedFeaturePackages(FoundationBuildContext $context): void
-    {
-        if ($context->featureSelections === null) {
-            return;
-        }
-
-        $catalog = new ModuleArchitectureCatalog();
-        foreach ($context->featureSelections as $id => $selected) {
-            if (!$selected) {
-                continue;
-            }
-
-            foreach ($catalog->resolve($id)['definition']['packages'] as $package => $constraint) {
-                if (!InstalledVersions::isInstalled($package)) {
-                    throw new \LogicException(sprintf(
-                        'Selected feature %s requires package %s (%s); install it before compiling the Foundation runtime.',
-                        $id,
-                        $package,
-                        $constraint,
-                    ));
-                }
-            }
-        }
     }
 
     private function registerOptionalProviders(FoundationBuildContext $context, ServiceRegistry $registry): void
