@@ -263,6 +263,14 @@ jobs:
           composer validate --strict
           composer ic:release:constraints
           composer ic:release:audit
+      - name: Verify actual PHP platform and locked Composer advisory policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/release-evidence
+          composer check-platform-reqs --lock --format=json > build/release-evidence/platform-full.json
+          composer check-platform-reqs --lock --no-dev --format=json > build/release-evidence/platform-core.json
+          composer audit --locked --format=json > build/release-evidence/composer-audit.json
       - name: Execute migration bootstrap smoke examples
         run: |
           php docs/examples/foundation-4-core.php
