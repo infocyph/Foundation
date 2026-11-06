@@ -32,48 +32,88 @@ final readonly class OAuthRouteRegistrar
             ...$this->presets->stack('web-auth'),
         ];
 
-        self::registerVerb($router, 'get', 
+        self::registerVerb(
+            $router,
+            'get',
             '/.well-known/oauth-authorization-server',
             [OAuthHttpHandler::class, 'metadata'],
             'oauth.metadata',
         );
         if ($this->config->get('auth.oauth.oidc.enabled', false) === true) {
-            self::registerVerb($router, 'get', 
+            self::registerVerb(
+                $router,
+                'get',
                 '/.well-known/openid-configuration',
                 [OAuthHttpHandler::class, 'openIdMetadata'],
                 'oidc.discovery',
             );
-            self::registerVerb($router, 'get', 
+            self::registerVerb(
+                $router,
+                'get',
                 $this->openIdPath('userinfo_route'),
                 [OAuthHttpHandler::class, 'userInfo'],
                 ['as' => 'oidc.userinfo', 'middleware' => ['oauth-throttle:userinfo']],
             );
         }
 
-        self::registerVerb($router, 'get', 
+        self::registerVerb(
+            $router,
+            'get',
             $this->path('jwks'),
             [OAuthHttpHandler::class, 'jwks'],
             'oauth.jwks',
         );
-        self::registerVerb($router, 'get', 
+        self::registerVerb(
+            $router,
+            'get',
             $this->path('authorization'),
             [OAuthAuthorizationController::class, 'authorization'],
             ['as' => 'oauth.authorization', 'middleware' => $authorizationMiddleware],
         );
-        self::registerVerb($router, 'post', 
+        self::registerVerb(
+            $router,
+            'post',
             $this->path('authorization'),
             [OAuthAuthorizationController::class, 'authorization'],
             ['as' => 'oauth.authorization.decision', 'middleware' => $authorizationMiddleware],
         );
 
         foreach (['token', 'revocation', 'introspection'] as $endpoint) {
-            self::registerVerb($router, 'post', 
+            self::registerVerb(
+                $router,
+                'post',
                 $this->path($endpoint),
                 [OAuthHttpHandler::class, $endpoint],
                 [
                     'as' => 'oauth.' . $endpoint,
                     'middleware' => ['oauth-throttle:' . $endpoint],
                 ],
+            );
+        }
+    }
+
+    /**
+     * Register a native Webrick class-method route through its concrete verb
+     * dispatcher. Registrar accepts these handlers via __call(), whereas its
+     * PHPStan-only @method alias does not describe them to Psalm.
+     *
+     * @param array{0:class-string,1:non-empty-string} $handler
+     * @param string|array{as:string,middleware:list<string>} $options
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
+    private static function registerVerb(
+        Registrar $router,
+        string $verb,
+        string $path,
+        array $handler,
+        string|array $options,
+    ): void {
+        try {
+            $router->__call($verb, [$path, $handler, $options]);
+        } catch (\BadMethodCallException $exception) {
+            throw new ConfigurationException(
+                sprintf('Webrick rejected the Foundation OAuth %s route at "%s".', strtoupper($verb), $path),
+                previous: $exception,
             );
         }
     }
@@ -106,30 +146,4 @@ final readonly class OAuthRouteRegistrar
         return $path;
     }
 
-    /**
-     * Register a native Webrick class-method route through its concrete verb
-     * dispatcher. Registrar accepts these handlers via __call(), whereas its
-     * PHPStan-only @method alias does not describe them to Psalm.
-     *
-     * @param 'get'|'post' $verb
-     * @param array{0:class-string,1:non-empty-string} $handler
-     * @param string|array{as:string,middleware:list<string>} $options
-     * @throws \Infocyph\Foundation\Exception\ConfigurationException
-     */
-    private static function registerVerb(
-        Registrar $router,
-        string $verb,
-        string $path,
-        array $handler,
-        string|array $options,
-    ): void {
-        try {
-            $router->__call($verb, [$path, $handler, $options]);
-        } catch (\BadMethodCallException $exception) {
-            throw new ConfigurationException(
-                sprintf('Webrick rejected the Foundation OAuth %s route at "%s".', strtoupper($verb), $path),
-                previous: $exception,
-            );
-        }
-    }
 }
