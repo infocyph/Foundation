@@ -213,6 +213,32 @@ it('handles normal and chunked upload requests through Pathwise UploadSource', f
             expect(is_file($chunkOne))->toBeTrue();
         }
 
+        // Both supported aliases must agree; invalid aliases cannot be masked by valid values.
+        foreach ([
+            ['chunk_index' => '1e2', 'chunkIndex' => 0],
+            ['chunk_index' => 0, 'chunkIndex' => '1.5'],
+            ['chunk_index' => 0, 'chunkIndex' => 1],
+            ['chunk_index' => 0, 'chunkIndex' => true],
+            ['chunk_index' => -1, 'chunkIndex' => 0],
+            ['chunk_index' => str_repeat('9', 40), 'chunkIndex' => 0],
+        ] as $metadata) {
+            $malformed = Request::fake(
+                post: ['uploadId' => 'bridge-conflicting', 'totalChunks' => 2, 'originalFilename' => 'chunked.txt'] + $metadata,
+                headers: ['Host' => 'localhost'],
+                method: 'POST',
+                uri: 'http://localhost/upload/chunk',
+            )->withUploadedFiles(['file' => [
+                'tmp_name' => $chunkOne,
+                'size' => filesize($chunkOne) ?: 0,
+                'error' => UPLOAD_ERR_OK,
+                'name' => 'chunked.txt',
+                'type' => 'text/plain',
+            ]]);
+            expect(fn() => $uploads->processChunkUploadRequest($malformed, directory: $directory, disk: 'uploads'))
+                ->toThrow(InvalidArgumentException::class);
+            expect(is_file($chunkOne))->toBeTrue();
+        }
+
         $firstState = $uploads->processChunkUploadRequest($first, directory: $directory, disk: 'uploads');
         $secondState = $uploads->processChunkUploadRequest($second, directory: $directory, disk: 'uploads');
         $finalized = $uploads->finalizeChunkUpload('bridge-upload', $directory, 'uploads');
@@ -250,10 +276,21 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
     $scanner = new class implements MalwareScannerInterface {
         public int $calls = 0;
 
+        public ?string $stagedPath = null;
+
+        public ?string $stagedContents = null;
+
+        public ?int $stagedSize = null;
+
+        public ?string $clientFilename = null;
+
         public function scan(MalwareScanRequest $request): MalwareScanVerdict
         {
-            unset($request);
             ++$this->calls;
+            $this->stagedPath = $request->localPath;
+            $this->stagedContents = file_get_contents($request->localPath);
+            $this->stagedSize = $request->size;
+            $this->clientFilename = $request->clientFilename;
 
             return MalwareScanVerdict::MALICIOUS;
         }
@@ -299,6 +336,11 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
         expect(fn() => $handler->processUploadRequest($request, directory: $directory, disk: 'uploads'))
             ->toThrow(\Infocyph\Pathwise\Exceptions\UploadException::class, 'Malware scan rejected');
         expect($scanner->calls)->toBe(1)
+            ->and($scanner->stagedPath)->not->toBeNull()
+            ->and($scanner->stagedContents)->toBe('untrusted-data-fixture')
+            ->and($scanner->stagedSize)->toBe(strlen('untrusted-data-fixture'))
+            ->and($scanner->clientFilename)->toBe('malicious.txt')
+            ->and(is_file($scanner->stagedPath ?? ''))->toBeFalse()
             ->and($disk->listContents($directory)->toArray())->toBe([]);
     } finally {
         if (is_file($temporary)) {

@@ -2,6 +2,13 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 89 — reject conflicting chunk aliases and prove staged scanner input (exact-head QA pending)
+
+- **Prior exact-head qualification:** Batch 88 at `970e85bc` passed [Security & Standards 42234481003](https://github.com/infocyph/Foundation/actions/runs/42234481003) (strict Psalm/PHPStan on both versions, all four functional QA lanes, clean install, consumers, benchmarks, release evidence and real Redis Cluster) plus [native hosts 42234479839](https://github.com/infocyph/Foundation/actions/runs/42234479839), including Swoole/OpenSwoole. This certifies the new malicious-verdict rejection regression, not the complete Pathwise P3 condition. **Formal acceptance remains 78/90, 12 open.**
+- **Request trust boundary:** Require every supplied camel/snake chunk index and total-count alias to be a canonical, in-range nonnegative integer and reject conflicting values, rather than skipping malformed metadata and trusting another alias. Preserve explicitly supplied application arguments and equivalent dual aliases. Never move a source file before validation.
+- **Pathwise scanner evidence:** The application-owned required scanner now observes the actual Pathwise-staged local file, its exact bytes, size and original filename, and verifies staging cleanup after native malicious rejection. Retain Pathwise ownership of staging, scanning, publication and cleanup; no parallel filesystem engine.
+- **P3 and release boundaries:** Full path containment, atomic publication, failed-stage rollback, chunk ownership and host cancellation remain open until independently proven. Exact-head official QA/native hosts are mandatory before acceptance. P1 original resolved baseline, P4 rehearsal and P6 sustained matched host remain open. One commit for this batch; PR stays draft/unmerged; no tag or release.
+
 ## Foundation 4 Batch 88 — accept certified Redis Cluster and test rejected malware publication (exact-head QA pending)
 
 - **Exact-head accepted evidence:** `8ccb0477` passed [Security & Standards 42233345895](https://github.com/infocyph/Foundation/actions/runs/42233345895) including a real three-node Redis Cluster job, strict Psalm/PHPStan PHP 8.4/8.5, four full functional QA lanes, both benchmarks, four production consumer installs, clean install, and release evidence. [Native host smoke 42233345030](https://github.com/infocyph/Foundation/actions/runs/42233345030) also passed its aggregate and Swoole/OpenSwoole matrix. The P3 Redis Cluster/node adapter criterion is accepted using this **complete** source, moving formal **77/90 → 78/90**, **13 → 12 open**.

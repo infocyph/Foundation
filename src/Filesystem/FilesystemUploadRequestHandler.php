@@ -124,28 +124,24 @@ final readonly class FilesystemUploadRequestHandler
     private function resolveInt(?int $value, array $candidates, string $label): int
     {
         if ($value !== null) {
-            if ($value < 0) {
-                throw new \InvalidArgumentException(sprintf('The %s must be a non-negative decimal integer.', $label));
-            }
-
-            return $value;
+            return $this->validatedInt($value, $label);
         }
 
+        $resolved = null;
         foreach ($candidates as $candidate) {
-            if (is_int($candidate) && $candidate >= 0) {
-                return $candidate;
-            }
-            if (!is_string($candidate) || preg_match('/\A(?:0|[1-9][0-9]*)\z/D', $candidate) !== 1) {
+            if ($candidate === null) {
                 continue;
             }
 
-            $parsed = filter_var($candidate, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
-            if (is_int($parsed)) {
-                return $parsed;
+            $parsed = $this->validatedInt($candidate, $label);
+            if ($resolved !== null && $resolved !== $parsed) {
+                throw new \InvalidArgumentException(sprintf('Conflicting %s values in the upload request.', $label));
             }
+
+            $resolved = $parsed;
         }
 
-        throw new \InvalidArgumentException(sprintf(
+        return $resolved ?? throw new \InvalidArgumentException(sprintf(
             'Unable to resolve the %s for the chunk upload request.',
             $label,
         ));
@@ -200,6 +196,25 @@ final readonly class FilesystemUploadRequestHandler
         }
 
         return $file;
+    }
+
+    /**
+     * @throws \InvalidArgumentException
+     */
+    private function validatedInt(mixed $candidate, string $label): int
+    {
+        if (is_int($candidate) && $candidate >= 0) {
+            return $candidate;
+        }
+
+        if (is_string($candidate) && preg_match('/\A(?:0|[1-9][0-9]*)\z/D', $candidate) === 1) {
+            $parsed = filter_var($candidate, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+            if (is_int($parsed)) {
+                return $parsed;
+            }
+        }
+
+        throw new \InvalidArgumentException(sprintf('The %s must be a non-negative decimal integer.', $label));
     }
 
     /**
