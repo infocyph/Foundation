@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 85 — live Redis Cluster slots and native CacheLayer boundaries (exact-head QA pending)
+
+- **Native integration:** Add one isolated real three-node Redis Cluster to the existing Security & Standards workflow (not a competing/custom workflow). Each node owns distinct Redis slots; run a PHP 8.5 real `ext-redis` consumer with current published Foundation/CacheLayer packages. The dedicated `benchmarks/foundation4-redis-cluster-smoke.php` loads actual Foundation CLI cache managers in separate application instances with a real `redis_cluster` store. Assert 64-key multi-slot write/read, native single-use claim and compare-and-set, tagged invalidation visibility and cleanup. No fake adapter, production fallback, or "skip if unavailable" path.
+- **P3 acceptance candidate:** This closes the selected Redis Cluster adapter boundary only **after** the new mandatory job and all existing PHPForge strict Psalm/PHPStan, four functional QA lanes, production consumers, clean install, both benchmarks and native hosts pass exact head. The existing `ClusterCacheIntegrationTest.php` separately exercises the node cache topology, invalidation outbox commit/rollback, local stale history and topology security.
+- **P1/P4/P6 boundaries:** Preserve current PR-base dependency evidence, source-formatting and CI gates; do not equate cluster success with full retained-state upgrade/rollback or P6 sustained host certification. **77/90 accepted, 13 open** pending green proof, draft/unmerged, no release.
+
 ## Foundation 4 Batch 84 — committed OTP counter CAS versus late host cancellation (exact-head QA pending)
 
 - **Batch 83 CI:** Adds PR-base immutable Composer manifest/optional tracked-lock snapshots and candidate direct/complete dependency metadata to the release-evidence job. No P1 acceptance is claimed merely from a snapshot; official PHPForge and host qualification applies to the new source.

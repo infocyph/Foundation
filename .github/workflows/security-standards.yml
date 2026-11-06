@@ -42,6 +42,58 @@ jobs:
       benchmark_result_file: "build/cachelayer-33-utilization.json"
 
 
+  redis-cluster:
+    name: Native Redis Cluster - Foundation / CacheLayer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.5"
+          tools: composer:v2
+          extensions: "redis, mbstring, intl, sodium, pdo, pdo_sqlite"
+          coverage: none
+      - name: Install real Redis Cluster runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq redis-server redis-tools
+      - name: Start independent Redis Cluster slots
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/foundation-redis-cluster"
+          mkdir -p "$root"
+          for port in 7200 7201 7202; do
+            mkdir -p "$root/$port"
+            redis-server --port "$port" --bind 127.0.0.1 --protected-mode no \
+              --cluster-enabled yes --cluster-config-file "nodes-$port.conf" \
+              --cluster-node-timeout 5000 --appendonly no --save '' \
+              --daemonize yes --dir "$root/$port"
+          done
+          redis-cli --cluster create 127.0.0.1:7200 127.0.0.1:7201 127.0.0.1:7202 \
+            --cluster-replicas 0 --cluster-yes
+          for attempt in $(seq 1 30); do
+            if redis-cli -p 7200 cluster info | grep -q 'cluster_state:ok'; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Real Redis Cluster never reached a healthy slot state." >&2
+          exit 1
+      - name: Verify multi-slot, atomic and invalidation boundaries through Foundation
+        env:
+          FOUNDATION_REDIS_CLUSTER_SEEDS: "127.0.0.1:7200,127.0.0.1:7201,127.0.0.1:7202"
+        run: |
+          composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+          php benchmarks/foundation4-redis-cluster-smoke.php
+      - name: Stop Redis Cluster
+        if: always()
+        run: |
+          for port in 7200 7201 7202; do
+            redis-cli -p "$port" shutdown nosave || true
+          done
+
   production-consumer:
     name: Production consumer - PHP ${{ matrix.php-version }} - ${{ matrix.dependencies }}
     runs-on: ubuntu-latest
