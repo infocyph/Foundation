@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 68 — evidence-backed specialist acceptance on full green head
+
+- **Exact-head green:** `98e07629` / [PHPForge 42172043870](https://github.com/infocyph/Foundation/actions/runs/42172043870) passed strict Psalm/PHPStan on PHP 8.4/8.5, all four functional stable/lowest suites, four production consumers, clean install and both benchmarks. [Native hosts 42172043447](https://github.com/infocyph/Foundation/actions/runs/42172043447) passed real ordinary FPM and native Runwire aggregate plus all four Swoole/OpenSwoole PHP 8.4/8.5 serving jobs. This also certifies the exact Batch 67 Webrick signed-url request/rotation regressions.
+- **Six P3 criteria independently accepted:** Omnibus explicit worker supervision/pool ownership; Pathwise binding at actual operation boundary; Pathwise/Webrick streaming/cancellation owner; Webrick current routing/emission/session/exception/signature/compiled-artifact stack; Webrick/InterMix/Runwire exact host/borrowed scope/response drain; and ordinary SAPI/FPM plus explicitly selected real Swoole/OpenSwoole native host. Evidence is attached to each checkbox below. These do **not** certify untested host drivers, sustained paired-host performance, or P2 complete drain/fork matrix.
+- **Formal checklist:** **63/90 accepted, 27 open**, P0 **20/20**; P3 27/41. Do not merge/tag/release. This tracker-only evidence commit also requires exact-head CI; do not rely on a previous source head to certify a future source modification.
+
 ## Foundation 4 Batch 67 — Webrick signed URL rotation and native verification (exact-head QA pending)
 
 - **Batch 66 confirmed acceptance:** `f20d01e4` advanced **53/90 → 57/90** on the strength of fully green exact-head Batch 65 [PHPForge QA 42170564616](https://github.com/infocyph/Foundation/actions/runs/42170564616) and [native hosts 42170564187](https://github.com/infocyph/Foundation/actions/runs/42170564187). P2 explicit host serving, P3 Epicrypt exact JOSE curves, P4 selected-package failures and P5 dual-runtime documentation are checked. The docs-only Batch 66 has separate exact-head CI.
@@ -775,7 +781,7 @@ Owners: `src/Messaging/`, `src/Worker/`, `src/Scheduling/`.
 
 - [ ] Preserve native operation-time `RunwireBinding` providers for bus, consumer and worker graphs. Check retries, cancellation/deadlines, nested handler dispatch, deferred work and borrowed InterMix scopes.
 - [ ] Requalify durable queue/outbox/failure/schedule integration with DBLayer >=6.1.4, CacheLayer >=4.0.2 and UID >=6.0.1. Verify rollback, retry, lease release, acknowledgment and duplicate prevention.
-- [ ] Keep application worker coordination and native process supervision at their existing explicit boundaries. An installed/borrowed Runwire context must not automatically select another worker pool.
+- [x] Keep application worker coordination and native process supervision at their existing explicit boundaries. An installed/borrowed Runwire context must not automatically select another worker pool. [Evidence: OmnibusWorkerLifecycleTest and OmnibusWorkerIntegrationTest verify single-owner worker setup and explicit pool selection; WorkerPoolForkSafetyTest exercises real fork, parent resource rejection, SIGTERM and child reap; Foundation4NativeRunwireOperationTest verifies borrowed bus/consumer/worker contexts. Exact-head green PHPForge 42172043870 and hosts 42172043447.]
 
 #### OTP 7.0.1 and WebAuthn 5.3.12
 
@@ -806,8 +812,8 @@ Owners: `src/Filesystem/FilesystemTransferFactory.php`, `FilesystemUploadRequest
 **Confirmed integration gap:** Foundation's transfer construction/operation paths do not currently apply Pathwise's callback-scoped `withRunwire(RunwireExecutionContext, operation)` binding.
 
 - [x] Bind the native Pathwise context around operations Foundation actually invokes: upload/chunk/finalization and applicable download preparation/file workflows. Restore the binding on completion/failure; use ordinary operations when no context exists.
-- [ ] Keep binding lifetime around the actual operation, not merely processor construction. A processor returned to application code remains a native Pathwise object; document its native explicit binding contract rather than retaining a request inside a shared service.
-- [ ] Keep actual response streaming and host cancellation with Webrick's response owner. A prepared response must not retain a completed Pathwise/Runwire scope.
+- [x] Keep binding lifetime around the actual operation, not merely processor construction. A processor returned to application code remains a native Pathwise object; document its native explicit binding contract rather than retaining a request inside a shared service. [Evidence: FilesystemHttpBridgeTest exercises real upload/chunk/finalization/download operations and cancelled host calls; FilesystemPathwiseIsolationTest verifies per-application and Fiber isolation; docs/filesystem.md documents returned native Pathwise processors and caller-owned withRunwire operation scope. Exact-head PHPForge 42172043870.]
+- [x] Keep actual response streaming and host cancellation with Webrick's response owner. A prepared response must not retain a completed Pathwise/Runwire scope. [Evidence: FilesystemHttpBridgeTest exercises Webrick chunk iterables, conditional/ranged body preparation and cancellation; WebRuntimeEmissionTest checks real SAPI and persistent writer ownership; WebReleaseRuntimeTest checks deferred native response finalization and request completion. Exact-head PHPForge 42172043870 and host smoke 42172043447.]
 - [ ] Verify path containment, untrusted upload profiles, malware policy, atomic publication, chunk ownership, temporary-file cleanup and cancellation through the Foundation HTTP bridge. No replacement filesystem abstraction or Runwire async filesystem is required.
 
 #### ReqShield 3.3.1
@@ -839,9 +845,9 @@ Owners: `src/Runtime/ExecutionId.php`, `src/Auth/Adapter/Uid/UidAuthIdGenerator.
 
 Owners: `src/Routing/`, `src/Http/`, `src/Session/Middleware/`, trusted web release generation and serving commands.
 
-- [ ] Requalify native routing, response emission, session finalization, exception mapping, signed URLs and compiled artifacts against the current dependency combination.
-- [ ] Exercise the Webrick/InterMix/Runwire bridge with exact context identity, cancellation, nested scopes and host shutdown. Keep web scope ownership in Webrick and non-web graphs free of web-only service registration/loading.
-- [ ] Verify ordinary SAPI/FPM, native Runwire and selected persistent host adapters against the same public Foundation components. Host-specific support claims require actual host evidence.
+- [x] Requalify native routing, response emission, session finalization, exception mapping, signed URLs and compiled artifacts against the current dependency combination. [Evidence: WebrickInterMixIntegrationTest, WebRuntimeEmissionTest, BrowserSessionIntegrationTest, WebReleaseRuntimeTest, and Epicrypt3SignedUrlKeyBridgeTest (rotated active/fallback key verification, expiry/tamper/missing rejection) passed official PHPForge 42172043870 and host smoke 42172043447.]
+- [x] Exercise the Webrick/InterMix/Runwire bridge with exact context identity, cancellation, nested scopes and host shutdown. Keep web scope ownership in Webrick and non-web graphs free of web-only service registration/loading. [Evidence: RunwireSelectedNativeBoundaryTest, Foundation4NativeRunwireProviderTest, WebReleaseRuntimeTest and ServeCommandIntegrationTest cover native request/coroutine identity, nested/borrowed scopes, cancellation, deferred drain and host lifetime, with all four real Swoole/OpenSwoole jobs green in 42172043447.]
+- [x] Verify ordinary SAPI/FPM, native Runwire and selected persistent host adapters against the same public Foundation components. Host-specific support claims require actual host evidence. [Evidence: ServeCommandIntegrationTest verifies direct SAPI without serve, portable and explicit Runwire serve; host-certification workflow 42172043447 ran actual FPM/native Runwire host aggregate and Swoole/OpenSwoole serving on PHP 8.4/8.5. No claims for untested RoadRunner/FrankenPHP or paired sustained performance.]
 
 ### P4. Remove obsolete compatibility and rebuild generated releases
 
