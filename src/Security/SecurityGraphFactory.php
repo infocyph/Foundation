@@ -7,6 +7,11 @@ namespace Infocyph\Foundation\Security;
 use Infocyph\Epicrypt\Password\Enum\PasswordHashAlgorithm;
 use Infocyph\Epicrypt\Password\PasswordHashOptions;
 
+/**
+ * Generated runtime security capability factory entrypoint.
+ *
+ * @api
+ */
 final class SecurityGraphFactory
 {
     /**
