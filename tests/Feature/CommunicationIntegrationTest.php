@@ -9,6 +9,7 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Runwire\Exception\CancelledException;
 use Infocyph\Runwire\RequestContext;
 use Infocyph\Runwire\Runtime\Enum\CancellationReason;
+use Infocyph\Runwire\Runtime\RequestExecutionPolicy;
 use Infocyph\Runwire\RuntimeContext;
 use Infocyph\TalkingBytes\Core\Result\CommunicationResult;
 use Infocyph\TalkingBytes\Grpc\GrpcStatus;
@@ -20,6 +21,7 @@ use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Http\HttpClientFactory;
 use Infocyph\TalkingBytes\Http\HttpRequest;
 use Infocyph\TalkingBytes\Http\Testing\FakeHttpTransport;
+use Infocyph\TalkingBytes\Integration\Runwire\RunwireBinding;
 use Infocyph\TalkingBytes\Webhook\Support\WebhookHeaders;
 use Infocyph\TalkingBytes\Webhook\Webhook;
 use Infocyph\TalkingBytes\Webhook\WebhookMessage;
@@ -259,6 +261,66 @@ it('prevents a second native TalkingBytes HTTP attempt when a borrowed host canc
     } finally {
         $request->complete();
     }
+});
+
+it('retains host deadline and terminal cancellation after live HTTP and gRPC profile selection changes', function (): void {
+    $config = new ConfigRepository([
+        'communication' => [
+            'http' => [
+                'default_client' => 'api',
+                'clients' => [
+                    'api' => ['timeoutSeconds' => 20],
+                    'rotated' => ['timeoutSeconds' => 180, 'retry' => [
+                        'enabled' => true, 'attempts' => 4, 'base_delay_ms' => 0,
+                    ]],
+                ],
+            ],
+            'grpc' => [
+                'default_profile' => 'api',
+                'profiles' => [
+                    'api' => ['retry' => ['enabled' => false]],
+                    'rotated' => ['retry' => ['enabled' => true, 'attempts' => 3, 'base_delay_ms' => 0]],
+                ],
+            ],
+        ],
+    ]);
+    $profiles = new CommunicationProfiles($config);
+    $runtime = RuntimeContext::standalone();
+    $request = RequestContext::create($runtime, new RequestExecutionPolicy(maxExecutionSeconds: 30.0));
+    $caller = static fn(GrpcRequest $message): GrpcResponse => new GrpcResponse(GrpcStatus::Ok, $message->message);
+
+    try {
+        CacheRunwire::share($request, null, static function () use ($config, $profiles, $runtime, $request, $caller): void {
+            $binding = new RunwireBinding($runtime, $request);
+            $deadline = $binding->deadline();
+            expect($deadline)->not->toBeNull()
+                ->and($deadline?->remainingSeconds())->toBeGreaterThan(0.0)
+                ->toBeLessThan(30.0)
+                ->and($profiles->httpConfig()->timeoutSeconds)->toBe(20)
+                ->and($profiles->http())->toBeInstanceOf(HttpClient::class)
+                ->and($profiles->grpc($caller))->toBeObject();
+
+            expect($config->set('communication.http.default_client', 'rotated'))->toBeTrue()
+                ->and($config->set('communication.grpc.default_profile', 'rotated'))->toBeTrue()
+                ->and($profiles->httpConfig()->timeoutSeconds)->toBe(180)
+                ->and($profiles->http()->hasRetryMiddleware())->toBeTrue()
+                ->and($profiles->grpc($caller))->toBeObject()
+                ->and((new RunwireBinding($runtime, $request))->deadline()?->remainingSeconds())
+                ->toBeLessThan(30.0);
+
+            $request->cancel(CancellationReason::HOST_CANCELLED);
+            expect(fn(): HttpClient => $profiles->http())->toThrow(CancelledException::class)
+                ->and(fn(): object => $profiles->grpc($caller))->toThrow(CancelledException::class)
+                ->and(fn(): HttpClient => $profiles->http('api'))->toThrow(CancelledException::class);
+        }, $runtime);
+    } finally {
+        $request->complete();
+    }
+
+    expect(CacheRunwire::current())->toBeNull()
+        ->and($profiles->httpConfig()->timeoutSeconds)->toBe(180)
+        ->and($profiles->http())->toBeInstanceOf(HttpClient::class)
+        ->and($profiles->grpc($caller))->toBeObject();
 });
 
 it('keeps Foundation production TLS policy when using TalkingBytes 2.3.1 typed composition', function (): void {

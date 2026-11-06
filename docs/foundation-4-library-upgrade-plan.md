@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 79 — native TalkingBytes live profile replacement and deadline (exact-head QA pending)
+
+- **Batch 78 source:** `a4b59efb` adds a real signed WebAuthn wrong-origin assertion and no-CAS-mutation postcondition. The QA and native host checks for that source are separate; do not advance the broad P3 passkey criterion without full exact-head evidence.
+- **Batch 79 source:** Create one ordinary Foundation `CommunicationProfiles` object from the live mutable `ConfigRepository`; borrow an actual Runwire request with a **30-second monotonic host deadline**. Switch HTTP and gRPC default profiles from `api` to `rotated` while the borrowed request remains live; assert current profile selection (including a longer 180-second HTTP timeout and retry policy) and native `TalkingBytes\Integration\Runwire\RunwireBinding` host deadline stay correct. Cancel the host, then require terminal native cancellation for both profiles and the old named HTTP profile; after exact host request completion, assert normal synchronous, newly selected clients still work. No retained request in a singleton and no custom deadline/transport implementation.
+- **Acceptance candidate:** The P3 TalkingBytes per-operation/profile change and earliest-deadline checklist item is eligible **only after** full exact-head PHPForge `dev-main@dev` strict Psalm/PHPStan, four functional QA, production consumer, clean install, two benchmarks and native-host aggregate pass, plus a review of native factory deadline ownership. Do not infer SMTP/Mailpit, real remote gRPC, mailbox or multipart coverage. **75/90 accepted, 15 open** pending source qualification. No merge/tag/release.
+
 ## Foundation 4 Batch 78 — live WebAuthn wrong-origin rejection (exact-head QA pending)
 
 - **Exact-head baseline:** `f565032d` / [PHPForge 42181977896](https://github.com/infocyph/Foundation/actions/runs/42181977896) and [native hosts 42181977535](https://github.com/infocyph/Foundation/actions/runs/42181977535) passed: strict Psalm/PHPStan on PHP 8.4/8.5, four stable/lowest functional QA lanes, four production consumer installations, clean install, benchmarks, release evidence, and the full native host aggregate. Tracker **75/90 accepted, 15 open**; P6 sustained paired-host workflows were not run.
