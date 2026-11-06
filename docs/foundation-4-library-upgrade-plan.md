@@ -2,6 +2,11 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 74 — correct OTP verification result contract (exact-head QA pending)
+
+- **Batch 73 official QA:** `e9f34590` / [PHPForge 42178550995](https://github.com/infocyph/Foundation/actions/runs/42178550995) passed both PHP 8.4/8.5 strict Psalm and PHPStan analyzers, production consumers, clean install, Pint, PHPCS, Rector and all existing tests. Four full Pest lanes failed one new assertion: native `OtpMfaVerifier::verify()` returns `MfaVerificationResult` with a public `verified` property, not the `successful()` method of `MfaChallengeResult`; the failure was after the cancelled-host exception and unchanged HOTP counter were checked. This needs an exact-head rerun.
+- **Batch 74 correction:** Assert `MfaVerificationResult::$verified` for unbound success and replay rejection. No production source, runtime policy, dependency, release or test scope removed. Full official PHPForge `dev-main@dev` and native-host verification must rerun. Tracker remains **71/90 accepted, 19 open** until exact-head acceptance.
+
 ## Foundation 4 Batch 73 — OTP cancellation-before-CAS and unbound recovery (exact-head QA pending)
 
 - **Starting verified head:** `e900b0fa` / [Security & Standards 42177101779](https://github.com/infocyph/Foundation/actions/runs/42177101779) and [native hosts 42177101334](https://github.com/infocyph/Foundation/actions/runs/42177101334) are both green across official PHP 8.4/8.5 analyzers, all four functional QA lanes, production consumers, clean install, benchmarks, and actual native host processes. Tracker **71/90 accepted, 19 open**.

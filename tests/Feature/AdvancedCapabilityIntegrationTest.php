@@ -169,11 +169,11 @@ it('rejects host-cancelled native HOTP mutation and retains the unconsumed count
             ->and($before?->metadata['otp']['counter'] ?? null)->toBe(0)
             ->and(CacheRunwire::current())->toBeNull();
 
-        expect($verifier->verify($challenge, $code)->successful())->toBeTrue();
+        expect($verifier->verify($challenge, $code)->verified)->toBeTrue();
         $after = $store->findForAccount('account-cancelled-hotp')[0] ?? null;
         expect($after?->revision)->toBe(1)
             ->and($after?->metadata['otp']['counter'] ?? null)->toBe(1)
-            ->and($verifier->verify($challenge, $code)->successful())->toBeFalse();
+            ->and($verifier->verify($challenge, $code)->verified)->toBeFalse();
     });
 });
 
