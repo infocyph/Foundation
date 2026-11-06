@@ -23,6 +23,11 @@ use Infocyph\Omnibus\Serialization\StampCodec;
 use Infocyph\Omnibus\Serialization\StampCodecRegistry;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Generated-runtime Omnibus durable service composition entrypoint.
+ *
+ * @api
+ */
 final readonly class OmnibusDurableFactory
 {
     public function __construct(
