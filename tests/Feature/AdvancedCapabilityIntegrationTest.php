@@ -11,6 +11,7 @@ use Infocyph\Foundation\Auth\Mfa\MfaFactorType;
 use Infocyph\Foundation\Foundation;
 use Infocyph\OTP\HOTP;
 use Infocyph\OTP\OCRA;
+use Infocyph\OTP\TOTP;
 use Infocyph\Runwire\Exception\CancelledException;
 use Infocyph\Runwire\RequestContext;
 use Infocyph\Runwire\Runtime\Enum\CancellationReason;
@@ -81,6 +82,146 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
             ->and($replayedVerification->successful())->toBeFalse()
             ->and($replayedVerification->code)->toBe('mfa_code_invalid')
             ->and($secondVerification->successful())->toBeTrue();
+
+        $totpSecret = TOTP::generateSecret(20);
+        $totp = new TOTP($totpSecret);
+        $totpFactor = $mfa->enrollFactor(
+            'account-canonical-totp',
+            MfaFactorType::TOTP,
+            'Canonical TOTP',
+            ['otp' => ['secret' => $totpSecret, 'digits' => 6, 'period' => 30]],
+            enabled: true,
+        )->factor;
+        $totpChallenge = $mfa->issueChallenge('account-canonical-totp', factorId: $totpFactor?->id);
+        expect($mfa->verifyChallenge((string) $totpChallenge->challenge?->id, $totp->generate())->successful())
+            ->toBeTrue();
+
+        // Invalid symbols and noncanonical trailing Base32 bits must never
+        // become a different accepted OTP factor encoding.
+        foreach ([$totpSecret . '
+        $ocra = OCRA::fromBase32('OCRA-1:HOTP-SHA1-6:QN08', $ocraSecret);
+        $ocraEnrollment = $mfa->enrollFactor(
+            'account-ocra',
+            MfaFactorType::OCRA,
+            'Challenge token',
+            ['otp' => ['secret' => $ocraSecret, 'suite' => 'OCRA-1:HOTP-SHA1-6:QN08']],
+            enabled: true,
+        );
+        $ocraFactorId = $ocraEnrollment->factor?->id;
+        $challengeValue = '12345678';
+        $ocraChallenge = $mfa->issueChallenge(
+            'account-ocra',
+            factorId: $ocraFactorId,
+            context: ['ocra_challenge' => $challengeValue],
+        );
+        $ocraVerification = $mfa->verifyChallenge((string) $ocraChallenge->challenge?->id, $ocra->generate($challengeValue));
+        $replayedOcraChallenge = $mfa->issueChallenge(
+            'account-ocra',
+            factorId: $ocraFactorId,
+            context: ['ocra_challenge' => $challengeValue],
+        );
+        $replayedOcraVerification = $mfa->verifyChallenge((string) $replayedOcraChallenge->challenge?->id, $ocra->generate($challengeValue));
+
+        expect($ocraVerification->successful())->toBeTrue()
+            ->and($replayedOcraVerification->successful())->toBeFalse()
+            ->and($replayedOcraVerification->code)->toBe('mfa_code_replayed');
+    });
+});
+
+
+it('rejects host-cancelled native HOTP mutation and retains the unconsumed counter for ordinary execution', function (): void {
+    $app = Foundation::web([
+        'auth' => [
+            'drivers' => ['mfa' => 'otp', 'storage' => 'memory'],
+            'otp' => ['replay' => ['store' => 'otp-cancellation-state']],
+        ],
+        'cache' => [
+            'default' => 'otp-cancellation-state',
+            'stores' => [
+                'otp-cancellation-state' => [
+                    'driver' => 'memory',
+                    'namespace' => 'foundation-otp-cancel-' . bin2hex(random_bytes(8)),
+                    'fail_open' => false,
+                    'security' => ['integrity_key' => 'foundation-otp-cancellation-test-key'],
+                ],
+            ],
+        ],
+    ])->boot();
+
+    $app->container()->withinScope(RuntimeRequestContext::REQUEST_SCOPE, static function () use ($app): void {
+        $mfa = $app->make(AuthServices::class)->mfa();
+        $secret = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
+        $factor = $mfa->enrollFactor(
+            'account-cancelled-hotp',
+            MfaFactorType::HOTP,
+            'Cancelled native HOTP',
+            ['otp' => ['secret' => $secret, 'counter' => 0, 'digits' => 6]],
+            enabled: true,
+        )->factor;
+        expect($factor)->not->toBeNull();
+
+        $challenge = $mfa->issueChallenge('account-cancelled-hotp', factorId: $factor->id)->challenge;
+        expect($challenge)->not->toBeNull();
+
+        $verifier = $app->make(OtpMfaVerifier::class);
+        $store = $app->make(MfaFactorStoreInterface::class);
+        $code = new HOTP($secret)->generate(0);
+        $runtime = RuntimeContext::standalone();
+        $request = RequestContext::create($runtime);
+
+        try {
+            CacheRunwire::share($request, null, static function () use ($verifier, $challenge, $request, $code): void {
+                expect(CacheRunwire::current()?->request)->toBe($request);
+                $request->cancel(CancellationReason::HOST_CANCELLED);
+
+                expect(fn() => $verifier->verify($challenge, $code))->toThrow(CancelledException::class);
+            }, $runtime);
+        } finally {
+            $request->complete();
+        }
+
+        $before = $store->findForAccount('account-cancelled-hotp')[0] ?? null;
+        expect($before?->revision)->toBe(0)
+            ->and($before?->metadata['otp']['counter'] ?? null)->toBe(0)
+            ->and(CacheRunwire::current())->toBeNull();
+
+        expect($verifier->verify($challenge, $code)->verified)->toBeTrue();
+        $after = $store->findForAccount('account-cancelled-hotp')[0] ?? null;
+        expect($after?->revision)->toBe(1)
+            ->and($after?->metadata['otp']['counter'] ?? null)->toBe(1)
+            ->and($verifier->verify($challenge, $code)->verified)->toBeFalse();
+    });
+});
+
+it('keeps WebAuthn policy limited to OTP passkey inputs', function (): void {
+    $config = WebAuthnConfig::fromArray([
+        'rp_id' => 'example.test',
+        'origin' => 'https://example.test',
+        'challenge_ttl' => 240,
+        'allow_subdomains' => true,
+    ]);
+
+    expect($config->rpId)->toBe('example.test')
+        ->and($config->origin)->toBe('https://example.test')
+        ->and($config->challengeTtl)->toBe(240)
+        ->and($config->allowSubdomains)->toBeTrue();
+});
+, str_repeat('A', 25) . 'B'] as $index => $malformedSecret) {
+            expect(fn() => new TOTP($malformedSecret))->toThrow(InvalidArgumentException::class);
+
+            $malformedAccount = 'account-invalid-totp-' . $index;
+            $invalidFactor = $mfa->enrollFactor(
+                $malformedAccount,
+                MfaFactorType::TOTP,
+                'Invalid Base32 TOTP',
+                ['otp' => ['secret' => $malformedSecret]],
+                enabled: true,
+            )->factor;
+            $invalidChallenge = $mfa->issueChallenge($malformedAccount, factorId: $invalidFactor?->id);
+            $invalidResult = $mfa->verifyChallenge((string) $invalidChallenge->challenge?->id, '000000');
+            expect($invalidResult->successful())->toBeFalse()
+                ->and($invalidResult->code)->toBe('mfa_factor_invalid_configuration');
+        }
 
         $ocraSecret = OCRA::generateSecret(20);
         $ocra = OCRA::fromBase32('OCRA-1:HOTP-SHA1-6:QN08', $ocraSecret);
