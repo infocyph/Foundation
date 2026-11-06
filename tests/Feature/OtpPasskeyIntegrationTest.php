@@ -153,5 +153,38 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
                 'other-session', 'owner', null, $now, $now, $now + 300, $now,
             ), 'payment', ['method' => 'passkey']))->toBeTrue()
             ->and($services->passkeys()->finishAuthentication($result)->successful())->toBeFalse();
+
+        // A fresh, correctly signed authenticator assertion is still invalid
+        // when its browser origin does not match the configured RP policy.
+        $wrongOriginChallenge = $service->startAuthentication('owner');
+        $wrongOriginClientData = json_encode([
+            'type' => 'webauthn.get',
+            'challenge' => $wrongOriginChallenge->challenge,
+            'origin' => 'https://untrusted.example.test',
+        ], JSON_THROW_ON_ERROR);
+        $wrongOriginAuthenticatorData = hash('sha256', 'foundation.test', true) . "\x05" . pack('N', 2);
+        $wrongOriginSignature = '';
+        if (!openssl_sign(
+            $wrongOriginAuthenticatorData . hash('sha256', $wrongOriginClientData, true),
+            $wrongOriginSignature,
+            $key,
+            OPENSSL_ALGO_SHA256,
+        )) {
+            throw new RuntimeException('Unable to sign the wrong-origin authenticator fixture.');
+        }
+        $wrongOriginPayload = json_decode($payload, true, flags: JSON_THROW_ON_ERROR);
+        $wrongOriginPayload['response']['authenticatorData'] = \Infocyph\OTP\Support\Base64Url::encode($wrongOriginAuthenticatorData);
+        $wrongOriginPayload['response']['clientDataJSON'] = \Infocyph\OTP\Support\Base64Url::encode($wrongOriginClientData);
+        $wrongOriginPayload['response']['signature'] = \Infocyph\OTP\Support\Base64Url::encode($wrongOriginSignature);
+        $wrongOriginResult = new \Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationResult(
+            $wrongOriginChallenge->id,
+            $credentialId,
+            '',
+            '',
+            '',
+            metadata: ['credential_json' => json_encode($wrongOriginPayload, JSON_THROW_ON_ERROR)],
+        );
+        expect($services->passkeys()->finishAuthentication($wrongOriginResult)->successful())->toBeFalse()
+            ->and($store->findByCredentialId($credentialId)?->revision)->toBe(1);
     });
 });
