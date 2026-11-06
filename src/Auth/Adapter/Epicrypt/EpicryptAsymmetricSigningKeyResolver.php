@@ -13,6 +13,11 @@ use Infocyph\Epicrypt\Token\Jwt\Enum\AsymmetricJwtAlgorithm;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
 
+/**
+ * Application-configured Epicrypt asymmetric signing-key resolver.
+ *
+ * @api
+ */
 final readonly class EpicryptAsymmetricSigningKeyResolver
 {
     public function __construct(private ConfigRepository $config) {}
