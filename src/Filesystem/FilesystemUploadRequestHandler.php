@@ -123,16 +123,25 @@ final readonly class FilesystemUploadRequestHandler
      */
     private function resolveInt(?int $value, array $candidates, string $label): int
     {
-        if (is_int($value)) {
+        if ($value !== null) {
+            if ($value < 0) {
+                throw new \InvalidArgumentException(sprintf('The %s must be a non-negative decimal integer.', $label));
+            }
+
             return $value;
         }
 
         foreach ($candidates as $candidate) {
-            if (is_int($candidate)) {
+            if (is_int($candidate) && $candidate >= 0) {
                 return $candidate;
             }
-            if (is_string($candidate) && is_numeric($candidate)) {
-                return (int) $candidate;
+            if (!is_string($candidate) || preg_match('/\A(?:0|[1-9][0-9]*)\z/D', $candidate) !== 1) {
+                continue;
+            }
+
+            $parsed = filter_var($candidate, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+            if (is_int($parsed)) {
+                return $parsed;
             }
         }
 

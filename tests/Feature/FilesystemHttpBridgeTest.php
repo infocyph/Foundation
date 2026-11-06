@@ -185,6 +185,31 @@ it('handles normal and chunked upload requests through Pathwise UploadSource', f
             'name' => 'chunked.txt', 'type' => 'text/plain',
         ]]);
 
+        // Neither fractional/exponent notation nor overflow may be coerced into
+        // a different chunk index before Pathwise receives the source.
+        foreach (['1.5', '1e2', '-1', str_repeat('9', 40)] as $index) {
+            $malformed = Request::fake(
+                post: [
+                    'uploadId' => 'bridge-malformed',
+                    'chunkIndex' => $index,
+                    'totalChunks' => 2,
+                    'originalFilename' => 'chunked.txt',
+                ],
+                headers: ['Host' => 'localhost'],
+                method: 'POST',
+                uri: 'http://localhost/upload/chunk',
+            )->withUploadedFiles(['file' => [
+                'tmp_name' => $chunkOne,
+                'size' => filesize($chunkOne) ?: 0,
+                'error' => UPLOAD_ERR_OK,
+                'name' => 'chunked.txt',
+                'type' => 'text/plain',
+            ]]);
+            expect(fn() => $uploads->processChunkUploadRequest($malformed, directory: $directory, disk: 'uploads'))
+                ->toThrow(InvalidArgumentException::class);
+            expect(is_file($chunkOne))->toBeTrue();
+        }
+
         $firstState = $uploads->processChunkUploadRequest($first, directory: $directory, disk: 'uploads');
         $secondState = $uploads->processChunkUploadRequest($second, directory: $directory, disk: 'uploads');
         $finalized = $uploads->finalizeChunkUpload('bridge-upload', $directory, 'uploads');

@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 87 — reject malformed untrusted chunk indices before moving data (exact-head QA pending)
+
+- **Source correctness:** `FilesystemUploadRequestHandler::resolveInt()` no longer coerces `is_numeric()` input into a different integer. Accept real nonnegative integers and canonical ASCII decimal numeric strings only; reject a negative explicit index, fractional strings, exponent notation, leading signs and overflow. Preserve valid `0` and `1` chunk metadata and the existing Pathwise processor/operation boundary. This closes an untrusted request-normalization ambiguity without implementing an alternate upload engine.
+- **Regression:** The real Webrick-to-Pathwise upload test submits invalid `chunkIndex` values (`1.5`, `1e2`, `-1` and an overflowing integer) to the existing HTTP bridge and proves an `InvalidArgumentException` occurs without moving or deleting the source temporary file. The original normal and chunked uploads still execute immediately afterward, asserting exact reconstructed content.
+- **Acceptance:** Strengthens the broad P3 Pathwise untrusted upload criterion, but full containment, malicious scanning, upload atomicity, chunk ownership and cancellation remain distinct portions requiring evidence. Formal **77/90 accepted, 13 open** until exact-head PHPForge `dev-main@dev` static/functional/production/benchmark/native-host QA confirms the change. Do not alter P6 timing thresholds, suppressions, PR draft/open status or release/tag.
+
 ## Foundation 4 Batch 86 — signed WebAuthn RP-ID rejection and retained CAS (exact-head QA pending)
 
 - **Batch 85 live cluster:** The newly introduced [Native Redis Cluster job in Security & Standards 42232465543](https://github.com/infocyph/Foundation/actions/runs/42232465543) has passed against three real independent phpredis Redis Cluster nodes. Full PHPForge/native-host and release-evidence matrix still requires exact-head completion; the broad P3 cluster criterion remains open until that complete evidence is green.
