@@ -65,6 +65,43 @@ if ($mode === 'all') {
     $cases[] = $all;
 }
 
+// The minimal --no-dev consumer must reject every explicitly selected
+// specialist before producing a partial service graph or artifact.
+if ($mode === 'core') {
+    $catalog = new ModuleArchitectureCatalog();
+    foreach ($all as $id) {
+        $flags = array_fill_keys($all, false);
+        $flags[$id] = true;
+        $config = [
+            'app' => ['base_path' => getcwd(), 'env' => 'local', 'capabilities' => $capabilities],
+            '_config_cache' => false,
+            'modules' => ['features' => $flags],
+        ];
+        $context = FoundationBuildContext::fromConfig(
+            new ConfigRepository($config),
+            RuntimeMode::Cli,
+            $capabilities,
+        );
+        $packages = $catalog->resolve($id)['definition']['packages'];
+
+        try {
+            new Bootstrapper()->compose(FoundationGraph::compose($context), $context);
+        } catch (LogicException $exception) {
+            $message = $exception->getMessage();
+            $firstPackage = array_key_first($packages);
+            if (!str_contains($message, 'Selected feature ' . $id . ' requires package ')
+                || !str_contains($message, (string) $firstPackage)
+            ) {
+                throw new RuntimeException('Missing specialist diagnostic was not actionable: ' . $message);
+            }
+
+            continue;
+        }
+
+        throw new RuntimeException('A missing selected specialist was silently accepted: ' . $id);
+    }
+}
+
 $root = sys_get_temp_dir() . '/foundation-no-dev-module-matrix-' . bin2hex(random_bytes(5));
 mkdir($root . '/bootstrap/cache', 0775, true);
 

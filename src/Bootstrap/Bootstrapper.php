@@ -9,6 +9,7 @@ use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ProviderFileLoader;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProviderInterface;
+use Composer\InstalledVersions;
 use Infocyph\Foundation\Application\ServiceRegistry;
 use Infocyph\Foundation\Auth\AuthServiceProvider;
 use Infocyph\Foundation\Cache\CacheServiceProvider;
@@ -22,6 +23,7 @@ use Infocyph\Foundation\Http\HttpServiceProvider;
 use Infocyph\Foundation\Http\JsonDispatch\JsonDispatchServiceProvider;
 use Infocyph\Foundation\Logging\LoggingServiceProvider;
 use Infocyph\Foundation\Messaging\MessagingServiceProvider;
+use Infocyph\Foundation\Module\ModuleArchitectureCatalog;
 use Infocyph\Foundation\Module\ModuleFeatureCapabilityPolicy;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
 use Infocyph\Foundation\Routing\RouteFileLoader;
@@ -98,6 +100,7 @@ final class Bootstrapper
         $registry ??= new ServiceRegistry();
         $registry->add(new PathServiceProvider());
 
+        $this->assertSelectedFeaturePackages($context);
         $this->registerOptionalProviders($context, $registry);
 
         if ($context->runtimeMode === RuntimeMode::Web) {
@@ -270,6 +273,37 @@ final class Bootstrapper
         }
 
         return $normalized;
+    }
+
+    /**
+     * Selected optional features must fail before providers contribute a partial graph.
+     * Composer owns installation; Foundation reports the exact feature and package.
+     *
+     * @throws \LogicException
+     */
+    private function assertSelectedFeaturePackages(FoundationBuildContext $context): void
+    {
+        if ($context->featureSelections === null) {
+            return;
+        }
+
+        $catalog = new ModuleArchitectureCatalog();
+        foreach ($context->featureSelections as $id => $selected) {
+            if (!$selected) {
+                continue;
+            }
+
+            foreach ($catalog->resolve($id)['definition']['packages'] as $package => $constraint) {
+                if (!InstalledVersions::isInstalled($package)) {
+                    throw new \LogicException(sprintf(
+                        'Selected feature %s requires package %s (%s); install it before compiling the Foundation runtime.',
+                        $id,
+                        $package,
+                        $constraint,
+                    ));
+                }
+            }
+        }
     }
 
     private function registerOptionalProviders(FoundationBuildContext $context, ServiceRegistry $registry): void

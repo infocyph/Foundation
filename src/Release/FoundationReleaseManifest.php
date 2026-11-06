@@ -261,6 +261,7 @@ final class FoundationReleaseManifest
             }
 
             $source = new Config();
+
             try {
                 if (!$source->loadFile($temporary)) {
                     throw new \RuntimeException('Unable to evaluate staged Foundation release manifest.');
