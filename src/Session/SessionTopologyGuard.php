@@ -9,6 +9,11 @@ use Infocyph\Foundation\Config\DeploymentTopology;
 use Infocyph\Foundation\Config\SharedStateTopology;
 use Infocyph\Foundation\Exception\ConfigurationException;
 
+/**
+ * Explicit session topology validation for application-selected session stores.
+ *
+ * @api
+ */
 final readonly class SessionTopologyGuard
 {
     private SharedStateTopology $state;

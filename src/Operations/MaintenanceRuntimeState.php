@@ -6,7 +6,11 @@ namespace Infocyph\Foundation\Operations;
 
 use Infocyph\Webrick\Middleware\Maintenance\MaintenanceStateInterface;
 
-/** Worker-local bounded view of the Foundation maintenance control plane. */
+/**
+ * Worker-local bounded view of the Foundation maintenance control plane.
+ *
+ * @api
+ */
 final class MaintenanceRuntimeState implements MaintenanceStateInterface
 {
     /** @var array{enabled:bool,enabled_at:?string,retry_after:?int,message:?string,driver:string}|null */

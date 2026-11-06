@@ -12,7 +12,11 @@ use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
 use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
 use Infocyph\Webrick\Runtime\Http\RuntimeAdapterInterface;
 
-/** Process-boot loader for the active immutable Foundation generation. */
+/**
+ * Process-boot loader for the active immutable Foundation generation.
+ *
+ * @api
+ */
 final readonly class FoundationReleaseRuntime
 {
     public function __construct(private ActiveGeneration $active = new ActiveGeneration()) {}

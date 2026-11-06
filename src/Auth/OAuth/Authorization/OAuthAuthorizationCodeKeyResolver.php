@@ -15,6 +15,11 @@ use Infocyph\Epicrypt\Token\Jwt\Enum\JweKeyManagementAlgorithm;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
 
+/**
+ * Application-constructible OAuth authorization-code protection key resolver.
+ *
+ * @api
+ */
 final readonly class OAuthAuthorizationCodeKeyResolver
 {
     public const string DOMAIN = 'foundation.auth.oauth.authorization-code.v1';
