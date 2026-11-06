@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 80 — native email sender/mailbox/spool host scope (exact-head QA pending)
+
+- **Batch 79 source:** `e97b4f89` covers live mutable HTTP/gRPC default-profile switching with a 30-second host-owned monotonic deadline and cancellation before subsequent construction. The official PHP 8.4/8.5 Psalm/PHPStan analyzers passed; full functional/benchmark/native-host qualification is separate.
+- **Batch 80 native email coverage:** Extend the existing real Foundation `EmailProfiles` / TalkingBytes 2.3.1 test to create the selected fake email sender, spool receiver and configured IMAP/POP3 mailbox handles inside an exact borrowed Runwire request. After **host cancellation**, reject subsequent construction for each of the four factory paths through `NativeRunwireOperation::current()`; after host completion/release, successfully create fresh synchronous handles on the same `EmailProfiles` instance. This makes the previously untested sender/receiver/mailbox portion of the P3 per-operation `withRunwire` contract concrete, without real SMTP/IMAP network side effects or cached request references. The existing fake-email delivery/spool/parsing test remains intact.
+- **P3 candidate:** Once full exact-head PHPForge stable/lowest QA, production consumers, clean install, benchmarks and native-host smoke are green, review both Batch 79/80 plus native TalkingBytes factory deadline ownership to decide whether the combined HTTP/gRPC/email selected-profile forwarding criterion can be accepted. Do not claim the distinct selected SMTP/Mailpit, multipart, remote network gRPC or mailbox transport matrix is complete. Tracker remains **75/90 accepted, 15 open** pending proof; P6 sustained paired-host qualification remains open. PR draft/unmerged, no tag/release.
+
 ## Foundation 4 Batch 79 — native TalkingBytes live profile replacement and deadline (exact-head QA pending)
 
 - **Batch 78 source:** `a4b59efb` adds a real signed WebAuthn wrong-origin assertion and no-CAS-mutation postcondition. The QA and native host checks for that source are separate; do not advance the broad P3 passkey criterion without full exact-head evidence.
