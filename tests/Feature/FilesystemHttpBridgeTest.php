@@ -12,6 +12,9 @@ use Infocyph\Foundation\Filesystem\FilesystemUploadRequestHandler;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Filesystem\StorageRegistry;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Pathwise\StreamHandler\MalwareScanRequest;
+use Infocyph\Pathwise\StreamHandler\MalwareScanVerdict;
+use Infocyph\Pathwise\StreamHandler\MalwareScannerInterface;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Body\FileBody;
 use League\Flysystem\Filesystem;
@@ -229,6 +232,82 @@ it('handles normal and chunked upload requests through Pathwise UploadSource', f
             $disk->deleteDirectory($directory);
         }
         foundationFilesystemRemoveDirectory($basePath);
+    }
+});
+
+it('fails closed on a malicious HTTP upload before publishing a Pathwise storage object', function (): void {
+    [$app, $root] = foundationFilesystemApp();
+    $app->boot();
+    $storage = $app->make(StorageRegistry::class);
+    $disk = $storage->disk('uploads');
+    $directory = 'tests/scanner-' . bin2hex(random_bytes(8));
+    $temporary = tempnam(sys_get_temp_dir(), 'foundation-scanned-upload-');
+    if ($temporary === false) {
+        throw new RuntimeException('Unable to allocate scanned upload fixture.');
+    }
+    file_put_contents($temporary, 'untrusted-data-fixture');
+
+    $scanner = new class implements MalwareScannerInterface {
+        public int $calls = 0;
+
+        public function scan(MalwareScanRequest $request): MalwareScanVerdict
+        {
+            unset($request);
+            ++$this->calls;
+
+            return MalwareScanVerdict::MALICIOUS;
+        }
+    };
+    $container = new class implements ContainerInterface {
+        public ?MalwareScannerInterface $scanner = null;
+
+        public function get(string $id): mixed
+        {
+            if ($id !== MalwareScannerInterface::class || $this->scanner === null) {
+                throw new RuntimeException('Unknown application scanner binding.');
+            }
+
+            return $this->scanner;
+        }
+
+        public function has(string $id): bool
+        {
+            return $id === MalwareScannerInterface::class && $this->scanner !== null;
+        }
+    };
+    $container->scanner = $scanner;
+    $config = new ConfigRepository(['filesystem' => [
+        'uploads' => ['malware_scan' => ['mode' => 'required', 'driver' => 'service']],
+    ]]);
+    $handler = new FilesystemUploadRequestHandler(new FilesystemTransferFactory(
+        $config,
+        $app->make(PathManager::class),
+        $storage,
+        new FilesystemMalwareScannerResolver($config, $container),
+    ));
+
+    try {
+        $request = Request::fake(headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload')
+            ->withUploadedFiles(['file' => [
+                'tmp_name' => $temporary,
+                'size' => filesize($temporary) ?: 0,
+                'error' => UPLOAD_ERR_OK,
+                'name' => 'malicious.txt',
+                'type' => 'text/plain',
+            ]]);
+
+        expect(fn() => $handler->processUploadRequest($request, directory: $directory, disk: 'uploads'))
+            ->toThrow(\Infocyph\Pathwise\Exceptions\UploadException::class, 'Malware scan rejected');
+        expect($scanner->calls)->toBe(1)
+            ->and($disk->listContents($directory)->toArray())->toBe([]);
+    } finally {
+        if (is_file($temporary)) {
+            unlink($temporary);
+        }
+        if ($disk->directoryExists($directory)) {
+            $disk->deleteDirectory($directory);
+        }
+        foundationFilesystemRemoveDirectory($root);
     }
 });
 
