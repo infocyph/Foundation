@@ -50,6 +50,15 @@ use Infocyph\Foundation\Module\Internal\ModuleArchitectureValidator;
  */
 final class ModuleArchitectureCatalog
 {
+    /** @var non-empty-array<string,string> */
+    private const array COMMUNICATION_PACKAGES = ['infocyph/talkingbytes' => '^2.3.1'];
+
+    /** @var non-empty-array<string,string> */
+    private const array CRYPTO_PACKAGES = ['infocyph/epicrypt' => '^3.3'];
+
+    /** @var non-empty-array<string,string> */
+    private const array DATABASE_PACKAGES = ['infocyph/dblayer' => '^6.1.4'];
+
     private const array FEATURE_IDS = [
         'data' => ['database', 'filesystem'],
         'security' => ['crypto', 'validation', 'mfa', 'passkey'],
@@ -57,31 +66,13 @@ final class ModuleArchitectureCatalog
     ];
 
     /** @var non-empty-array<string,string> */
-    private const array DATABASE_PACKAGES = ['infocyph/dblayer' => '^6.1.4'];
-
-    /** @var non-empty-array<string,string> */
     private const array FILESYSTEM_PACKAGES = ['infocyph/pathwise' => '^4.2.1'];
-
-    /** @var non-empty-array<string,string> */
-    private const array CRYPTO_PACKAGES = ['infocyph/epicrypt' => '^3.3'];
-
-    /** @var non-empty-array<string,string> */
-    private const array VALIDATION_PACKAGES = ['infocyph/reqshield' => '^3.3.1'];
-
-    /** @var non-empty-array<string,string> */
-    private const array MFA_PACKAGES = ['infocyph/otp' => '^7.0.1'];
-
-    /** @var non-empty-array<string,string> */
-    private const array PASSKEY_PACKAGES = [
-        'infocyph/otp' => '^7.0.1',
-        'web-auth/webauthn-lib' => '^5.3.12',
-    ];
 
     /** @var non-empty-array<string,string> */
     private const array MESSAGING_PACKAGES = ['infocyph/omnibus' => '^3.0.3'];
 
     /** @var non-empty-array<string,string> */
-    private const array COMMUNICATION_PACKAGES = ['infocyph/talkingbytes' => '^2.3.1'];
+    private const array MFA_PACKAGES = ['infocyph/otp' => '^7.0.1'];
 
     /** @var array<string,ArchitectureModule> */
     private const array MODULES = [
@@ -196,6 +187,15 @@ final class ModuleArchitectureCatalog
             ],
         ],
     ];
+
+    /** @var non-empty-array<string,string> */
+    private const array PASSKEY_PACKAGES = [
+        'infocyph/otp' => '^7.0.1',
+        'web-auth/webauthn-lib' => '^5.3.12',
+    ];
+
+    /** @var non-empty-array<string,string> */
+    private const array VALIDATION_PACKAGES = ['infocyph/reqshield' => '^3.3.1'];
 
     /**
      * @phpstan-return array<string,ArchitectureModule>
