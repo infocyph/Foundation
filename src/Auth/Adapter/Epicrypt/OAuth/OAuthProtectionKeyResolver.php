@@ -16,6 +16,11 @@ use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
 
+/**
+ * Application-configured OAuth protection key resolver used by generated service recipes.
+ *
+ * @api
+ */
 final readonly class OAuthProtectionKeyResolver
 {
     private const string AUTHORIZATION_CODE_LABEL = 'foundation.oauth.authorization-code.v1';
