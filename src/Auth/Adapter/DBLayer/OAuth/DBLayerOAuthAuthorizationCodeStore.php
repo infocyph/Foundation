@@ -12,6 +12,11 @@ use Infocyph\Foundation\Auth\OAuth\Authorization\OAuthAuthorizationCodeConsumeRe
 use Infocyph\Foundation\Auth\OAuth\Authorization\OAuthAuthorizationCodeConsumeStatus;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAuthorizationCodeStoreInterface;
 
+/**
+ * DBLayer-backed OAuth authorization-code persistence integration.
+ *
+ * @api
+ */
 final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore implements OAuthAuthorizationCodeStoreInterface
 {
     /**
