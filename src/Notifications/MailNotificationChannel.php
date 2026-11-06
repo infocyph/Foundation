@@ -6,6 +6,11 @@ namespace Infocyph\Foundation\Notifications;
 
 use Infocyph\TalkingBytes\Email\EmailMessage;
 
+/**
+ * Application notification channel implementation registered by service composition.
+ *
+ * @api
+ */
 final readonly class MailNotificationChannel implements NotificationChannel
 {
     public function __construct(private Mailer $mailer) {}
