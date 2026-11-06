@@ -8,6 +8,11 @@ use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Passkey\PasskeyCredential;
 use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialCompareAndSwapStoreInterface;
 
+/**
+ * Application-selectable in-memory passkey credential store.
+ *
+ * @api
+ */
 final class InMemoryPasskeyCredentialStore implements PasskeyCredentialCompareAndSwapStoreInterface
 {
     /** @var array<string, PasskeyCredential> */

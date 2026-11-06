@@ -14,6 +14,11 @@ use Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenClaims;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeySet;
 
+/**
+ * Native Epicrypt OAuth access-token implementation selected by auth composition.
+ *
+ * @api
+ */
 final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessTokenServiceInterface
 {
     private AsymmetricJwt $issuer;

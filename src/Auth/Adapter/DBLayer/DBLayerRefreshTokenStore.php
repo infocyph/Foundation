@@ -7,6 +7,11 @@ namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenRecord;
 use Infocyph\Foundation\Auth\Contract\Storage\RefreshTokenStoreInterface;
 
+/**
+ * Native DBLayer refresh-token persistence adapter.
+ *
+ * @api
+ */
 final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore implements RefreshTokenStoreInterface
 {
     /**

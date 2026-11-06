@@ -12,6 +12,11 @@ use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
 use Infocyph\TalkingBytes\Email\Emailer;
 use Infocyph\TalkingBytes\Email\ValueObject\EmailAddress;
 
+/**
+ * Native TalkingBytes authentication notification adapter.
+ *
+ * @api
+ */
 final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
 {
     /**

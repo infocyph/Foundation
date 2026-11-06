@@ -20,6 +20,11 @@ use Infocyph\OTP\Passkey;
 use Infocyph\OTP\Result\PasskeyResult;
 use Infocyph\OTP\ValueObjects\PasskeyCeremony;
 
+/**
+ * Native OTP/WebAuthn passkey service implementation.
+ *
+ * @api
+ */
 final readonly class OtpPasskeyService implements PasskeyServiceInterface
 {
     private const string AUTHENTICATION_BINDING = 'foundation:passkey:authentication:v1';

@@ -6,6 +6,11 @@ namespace Infocyph\Foundation\Command;
 
 use Infocyph\Foundation\Runtime\ExecutionId;
 
+/**
+ * Public context passed to application command handlers.
+ *
+ * @api
+ */
 final readonly class CommandContext
 {
     public function __construct(

@@ -12,6 +12,11 @@ use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\RememberTokenStoreInterface;
 use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
 
+/**
+ * Epicrypt-backed remember-token service implementation.
+ *
+ * @api
+ */
 final readonly class SimpleRememberTokenService implements RememberTokenServiceInterface
 {
     private EpicryptRememberToken $native;

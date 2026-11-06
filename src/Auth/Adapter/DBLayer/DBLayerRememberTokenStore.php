@@ -7,6 +7,11 @@ namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenRecord;
 use Infocyph\Foundation\Auth\Contract\Storage\RememberTokenStoreInterface;
 
+/**
+ * Native DBLayer remember-token persistence adapter.
+ *
+ * @api
+ */
 final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore implements RememberTokenStoreInterface
 {
     /**
