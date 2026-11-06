@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Application;
 
+use Infocyph\ArrayKit\Config\Config;
 use Infocyph\Foundation\Exception\BootstrapException;
 use Infocyph\Foundation\Filesystem\PathManager;
 
@@ -78,13 +79,19 @@ final readonly class ProviderFileLoader
      */
     private function providerConfig(string $file): array
     {
-        $providers = require $file;
-        if (!is_array($providers)) {
-            throw new BootstrapException(sprintf(
-                'Provider file "%s" must return a grouped provider array.',
-                $file,
-            ));
+        $source = new Config();
+        try {
+            if (!$source->loadFile($file)) {
+                throw new BootstrapException(sprintf('Provider file "%s" is not readable.', $file));
+            }
+        } catch (\UnexpectedValueException $exception) {
+            throw new BootstrapException(
+                sprintf('Provider file "%s" must return a grouped provider array.', $file),
+                previous: $exception,
+            );
         }
+
+        $providers = $source->all();
         if ($providers !== [] && array_is_list($providers)) {
             throw new BootstrapException(
                 'Provider files must define common, web, cli, worker, and scheduler provider groups.',

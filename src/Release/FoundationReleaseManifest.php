@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Release;
 
 use Composer\InstalledVersions;
+use Infocyph\ArrayKit\Config\Config;
 
 final class FoundationReleaseManifest
 {
@@ -245,6 +246,7 @@ final class FoundationReleaseManifest
      * Execute exactly the bytes captured by the caller, without reopening the
      * original path. An independently trusted caller verifies the digest first.
      * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     private static function evaluateCapturedBytes(string $contents): mixed
     {
@@ -258,7 +260,19 @@ final class FoundationReleaseManifest
                 throw new \RuntimeException('Unable to write captured Foundation release manifest.');
             }
 
-            return require $temporary;
+            $source = new Config();
+            try {
+                if (!$source->loadFile($temporary)) {
+                    throw new \RuntimeException('Unable to evaluate staged Foundation release manifest.');
+                }
+            } catch (\UnexpectedValueException $exception) {
+                throw new \UnexpectedValueException(
+                    'Captured Foundation release artifact must return an array.',
+                    previous: $exception,
+                );
+            }
+
+            return $source->all();
         } finally {
             if (is_file($temporary)) {
                 unlink($temporary);
