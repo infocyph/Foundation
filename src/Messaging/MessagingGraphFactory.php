@@ -28,6 +28,11 @@ use Infocyph\Omnibus\Transport\SyncTransport;
 use Infocyph\Omnibus\Transport\TransportRegistry;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Generated runtime messaging capability factory entrypoint.
+ *
+ * @api
+ */
 final class MessagingGraphFactory
 {
     /**
