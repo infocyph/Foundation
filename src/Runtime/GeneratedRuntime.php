@@ -14,7 +14,8 @@ use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\InterMix\DI\Build\StaticRuntimeGenerator;
 use Infocyph\InterMix\DI\ProductionContainer;
 
-/** One generated CLI, worker, or scheduler runtime reused for its process lifetime.
+/**
+ * One generated CLI, worker, or scheduler runtime reused for its process lifetime.
  *
  * @api
  */
