@@ -224,12 +224,15 @@ final readonly class ModuleFeaturePlanner
      */
     private function planAssets(array $state, array $context, array &$effects): void
     {
+        $published = array_fill_keys($context['published_configs'] ?? [], true);
+        $scheduled = array_fill_keys($effects['publish'], true);
         foreach ($state['config'] as $filename) {
-            if (!in_array($filename, $context['published_configs'] ?? [], true)
-                && !in_array($filename, $effects['publish'], true)
-            ) {
-                $effects['publish'][] = $filename;
+            if (isset($published[$filename]) || isset($scheduled[$filename])) {
+                continue;
             }
+
+            $effects['publish'][] = $filename;
+            $scheduled[$filename] = true;
         }
 
         foreach ($state['schemas'] as $schema) {
