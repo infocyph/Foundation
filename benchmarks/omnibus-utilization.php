@@ -5,9 +5,9 @@ declare(strict_types=1);
 use Composer\InstalledVersions;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
-use Infocyph\Foundation\Benchmarks\Support\Omnibus26BenchmarkCodec;
-use Infocyph\Foundation\Benchmarks\Support\Omnibus26BenchmarkMessage;
-use Infocyph\Foundation\Benchmarks\Support\Omnibus26StopLifecycle;
+use Infocyph\Foundation\Benchmarks\Support\OmnibusBenchmarkCodec;
+use Infocyph\Foundation\Benchmarks\Support\OmnibusBenchmarkMessage;
+use Infocyph\Foundation\Benchmarks\Support\OmnibusStopLifecycle;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Messaging\MessagingDatabaseSchema;
 use Infocyph\Foundation\Messaging\OmnibusWorkerFactory;
@@ -33,9 +33,9 @@ use Infocyph\Omnibus\Transport\InMemoryTransport;
 use Infocyph\Omnibus\Transport\TransportRegistry;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-function omnibus26Cycle(MessageBus $bus, InMemoryTransport|DBLayerTransport $transport): void
+function omnibusCycle(MessageBus $bus, InMemoryTransport|DBLayerTransport $transport): void
 {
-    $bus->dispatch(new Omnibus26BenchmarkMessage('bench'));
+    $bus->dispatch(new OmnibusBenchmarkMessage('bench'));
     $reservations = [...$transport->receive('benchmark')];
     if (count($reservations) !== 1) {
         throw new RuntimeException('Omnibus benchmark expected exactly one reservation.');
@@ -50,7 +50,7 @@ $repetitions = max(3, (int) (getenv('OMNIBUS_RUNTIME_REPETITIONS') ?: 5));
 $warmup = max(10, (int) (getenv('OMNIBUS_RUNTIME_WARMUP') ?: 50));
 
 $clock = new SystemClock();
-$message = Omnibus26BenchmarkMessage::class;
+$message = OmnibusBenchmarkMessage::class;
 $route = new Route('memory', 'benchmark');
 $directMemory = new InMemoryTransport($clock);
 $directMemoryBus = new MessageBus(
@@ -81,7 +81,7 @@ $foundationMemoryBus = $foundationMemoryApp->make(MessageBus::class);
 $foundationMemory = $foundationMemoryApp->make(InMemoryTransport::class);
 
 $serializer = new JsonEnvelopeSerializer(
-    new MessageCodecRegistry([new Omnibus26BenchmarkCodec()]),
+    new MessageCodecRegistry([new OmnibusBenchmarkCodec()]),
     new StampCodecRegistry(CoreStampCodecs::all()),
 );
 $directDatabasePath = tempnam(sys_get_temp_dir(), 'foundation-omnibus-direct-');
@@ -117,7 +117,7 @@ $foundationDurableApp = Foundation::worker([
             'failure_store' => 'database',
         ],
         'serialization' => [
-            'message_codecs' => [Omnibus26BenchmarkCodec::class],
+            'message_codecs' => [OmnibusBenchmarkCodec::class],
         ],
         'routes' => [
             $message => ['transport' => 'database', 'queue' => 'benchmark'],
@@ -145,31 +145,31 @@ $directWorkerOptions = new WorkerOptions(
     idleJitterRatio: 0.0,
     handleSignals: false,
 );
-$stop = new Omnibus26StopLifecycle();
+$stop = new OmnibusStopLifecycle();
 $foundationWorkerFactory = $foundationMemoryApp->make(OmnibusWorkerFactory::class);
 
 try {
     $subjects = [
         'direct_memory_cycle' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
-            static fn() => omnibus26Cycle($directMemoryBus, $directMemory),
+            static fn() => omnibusCycle($directMemoryBus, $directMemory),
             $operations,
             $repetitions,
             $warmup,
         ),
         'foundation_memory_cycle' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
-            static fn() => omnibus26Cycle($foundationMemoryBus, $foundationMemory),
+            static fn() => omnibusCycle($foundationMemoryBus, $foundationMemory),
             $operations,
             $repetitions,
             $warmup,
         ),
         'direct_durable_cycle' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
-            static fn() => omnibus26Cycle($directDurableBus, $directDurable),
+            static fn() => omnibusCycle($directDurableBus, $directDurable),
             $durableOperations,
             $repetitions,
             max(5, intdiv($warmup, 5)),
         ),
         'foundation_durable_cycle' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
-            static fn() => omnibus26Cycle($foundationDurableBus, $foundationDurable),
+            static fn() => omnibusCycle($foundationDurableBus, $foundationDurable),
             $durableOperations,
             $repetitions,
             max(5, intdiv($warmup, 5)),
@@ -196,7 +196,7 @@ try {
         'schema_version' => 1,
         'generated_at' => gmdate(DATE_ATOM),
         'metadata' => [
-            'suite' => 'foundation-omnibus-2.6-utilization',
+            'suite' => 'foundation-omnibus-utilization',
             'omnibus' => InstalledVersions::getPrettyVersion('infocyph/omnibus') ?? 'unknown',
             'dblayer' => InstalledVersions::getPrettyVersion('infocyph/dblayer') ?? 'unknown',
             'cachelayer' => InstalledVersions::getPrettyVersion('infocyph/cachelayer') ?? 'unknown',
@@ -237,7 +237,7 @@ try {
     }
 
     $encoded = json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-    file_put_contents($build . '/omnibus-2.6-benchmark.json', $encoded . PHP_EOL);
+    file_put_contents($build . '/omnibus-benchmark.json', $encoded . PHP_EOL);
     fwrite(STDOUT, $encoded . PHP_EOL);
 } finally {
     $directConnection->disconnect();

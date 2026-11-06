@@ -23,10 +23,15 @@ recorded the following immutable output in its uploaded
 - Candidate lock SHA-256:
   `d5b72564daff56897c64861a633abe834e8d728822cced084a962cf119ded278`.
   It is preserved **in the CI artifact**, not added to source control.
-- All packages in this resolved lock reported `abandoned: false`.
-  That is a Composer status field and **not proof of a clean security audit**.
-  The updated release-evidence workflow records a separate exact-lock
-  `composer audit --locked --format=json` result and fails on policy violations.
+- The independent Batch 70 locked Composer audit returned **zero advisories**,
+  and reported one abandoned transitive package, `doctrine/annotations`
+  (no replacement declared). The existing official PHPForge
+  `ic:release:audit` also reports **0 advisories / 1 non-blocking abandoned**.
+  The default `composer audit` exit code 1 for the abandoned package halted
+  Batch 70 despite clean advisories and all platform checks passing.
+  The next workflow explicitly uses `--abandoned=report`: the abandoned
+  package remains in the stored JSON and is **not hidden**, while any security
+  advisory, malware or other blocking Composer policy still fails CI.
 
 The source commits below are the dereferenced **published Git tag commit SHAs**
 for the actual versions in that lock (not tag-object SHAs). Environment/tool
@@ -67,7 +72,7 @@ native FPM/Runwire/Swoole/OpenSwoole hosts must remain green.
 `composer ic:release:audit` already run in the release-evidence job.
 Batch 70 additionally runs native
 `composer check-platform-reqs --lock` both with and without dev packages,
-and `composer audit --locked`. The resulting three JSON files are
+and `composer audit --locked --abandoned=report`. The resulting three JSON files are
 uploaded alongside the immutable lock digest and dependency inventory.
 No `--ignore-platform-reqs`, `--no-audit` or unchecked partial acceptance.
 
@@ -83,3 +88,15 @@ record identical lock hashes before any measurement. The existing
 paired-host workflow retains all sustained concurrency and 2%/2.5%
 performance limits. Do not use a green small native-host smoke to
 declare the paired-host performance matrix complete.
+
+## Batch 70 platform and security evidence
+
+[CI 42175214367](https://github.com/infocyph/Foundation/actions/runs/42175214367)
+recorded `platform-core.json` with **5/5** satisfied native platform
+requirements, `platform-full.json` with **26/26** satisfied requirements,
+and `composer-audit.json` with `advisories: []` plus the one non-blocking
+abandoned `doctrine/annotations` entry. All static, functional, benchmark,
+no-dev consumer and native-host lanes passed. The workflow verdict was red
+only because Composer's default policy exits 1 for abandoned packages.
+Batch 71 retains the same audit and JSON output with explicit
+`--abandoned=report`; no advisory suppressions or platform overrides.
