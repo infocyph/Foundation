@@ -55,7 +55,8 @@ final readonly class AuthPasskeyIdentityHashSchema implements Migration
 
         $schema->connection()->table($table)->chunkById(
             200,
-            static function (array $rows, int $_page) use ($schema, $table, $context): bool {
+            static function (array $rows, int $page) use ($schema, $table, $context): bool {
+                unset($page);
                 foreach ($rows as $row) {
                     self::backfillRow($schema, $context, $table, $row);
                 }
@@ -102,5 +103,4 @@ final readonly class AuthPasskeyIdentityHashSchema implements Migration
             throw new RuntimeException('Stored passkey identity changed while applying its digest migration.');
         }
     }
-
 }

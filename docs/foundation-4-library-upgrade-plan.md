@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 107 — correct exact-head migration quality failures
+
+- **Observed exact-head result:** [Security & Standards 42340591313](https://github.com/infocyph/Foundation/actions/runs/42340591313) on `fe70e842` completed with all four PHP 8.4/8.5 stable/lowest quality lanes red solely from Pint and PHPCS in `AuthPasskeyIdentityHashSchema`; Pest, Deptrac, Rector and all strict PHPStan/Psalm analysis passed. [Native HTTP hosts 42340590973](https://github.com/infocyph/Foundation/actions/runs/42340590973) all five serving/smoke jobs passed. Full paired-host jobs were skipped as PR smoke is not performance certification.
+- **Correction:** Keep DBLayer's two-argument `chunkById` callback contract; explicitly discard its unused page ordinal in the closure, as the migration's non-destructive `down()` already does for unused framework arguments. Remove the extra blank line before the class closing brace to satisfy PER Pint class-attribute separation. Do not change credential digests, CAS updates, chunk size, migration ID, release thresholds or any analyzer rule.
+- **Evidence gate:** Re-run official exact-head Security & Standards and native HTTP hosts before claiming green. The five acceptance gates P1 historical original lock, P4 actual dependency/artifact rebuild and coherent retained state old-source rollback, and P6 both sustained paired-host verdicts remain **unchecked**. Formal acceptance **85/90**; PR stays draft/unmerged, without tag or release.
+
 ## Foundation 4 Batch 106f — honor native migration chronological ordering
 
 - **Exact-head QA finding:** Batch 106e [Security & Standards 42340231347](https://github.com/infocyph/Foundation/actions/runs/42340231347) passed strict Psalm/PHPStan but reported one remaining migration-ledger assertion failure. DBLayer's native `MigrationRunner` executes registered migration IDs in chronological order: the 20261107 credential-hash backfill follows the two existing 20260907 OAuth upgrades, regardless of their construction order in the installer's configuration. The test incorrectly put the new ID before the existing OAuth migrations.
