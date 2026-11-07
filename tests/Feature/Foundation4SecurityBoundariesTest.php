@@ -30,6 +30,7 @@ use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
 use Infocyph\Foundation\Auth\Support\InMemoryAccountStore;
 use Infocyph\Foundation\Auth\Support\InMemoryAuditEventStore;
+use Infocyph\Foundation\Tests\Fixtures\AuthAuditSensitiveKeyMatrix;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
@@ -305,6 +306,38 @@ it('redacts arbitrarily cased nested credentials for login, reset, MFA and passk
             'mixed-mfa-seed-sentinel', 'access-token-sentinel', 'client-secret-sentinel', 'mixed-private-key-sentinel',
         ] as $secret) {
             expect($encoded)->not->toContain($secret);
+        }
+    }
+});
+
+it('redacts the full credential-key matrix while preserving explicit audit identifiers', function (): void {
+    $audit = new InMemoryAuditEventStore();
+    $sensitive = AuthAuditSensitiveKeyMatrix::sensitive();
+    $identifiers = AuthAuditSensitiveKeyMatrix::identifiers();
+
+    foreach ([
+        AuthEventType::LOGIN_SUCCESS,
+        AuthEventType::PASSWORD_RESET_REQUESTED,
+        AuthEventType::MFA_CHALLENGED,
+        AuthEventType::PASSKEY_USED,
+    ] as $type) {
+        AuthEventRecorder::record(
+            $audit,
+            new UidAuthIdGenerator(new ConfigRepository()),
+            new SystemClock(),
+            $type,
+            'account-1',
+            metadata: ['context' => ['nested' => $sensitive, 'safe' => $identifiers]],
+        );
+    }
+
+    expect($audit->events())->toHaveCount(4);
+    foreach ($audit->events() as $event) {
+        $context = $event->metadata['context'];
+        expect($context['safe'])->toBe($identifiers);
+        foreach ($sensitive as $key => $sentinel) {
+            expect($context['nested'][$key])->toBe('[REDACTED]');
+            expect(json_encode($event->metadata, JSON_THROW_ON_ERROR))->not->toContain($sentinel);
         }
     }
 });

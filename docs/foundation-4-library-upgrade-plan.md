@@ -2,6 +2,13 @@
 
 Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review complete; seven source findings and P6 certification gates open**.
 
+## Foundation 4 Batch 120 — complete audit credential aliases, compound OTP/PIN/PKCE matrix (pending CI)
+
+- **New review source:** `docs/foundation-4-consolidated-review.md` R01 (latest source `296c18c8`) proves that Batch 118 canonicalization still retained uppercase/mixed-case compound `MFA_OTP`, `ACCOUNT_PIN`, `mFaOtP` and `codeVerifierValue`. The original finding and 84/95 checkpoint remain in this report for auditability.
+- **Correction:** Complete the folded-key sensitivity matcher for compound OTP, PIN and code-verifier aliases, without allowing exact safe identifier exceptions to match arbitrary compound credentials. Do not introduce a new dependency or bypass any PHPForge engineering rule.
+- **Matrix regression:** Add a shared table-driven synthetic fixture spanning 24 credential families, arbitrary casing, acronym, underscore/hyphen, concatenation, common prefix and compound variants. Use the same matrix in four-purpose in-memory and native SQLite/DBLayer audit tests, verify every sensitive value is replaced with `[REDACTED]` and its sentinel bytes are absent from JSON, while explicit request/token/credential/authorization ID exceptions remain intact.
+- **Acceptance boundary:** Keep the three A04 checkboxes unchecked until R01 and R02 + their full official CI and identity provenance regressions are green; R03–R07, P3 streaming and both P6 certifications also remain open. Current **84/95**. No merge/tag/release.
+
 ## Current consolidated review — 2026-11-07
 
 The [Foundation 4 consolidated review](foundation-4-consolidated-review.md) is the current combined disposition of the original audit, independent review and implementation through `57d309a6dfc3e02078331a1118d563ed46f7c1d9`. Read that report for all findings together, their reproductions, required repairs/regressions, prior-finding dispositions, maintenance decisions and verification limits. Earlier batch/status/count statements below are historical checkpoints, not current acceptance.
