@@ -126,6 +126,16 @@ final readonly class EnvironmentSecretManager
         }
 
         try {
+            // Exclusive creation protects the name; restrict its mode before
+            // any secret byte reaches the file, regardless of process umask.
+            if (!chmod($temporary, 0600)) {
+                throw new \RuntimeException('Unable to secure the generated environment file.');
+            }
+            $permissions = fstat($handle);
+            if (!is_array($permissions) || ($permissions['mode'] & 0777) !== 0600) {
+                throw new \RuntimeException('Generated environment staging permissions are unsafe.');
+            }
+
             $length = strlen($contents);
             $written = 0;
             while ($written < $length) {
@@ -135,7 +145,7 @@ final readonly class EnvironmentSecretManager
                 }
                 $written += $bytes;
             }
-            if (!fflush($handle) || !chmod($temporary, 0600)) {
+            if (!fflush($handle)) {
                 throw new \RuntimeException('Unable to secure the generated environment file.');
             }
             fclose($handle);

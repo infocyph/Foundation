@@ -2,6 +2,13 @@
 
 Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review complete; seven source findings and P6 certification gates open**.
 
+## Foundation 4 Batch 122 — protect environment secret staging at first write
+
+- **R06:** A private final `.env` is insufficient if its exclusively created temporary sibling receives plaintext under the process umask `0022` before `chmod 0600`. Original review demonstrates an actual writable `0644` stage at the first write, not a successful external-user exploit.
+- **Fix:** After exclusive `fopen(..., 'x')`, set private mode and validate `fstat` **before** any bytes are written. Preserve existing full-write/flush/atomic-rename/cleanup behavior; do not change process-wide umask.
+- **Regression:** Exercise actual public environment-secret generation under permissive umask, observe the temporary stream's permissions immediately before the first `fwrite` via a test-only namespaced fixture, and fault-inject denied `chmod` to ensure no write, no stage residue and original file preserved. Test helpers remain outside production source.
+- **Acceptance:** Remains unchecked until full exact-head official CI. Formal **84/95**, no merge/tag/release or performance waiver.
+
 ## Foundation 4 Batch 121 — prevent provenance promotion at authorization, delegation and failed login audit sinks
 
 - **R02 review:** `AuditingAuthorizer::can()`, `DelegationManager::recordAudit()` and `Authenticator::failure()` explicitly assign free-form caller context `session_id`/`device_id` to canonical audit fields, contradicting the accepted security boundary. The two managers and failed-login branch lack evidence that these IDs come from an authoritative session/record.
