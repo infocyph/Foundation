@@ -38,6 +38,13 @@ Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review comple
 - **Correction:** Collapse cleanup callbacks into standard short arrow callbacks and extract the nullable acquired-lock release into one small private helper, reducing run complexity without changing required exception precedence. Explicitly document the throwable propagation from cache mutation, preserving `CleanupGuard` semantics and lock state invariants.
 - **Acceptance:** R07 remains unchecked pending successful official exact-head QA and strict analyzers. Formal **84/95**, `composer.lock` still gitignored, PR draft and unmerged.
 
+## Foundation 4 Batch 125 — retain original borrowed Runwire owner during lazy response emission
+
+- **R05:** Pathwise's initial download preparation already checks the borrowed request, but the Webrick response generator is advanced later outside that binding; cancellation after preparation or between chunks previously read onward. This is a native HTTP streaming lifecycle defect, not a reason to change Pathwise's adapter or own the host event loop.
+- **Fix:** Capture original `CacheRunwire::current()` when creating the response and bind its original `RunwireExecutionContext` only around each `DownloadProcessor::streamChunks()` iterator advance; restore context before yielding the chunk to Webrick. Do not reacquire the current emitter request, retain a completed owner, or change local file/HEAD/range/offload responses.
+- **Regression:** A genuine nonlocal `uploads://` response under borrowed Runwire request is canceled *after preparation before first read* and *between two chunk reads*; each actual producer advance must throw native cancellation. Existing synchronous streaming and native host smoke remain required. R05/P3 remain unchecked until independent Fiber/abandonment coverage and fully green official CI.
+- **Acceptance:** Formal **84/95**, P6 performance deliberately deferred, no merge/tag/release.
+
 ## Foundation 4 Batch 124a — restore strict OIDC exception contracts and runtime formatting
 
 - Batch 124 exact HEAD `d4ec6321` [Security & Standards 42362474708](https://github.com/infocyph/Foundation/actions/runs/42362474708) returned strict Psalm exception-contract findings in OIDC code issue/HTTP POST approval and one unrelated Pint `blank_line_before_statement` in the extracted runtime-control cache method.

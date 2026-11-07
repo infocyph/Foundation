@@ -141,6 +141,68 @@ it('exposes context-routed Pathwise responses as Webrick chunk iterables without
     }
 });
 
+it('honors original Runwire cancellation during nonlocal lazy response advancement', function (): void {
+    [$app, $root] = foundationFilesystemApp();
+    $app->boot();
+    $storage = $app->make(StorageRegistry::class);
+    $responses = $app->make(FilesystemResponseFactory::class);
+    $disk = $storage->disk('uploads');
+    $directory = 'tests/lazy-owner-' . bin2hex(random_bytes(6));
+    $path = $directory . '/download.txt';
+    $disk->write($path, str_repeat('chunk-owner-', 1800));
+
+    $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
+    \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::bind($runtime);
+    try {
+        $request = \Infocyph\Runwire\RequestContext::create($runtime);
+        try {
+            $response = \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
+                $request,
+                null,
+                static fn() => $responses->download(
+                    Request::fake(headers: ['Host' => 'localhost'], uri: 'http://localhost/download'),
+                    $storage->path($path, 'uploads'),
+                    disk: 'uploads',
+                ),
+                $runtime,
+            );
+            expect($response->isStreaming())->toBeTrue();
+            $producer = $response->getProducer();
+            expect($producer)->not->toBeNull();
+            $request->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
+            expect(fn() => $producer()->current())->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
+        } finally {
+            $request->complete();
+        }
+
+        $request = \Infocyph\Runwire\RequestContext::create($runtime);
+        try {
+            $response = \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
+                $request,
+                null,
+                static fn() => $responses->download(
+                    Request::fake(headers: ['Host' => 'localhost'], uri: 'http://localhost/download'),
+                    $storage->path($path, 'uploads'),
+                    disk: 'uploads',
+                ),
+                $runtime,
+            );
+            $producer = $response->getProducer();
+            $chunks = $producer();
+            expect($chunks->current())->toBeString()->not->toBe('');
+            $request->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
+            expect(fn() => $chunks->next())->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
+            unset($chunks);
+        } finally {
+            $request->complete();
+        }
+    } finally {
+        \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::release($runtime);
+        $disk->deleteDirectory($directory);
+        foundationFilesystemRemoveDirectory($root);
+    }
+});
+
 it('handles normal and chunked upload requests through Pathwise UploadSource', function (): void {
     [$app, $basePath] = foundationFilesystemApp();
     $app->boot();

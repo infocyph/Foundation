@@ -428,8 +428,12 @@ final readonly class FilesystemResponseFactory
             );
         }
 
+        $borrowed = CacheRunwire::current();
+        $runwire = $borrowed === null
+            ? null
+            : new RunwireExecutionContext($borrowed->runtime, $borrowed->request, $borrowed->scope);
         $response = Response::stream(
-            producer: $processor->streamChunks($manifest),
+            producer: self::streamBoundChunks($processor, $manifest, $runwire),
             status: $manifest->status,
         );
 
@@ -438,6 +442,44 @@ final readonly class FilesystemResponseFactory
         }
 
         return $response;
+    }
+
+    /**
+     * @return \Generator<int, string, mixed, void>
+     */
+    private static function streamBoundChunks(
+        DownloadProcessor $processor,
+        DownloadPreparation $manifest,
+        ?RunwireExecutionContext $context,
+    ): \Generator {
+        if ($context === null) {
+            yield from $processor->streamChunks($manifest);
+
+            return;
+        }
+
+        $chunks = $processor->streamChunks($manifest);
+        $started = false;
+        while (true) {
+            // Bind only while advancing the lazy iterator, not across yield
+            // into the host response emitter or another Fiber.
+            $chunk = $processor->withRunwire($context, static function () use ($chunks, &$started): ?string {
+                if ($started) {
+                    $chunks->next();
+                } else {
+                    $chunks->rewind();
+                    $started = true;
+                }
+
+                return $chunks->valid() ? $chunks->current() : null;
+            });
+
+            if ($chunk === null) {
+                return;
+            }
+
+            yield $chunk;
+        }
     }
 
     /** @param array<string, string|list<string>> $headers */
