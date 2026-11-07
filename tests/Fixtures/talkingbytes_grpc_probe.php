@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Communication\CommunicationProfiles;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Tests\Fixtures\FoundationGrpcFixtureMessage;
+use Infocyph\Foundation\Tests\Fixtures\FoundationGrpcFixtureStub;
 use Infocyph\TalkingBytes\Grpc\GrpcDeadline;
 use Infocyph\TalkingBytes\Grpc\GrpcMetadata;
 use Infocyph\TalkingBytes\Grpc\Native\NativeGrpcInvoker;
@@ -15,47 +17,6 @@ require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 if (!extension_loaded('grpc') || !class_exists(\Grpc\BaseStub::class)) {
     throw new RuntimeException('Native gRPC extension and generated-stub package are required.');
-}
-
-final readonly class FoundationGrpcFixtureMessage
-{
-    public function __construct(public string $payload = '') {}
-
-    public function serializeToString(): string
-    {
-        return $this->payload;
-    }
-
-    public static function decode(string $payload): self
-    {
-        return new self($payload);
-    }
-}
-
-final readonly class FoundationGrpcFixtureStub
-{
-    private \Grpc\BaseStub $inner;
-
-    public function __construct(int $port)
-    {
-        $this->inner = new \Grpc\BaseStub(
-            '127.0.0.1:' . $port,
-            ['credentials' => \Grpc\ChannelCredentials::createInsecure()],
-        );
-    }
-
-    public function call(string $method, FoundationGrpcFixtureMessage $message, ?float $deadline): object
-    {
-        $options = $deadline === null ? [] : ['timeout' => GrpcDeadline::secondsToMicros($deadline)];
-
-        return (new ReflectionMethod($this->inner, '_simpleRequest'))->invokeArgs($this->inner, [
-            '/foundation.Integration/' . $method,
-            $message,
-            [FoundationGrpcFixtureMessage::class, 'decode'],
-            [],
-            $options,
-        ]);
-    }
 }
 
 $root = sys_get_temp_dir() . '/foundation-grpc-network-' . bin2hex(random_bytes(5));

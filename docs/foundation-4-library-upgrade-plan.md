@@ -2,6 +2,11 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 101c — restore native gRPC response decode contract (exact-head QA pending)
+
+- [Native gRPC job 128292840711](https://github.com/infocyph/Foundation/actions/runs/42335944590/job/128292840711) showed precise failure `Call to undefined method FoundationGrpcFixtureMessage::mergeFromString()`. The real HTTP/2 endpoint and PHP ext-grpc integration were reached; the positive assertion correctly rejected a fixture not implementing the generated message decode contract.
+- Move test-only gRPC payload and stub into their PSR-4 `tests/Fixtures` class filenames to eliminate Composer optimize-autoload warnings. Implement both `serializeToString()` and instance `mergeFromString()` on the generated-message fixture; keep genuine native transport, typed payload checks and missing-method failure mapping. No production path changed, no fake success, no QA suppression. Formal **84/90** unchanged pending full CI and remote transport evidence.
+
 ## Foundation 4 Batch 101b — diagnose native gRPC real-wire failure without faking positive result
 
 - [Native gRPC job 128292178045](https://github.com/infocyph/Foundation/actions/runs/42335751029/job/128292178045) installed PHP ext-grpc, Composer grpc/grpc 1.85.0 and Python grpcio 1.76.0, but failed its strict positive unary assertion. The fail-closed assertion was correct; transport/debug details were not emitted.
