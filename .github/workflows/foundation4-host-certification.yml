@@ -67,7 +67,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: foundation4-host-${{ github.event.pull_request.number || github.ref }}
+  group: foundation4-host-${{ github.event.pull_request.number || github.ref }}-${{ inputs.certify_source && 'certification' || 'routine' }}
   cancel-in-progress: true
 
 jobs:
