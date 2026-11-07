@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 99 — real TalkingBytes loopback HTTP transport (exact-head QA pending)
+
+- **Real network traffic:** New loopback TCP fixture plus Foundation-configured `CommunicationProfiles::http()` regression for native TalkingBytes CurlTransport. Exercise a retryable HTTP 503 followed by success with exactly two real attempts, 302 redirect policy and final body, disk-backed multipart file/field/filename with source lifetime, typed 500 failure, and a genuine 2-request CurlMulti pool with preserved result keys. No simulated successful transport, remote public dependency or alternate production HTTP client.
+- **Remaining P3 requirements:** SMTP/Mailpit, native gRPC network and mailbox/spool protocol evidence are still separate, and the P3 TalkingBytes checkbox remains open. Do not equate loopback HTTP and fake email/spool coverage with real SMTP or gRPC. Source remains **84/90 accepted**, six open, until the exact-head official PHPForge/native host passes and remaining transport matrix is certified.
+- **Batch ownership:** One integration test, one isolated child fixture and one plan update in a single batch commit. Preserve native TalkingBytes public contracts and strict QA; PR stays draft/unmerged, no tag.
+
 ## Foundation 4 Batch 98 — accept certified DBLayer and OTP/WebAuthn P3 gates (exact-head QA required)
 
 - **Acceptance prerequisites:** Source commits Batch 95 (`105538bf`), 96 (`a3bc92e3`) and 97 (`31e388dc`) must have fully successful official Security & Standards (strict PHP 8.4/8.5 Psalm/PHPStan, all four QA lanes, both benchmarks, consumer installs, native Redis Cluster, release evidence) plus native-host workflows **at the latest source incorporating all tests**. This evidence-only checklist commit must not be pushed until those prerequisites are green. Record actual run URLs on push; source tests must not be altered merely to pass an acceptance tracker.
