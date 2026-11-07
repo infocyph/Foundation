@@ -38,6 +38,12 @@ Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review comple
 - **Correction:** Collapse cleanup callbacks into standard short arrow callbacks and extract the nullable acquired-lock release into one small private helper, reducing run complexity without changing required exception precedence. Explicitly document the throwable propagation from cache mutation, preserving `CleanupGuard` semantics and lock state invariants.
 - **Acceptance:** R07 remains unchecked pending successful official exact-head QA and strict analyzers. Formal **84/95**, `composer.lock` still gitignored, PR draft and unmerged.
 
+## Foundation 4 Batch 128 — return a protocol error when late OIDC approval is denied
+
+- **Exact-head Batch 127 [Security & Standards 42365275742](https://github.com/infocyph/Foundation/actions/runs/42365275742):** Psalm now reports only the unhandled `OAuthProtocolException` from `OAuthAuthorizationController::authorizationApprove()` through `OAuthHttpHandler::authorizationApproved()`; the prior OIDC handler and command throws are qualified. Do not weaken Psalm's checked error propagation.
+- **Protocol-boundary correction:** Wrap the shared GET/POST approval response through a private `approveWithProtocolError()` and translate any code-issuance protocol rejection using the validated OAuth redirect context into `authorizationFailure()`. This prevents an uncaught framework exception from escaping for a missing/invalid authentication timestamp while preserving standard OAuth error semantics. Retain the earlier OIDC interaction policy and CSRF middleware unchanged.
+- **Acceptance:** All review criteria remain unchecked pending complete exact-head functional, security and native host QA; P6 unchanged. Formal **84/95**, draft/unmerged.
+
 ## Foundation 4 Batch 127 — close remaining quality findings without behavior changes
 
 - **Exact-head Batch 126 [42364777681](https://github.com/infocyph/Foundation/actions/runs/42364777681):** Strict QA still reports `CommandExecutionCoordinator` method-order formatting; Psalm identifies missing declared `OAuthProtocolException` in `OAuthHttpHandler::authorizationApproved()` and missing `RuntimeException` from the coordinator's newly extracted wait recorder. Filesystem factory formatter issues from Batch 125 are no longer reported; full native-host smoke is independent.

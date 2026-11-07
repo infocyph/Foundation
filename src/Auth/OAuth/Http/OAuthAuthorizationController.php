@@ -55,6 +55,17 @@ final readonly class OAuthAuthorizationController
         };
     }
 
+    private function approveWithProtocolError(
+        AuthorizationRequest $request,
+        \Infocyph\Foundation\Auth\Principal\PrincipalInterface $principal,
+    ): Response {
+        try {
+            return $this->oauth->authorizationApproved($request, $principal);
+        } catch (OAuthProtocolException $exception) {
+            return $this->oauth->authorizationFailure($request, $exception);
+        }
+    }
+
     /**
      * @throws \Infocyph\Foundation\Auth\Exception\AuthenticationException
      * @throws \LogicException
@@ -86,7 +97,7 @@ final readonly class OAuthAuthorizationController
             }
         }
 
-        return $this->oauth->authorizationApproved($request, $principal);
+        return $this->approveWithProtocolError($request, $principal);
     }
 
     /**
@@ -122,7 +133,7 @@ final readonly class OAuthAuthorizationController
                 );
             }
 
-            return $this->oauth->authorizationApproved($authorization, $principal);
+            return $this->approveWithProtocolError($authorization, $principal);
         }
 
         if ($requirement === OpenIdInteractionRequirement::SUBJECT_AUTHENTICATION) {
