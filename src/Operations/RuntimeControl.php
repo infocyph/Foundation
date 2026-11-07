@@ -18,7 +18,12 @@ use Infocyph\UID\Id;
  */
 final readonly class RuntimeControl
 {
-    public function __construct(private Application $application) {}
+    private Application $application;
+
+    public function __construct(Application $application)
+    {
+        $this->application = $application;
+    }
 
     public function changed(string $scope, ?string $name, string $baseline): bool
     {

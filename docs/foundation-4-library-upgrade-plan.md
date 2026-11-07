@@ -38,6 +38,12 @@ Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review comple
 - **Correction:** Collapse cleanup callbacks into standard short arrow callbacks and extract the nullable acquired-lock release into one small private helper, reducing run complexity without changing required exception precedence. Explicitly document the throwable propagation from cache mutation, preserving `CleanupGuard` semantics and lock state invariants.
 - **Acceptance:** R07 remains unchecked pending successful official exact-head QA and strict analyzers. Formal **84/95**, `composer.lock` still gitignored, PR draft and unmerged.
 
+## Foundation 4 Batch 123h — eliminate incompatible empty-constructor formatting from runtime-control fix
+
+- Batch 123g `7c7e421` [Security & Standards 42361727475](https://github.com/infocyph/Foundation/actions/runs/42361727475) passed PHPStan/Psalm and the functional test lanes, but Pint continued to fail on `RuntimeControl.php` (`braces_position`, `single_line_empty_body`). [Native hosts 42361726972](https://github.com/infocyph/Foundation/actions/runs/42361726972) passed.
+- Keep the same private readonly application dependency with an explicit, nonempty constructor assignment. This avoids the empty constructor brace-format conflict with no runtime behavioral change or formatter override. Require exact-head official QA before accepting R07.
+- Formal **84/95** pending review criteria; P6 deliberately deferred by maintainer, with neither performance checkbox modified. No merge, tag or release.
+
 ## Foundation 4 Batch 123g — reduce runtime-control lock complexity after failed CI
 
 - **Latest CI:** Batch 123f `f2a2e928` [Security & Standards 42360821253](https://github.com/infocyph/Foundation/actions/runs/42360821253) failed only strict PHPForge quality (PHPStan complexity 13 for `RuntimeControl::mutate()` and Pint formatting on that source), while [native HTTP hosts 42360820955](https://github.com/infocyph/Foundation/actions/runs/42360820955) succeeded. Psalm and functional tests passed.
