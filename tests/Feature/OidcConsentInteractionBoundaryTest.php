@@ -16,6 +16,7 @@ use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Session\BrowserSession;
 use Infocyph\Foundation\Session\Middleware\CsrfMiddleware;
 use Infocyph\Foundation\Session\SessionConfig;
@@ -23,6 +24,7 @@ use Infocyph\Foundation\Session\Store\ArraySessionStore;
 use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
 use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 use Infocyph\Webrick\Request\Request;
+use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Response\Response;
 
 it('rechecks OIDC interaction on a valid-CSRF approval POST before issuing a code or consent', function (): void {
@@ -74,8 +76,25 @@ it('rechecks OIDC interaction on a valid-CSRF approval POST before issuing a cod
     $handler = new OAuthHttpHandler($manager, new OAuthHttpInput(), new OAuthHttpResponseFactory(), $config);
     $controller = new OAuthAuthorizationController($handler, $principals, $sessionConfig);
     $csrf = new CsrfMiddleware($sessionConfig);
+    $root = sys_get_temp_dir() . '/foundation-oidc-approval-route-' . bin2hex(random_bytes(8));
+    if (!mkdir($root, 0700, true)) {
+        throw new RuntimeException('Cannot create the OIDC test route root.');
+    }
 
     try {
+        // Dispatch through the real Webrick kernel and native CSRF middleware,
+        // not a hand-invoked controller callback.
+        $web = Foundation::web([
+            'base_path' => $root,
+            '_config_cache' => false,
+            'router' => ['cache' => false, 'files' => []],
+        ])->boot();
+        $web->make(Registrar::class)->post(
+            '/oauth/authorize',
+            [$controller, 'authorization'],
+            ['name' => 'test.oidc.approval', 'middleware' => [$csrf]],
+        );
+
         $client = $fixture->clients->register(
             OAuthClientType::Public,
             [OAuthGrantType::AuthorizationCode],
@@ -93,7 +112,7 @@ it('rechecks OIDC interaction on a valid-CSRF approval POST before issuing a cod
             'audience' => 'https://issuer.example.test/oidc/userinfo',
             'nonce' => 'consent-provenance-nonce',
         ];
-        $submit = static function (array $params, Principal $principal) use ($principals, $browser, $csrf, $csrfToken, $controller): Response {
+        $submit = static function (array $params, Principal $principal) use ($principals, $browser, $csrfToken, $web): Response {
             $principals->set($principal);
             $uri = 'https://issuer.example.test/oauth/authorize?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986);
             $request = Request::fake(
@@ -104,7 +123,7 @@ it('rechecks OIDC interaction on a valid-CSRF approval POST before issuing a cod
                 uri: $uri,
             )->withAttribute(BrowserSession::REQUEST_ATTRIBUTE, $browser);
 
-            return $csrf($request, static fn(Request $validated): Response => $controller->authorization($validated));
+            return $web->handle($request);
         };
 
         $stale = new Principal('account-1', accountId: 'account-1', metadata: ['auth_time' => $now - 7_200]);
@@ -142,8 +161,16 @@ it('rechecks OIDC interaction on a valid-CSRF approval POST before issuing a cod
             method: 'POST',
             uri: 'https://issuer.example.test/oauth/authorize?' . http_build_query($successParams, '', '&', PHP_QUERY_RFC3986),
         )->withAttribute(BrowserSession::REQUEST_ATTRIBUTE, $browser);
-        expect($csrf($invalidCsrf, static fn(Request $validated): Response => $controller->authorization($validated))->getStatusCode())->toBe(419);
+        expect($web->handle($invalidCsrf)->getStatusCode())->toBe(419);
     } finally {
         $fixture->close();
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST,
+        );
+        foreach ($files as $file) {
+            $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+        }
+        rmdir($root);
     }
 });
