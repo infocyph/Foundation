@@ -2,6 +2,13 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 117 — make the P6 default-branch workflow-dispatch blocker explicit
+
+- **Exact prior head:** Batch 116 `6748600e` passed [Security & Standards 42348173545](https://github.com/infocyph/Foundation/actions/runs/42348173545) and [native host smoke 42348173383](https://github.com/infocyph/Foundation/actions/runs/42348173383) with all official QA/host checks green. `composer.lock` remains gitignored by maintainer policy; P1 is accepted only as a documented exception to never-existing historical lock provenance. Formal **88/90**.
+- **Confirmed execution precondition:** Native host certification workflow is present on the PR branch but **absent from default `main`**. Per GitHub Actions `workflow_dispatch` semantics, manual dispatch is not available until that file exists on the default branch, even to someone with repository write access. Current connected GitHub tool does not expose workflow dispatch either. The previous PR-edit-trigger modifications were rejected by workflow validation and reverted. Preserve the reliable current workflow, no speculative trigger bypass or automatic expensive 24-case matrices on every PR update.
+- **Operator handoff correction:** Explicitly identify the need for a **separate reviewed workflow-only default-branch bootstrap** or an independently validated, guarded PR-event trigger before exact-head certification can begin. The bootstrap must not merge this Foundation 4 PR, tag, release, weaken variance/budget/warmup/soak rules or fabricate an unchanged historical lock. Keep P6 source-only and independent-lock dependency-upgrade checks unchecked until genuine complete primary/confirmation evidence passes.
+- **Scope:** Documentation-only blocker clarification, no extra QA workers, no source changes, no main-branch write. Full exact-head Security & Standards/native-host CI required to call this batch green. PR draft/unmerged, no tag/release.
+
 ## Foundation 4 Batch 116 — retain gitignored Composer lock policy and formally resolve P1 provenance exception
 
 - **Maintainer decision (2026-11-07):** Keep `composer.lock` **gitignored** for Foundation. This intentionally overrides the old P1 requirement to preserve an *original tracked Foundation 3 lock*, which did not exist. No change to `.gitignore`, no fake lock, no tracked generated lock and no ungrounded historical SHA. Preserve actual original Foundation 3 source and manifest SHA, all currently resolved package/source/dist refs and full audit/platform results, and label historical CI reconstructed locks as not-original.
