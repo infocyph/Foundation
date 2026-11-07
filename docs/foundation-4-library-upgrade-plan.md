@@ -38,6 +38,12 @@ Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review comple
 - **Correction:** Collapse cleanup callbacks into standard short arrow callbacks and extract the nullable acquired-lock release into one small private helper, reducing run complexity without changing required exception precedence. Explicitly document the throwable propagation from cache mutation, preserving `CleanupGuard` semantics and lock state invariants.
 - **Acceptance:** R07 remains unchecked pending successful official exact-head QA and strict analyzers. Formal **84/95**, `composer.lock` still gitignored, PR draft and unmerged.
 
+## Foundation 4 Batch 130 — align runtime-control constructor with Rector promotion
+
+- **Observed Batch 129 [Security & Standards 42365812006](https://github.com/infocyph/Foundation/actions/runs/42365812006):** Official PHPForge QA Pint, PHPCS, Pest, duplicate and reference integrity passed the affected PHP 8.4 stable lane; Rector found only `RuntimeControl::$application` should be promoted in its constructor. Preserve native cancellation/lock cleanup behavior and all strict quality rules.
+- **Correction:** Promote `Application` into the readonly constructor directly, retaining the public signature and removing the redundant assignment. No new interfaces, test exemptions, or unrelated changes.
+- **Acceptance:** Formal **84/95** remains until full exact-head Security & Standards/native HTTP host success and review regressions are accepted; no merge/tag/release.
+
 ## Foundation 4 Batch 129 — declare the OIDC response helper's remaining checked exception
 
 - **Observed Batch 128 [42365512342](https://github.com/infocyph/Foundation/actions/runs/42365512342):** Psalm's only remaining reported error is the newly extracted `OAuthAuthorizationController::approveWithProtocolError()` missing the preexisting `LogicException` contract raised by both approved response generation and validated OAuth failure formatting. Other previous errors are resolved. Annotate the accurate exception without suppressions or behavior changes.
