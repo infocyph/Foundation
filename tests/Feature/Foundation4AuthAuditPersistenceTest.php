@@ -32,6 +32,9 @@ it('persists no sensitive matrix key across nested login reset MFA and passkey r
         ]), $fixture->tables);
         $sensitive = AuthAuditSensitiveKeyMatrix::sensitive();
         $identifiers = AuthAuditSensitiveKeyMatrix::identifiers();
+        // Production DBLayer rejects SQL parameters over 1,024 bytes; keep
+        // every persisted audit record inside that real security boundary.
+        $chunks = array_chunk($sensitive, 12, true);
 
         foreach ([
             AuthEventType::LOGIN_SUCCESS,
@@ -39,23 +42,26 @@ it('persists no sensitive matrix key across nested login reset MFA and passkey r
             AuthEventType::MFA_CHALLENGED,
             AuthEventType::PASSKEY_USED,
         ] as $type) {
-            AuthEventRecorder::record(
-                $store,
-                new UidAuthIdGenerator(new ConfigRepository()),
-                new SystemClock(),
-                $type,
-                'account-1',
-                metadata: ['context' => ['nested' => $sensitive, 'safe' => $identifiers]],
-            );
+            foreach ($chunks as $index => $keys) {
+                AuthEventRecorder::record(
+                    $store,
+                    new UidAuthIdGenerator(new ConfigRepository()),
+                    new SystemClock(),
+                    $type,
+                    'account-1',
+                    metadata: ['chunk_index' => $index, 'context' => ['nested' => $keys, 'safe' => $identifiers]],
+                );
+            }
         }
 
         $rows = $connection->select('SELECT metadata FROM ' . $fixture->tables->auditEvents());
-        expect($rows)->toHaveCount(4);
+        expect($rows)->toHaveCount(count($chunks) * 4);
         foreach ($rows as $row) {
             $raw = (string) $row['metadata'];
             $metadata = json_decode($raw, true, flags: JSON_THROW_ON_ERROR);
             expect($metadata['context']['safe'])->toBe($identifiers);
-            foreach ($sensitive as $key => $sentinel) {
+            $keys = $chunks[$metadata['chunk_index']];
+            foreach ($keys as $key => $sentinel) {
                 expect($metadata['context']['nested'][$key])->toBe('[REDACTED]');
                 expect($raw)->not->toContain($sentinel);
             }

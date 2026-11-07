@@ -2,6 +2,12 @@
 
 Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review complete; seven source findings and P6 certification gates open**.
 
+## Foundation 4 Batch 120a — respect DBLayer parameter safety in credential-matrix persistence test
+
+- **Official exact-head finding:** [Security & Standards 42355500457](https://github.com/infocyph/Foundation/actions/runs/42355500457) Batch 120 added a complete synthetic audit credential matrix; the DBLayer/SQLite test sent its entire matrix as one `metadata` bound parameter of 3,512 bytes, violating the published DBLayer limit of **1,024 bytes**. PHPForge Pest failed in the new test on 8.4/8.5; PHPCS/Pint/static checks and the in-memory matrix passed. Do not change production DBLayer security limits to accommodate tests.
+- **Fix:** Preserve every matrix key, spelling and sentinel assertion but split the persisted test into 12-key chunks, one bounded audit row per chunk per login/reset/MFA/passkey purpose. Verify expected row count, safe IDs, stored redactions and absence of original sensitive bytes in every genuine persisted JSON row.
+- **Acceptance:** R01/R02 and A04 remain open until all official QA jobs and native hosts pass exact HEAD. Formal **84/95** unchanged, no custom workers/quality-rule waivers, PR draft/unmerged.
+
 ## Foundation 4 Batch 120 — complete audit credential aliases, compound OTP/PIN/PKCE matrix (pending CI)
 
 - **New review source:** `docs/foundation-4-consolidated-review.md` R01 (latest source `296c18c8`) proves that Batch 118 canonicalization still retained uppercase/mixed-case compound `MFA_OTP`, `ACCOUNT_PIN`, `mFaOtP` and `codeVerifierValue`. The original finding and 84/95 checkpoint remain in this report for auditability.
