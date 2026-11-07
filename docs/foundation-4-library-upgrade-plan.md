@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 101 — selected native gRPC over real HTTP/2 (exact-head QA pending)
+
+- **Native wire evidence:** Add a separate PHP 8.4 `ext-grpc` selected-feature job to the **existing** Security & Standards workflow. The job installs the optional generated PHP gRPC client package in its isolated CI environment, starts a pinned Python grpcio HTTP/2 loopback service and calls it through a caller-owned native `NativeGrpcInvoker` selected by Foundation `CommunicationProfiles::grpcNative()`. Check typed round-trip payload and genuine gRPC UNIMPLEMENTED status mapping; no fake `GrpcResponse` or alternate production client. Pin `grpcio==1.76.0` and keep PHP extension verification fail-closed.
+- **Scope:** Paired with real Batch 99 CurlTransport HTTP/multipart/pools, Batch 100 SMTP/Mailpit, existing webhook replay/cancellation, spool/mailbox and native worker-bound gRPC suites, this completes the requested TalkingBytes transport qualification **once full official CI is green**. Do not auto-check P3 until observed.
+- **Release rules:** Add this selected network job to the existing release dependency gate, while keeping no mandatory gRPC/SMTP extensions for ordinary Foundation PHP/FPM users. The job is never a custom Psalm worker. P1 original dependency provenance, P4 coherent upgrade/rollback and P6 sustained paired-host evidence remain separate. PR stays draft/unmerged and no tag.
+
 ## Foundation 4 Batch 100b — PHP 8.5 deprecated cURL cleanup correction (exact-head QA pending)
 
 - **Observed official QA:** [Security & Standards 42334771976](https://github.com/infocyph/Foundation/actions/runs/42334771976) passed real SMTP/Mailpit, production consumers, strict Psalm/PHPStan, all Pest tests, Pint, Redis Cluster and PHP 8.4 lanes, but PHP 8.5 stable/lowest PHPCS specifically rejected deprecated `curl_close()` in the newly added test-only Mailpit inspector. This was not a network or application runtime failure.

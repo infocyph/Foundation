@@ -15,7 +15,7 @@ concurrency:
 jobs:
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    needs: [phpforge, production-consumer, release-evidence, runtime-hosts, talkingbytes-mailpit]
+    needs: [phpforge, production-consumer, release-evidence, runtime-hosts, talkingbytes-mailpit, talkingbytes-grpc]
     uses: infocyph/phpforge/.github/workflows/release.yml@7214b16487277181c177343d4e4163a9b5843f24
     permissions:
       contents: write
@@ -66,6 +66,31 @@ jobs:
         run: composer update --no-interaction --no-progress --prefer-dist --prefer-stable
       - name: Verify real SMTP DATA was accepted and captured by Mailpit
         run: php tests/Fixtures/talkingbytes_mailpit_probe.php
+
+  talkingbytes-grpc:
+    name: Native gRPC wire - Foundation / TalkingBytes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "grpc, curl, mbstring, intl, sodium, pdo, pdo_sqlite, redis"
+          coverage: none
+      - name: Install native gRPC and selected package dependencies
+        run: |
+          php -r 'if (!extension_loaded("grpc")) { throw new RuntimeException("Native gRPC PHP extension unavailable."); }'
+          composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+          composer require --dev "grpc/grpc:^1.76" --no-interaction --no-progress --prefer-dist --prefer-stable
+      - name: Start pinned Python gRPC test peer and verify real native unary transport
+        run: |
+          python3 -m venv "$RUNNER_TEMP/foundation-grpc-venv"
+          "$RUNNER_TEMP/foundation-grpc-venv/bin/python" -m pip install --disable-pip-version-check "grpcio==1.76.0"
+          GRPC_PYTHON_BINARY="$RUNNER_TEMP/foundation-grpc-venv/bin/python" php tests/Fixtures/talkingbytes_grpc_probe.php
 
   redis-cluster:
     name: Native Redis Cluster - Foundation / CacheLayer
