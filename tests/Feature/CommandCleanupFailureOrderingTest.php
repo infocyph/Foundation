@@ -92,6 +92,11 @@ it('preserves the original inline command failure when secondary history persist
     $io = new NoopCommandIO();
 
     try {
+        // Convert a deliberately broken history destination to a real
+        // exception rather than leaking an expected fopen warning into Pest.
+        set_error_handler(static function (int $severity, string $message): never {
+            throw new ErrorException($message, 0, $severity);
+        });
         expect(fn() => $coordinator->run(
             $descriptor,
             ['infbyte'],
@@ -108,6 +113,7 @@ it('preserves the original inline command failure when secondary history persist
         ))->toThrow(LogicException::class, 'authoritative-command-failure');
         expect(is_dir($path))->toBeTrue();
     } finally {
+        restore_error_handler();
         if (is_dir($path)) {
             rmdir($path);
         }

@@ -29,7 +29,17 @@ it('rechecks OIDC interaction on a valid-CSRF approval POST before issuing a cod
     $now = 1_700_000_000;
     $fixture = new OAuth21FlowFixture(now: $now, openId: true);
     $config = new ConfigRepository([
-        'auth' => ['oauth' => ['issuer' => 'https://issuer.example.test']],
+        'auth' => ['oauth' => [
+            'issuer' => 'https://issuer.example.test',
+            'grants' => ['authorization_code'],
+            'routes' => [
+                'authorization' => '/oauth/authorize',
+                'token' => '/oauth/token',
+                'revocation' => '/oauth/revoke',
+                'introspection' => '/oauth/introspect',
+                'jwks' => '/.well-known/jwks.json',
+            ],
+        ]],
         'session' => ['driver' => 'array'],
     ]);
     $sessionConfig = SessionConfig::fromRepository($config, sys_get_temp_dir());

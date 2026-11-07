@@ -38,6 +38,12 @@ Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review comple
 - **Correction:** Collapse cleanup callbacks into standard short arrow callbacks and extract the nullable acquired-lock release into one small private helper, reducing run complexity without changing required exception precedence. Explicitly document the throwable propagation from cache mutation, preserving `CleanupGuard` semantics and lock state invariants.
 - **Acceptance:** R07 remains unchecked pending successful official exact-head QA and strict analyzers. Formal **84/95**, `composer.lock` still gitignored, PR draft and unmerged.
 
+## Foundation 4 Batch 131a — correct strict regression-fixture prerequisites
+
+- **Observed official Batch 131 [Security & Standards 42366740474](https://github.com/infocyph/Foundation/actions/runs/42366740474):** Full PHPForge static analysis and 1003 existing Pest cases passed; two new regression cases failed due test-harness assumptions, and the deliberately broken command-history file emitted a native warning. The OIDC HTTP fixture did not configure the real OAuth server metadata route set required to generate redirects; the completed Runwire owner correctly throws `LogicException` rather than a generic expected class string.
+- **Fix:** Give the OIDC fixture valid route/grant metadata matching the normal native service configuration, retain real-CSRF approval and response assertions. Assert the actual completed-owner `LogicException` and message. Convert expected `fopen` warning to an explicit `ErrorException` via a temporary test-scoped handler so the cleanup owner preserves the primary `LogicException` without polluting Pest warning policies. Restore handler in `finally`. No production exception swallowing, fallback, or quality rule change.
+- **Acceptance:** No nine review checkbox is accepted before full exact-head Security & Standards plus native host checks are green; formal **84/95**.
+
 ## Foundation 4 Batch 131 — exercise requested OIDC session, consent and command-history proof
 
 - **Review coverage extension:** The R03 existing OIDC fixed-clock tests verify missing, malformed, future, stale and recently authenticated `auth_time` but lack a native session-projection/rotation regression. Add the real `SessionPrincipalResolver` and `SessionManager` rotation test to prove persisted `recentAuthAt` survives rotation without becoming the new session's creation timestamp, including unknown auth time.

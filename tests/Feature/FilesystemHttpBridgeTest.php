@@ -260,7 +260,7 @@ it('isolates lazy streamed downloads across Fibers and rejects an abandoned comp
         $dead = $responseFor($abandoned)->getProducer();
         expect($dead)->not->toBeNull();
         $abandoned->complete();
-        expect(fn() => $dead()->current())->toThrow(\Throwable::class);
+        expect(fn() => $dead()->current())->toThrow(LogicException::class, 'Runwire request is completed');
         unset($firstStream, $secondStream, $dead);
     } finally {
         $first->complete();
