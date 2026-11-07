@@ -339,7 +339,7 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
             ->and($scanner->stagedPath)->not->toBeNull()
             ->and($scanner->stagedContents)->toBe('untrusted-data-fixture')
             ->and($scanner->stagedSize)->toBe(strlen('untrusted-data-fixture'))
-            ->and($scanner->clientFilename)->toBe('malicious.txt')
+            ->and($scanner->clientFilename)->toBeNull()
             ->and(is_file($scanner->stagedPath ?? ''))->toBeFalse()
             ->and($disk->listContents($directory)->toArray())->toBe([]);
     } finally {

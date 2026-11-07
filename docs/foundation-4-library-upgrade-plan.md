@@ -2,6 +2,10 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 89b — native staged-file metadata correction (exact-head QA pending)
+
+- **Official Batch 89 QA failure:** [Security & Standards 42240604807](https://github.com/infocyph/Foundation/actions/runs/42240604807) passed both strict Psalm/PHPStan analyses, production consumers, benchmarks, Redis Cluster and all but one of 979 functional tests; its four Pest lanes failed solely because Pathwise's native `MalwareScanRequest::clientFilename` is null for a staged HTTP source, even though expected bytes/size and malware rejection were already observed. [Native host 42240603791](https://github.com/infocyph/Foundation/actions/runs/42240603791) passed. Fix the fixture's metadata expectation to null rather than fabricating a client filename or changing the upstream Pathwise contract. Preserve exactly one prior 89 implementation commit; this corrective QA commit does not accept Pathwise broadly. **Formal 78/90, 12 open** until full exact-head QA passes and other Pathwise requirements are met.
+
 ## Foundation 4 Batch 89 — reject conflicting chunk aliases and prove staged scanner input (exact-head QA pending)
 
 - **Prior exact-head qualification:** Batch 88 at `970e85bc` passed [Security & Standards 42234481003](https://github.com/infocyph/Foundation/actions/runs/42234481003) (strict Psalm/PHPStan on both versions, all four functional QA lanes, clean install, consumers, benchmarks, release evidence and real Redis Cluster) plus [native hosts 42234479839](https://github.com/infocyph/Foundation/actions/runs/42234479839), including Swoole/OpenSwoole. This certifies the new malicious-verdict rejection regression, not the complete Pathwise P3 condition. **Formal acceptance remains 78/90, 12 open.**
