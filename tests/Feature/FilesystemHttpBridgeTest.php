@@ -152,12 +152,14 @@ it('handles normal and chunked upload requests through Pathwise UploadSource', f
     $uploadTemp = tempnam(sys_get_temp_dir(), 'foundation-source-');
     $chunkOne = tempnam(sys_get_temp_dir(), 'foundation-source-');
     $chunkTwo = tempnam(sys_get_temp_dir(), 'foundation-source-');
-    if ($uploadTemp === false || $chunkOne === false || $chunkTwo === false) {
+    $chunkConflict = tempnam(sys_get_temp_dir(), 'foundation-source-');
+    if ($uploadTemp === false || $chunkOne === false || $chunkTwo === false || $chunkConflict === false) {
         throw new RuntimeException('Unable to allocate upload temp files.');
     }
     file_put_contents($uploadTemp, 'single upload body');
     file_put_contents($chunkOne, 'chunk-one-');
     file_put_contents($chunkTwo, 'chunk-two');
+    file_put_contents($chunkConflict, 'conflicting-chunk');
 
     try {
         $uploadRequest = Request::fake(headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload')
@@ -240,6 +242,29 @@ it('handles normal and chunked upload requests through Pathwise UploadSource', f
         }
 
         $firstState = $uploads->processChunkUploadRequest($first, directory: $directory, disk: 'uploads');
+
+        // An existing chunk session cannot be repurposed under a different
+        // filename after the first chunk has been durably accepted.
+        $conflicting = Request::fake(
+            post: [
+                'uploadId' => 'bridge-upload',
+                'chunkIndex' => 1,
+                'totalChunks' => 2,
+                'originalFilename' => 'different.txt',
+            ],
+            headers: ['Host' => 'localhost'],
+            method: 'POST',
+            uri: 'http://localhost/upload/chunk',
+        )->withUploadedFiles(['file' => [
+            'tmp_name' => $chunkConflict,
+            'size' => filesize($chunkConflict) ?: 0,
+            'error' => UPLOAD_ERR_OK,
+            'name' => 'different.txt',
+            'type' => 'text/plain',
+        ]]);
+        expect(fn() => $uploads->processChunkUploadRequest($conflicting, directory: $directory, disk: 'uploads'))
+            ->toThrow(\Infocyph\Pathwise\Exceptions\UploadException::class, 'metadata does not match');
+
         $secondState = $uploads->processChunkUploadRequest($second, directory: $directory, disk: 'uploads');
         $finalized = $uploads->finalizeChunkUpload('bridge-upload', $directory, 'uploads');
         [$finalDisk, $finalLocation] = $storage->context()->resolve($finalized, 'uploads');
@@ -249,7 +274,7 @@ it('handles normal and chunked upload requests through Pathwise UploadSource', f
             ->and($finalized)->toStartWith('uploads://' . $directory . '/')
             ->and($finalDisk->read($finalLocation))->toBe('chunk-one-chunk-two');
     } finally {
-        foreach ([$uploadTemp, $chunkOne, $chunkTwo] as $path) {
+        foreach ([$uploadTemp, $chunkOne, $chunkTwo, $chunkConflict] as $path) {
             if (is_file($path)) {
                 unlink($path);
             }
@@ -272,9 +297,12 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
         throw new RuntimeException('Unable to allocate scanned upload fixture.');
     }
     file_put_contents($temporary, 'untrusted-data-fixture');
+    $cancelledTemp = null;
 
     $scanner = new class implements MalwareScannerInterface {
         public int $calls = 0;
+
+        public bool $cancelDuringScan = false;
 
         public ?string $stagedPath = null;
 
@@ -291,6 +319,16 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
             $this->stagedContents = file_get_contents($request->localPath);
             $this->stagedSize = $request->size;
             $this->clientFilename = $request->clientFilename;
+
+            if ($this->cancelDuringScan) {
+                $borrowed = \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::current();
+                if ($borrowed === null) {
+                    throw new LogicException('Expected a live borrowed Runwire request in the malware scanner.');
+                }
+                $borrowed->request->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
+
+                return MalwareScanVerdict::CLEAN;
+            }
 
             return MalwareScanVerdict::MALICIOUS;
         }
@@ -342,7 +380,52 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
             ->and($scanner->clientFilename)->toBeNull()
             ->and(is_file($scanner->stagedPath ?? ''))->toBeFalse()
             ->and($disk->listContents($directory)->toArray())->toBe([]);
+
+        // Cancellation from inside a CLEAN scanner verdict still prevents
+        // publication at Pathwise's post-scan native Runwire checkpoint.
+        $scanner->cancelDuringScan = true;
+        $cancelledTemp = tempnam(sys_get_temp_dir(), 'foundation-cancelled-upload-');
+        if ($cancelledTemp === false) {
+            throw new RuntimeException('Unable to allocate cancelled upload fixture.');
+        }
+        file_put_contents($cancelledTemp, 'cancel-during-scan');
+        $cancelledRequest = Request::fake(headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload')
+            ->withUploadedFiles(['file' => [
+                'tmp_name' => $cancelledTemp,
+                'size' => filesize($cancelledTemp) ?: 0,
+                'error' => UPLOAD_ERR_OK,
+                'name' => 'cancelled.txt',
+                'type' => 'text/plain',
+            ]]);
+
+        $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
+        $hostRequest = \Infocyph\Runwire\RequestContext::create($runtime);
+        \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::bind($runtime);
+        try {
+            \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
+                $hostRequest,
+                null,
+                static function () use ($handler, $cancelledRequest, $directory): void {
+                    expect(fn() => $handler->processUploadRequest(
+                        $cancelledRequest,
+                        directory: $directory,
+                        disk: 'uploads',
+                    ))->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
+                },
+                $runtime,
+            );
+        } finally {
+            $hostRequest->complete();
+            \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::release($runtime);
+        }
+        expect($scanner->calls)->toBe(2)
+            ->and($scanner->stagedContents)->toBe('cancel-during-scan')
+            ->and(is_file($scanner->stagedPath ?? ''))->toBeFalse()
+            ->and($disk->listContents($directory)->toArray())->toBe([]);
     } finally {
+        if (is_string($cancelledTemp) && is_file($cancelledTemp)) {
+            unlink($cancelledTemp);
+        }
         if (is_file($temporary)) {
             unlink($temporary);
         }

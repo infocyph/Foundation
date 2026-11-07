@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 90 — Pathwise chunk ownership and cancellation during scan (exact-head QA pending)
+
+- **Scope:** Add real Webrick-to-Pathwise chunk-session identity regression: after accepting chunk 0, reject an attempt to reuse the same upload ID with a different original filename, then finish with the correct chunk and exact original contents. Preserve native manifest locking and publication logic.
+- **Scan cancellation:** Extend the Foundation-owned required-mode malware scanner test to cancel the native borrowed Runwire request from inside a CLEAN scan verdict. Require Pathwise's own post-scan checkpoint to throw native cancellation before publication, then verify staged malware input cleanup and an empty published directory. The previous MALICIOUS verdict still fails closed and removes staging. No duplicate scanning or async filesystem implementation.
+- **Acceptance boundary:** Batch 89b is independently verifying [PHPForge 42326538322](https://github.com/infocyph/Foundation/actions/runs/42326538322) and [native hosts 42326537989](https://github.com/infocyph/Foundation/actions/runs/42326537989). The full P3 Pathwise criterion remains open until real containment/publication/rollback and all exact-head functional/native QA are qualified. Formal tracker **78/90, 12 open**, no P6 paired-host acceptance, PR remains draft/open/unmerged.
+
 ## Foundation 4 Batch 89b — native staged-file metadata correction (exact-head QA pending)
 
 - **Official Batch 89 QA failure:** [Security & Standards 42240604807](https://github.com/infocyph/Foundation/actions/runs/42240604807) passed both strict Psalm/PHPStan analyses, production consumers, benchmarks, Redis Cluster and all but one of 979 functional tests; its four Pest lanes failed solely because Pathwise's native `MalwareScanRequest::clientFilename` is null for a staged HTTP source, even though expected bytes/size and malware rejection were already observed. [Native host 42240603791](https://github.com/infocyph/Foundation/actions/runs/42240603791) passed. Fix the fixture's metadata expectation to null rather than fabricating a client filename or changing the upstream Pathwise contract. Preserve exactly one prior 89 implementation commit; this corrective QA commit does not accept Pathwise broadly. **Formal 78/90, 12 open** until full exact-head QA passes and other Pathwise requirements are met.
