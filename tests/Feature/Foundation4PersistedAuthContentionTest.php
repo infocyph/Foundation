@@ -268,3 +268,140 @@ it('commits one persisted auth transition across independent competing processes
         rmdir($directory);
     }
 })->with(['sqlite', 'mysql', 'pgsql']);
+
+it('restores retained auth records through independent SQLite/MySQL/PostgreSQL connections', function (string $driver): void {
+    $directory = sys_get_temp_dir() . '/foundation-auth-restore-' . bin2hex(random_bytes(6));
+    if (!mkdir($directory, 0700)) {
+        throw new RuntimeException('Unable to allocate the retained-data restore fixture.');
+    }
+
+    $configuration = persistedAuthConnection($driver, $directory);
+    $fixture = new AuthContentionFixture($configuration);
+    $database = $fixture->factory->connection();
+    $schema = new SchemaManager($database);
+    $tables = $fixture->tables;
+    $created = false;
+    $changed = null;
+    $restorer = null;
+    $verifier = null;
+
+    try {
+        expect($schema->hasTable($tables->accounts()))->toBeFalse();
+        $created = true;
+        new MigrationRunner($database, [new AuthSchema($tables)], table: 'foundation_auth_restore_migrations')->run();
+
+        $now = time();
+        $database->table($tables->accounts())->insert([
+            'id' => 'retained-owner',
+            'identifier' => 'original@example.test',
+            'status' => 'active',
+            'password_hash' => password_hash('retained-secret', PASSWORD_BCRYPT),
+            'metadata' => '{"role":"owner"}',
+        ]);
+        $fixture->store('session')->create(
+            new AuthSession('retained-session', 'retained-owner', null, $now, $now, $now + 3600),
+        );
+        $fixture->store('refresh')->save(
+            new \Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenRecord(
+                hash('sha256', 'retained-refresh-token'), null, null,
+                'retained-refresh', 'retained-owner', 'retained-family', $now, $now + 3600,
+            ),
+        );
+        $fixture->store('passkey')->save(
+            new PasskeyCredential('retained-passkey', 'retained-owner', 'opaque-credential-id', null, 'opaque-key', 7, [], $now),
+        );
+
+        // Capture a logical state snapshot before an independently committed
+        // mutation, then restore that exact state through a new native DBLayer
+        // connection. This does not claim an engine-level binary backup format.
+        $identities = [
+            $tables->accounts() => 'retained-owner',
+            $tables->sessions() => 'retained-session',
+            $tables->refreshTokens() => 'retained-refresh',
+            $tables->passkeyCredentials() => 'retained-passkey',
+        ];
+        $snapshot = [];
+        foreach ($identities as $table => $id) {
+            $rows = $database->select("SELECT * FROM {$table} WHERE id = ?", [$id]);
+            expect($rows)->toHaveCount(1);
+            $snapshot[$table] = $rows[0];
+        }
+        $snapshotDigest = hash('sha256', json_encode($snapshot, JSON_THROW_ON_ERROR));
+
+        $changed = new \Infocyph\DBLayer\Connection\Connection(
+            \Infocyph\DBLayer\Connection\ConnectionConfig::fromArray($configuration),
+        );
+        $changed->transaction(static function (\Infocyph\DBLayer\Connection\Connection $connection) use ($tables): void {
+            $connection->statement(
+                'UPDATE ' . $tables->accounts() . ' SET identifier = ?, password_hash = ? WHERE id = ?',
+                ['modified@example.test', 'discarded', 'retained-owner'],
+            );
+            foreach ([$tables->passkeyCredentials(), $tables->refreshTokens(), $tables->sessions()] as $table) {
+                $connection->statement("DELETE FROM {$table} WHERE id = ?", [
+                    match ($table) {
+                        $tables->passkeyCredentials() => 'retained-passkey',
+                        $tables->refreshTokens() => 'retained-refresh',
+                        default => 'retained-session',
+                    },
+                ]);
+            }
+        });
+        $changed->disconnect();
+
+        $restorer = new \Infocyph\DBLayer\Connection\Connection(
+            \Infocyph\DBLayer\Connection\ConnectionConfig::fromArray($configuration),
+        );
+        $restorer->transaction(static function (\Infocyph\DBLayer\Connection\Connection $connection) use ($snapshot, $tables): void {
+            $account = $snapshot[$tables->accounts()];
+            $connection->statement(
+                'UPDATE ' . $tables->accounts() . ' SET identifier = ?, password_hash = ?, metadata = ? WHERE id = ?',
+                [$account['identifier'], $account['password_hash'], $account['metadata'], $account['id']],
+            );
+            foreach ([$tables->sessions(), $tables->refreshTokens(), $tables->passkeyCredentials()] as $table) {
+                $row = $snapshot[$table];
+                $columns = array_keys($row);
+                $connection->statement(
+                    sprintf(
+                        'INSERT INTO %s (%s) VALUES (%s)',
+                        $table,
+                        implode(', ', $columns),
+                        implode(', ', array_fill(0, count($columns), '?')),
+                    ),
+                    array_values($row),
+                );
+            }
+        });
+        $restorer->disconnect();
+
+        $verifier = new \Infocyph\DBLayer\Connection\Connection(
+            \Infocyph\DBLayer\Connection\ConnectionConfig::fromArray($configuration),
+        );
+        $restored = [];
+        foreach ($identities as $table => $id) {
+            $rows = $verifier->select("SELECT * FROM {$table} WHERE id = ?", [$id]);
+            expect($rows)->toHaveCount(1);
+            $restored[$table] = $rows[0];
+        }
+
+        expect(hash('sha256', json_encode($restored, JSON_THROW_ON_ERROR)))->toBe($snapshotDigest)
+            ->and(password_verify('retained-secret', (string) $restored[$tables->accounts()]['password_hash']))->toBeTrue()
+            ->and($fixture->store('session')->find('retained-session'))->not->toBeNull()
+            ->and($fixture->store('refresh')->find('retained-refresh'))->not->toBeNull()
+            ->and($fixture->store('passkey')->findByCredentialId('opaque-credential-id'))->not->toBeNull();
+    } finally {
+        $changed?->disconnect();
+        $restorer?->disconnect();
+        $verifier?->disconnect();
+        if ($created) {
+            foreach (array_reverse($tables->all()) as $table) {
+                $schema->dropIfExists($table);
+            }
+            $schema->dropIfExists('foundation_auth_restore_migrations');
+        }
+        $database->disconnect();
+        foreach (new FilesystemIterator($directory) as $file) {
+            unlink($file->getPathname());
+        }
+        rmdir($directory);
+    }
+})->with(['sqlite', 'mysql', 'pgsql']);

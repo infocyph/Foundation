@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 96 — selected SQL retained auth snapshot restore (exact-head QA pending)
+
+- **Data across engines:** Add independent-connection logical retained auth snapshot/restore regression to the existing real SQLite, MySQL and PostgreSQL integration suite. Create persisted account/session/refresh/passkey records using the selected native DBLayer and Foundation stores, capture original rows, mutate the account and remove dependent records transactionally from another native connection, restore those same rows inside a fresh transaction, and verify exact state and first-party adapter reads using a third connection. No synthetic database provider, untracked schema, or claim of full binary backups.
+- **Existing evidence to retain:** `Foundation4PersistedAuthContentionTest` also runs six genuine competing auth CAS lifecycles and conditional verified-email success/denial/rollback on all three engines; `OmnibusDurableIntegrationTest` exercises native DBLayer queue/outbox retry, selected SQL persistence, receipt ownership and after-commit rollback; `Foundation4RetainedDataRestoreTest` separately verifies an actual file-backed SQLite backup with passkey/MFA/OAuth state. These contribute to the P3 DBLayer criterion only after exact-head QA.
+- **Acceptance boundary:** Formal **81/90 accepted, 9 open** from the last certified tracker. Do not claim that this logical restore is a production engine-level backup or satisfies the separate P4 coherent pre-upgrade rollback rehearsal. P1 historical lock, two P6 sustained matrix trials, and broader OTP/passkey/TalkingBytes gates remain independently open. Keep PR draft/unmerged, no tags, no custom analysis workers.
+
 ## Foundation 4 Batch 95 — OTP recovery CAS, tombstones and committed cancellation (exact-head QA pending)
 
 - **Prior source certified:** Batch 94 at `fea07fe6` passed [Security & Standards 42328686753](https://github.com/infocyph/Foundation/actions/runs/42328686753) and [native hosts 42328686167](https://github.com/infocyph/Foundation/actions/runs/42328686167). Formal tracker stays **81/90 accepted, 9 open** while new code is qualified.
