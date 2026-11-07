@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 106c — reduce native passkey migration complexity without suppressions
+
+- **Observed QA:** Exact-head [Security & Standards 42339625681](https://github.com/infocyph/Foundation/actions/runs/42339625681) failed PHPStan strict analysis PHP 8.4 and 8.5 because `AuthPasskeyIdentityHashSchema::up()` measured cognitive complexity 19 (required maximum 12). All database-migration requirements remain intact; do not adjust PHPForge quality thresholds or ignore files.
+- **Fix:** Extract each guarded record backfill into a single private static `backfillRow()`, leaving `up()` responsible only for schema preparation, bounded keyset traversal and checkpoints. Match DBLayer's native two-argument `chunkById` callback signature. Preserve SHA3-256, historical raw ID retention, digest integrity, CAS write and native failed-state exceptions.
+- **Evidence:** New exact-head strict Psalm/PHPStan, PHP 8.4/8.5 stable/lowest, real SQLite/MySQL/PostgreSQL, production consumers, native Redis Cluster/Mailpit/gRPC and native host checks required before P4 progress. Formal **85/90**, PR draft/unmerged, no tag/release.
+
 ## Foundation 4 Batch 106b — correct sustained-duration benchmark fixture (exact-head QA pending)
 
 - **Observed official Batch 105 failure:** [Security & Standards 42339141830](https://github.com/infocyph/Foundation/actions/runs/42339141830) has all four Pest lanes failing on one shared new baseline-variance regression, not a production runtime failure. The test mistakenly set candidate `rpm=1200` while keeping 2000 successful requests, yielding only 100 seconds; the unchanged comparator correctly rejects every trial below 120 seconds. Native hosts [42339141576](https://github.com/infocyph/Foundation/actions/runs/42339141576) passed.

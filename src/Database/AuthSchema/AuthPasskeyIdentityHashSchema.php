@@ -46,39 +46,49 @@ final readonly class AuthPasskeyIdentityHashSchema implements Migration
 
         $schema->connection()->table($table)->chunkById(
             200,
-            static function (array $rows) use ($schema, $table, $context): bool {
+            static function (array $rows, int $_page) use ($schema, $table, $context): bool {
                 foreach ($rows as $row) {
-                    $context->checkpoint();
-                    $id = $row['id'] ?? null;
-                    $raw = $row['credential_id'] ?? null;
-                    if (!is_string($id) || $id === '' || !is_string($raw) || $raw === '') {
-                        throw new RuntimeException('Stored passkey credential identity is malformed.');
-                    }
-
-                    $hash = hash('sha3-256', $raw);
-                    $persisted = $row['credential_id_hash'] ?? null;
-                    if ($persisted !== null) {
-                        if (!is_string($persisted) || !hash_equals($hash, $persisted)) {
-                            throw new RuntimeException('Persisted passkey identity digest does not match its opaque credential ID.');
-                        }
-
-                        continue;
-                    }
-
-                    $affected = $schema->connection()->table($table)
-                        ->where('id', '=', $id)
-                        ->where('credential_id', '=', $raw)
-                        ->whereNull('credential_id_hash')
-                        ->update(['credential_id_hash' => $hash]);
-                    if ($affected !== 1) {
-                        throw new RuntimeException('Stored passkey identity changed while applying its digest migration.');
-                    }
+                    self::backfillRow($schema, $context, $table, $row);
                 }
 
                 return true;
             },
         );
         $context->checkpoint();
+    }
+
+    /** @param array<string, mixed> $row */
+    private static function backfillRow(
+        SchemaManager $schema,
+        MigrationContext $context,
+        string $table,
+        array $row,
+    ): void {
+        $context->checkpoint();
+        $id = $row['id'] ?? null;
+        $raw = $row['credential_id'] ?? null;
+        if (!is_string($id) || $id === '' || !is_string($raw) || $raw === '') {
+            throw new RuntimeException('Stored passkey credential identity is malformed.');
+        }
+
+        $hash = hash('sha3-256', $raw);
+        $persisted = $row['credential_id_hash'] ?? null;
+        if ($persisted !== null) {
+            if (!is_string($persisted) || !hash_equals($hash, $persisted)) {
+                throw new RuntimeException('Persisted passkey identity digest does not match its opaque credential ID.');
+            }
+
+            return;
+        }
+
+        $affected = $schema->connection()->table($table)
+            ->where('id', '=', $id)
+            ->where('credential_id', '=', $raw)
+            ->whereNull('credential_id_hash')
+            ->update(['credential_id_hash' => $hash]);
+        if ($affected !== 1) {
+            throw new RuntimeException('Stored passkey identity changed while applying its digest migration.');
+        }
     }
 
     #[\Override]
