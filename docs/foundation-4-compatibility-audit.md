@@ -91,3 +91,31 @@ occurs only **after** Foundation 4 publishes.
 
 No blind deletion of classes, fallbacks or data formats solely because a
 name contains `legacy`, `fallback`, `compatibility` or `26`.
+
+## Batch 91 — native-specialist compatibility closure
+
+The current native-owner inspection was performed on the same selected major-version source evaluated by the exact-head PHPForge/host gates, rather than treating old names as proof of obsolete code. The following source owners use current native APIs directly without a second code path for excluded library versions:
+
+| Native owner | Inspected Foundation boundary | Contract proof |
+| --- | --- | --- |
+| Runwire 3 and InterMix 11 | `Runtime/NativeRunwireOperation.php`, `Container/FoundationGraph.php`, `Routing/RoutingServiceProvider.php` | `RunwireSelectedNativeBoundaryTest`, `Foundation4NativeRunwireProviderTest`, `InterMix11NativeBindingPolicyTest` |
+| CacheLayer 4 | `Cache/CacheLayerFactory.php`, cache graphs | Real selected local/SQLite/Redis/Valkey/Memcached and Redis Cluster operations; no old backend adapter |
+| DBLayer 6 | `Database/DBLayerFactory.php`, auth DBLayer stores | `CurrentInfocyphApiCompatibilityTest`, three-engine retained failure and native operation tests |
+| Omnibus 3 | `Messaging/OmnibusDurableFactory.php`, `OmnibusWorkerFactory.php` | Real durable worker, receipt/retry/failure and after-commit tests |
+| OTP 7 and WebAuthn 5 | `Auth/Adapter/Otp/OtpMfaVerifier.php`, `OtpPasskeyService.php` | Native factor/passkey ceremony tests with current per-operation Runwire forwarding |
+| Epicrypt 3 | `Security/EnvironmentFileProtector.php`, auth Epicrypt resolver and token adapters | Current JOSE curves, configured local keys and token lifecycle checks |
+| Pathwise 4 | `Filesystem/FilesystemTransferFactory.php`, `FilesystemUploadRequestHandler.php` | Current native upload/chunk/scan/streaming and host context boundary |
+| ReqShield 3 | `Validation/ValidationGraphFactory.php`, `ValidatorFactory.php` | Native rule/sanitizer/DB validation and request profile isolation tests |
+| TalkingBytes 2 | `Communication/CommunicationProfiles.php`, `Notifications/EmailProfiles.php` | Current HTTP/gRPC/email constructors and deadline/cancellation forwarding |
+| Webrick 6 | `Routing/WebrickRouterFactory.php`, `WebrickMiddlewareFactory.php` | Direct native route/host/response and generated artifact tests |
+| Module selection | `Module/ModuleCatalog.php`, `ModuleArchitectureCatalog.php`, `ModuleFeatureResolver.php` | Exact selected package constraints, explicit activation and eight no-dev negative feature probes |
+
+Distinguish these **supported current capabilities** from major-version compatibility fallbacks:
+
+- `CacheLayerFactory` checks APCu functions and `Redis` availability because an optional native backend requires its extension; these are backend capability checks, not CacheLayer 3 probes.
+- `WebrickMiddlewareFactory` may resolve a configured user class; dynamically selecting caller-owned middleware is not a Webrick 5 compatibility adapter.
+- `ModuleFeatureResolver` compares installed package versions with *current* selected-feature constraints; this is fail-closed packaging policy, not old-version routing.
+- `EmailProfiles` intentionally supports transport fallback lists, while the OTP MobileOTP import and passkey legacy credential metadata are application/persisted-data contracts. Do not remove them to satisfy an API-version checklist.
+- The all-production-source `LegacyRuntimePathBoundaryTest` rejects removed InterMix compile/use APIs, old Foundation route/cache managers and redundant specialist forwarding factories. Current published API and real selected-operation tests guard the replacement behavior.
+
+This closes only the **P1 current native integration compatibility** checkbox. It does **not** prove historical dependency identity, actual artifact migration, retained data rollback or sustained matched-host throughput; those checklist items remain independently open.
