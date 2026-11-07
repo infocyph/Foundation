@@ -78,10 +78,10 @@ it('rejects noisy evidence instead of silently waiving the throughput budget', f
 });
 
 it('attributes baseline-only measurement noise without reclassifying it as a passing RPM gain', function (): void {
-    $baseline = foundationHostFixture();
+    $baseline = foundationHostFixture(900.0);
     $baseline['hosts']['runwire'][5]['runs'][0]['rpm'] = 500.0;
     $baseline['hosts']['runwire'][5]['runs'][0]['duration_seconds'] = 240.0;
-    $candidate = foundationHostFixture(1200.0, true);
+    $candidate = foundationHostFixture(1000.0, true);
 
     $result = Foundation4HostComparison::compare($baseline, $candidate);
     $noisy = array_find($result['cases'], static fn(array $case): bool => $case['scenario'] === 'runwire-w4-c50');

@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 106b — correct sustained-duration benchmark fixture (exact-head QA pending)
+
+- **Observed official Batch 105 failure:** [Security & Standards 42339141830](https://github.com/infocyph/Foundation/actions/runs/42339141830) has all four Pest lanes failing on one shared new baseline-variance regression, not a production runtime failure. The test mistakenly set candidate `rpm=1200` while keeping 2000 successful requests, yielding only 100 seconds; the unchanged comparator correctly rejects every trial below 120 seconds. Native hosts [42339141576](https://github.com/infocyph/Foundation/actions/runs/42339141576) passed.
+- **Correction:** Set the stable candidate to 1000 RPM over exactly 120 seconds and the baseline to 900 RPM over >120 seconds, with one slower baseline repetition. This still proves a positive median candidate RPM and a noisy baseline remain **inconclusive**, without changing the comparator's 2% RPM budget, 2.5% CV cap or 120-second minimum. Re-run full official QA with the ongoing authentic Foundation 3 passkey migration.
+- **Acceptance:** Formal 85/90 and five release gates remain open. No CI suppression, invented historical lock, PR merge, tag or release.
+
 ## Foundation 4 Batch 106 — explicit Foundation 3 passkey identity upgrade migration (exact-head QA pending)
 
 - **Newly confirmed retained-data break:** Original Foundation 3 source `fc9b3258` stored `auth_passkey_credentials.credential_id` as an opaque unique raw VARCHAR(1024), **without** `credential_id_hash`. Foundation 4 `DBLayerPasskeyCredentialStore` exclusively searches `credential_id_hash` and `AuthSchemaInstaller::readiness()` already requires it, but the previous installer migration set **did not create or backfill the column** on retained Foundation 3 tables. New installations already create it. Marking P4 data migration complete earlier would have lost accessibility to existing passkeys.
