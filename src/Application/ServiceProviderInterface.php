@@ -6,6 +6,11 @@ namespace Infocyph\Foundation\Application;
 
 use Infocyph\InterMix\DI\ContainerBuilder;
 
+/**
+ * Public application service-provider composition contract.
+ *
+ * @api
+ */
 interface ServiceProviderInterface
 {
     /**

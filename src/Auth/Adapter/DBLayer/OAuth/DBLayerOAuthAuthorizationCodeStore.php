@@ -12,8 +12,20 @@ use Infocyph\Foundation\Auth\OAuth\Authorization\OAuthAuthorizationCodeConsumeRe
 use Infocyph\Foundation\Auth\OAuth\Authorization\OAuthAuthorizationCodeConsumeStatus;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAuthorizationCodeStoreInterface;
 
+/**
+ * DBLayer-backed OAuth authorization-code persistence integration.
+ *
+ * @api
+ */
 final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore implements OAuthAuthorizationCodeStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    #[\Override]
     public function consume(
         string $codeHash,
         string $clientId,
@@ -57,6 +69,13 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
         return $result;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function save(OAuthAuthorizationCode $code): void
     {
         $this->insertRecord('oauthAuthorizationCodes', [
@@ -77,6 +96,9 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
         ]);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function find(Connection $connection, string $codeHash): ?OAuthAuthorizationCode
     {
         $rows = $connection->select(
@@ -88,7 +110,10 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
         return is_array($row) ? $this->mapCode($row) : null;
     }
 
-    /** @param array<string, mixed> $row */
+    /**
+     * @param array<string, mixed> $row
+     * @throws \RuntimeException
+     */
     private function mapCode(array $row): OAuthAuthorizationCode
     {
         if ($this->string($row['pkce_method'] ?? '') !== 'S256') {

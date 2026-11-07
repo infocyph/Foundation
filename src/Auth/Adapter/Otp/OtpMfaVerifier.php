@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\Otp;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Auth\Mfa\MfaChallenge;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
@@ -14,8 +15,10 @@ use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\OTP\HOTP;
 use Infocyph\OTP\OCRA;
 use Infocyph\OTP\Result\VerificationResult;
+use Infocyph\OTP\Support\RunwireState;
 use Infocyph\OTP\TOTP;
 use Infocyph\OTP\ValueObjects\VerificationWindow;
+use Infocyph\Runwire\Exception\CancelledException;
 
 final readonly class OtpMfaVerifier implements MfaVerifierInterface
 {
@@ -31,6 +34,10 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         return $this->challengeFactors;
     }
 
+    /**
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
+    #[\Override]
     public function verify(MfaChallenge $challenge, string $code): MfaVerificationResult
     {
         if ($challenge->factorId === null || $challenge->factorId === '') {
@@ -45,6 +52,8 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_disabled');
         }
 
+        RunwireState::checkpoint(CacheRunwire::current());
+
         try {
             return match ($factor->type) {
                 MfaFactorType::AOTP->value => $this->challengeFactors->verifyAotp($factor, $challenge, $code),
@@ -55,24 +64,37 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
                 MfaFactorType::TOTP->value => $this->verifyTotp($factor, $code),
                 default => new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_unsupported'),
             };
+        } catch (CancelledException $exception) {
+            throw $exception;
         } catch (\Throwable) {
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
         }
     }
 
+    /**
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     public function verifyEnrollment(MfaFactor $factor, string $code): MfaVerificationResult
     {
+        RunwireState::checkpoint(CacheRunwire::current());
+
         try {
             return match ($factor->type) {
                 MfaFactorType::MOBILE_OTP->value => $this->challengeFactors->verifyLegacyMobile($factor, $code),
                 MfaFactorType::TOTP->value => $this->verifyTotp($factor, $code),
                 default => new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_unsupported'),
             };
+        } catch (CancelledException $exception) {
+            throw $exception;
         } catch (\Throwable) {
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \OverflowException
+     */
     private function advanceCounter(MfaFactor $factor, int $counter): bool
     {
         $metadata = $factor->metadata;
@@ -83,6 +105,8 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
 
         $otp['counter'] = $counter;
         $metadata['otp'] = $otp;
+
+        RunwireState::checkpoint(CacheRunwire::current());
 
         return $this->factors->compareAndSwap($factor, $factor->withMetadata($metadata));
     }
@@ -103,7 +127,10 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         return null;
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \InvalidArgumentException
+     */
     private function integerOption(array $config, string $key, int $default): int
     {
         if (!array_key_exists($key, $config)) {
@@ -124,7 +151,15 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         throw new \InvalidArgumentException(sprintf('OTP factor option "%s" must be an integer.', $key));
     }
 
-    /** @return array{algorithm:string,counter:int,digits:int,look_ahead:int,period:int,secret:?string,suite:?string,window:int} */
+    private function ocraCounterAccepted(MfaFactor $factor, bool $counterEnabled, ?int $nextCounter): bool
+    {
+        return !$counterEnabled || ($nextCounter !== null && $this->advanceCounter($factor, $nextCounter));
+    }
+
+    /**
+     * @return array{algorithm:string,counter:int,digits:int,look_ahead:int,period:int,secret:?string,suite:?string,window:int}
+     * @throws \InvalidArgumentException
+     */
     private function otpConfig(MfaFactor $factor): array
     {
         $otp = ValueNormalizer::associativeArray($factor->metadata['otp'] ?? null);
@@ -160,7 +195,10 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         );
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \InvalidArgumentException
+     */
     private function stringOption(array $config, string $key): ?string
     {
         if (!array_key_exists($key, $config) || $config[$key] === null) {
@@ -175,6 +213,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         return trim($value);
     }
 
+    /** @throws \InvalidArgumentException */
     private function verifyHotp(MfaFactor $factor, string $code): MfaVerificationResult
     {
         $config = $this->otpConfig($factor);
@@ -190,6 +229,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
             $code,
             $config['counter'],
             $config['look_ahead'],
+            runwire: CacheRunwire::current(),
         );
 
         if (!$result->matched) {
@@ -212,6 +252,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         ]);
     }
 
+    /** @throws \InvalidArgumentException */
     private function verifyOcra(MfaChallenge $challenge, MfaFactor $factor, string $code): MfaVerificationResult
     {
         $config = $this->otpConfig($factor);
@@ -241,20 +282,19 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
             cache: $suite->counterEnabled ? null : $this->challengeFactors->stateCache(),
             factorId: $suite->counterEnabled ? null : $this->factorBinding($factor, $config['secret']),
             replayTtl: $suite->counterEnabled ? null : $this->ocraReplayTtl,
+            runwire: CacheRunwire::current(),
         );
 
         if (!$result->matched) {
             return $this->resultFailure($factor, $result);
         }
-        if ($suite->counterEnabled) {
-            if ($result->nextCounter === null || !$this->advanceCounter($factor, $result->nextCounter)) {
-                return new MfaVerificationResult(
-                    false,
-                    factorId: $factor->id,
-                    reason: 'mfa_code_replayed',
-                    context: ['otp_reason' => $result->reason->value],
-                );
-            }
+        if (!$this->ocraCounterAccepted($factor, $suite->counterEnabled, $result->nextCounter)) {
+            return new MfaVerificationResult(
+                false,
+                factorId: $factor->id,
+                reason: 'mfa_code_replayed',
+                context: ['otp_reason' => $result->reason->value],
+            );
         }
 
         return new MfaVerificationResult(true, factorId: $factor->id, context: [
@@ -266,6 +306,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         ]);
     }
 
+    /** @throws \InvalidArgumentException */
     private function verifyTotp(MfaFactor $factor, string $code): MfaVerificationResult
     {
         $config = $this->otpConfig($factor);
@@ -283,6 +324,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
             window: VerificationWindow::symmetric($config['window']),
             cache: $this->challengeFactors->stateCache(),
             factorId: $this->factorBinding($factor, $config['secret']),
+            runwire: CacheRunwire::current(),
         );
 
         if (!$result->matched) {

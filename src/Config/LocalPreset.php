@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Config;
 
+/**
+ * Application local configuration preset.
+ *
+ * @api
+ */
 final class LocalPreset implements FoundationPreset
 {
+    #[\Override]
     public function config(): array
     {
         return [

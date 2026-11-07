@@ -10,6 +10,7 @@ use Infocyph\Foundation\Auth\Authorization\Policy\PolicyResolverInterface;
 use Infocyph\Foundation\Auth\Exception\AuthorizationException;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 
+/** @api */
 final class Gate implements AuthorizerInterface
 {
     /** @var array<string, callable(PrincipalInterface, mixed, array<string, mixed>): (AuthorizationDecision|bool|null)> */
@@ -36,6 +37,10 @@ final class Gate implements AuthorizerInterface
         return $this;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\Exception\AuthorizationException
+     */
+    #[\Override]
     public function authorize(
         PrincipalInterface $principal,
         string $ability,
@@ -62,6 +67,7 @@ final class Gate implements AuthorizerInterface
         return $this;
     }
 
+    #[\Override]
     public function can(
         PrincipalInterface $principal,
         string $ability,

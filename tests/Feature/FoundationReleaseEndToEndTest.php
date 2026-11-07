@@ -24,6 +24,7 @@ use Infocyph\Foundation\Worker\WorkerProvider;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
@@ -199,23 +200,24 @@ final class FoundationPhase8ReleaseProvider extends ServiceProvider
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
-        $builder->singleton(
+        $builder->factory(
             FoundationPhase8ReleaseProbe::class,
             FactoryDefinition::construct(
                 FoundationPhase8ReleaseProbe::class,
                 [new ServiceReference(RuntimeMode::class)],
             ),
         );
-        $builder->scoped(
+        $builder->factory(
             FoundationPhase8ReleaseScopedProbe::class,
             FactoryDefinition::construct(FoundationPhase8ReleaseScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
         foreach ([
             FoundationPhase8ReleaseCliCommand::class,
             FoundationPhase8ReleaseSchedulerCommand::class,
             FoundationPhase8ReleaseWorkerProvider::class,
         ] as $service) {
-            $builder->singleton(
+            $builder->factory(
                 $service,
                 FactoryDefinition::construct(
                     $service,
@@ -264,10 +266,18 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
             ->and($foundationManifest['worker']['provider_topology'] ?? null)->toBe('worker/providers.php')
             ->and($foundationManifest['worker']['provider_topology_sha256'] ?? null)->toMatch('/^[a-f0-9]{64}$/D');
 
-        foreach (['cli', 'worker', 'scheduler'] as $runtime) {
-            expect(is_file($generation . '/' . $runtime . '/container.php'))->toBeTrue()
-                ->and(is_file($generation . '/' . $runtime . '/container.php.meta.json'))->toBeTrue()
-                ->and(is_file($generation . '/' . $runtime . '/container.php.foundation.json'))->toBeTrue();
+        foreach (['web', 'cli', 'worker', 'scheduler'] as $runtime) {
+            $pointer = $generation . '/' . $runtime . '/container.php';
+            $target = realpath($pointer);
+            expect(is_link($pointer))->toBeTrue()
+                ->and(is_file($pointer))->toBeTrue()
+                ->and(readlink($pointer))->toStartWith('container.php.builds/')
+                ->and($target)->toBeString()
+                ->and(is_file(dirname((string) $target) . '/manifest.json'))->toBeTrue();
+
+            if ($runtime !== 'web') {
+                expect(is_file($pointer . '.foundation.json'))->toBeTrue();
+            }
         }
 
         $trustedFoundationSha256 = hash_file('sha256', $release['manifest']);
@@ -292,6 +302,34 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         ));
         expect($response->getStatusCode())->toBe(200)
             ->and((string) $response->getBody())->toBe('{"generation":"phase8-e2e"}');
+
+        foundationResetWebrickProductionRegistries();
+        $bootstrap = new FoundationReleaseBootstrap($releaseRoot, $trustedFoundationSha256);
+        $hostRuntime = \Infocyph\Runwire\RuntimeContext::standalone();
+        $host = $bootstrap->create($hostRuntime);
+        $hostRequest = \Infocyph\Runwire\RequestContext::create($hostRuntime);
+        $writer = new \Infocyph\Foundation\Tests\Fixtures\RunwireCollectingWriter();
+        $host->start();
+        try {
+            $host->handle(new \Infocyph\Runwire\Http\HttpRequest(
+                method: 'GET',
+                target: '/phase8',
+                version: \Infocyph\Runwire\Http\Enum\ProtocolVersion::HTTP_1_1,
+                headers: \Infocyph\Runwire\Http\Headers::fromArray(['Host' => 'phase8.test']),
+                body: new \Infocyph\Foundation\Tests\Fixtures\RunwireEmptyBody(),
+                context: $hostRequest,
+            ), $writer, completeResponse: true);
+            expect($bootstrap)->toBeInstanceOf(\Infocyph\Runwire\Runtime\RuntimeApplicationFactoryInterface::class)
+                ->and($writer->status)->toBe(200)
+                ->and($writer->endCalls)->toBe(1)
+                ->and($writer->body)->toBe('{"generation":"phase8-e2e"}')
+                ->and($hostRequest->completed())->toBeTrue();
+        } finally {
+            $host->drain();
+            $host->shutdown();
+        }
+        expect(fn() => new FoundationReleaseBootstrap($releaseRoot, str_repeat('0', 64))->create($hostRuntime))
+            ->toThrow(RuntimeException::class);
 
         file_put_contents(
             $project . '/bootstrap/providers.php',
@@ -384,6 +422,125 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
             );
         }
     } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationPhase8ReleaseRemove($project);
+    }
+});
+
+it('rehearses a trusted four-mode generated-release rollback without losing retained authentication data', function (): void {
+    $project = foundationPhase8ReleaseProject();
+    $releaseRoot = $project . '/storage/releases';
+    $config = foundationPhase8ReleaseConfig($project);
+    $config['database']['connections']['primary'] = [
+        'driver' => 'sqlite',
+        'database' => $project . '/storage/retained-auth.sqlite',
+    ];
+    $connection = new \Infocyph\DBLayer\Connection\Connection(
+        \Infocyph\DBLayer\Connection\ConnectionConfig::fromArray($config['database']['connections']['primary']),
+    );
+    $tables = new \Infocyph\Foundation\Database\AuthSchema\AuthTables();
+    $now = time();
+
+    try {
+        (new \Infocyph\DBLayer\Migration\MigrationRunner(
+            $connection,
+            [new \Infocyph\Foundation\Database\AuthSchema\AuthSchema($tables)],
+        ))->run();
+
+        $passwordHash = password_hash('retained-release-password', PASSWORD_BCRYPT);
+        $connection->table($tables->accounts())->insert([
+            'id' => 'retained-owner',
+            'identifier' => 'retained@example.test',
+            'status' => 'active',
+            'password_hash' => $passwordHash,
+            'metadata' => '{"release":"before"}',
+        ]);
+        $connection->table($tables->sessions())->insert([
+            'id' => 'retained-session',
+            'account_id' => 'retained-owner',
+            'device_id' => null,
+            'created_at' => $now,
+            'last_seen_at' => $now,
+            'expires_at' => $now + 3600,
+            'recent_auth_at' => $now,
+            'metadata' => '{"bound":"retained-owner"}',
+        ]);
+        $connection->table($tables->refreshTokens())->insert([
+            'id' => 'retained-refresh',
+            'account_id' => 'retained-owner',
+            'client_id' => 'release-consumer',
+            'device_id' => null,
+            'token_hash' => hash('sha3-256', 'retained-release-token'),
+            'family_id' => 'retained-family',
+            'issued_at' => $now,
+            'expires_at' => $now + 3600,
+            'rotated_at' => null,
+            'revoked_at' => null,
+            'metadata' => null,
+        ]);
+
+        $compiler = new FoundationReleaseCompiler();
+        $capabilities = ['web' => [], 'cli' => [], 'worker' => [], 'scheduler' => []];
+        $previous = $compiler->buildAndActivate(
+            $config, $releaseRoot, capabilities: $capabilities, generation: 'retained-before',
+        );
+        $candidate = $compiler->buildAndActivate(
+            $config, $releaseRoot, capabilities: $capabilities, generation: 'retained-candidate',
+        );
+        $active = new ActiveGeneration();
+        $expectedFingerprint = \Infocyph\Foundation\Release\FoundationReleaseManifest::dependencyFingerprint();
+
+        foreach ([
+            ['retained-candidate', $candidate, $previous],
+            ['retained-before', $previous, $candidate],
+            ['retained-candidate', $candidate, $previous],
+        ] as [$generationName, $selected, $rejected]) {
+            $active->activate($releaseRoot, $generationName);
+            expect($active->current($releaseRoot)['generation'])->toBe($generationName)
+                ->and($selected['release']['dependency_fingerprint'])->toBe($expectedFingerprint)
+                ->and($selected['manifest_sha256'])->toMatch('/^[a-f0-9]{64}$/D');
+
+            foreach (['web', 'cli', 'worker', 'scheduler'] as $mode) {
+                $container = $releaseRoot . '/generations/' . $generationName . '/' . $mode . '/container.php';
+                expect(is_file($container))->toBeTrue()
+                    ->and(is_link($container))->toBeTrue();
+            }
+
+            $loader = new FoundationReleaseRuntime();
+            foundationResetWebrickProductionRegistries();
+            $web = $loader->webPrevalidated(
+                $config, $releaseRoot, (string) $selected['manifest_sha256'],
+            );
+            $response = $web->kernel->handle(Request::fake(
+                headers: ['Host' => 'phase8.test'],
+                uri: 'https://phase8.test/phase8',
+            ));
+            expect($response->getStatusCode())->toBe(200)
+                ->and((string) $response->getBody())->toBe('{"generation":"phase8-e2e"}');
+
+            foreach ([RuntimeMode::Cli, RuntimeMode::Worker, RuntimeMode::Scheduler] as $mode) {
+                $runtime = $loader->nonWebPrevalidated(
+                    $config, $mode, $releaseRoot, (string) $selected['manifest_sha256'],
+                );
+                expect($runtime->application->runtimeMode())->toBe($mode);
+            }
+
+            expect(fn() => $loader->trustedActiveManifest(
+                $releaseRoot,
+                (string) $rejected['manifest_sha256'],
+            ))->toThrow(RuntimeException::class);
+
+            $stored = $connection->select(
+                'SELECT password_hash FROM ' . $tables->accounts() . ' WHERE id = ?',
+                ['retained-owner'],
+            );
+            expect($stored)->toHaveCount(1)
+                ->and(password_verify('retained-release-password', $stored[0]['password_hash']))->toBeTrue()
+                ->and((int) $connection->table($tables->sessions())->count())->toBe(1)
+                ->and((int) $connection->table($tables->refreshTokens())->count())->toBe(1);
+        }
+    } finally {
+        $connection->disconnect();
         foundationResetWebrickProductionRegistries();
         foundationPhase8ReleaseRemove($project);
     }
@@ -744,6 +901,57 @@ function foundationPhase8ReleaseRemove(string $directory): void
     }
     rmdir($directory);
 }
+
+it('uses only process environment to select a trusted release generation', function (): void {
+    $rootName = FoundationReleaseBootstrap::RELEASE_ROOT_ENV;
+    $digestName = FoundationReleaseBootstrap::MANIFEST_SHA256_ENV;
+    $previous = [];
+
+    foreach ([$rootName, $digestName] as $name) {
+        $previous[$name] = [
+            'process' => getenv($name),
+            'envExists' => array_key_exists($name, $_ENV),
+            'env' => $_ENV[$name] ?? null,
+            'serverExists' => array_key_exists($name, $_SERVER),
+            'server' => $_SERVER[$name] ?? null,
+        ];
+    }
+
+    try {
+        putenv($rootName);
+        putenv($digestName);
+        $_ENV[$rootName] = '/request-controlled/one';
+        $_SERVER[$rootName] = '/request-controlled/two';
+        $_ENV[$digestName] = str_repeat('a', 64);
+        $_SERVER[$digestName] = str_repeat('b', 64);
+
+        expect(FoundationReleaseBootstrap::fromEnvironment())->toBeNull();
+
+        $trustedRoot = sys_get_temp_dir() . '/foundation-process-root-' . bin2hex(random_bytes(6));
+        $trustedDigest = str_repeat('c', 64);
+        putenv($rootName . '=' . $trustedRoot);
+        putenv($digestName . '=' . $trustedDigest);
+
+        $bootstrap = FoundationReleaseBootstrap::fromEnvironment();
+        expect($bootstrap)->toBeInstanceOf(FoundationReleaseBootstrap::class)
+            ->and($bootstrap->releaseRoot)->toBe($trustedRoot)
+            ->and($bootstrap->trustedFoundationManifestSha256)->toBe($trustedDigest);
+    } finally {
+        foreach ($previous as $name => $state) {
+            putenv($state['process'] === false ? $name : $name . '=' . $state['process']);
+            if ($state['envExists']) {
+                $_ENV[$name] = $state['env'];
+            } else {
+                unset($_ENV[$name]);
+            }
+            if ($state['serverExists']) {
+                $_SERVER[$name] = $state['server'];
+            } else {
+                unset($_SERVER[$name]);
+            }
+        }
+    }
+});
 
 function foundationPhase8ReleaseSetEnvironment(string $name, ?string $value): void
 {

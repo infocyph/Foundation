@@ -19,7 +19,7 @@ cryptography library.
 Install the canonical `security` module:
 
 ```bash
-php infbyte module:install security
+php infbyte module:install security.crypto
 ```
 
 `crypto` and `epicrypt` remain accepted aliases, but `security` is the public
@@ -111,6 +111,11 @@ protection is an independent external-only key domain,
 `foundation.environment.file.v1`; it is not derived from or shared with the
 auth token, MFA, recovery-code, OAuth, or signed-URL roots.
 
+During a live Runwire operation, Foundation forwards the borrowed Epicrypt
+`RunwireExecutionContext` to the actual file protect/unprotect call. A cancelled
+host is not retried as an ordinary synchronous operation; the context is never
+retained on the protector.
+
 ## MFA secret protection and migration
 
 Durable OTP factor secrets are protected at the DBLayer persistence boundary with
@@ -154,6 +159,34 @@ verification. Runtime keys are derived through Epicrypt `KeyDeriver` and
 bounded fallback keys remain read-only for verification, and disabled/retired
 keys are ineligible. Generated release artifacts retain behavior options and
 environment locators only, never resolved signed-URL key material.
+
+### Verification after signing-key rotation
+
+Declare one active environment-backed key and retain a previous key as a
+**verification-only** fallback during an intentional rotation:
+
+```php
+'router' => [
+    'signed_urls' => [
+        'keys' => [
+            ['id' => 'current', 'environment' => 'SIGNED_URL_KEY_CURRENT', 'status' => 'active'],
+            ['id' => 'previous', 'environment' => 'SIGNED_URL_KEY_PREVIOUS', 'status' => 'fallback'],
+        ],
+        'options' => [
+            'default_ttl' => 300,
+            'payload_mode' => 'relative',
+        ],
+    ],
+],
+```
+
+Provision the two secret values in the deployment environment rather than
+embedding them in source or generated release artifacts. Webrick generates new
+links using only the active key, verifies existing links against eligible
+active/fallback keys, and rejects a missing, expired or tampered signature.
+Remove the fallback only after links signed by the previous key have expired.
+Neither Foundation nor the application should introduce a second signature
+canonicalizer or bypass Webrick's native verification middleware.
 
 ## Runtime and process safety
 

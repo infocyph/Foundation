@@ -8,10 +8,16 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ProviderFileLoader;
 use Infocyph\Foundation\Application\ServiceProviderInterface;
 
+/**
+ * Application-owned configuration cache publication and cleanup.
+ *
+ * @api
+ */
 final readonly class ConfigCacheManager
 {
     public function __construct(private Application $application) {}
 
+    /** @throws \RuntimeException */
     public function clear(string $path = 'bootstrap/cache/config'): bool
     {
         $directory = $this->path($path);
@@ -33,6 +39,12 @@ final readonly class ConfigCacheManager
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function write(string $path = 'bootstrap/cache/config', ?string $type = null): string
     {
         $directory = $this->path($path);
@@ -89,24 +101,8 @@ final readonly class ConfigCacheManager
             }
 
             foreach ([...$providers, ...$fromFile[$group]] as $index => $provider) {
-                $path = sprintf('providers.%s.%s', $group, (string) $index);
-                if (!is_string($provider) || trim($provider) === '') {
-                    throw new \RuntimeException(sprintf(
-                        'Configuration value "%s" must be a non-empty service-provider class string.',
-                        $path,
-                    ));
-                }
-                if (!class_exists($provider) || !is_subclass_of($provider, ServiceProviderInterface::class)) {
-                    throw new \RuntimeException(sprintf(
-                        'Configuration value "%s" must reference a loadable %s implementation; "%s" is invalid.',
-                        $path,
-                        ServiceProviderInterface::class,
-                        $provider,
-                    ));
-                }
-
-                /** @var class-string<ServiceProviderInterface> $provider */
-                $groupProviders[$provider] = $provider;
+                $class = $this->providerClass($group, $index, $provider);
+                $groupProviders[$class] = $class;
             }
             $compiled[$group] = array_values($groupProviders);
         }
@@ -114,6 +110,35 @@ final readonly class ConfigCacheManager
         return $compiled;
     }
 
+    /**
+     * @return class-string<ServiceProviderInterface>
+     * @throws \RuntimeException
+     */
+    private function providerClass(string $group, int|string $index, mixed $provider): string
+    {
+        $path = sprintf('providers.%s.%s', $group, (string) $index);
+        if (!is_string($provider) || trim($provider) === '') {
+            throw new \RuntimeException(sprintf(
+                'Configuration value "%s" must be a non-empty service-provider class string.',
+                $path,
+            ));
+        }
+        if (!class_exists($provider) || !is_subclass_of($provider, ServiceProviderInterface::class)) {
+            throw new \RuntimeException(sprintf(
+                'Configuration value "%s" must reference a loadable %s implementation; "%s" is invalid.',
+                $path,
+                ServiceProviderInterface::class,
+                $provider,
+            ));
+        }
+
+        /** @var class-string<ServiceProviderInterface> $provider */
+        return $provider;
+    }
+
+    /**
+     * @throws \RuntimeException
+     */
     private function publish(string $directory, string $staging, string $backup): void
     {
         $parent = dirname($directory);
@@ -135,6 +160,9 @@ final readonly class ConfigCacheManager
         throw new \RuntimeException(sprintf('Unable to publish config cache "%s".', $directory));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function removeDirectory(string $directory): void
     {
         if (is_link($directory) || is_file($directory)) {

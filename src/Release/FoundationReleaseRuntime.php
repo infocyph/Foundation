@@ -12,12 +12,21 @@ use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
 use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
 use Infocyph\Webrick\Runtime\Http\RuntimeAdapterInterface;
 
-/** Process-boot loader for the active immutable Foundation generation. */
+/**
+ * Process-boot loader for the active immutable Foundation generation.
+ *
+ * @api
+ */
 final readonly class FoundationReleaseRuntime
 {
     public function __construct(private ActiveGeneration $active = new ActiveGeneration()) {}
 
-    /** @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config. */
+    /**
+     * @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config.
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
+     * @throws \UnexpectedValueException
+     */
     public function nonWeb(
         array $config,
         RuntimeMode $runtime,
@@ -50,7 +59,12 @@ final readonly class FoundationReleaseRuntime
         return $this->attachGeneration($loaded, $releaseRoot, $generation, $lease);
     }
 
-    /** @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config. */
+    /**
+     * @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config.
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
+     * @throws \UnexpectedValueException
+     */
     public function nonWebPrevalidated(
         array $config,
         RuntimeMode $runtime,
@@ -99,7 +113,11 @@ final readonly class FoundationReleaseRuntime
         );
     }
 
-    /** @return array{0:string,1:array<string,mixed>,2:string,3:string} */
+    /**
+     * @return array{0:string,1:array<string,mixed>,2:string,3:string}
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
+     */
     public function trustedActiveManifest(string $releaseRoot, string $trustedSha256): array
     {
         [$generation, $manifest, $directory, $manifestPath] = $this->trustedActiveManifestWithLease(
@@ -110,7 +128,11 @@ final readonly class FoundationReleaseRuntime
         return [$generation, $manifest, $directory, $manifestPath];
     }
 
-    /** @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config. */
+    /**
+     * @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config.
+     * @throws \Throwable
+     * @throws \UnexpectedValueException
+     */
     public function web(
         array $config,
         string $releaseRoot,
@@ -130,7 +152,12 @@ final readonly class FoundationReleaseRuntime
         return $this->attachWebGeneration($runtime, $releaseRoot, $generation, $lease);
     }
 
-    /** @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config. */
+    /**
+     * @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config.
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
+     * @throws \UnexpectedValueException
+     */
     public function webPrevalidated(
         array $config,
         string $releaseRoot,
@@ -165,16 +192,22 @@ final readonly class FoundationReleaseRuntime
         );
     }
 
-    /** @return array{0:string,1:array<string,mixed>,2:string,3:string,4:ReleaseGenerationLease} */
+    /**
+     * @return array{0:string,1:array<string,mixed>,2:string,3:string,4:ReleaseGenerationLease}
+     * @throws \Throwable
+     */
     private function activeManifest(string $releaseRoot): array
     {
-        $current = $this->active->current($releaseRoot);
+        $current = $this->active->currentPointer($releaseRoot);
         $generation = $current['generation'];
         $lease = ReleaseGenerationLease::acquireShared($releaseRoot, $generation);
         $manifestPath = $current['manifest'];
 
         try {
             $manifest = FoundationReleaseManifest::load($manifestPath);
+            if (($manifest['generation'] ?? null) !== $generation) {
+                throw new \RuntimeException('Foundation active-generation pointer does not match its release manifest.');
+            }
             $expectedDependencies = FoundationReleaseManifest::digest(
                 $manifest['dependency_fingerprint'] ?? null,
                 32,
@@ -194,6 +227,9 @@ final readonly class FoundationReleaseRuntime
         return [$generation, $manifest, dirname($manifestPath), $manifestPath, $lease];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function assertNonWeb(RuntimeMode $runtime): void
     {
         if ($runtime === RuntimeMode::Web) {
@@ -201,6 +237,10 @@ final readonly class FoundationReleaseRuntime
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function attachGeneration(
         GeneratedRuntime $runtime,
         string $releaseRoot,
@@ -218,6 +258,9 @@ final readonly class FoundationReleaseRuntime
         return $runtime;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function attachWebGeneration(
         WebReleaseRuntime $runtime,
         string $releaseRoot,
@@ -239,7 +282,10 @@ final readonly class FoundationReleaseRuntime
         );
     }
 
-    /** @param array<string,mixed> $web */
+    /**
+     * @param array<string,mixed> $web
+     * @throws \UnexpectedValueException
+     */
     private function matcherCachePath(array $web, string $directory): ?string
     {
         $path = $web['matcher_cache_path'] ?? null;
@@ -250,6 +296,9 @@ final readonly class FoundationReleaseRuntime
         return $directory . DIRECTORY_SEPARATOR . $this->relative($path);
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function relative(mixed $path): string
     {
         return str_replace(
@@ -259,7 +308,11 @@ final readonly class FoundationReleaseRuntime
         );
     }
 
-    /** @param array<string,mixed> $manifest */
+    /**
+     * @param array<string,mixed> $manifest
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     private function releaseConfig(array $manifest, string $directory): ConfigRepository
     {
         return FoundationReleaseConfig::load(
@@ -270,6 +323,8 @@ final readonly class FoundationReleaseRuntime
 
     /**
      * @return array{0:string,1:array<string,mixed>,2:string,3:string,4:ReleaseGenerationLease}
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
      */
     private function trustedActiveManifestWithLease(string $releaseRoot, string $trustedSha256): array
     {
@@ -278,14 +333,30 @@ final readonly class FoundationReleaseRuntime
             throw new \InvalidArgumentException('Trusted Foundation generation manifest SHA-256 is invalid.');
         }
 
-        [$generation, $manifest, $directory, $manifestPath, $lease] = $this->activeManifest($releaseRoot);
-        $actualSha256 = hash_file('sha256', $manifestPath);
-        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
+        $current = $this->active->currentPointer($releaseRoot);
+        $generation = $current['generation'];
+        $manifestPath = $current['manifest'];
+        $lease = ReleaseGenerationLease::acquireShared($releaseRoot, $generation);
+
+        try {
+            $manifest = FoundationReleaseManifest::loadTrusted($manifestPath, $trustedSha256);
+            if (($manifest['generation'] ?? null) !== $generation) {
+                throw new \RuntimeException('Foundation active-generation pointer does not match its release manifest.');
+            }
+            $expected = FoundationReleaseManifest::digest(
+                $manifest['dependency_fingerprint'] ?? null,
+                32,
+                'dependency_fingerprint',
+            );
+            if (!hash_equals($expected, FoundationReleaseManifest::dependencyFingerprint())) {
+                throw new \RuntimeException('Foundation generation dependency identity does not match the current Composer installation.');
+            }
+
+            return [$generation, $manifest, dirname($manifestPath), $manifestPath, $lease];
+        } catch (\Throwable $error) {
             $lease->release();
 
-            throw new \RuntimeException('Foundation generation manifest trust identity mismatch.');
+            throw $error;
         }
-
-        return [$generation, $manifest, $directory, $manifestPath, $lease];
     }
 }

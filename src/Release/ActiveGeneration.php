@@ -10,6 +10,10 @@ final class ActiveGeneration
 
     private const string POINTER = 'active.json';
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function activate(string $releaseRoot, string $generation): string
     {
         if (preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*$/D', $generation) !== 1) {
@@ -54,6 +58,10 @@ final class ActiveGeneration
         return $pointerPath;
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     public function clear(string $releaseRoot): bool
     {
         $pointerPath = $this->root($releaseRoot) . DIRECTORY_SEPARATOR . self::POINTER;
@@ -67,25 +75,54 @@ final class ActiveGeneration
         return true;
     }
 
-    /** @return array{generation:string,manifest:string} */
+    /**
+     * @return array{generation:string,manifest:string}
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     public function current(string $releaseRoot): array
     {
-        $releaseRoot = $this->root($releaseRoot);
-        $pointer = $this->pointer($releaseRoot);
-        $manifestPath = $releaseRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $pointer['manifest']);
-        $release = FoundationReleaseManifest::load($manifestPath);
-        if (($release['generation'] ?? null) !== $pointer['generation']) {
+        $current = $this->currentPointer($releaseRoot);
+        $release = FoundationReleaseManifest::load($current['manifest']);
+        if (($release['generation'] ?? null) !== $current['generation']) {
             throw new \RuntimeException('Foundation active-generation pointer does not match its release manifest.');
         }
 
-        return ['generation' => $pointer['generation'], 'manifest' => $manifestPath];
+        return $current;
     }
 
+    /**
+     * Return the validated pointer without executing the generation PHP manifest.
+     *
+     * @return array{generation:string,manifest:string}
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
+    public function currentPointer(string $releaseRoot): array
+    {
+        $releaseRoot = $this->root($releaseRoot);
+        $pointer = $this->pointer($releaseRoot);
+
+        return [
+            'generation' => $pointer['generation'],
+            'manifest' => $releaseRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $pointer['manifest']),
+        ];
+    }
+
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function exists(string $releaseRoot): bool
     {
         return is_file($this->root($releaseRoot) . DIRECTORY_SEPARATOR . self::POINTER);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     public function replacementRequired(string $releaseRoot, string $loadedGeneration): bool
     {
         $pointer = $this->pointer($this->root($releaseRoot));
@@ -93,7 +130,11 @@ final class ActiveGeneration
         return !hash_equals($loadedGeneration, $pointer['generation']);
     }
 
-    /** @return array{generation:string,manifest:string} */
+    /**
+     * @return array{generation:string,manifest:string}
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     private function pointer(string $releaseRoot): array
     {
         $pointerPath = $releaseRoot . DIRECTORY_SEPARATOR . self::POINTER;
@@ -122,6 +163,9 @@ final class ActiveGeneration
         return ['generation' => $generation, 'manifest' => $manifest];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function root(string $releaseRoot): string
     {
         $releaseRoot = rtrim($releaseRoot, DIRECTORY_SEPARATOR);

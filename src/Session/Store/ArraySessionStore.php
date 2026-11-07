@@ -12,11 +12,13 @@ final class ArraySessionStore implements SessionStoreInterface
     /** @var array<string, SessionPayload> */
     private array $sessions = [];
 
+    #[\Override]
     public function delete(string $id): void
     {
         unset($this->sessions[$id]);
     }
 
+    #[\Override]
     public function load(string $id, int $now): ?SessionPayload
     {
         $payload = $this->sessions[$id] ?? null;
@@ -29,6 +31,7 @@ final class ArraySessionStore implements SessionStoreInterface
         return $payload;
     }
 
+    #[\Override]
     public function prune(int $now, int $limit = 1_000): int
     {
         $pruned = 0;
@@ -46,6 +49,7 @@ final class ArraySessionStore implements SessionStoreInterface
         return $pruned;
     }
 
+    #[\Override]
     public function save(string $id, SessionPayload $payload): void
     {
         $this->sessions[$id] = $payload;

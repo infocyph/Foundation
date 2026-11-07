@@ -96,6 +96,6 @@ final class PatConcurrentWorker
 
     public static function store(string $database): DBLayerEpicryptPersonalAccessTokenStore
     {
-        return new DBLayerEpicryptPersonalAccessTokenStore(self::factory($database), new AuthTables());
+        return new DBLayerEpicryptPersonalAccessTokenStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => self::factory($database)]), new AuthTables());
     }
 }

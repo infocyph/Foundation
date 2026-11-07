@@ -18,6 +18,7 @@ final readonly class FoundationOpenIdClaimsProvider implements OpenIdClaimsProvi
 
     public function __construct(private AccountProviderInterface $accounts) {}
 
+    #[\Override]
     public function claims(string $principalId, string $clientId, array $scopes): array
     {
         unset($clientId);

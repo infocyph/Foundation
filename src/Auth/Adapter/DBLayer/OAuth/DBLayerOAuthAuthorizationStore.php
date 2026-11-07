@@ -11,6 +11,10 @@ use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAuthorizationStoreInterface;
 
 final readonly class DBLayerOAuthAuthorizationStore extends DBLayerStore implements OAuthAuthorizationStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function find(string $authorizationId): ?OAuthAuthorization
     {
         return $this->firstMapped(
@@ -20,6 +24,14 @@ final readonly class DBLayerOAuthAuthorizationStore extends DBLayerStore impleme
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    #[\Override]
     public function recent(int $limit = 100, ?string $clientId = null): array
     {
         if ($limit < 1 || $limit > 500) {
@@ -36,6 +48,13 @@ final readonly class DBLayerOAuthAuthorizationStore extends DBLayerStore impleme
         return array_map($this->mapAuthorization(...), $this->all($sql, $bindings));
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function revoke(string $authorizationId, int $revokedAt): bool
     {
         return $this->connection()->execute(
@@ -47,6 +66,14 @@ final readonly class DBLayerOAuthAuthorizationStore extends DBLayerStore impleme
         )->rowCount() === 1;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function save(OAuthAuthorization $authorization): void
     {
         $this->upsertRecord('oauthAuthorizations', 'id', [

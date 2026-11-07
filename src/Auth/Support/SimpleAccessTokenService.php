@@ -20,6 +20,11 @@ final readonly class SimpleAccessTokenService implements AccessTokenServiceInter
         private ClockInterface $clock,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
+    #[\Override]
     public function issue(AccessTokenClaims $claims): string
     {
         $ttlSeconds = $claims->expiresAt - $this->clock->now();
@@ -36,6 +41,11 @@ final readonly class SimpleAccessTokenService implements AccessTokenServiceInter
             ], $claims->subjectId);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
+    #[\Override]
     public function verify(string $token): TokenVerificationResult
     {
         $verification = $this->tokens

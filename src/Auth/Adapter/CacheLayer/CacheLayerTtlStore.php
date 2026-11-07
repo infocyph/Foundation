@@ -14,6 +14,9 @@ final readonly class CacheLayerTtlStore implements TtlStoreInterface
 {
     private AtomicCacheInterface $atomic;
 
+    /**
+     * @throws \LogicException
+     */
     public function __construct(
         private CacheInterface $cache,
         private string $domain = 'foundation.auth.ttl.v1',
@@ -28,6 +31,13 @@ final readonly class CacheLayerTtlStore implements TtlStoreInterface
         $this->atomic = $atomic;
     }
 
+    /**
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
+    #[\Override]
     public function delete(string $key): void
     {
         if (!$this->cache->delete($this->key($key))) {
@@ -35,16 +45,34 @@ final readonly class CacheLayerTtlStore implements TtlStoreInterface
         }
     }
 
+    /**
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
+    #[\Override]
     public function get(string $key, mixed $default = null): mixed
     {
         return $this->cache->get($this->key($key), $default);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
+    #[\Override]
     public function pull(string $key, mixed $default = null): mixed
     {
         return $this->atomic->getAndDelete($this->key($key), $default);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \LogicException
+     */
+    #[\Override]
     public function put(string $key, mixed $value, int $ttlSeconds): void
     {
         if ($ttlSeconds < 1) {
@@ -55,6 +83,10 @@ final readonly class CacheLayerTtlStore implements TtlStoreInterface
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function key(string $key): string
     {
         return FoundationCacheKey::security($this->prefix, $this->domain, $key);

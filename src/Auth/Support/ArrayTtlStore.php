@@ -18,11 +18,13 @@ final class ArrayTtlStore implements TtlStoreInterface
         private readonly ClockInterface $clock = new SystemClock(),
     ) {}
 
+    #[\Override]
     public function delete(string $key): void
     {
         unset($this->items[$key]);
     }
 
+    #[\Override]
     public function get(string $key, mixed $default = null): mixed
     {
         $item = $this->items[$key] ?? null;
@@ -34,6 +36,7 @@ final class ArrayTtlStore implements TtlStoreInterface
         return $item['value'];
     }
 
+    #[\Override]
     public function pull(string $key, mixed $default = null): mixed
     {
         $value = $this->get($key, $default);
@@ -42,6 +45,7 @@ final class ArrayTtlStore implements TtlStoreInterface
         return $value;
     }
 
+    #[\Override]
     public function put(string $key, mixed $value, int $ttlSeconds): void
     {
         $this->items[$key] = [

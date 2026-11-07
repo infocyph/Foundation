@@ -28,6 +28,10 @@ final readonly class CliPreflight
         'completion' => 'Generate Bash, Zsh, or Fish completion output.',
     ];
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function __construct(
         private CommandRegistry $registry = new CommandRegistry(),
         private string $displayName = 'Foundation',
@@ -42,6 +46,7 @@ final readonly class CliPreflight
      * Returns an exit code when handled, otherwise null to continue to command execution.
      *
      * @param list<string> $argv
+     * @throws \InvalidArgumentException
      */
     public function handle(array $argv, CommandIO $io): ?int
     {

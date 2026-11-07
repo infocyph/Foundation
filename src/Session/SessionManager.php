@@ -8,6 +8,11 @@ use Closure;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Application-facing browser session management service.
+ *
+ * @api
+ */
 final readonly class SessionManager
 {
     public function __construct(
@@ -24,6 +29,11 @@ final readonly class SessionManager
         return $this->config;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function current(): BrowserSession
     {
         $active = $this->state()->active;
@@ -35,12 +45,22 @@ final readonly class SessionManager
         return $active[count($active) - 1];
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function enter(BrowserSession $session): void
     {
         $state = $this->state();
         $state->active[] = $session;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function leave(BrowserSession $session): void
     {
         $state = $this->state();
@@ -67,16 +87,32 @@ final readonly class SessionManager
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function prune(int $limit = 1_000): int
     {
         return $this->store()->prune(time(), $limit);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Throwable
+     */
     public function resetContext(): void
     {
         $this->state()->reset();
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function state(): SessionExecutionState
     {
         $state = $this->container->get(SessionExecutionState::class);
@@ -87,6 +123,11 @@ final readonly class SessionManager
         return $state;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function store(): SessionStoreInterface
     {
         $state = $this->state();

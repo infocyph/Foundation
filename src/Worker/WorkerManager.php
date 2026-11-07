@@ -6,7 +6,7 @@ namespace Infocyph\Foundation\Worker;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\RuntimeMode;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Messaging\OmnibusWorkerFactory;
 use Infocyph\Foundation\Operations\RuntimeControl;
@@ -20,11 +20,17 @@ use Infocyph\Omnibus\Consumer\Worker;
 use Infocyph\Omnibus\Consumer\WorkerLifecycle;
 use Infocyph\Omnibus\Consumer\WorkerPool;
 
+/** @api */
 final readonly class WorkerManager
 {
     public function __construct(private Application $application) {}
 
-    /** @return array<string, array<string, mixed>> */
+    /**
+     * @return array<string, array<string, mixed>>
+     * @throws \UnexpectedValueException
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     public function all(string $routes = 'routes/workers.php'): array
     {
         $providers = $this->providerDefinitions($routes);
@@ -60,6 +66,11 @@ final readonly class WorkerManager
         return $workers;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Throwable
+     */
     public function run(string $name, string $routes = 'routes/workers.php'): ?int
     {
         if (!$this->application->runningInWorker()) {
@@ -123,6 +134,7 @@ final readonly class WorkerManager
     /**
      * @param array<string, array<string, mixed>> $providers
      * @param array<string, array<string, mixed>> $messaging
+     * @throws \UnexpectedValueException
      */
     private function assertDistinctNames(array $providers, array $messaging): void
     {
@@ -135,12 +147,18 @@ final readonly class WorkerManager
         }
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \LogicException
+     */
     private function assertForkSafeConfig(array $config): void
     {
         $this->assertForkSafeValue($config, 'config');
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function assertForkSafeValue(mixed $value, string $path): void
     {
         if ($value === null || is_scalar($value)) {
@@ -161,6 +179,11 @@ final readonly class WorkerManager
         ));
     }
 
+    /**
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     */
     private function assertPoolParentClean(): void
     {
         if ($this->application->booted()) {
@@ -168,35 +191,20 @@ final readonly class WorkerManager
         }
 
         $container = $this->application->container();
-        foreach ([
-            \Infocyph\Foundation\Cache\CacheManager::class,
-            \Infocyph\CacheLayer\Cache\CacheInterface::class,
-            \Infocyph\CacheLayer\Cache\Cache::class,
-            \Infocyph\CacheLayer\Cache\Lock\LockProviderInterface::class,
-            \Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface::class,
-            \Infocyph\DBLayer\Connection\Connection::class,
-            \Infocyph\Omnibus\Consumer\Consumer::class,
-            \Infocyph\Omnibus\Failure\FailureStore::class,
-            \Infocyph\Omnibus\Transport\TransportRegistry::class,
-            \Infocyph\TalkingBytes\Http\HttpClient::class,
-        ] as $service) {
-            if ($container->isResolved($service)) {
-                throw new \LogicException(sprintf(
-                    'Pooled workers must fork before resolving process-bound service "%s".',
-                    $service,
-                ));
-            }
+        if (!$container->has(\Infocyph\Foundation\Runtime\ForkSafetyTracker::class)) {
+            throw new \LogicException('Pooled workers require a monitored, fresh development runtime before forking.');
+        }
+        $tracker = $container->get(\Infocyph\Foundation\Runtime\ForkSafetyTracker::class);
+        if (!$tracker instanceof \Infocyph\Foundation\Runtime\ForkSafetyTracker) {
+            throw new \LogicException('Foundation pooled-worker resolution tracker binding is invalid.');
         }
 
-        if ($container->isResolved(\Infocyph\Foundation\Runtime\RuntimeExecutionState::class)) {
-            $state = $container->get(\Infocyph\Foundation\Runtime\RuntimeExecutionState::class);
-            if ($state instanceof \Infocyph\Foundation\Runtime\RuntimeExecutionState
-                && $state->hasDatabaseConnections()
-            ) {
-                throw new \LogicException(
-                    'Pooled workers must fork before opening DBLayer connections in the parent process.',
-                );
-            }
+        $resolved = $tracker->firstResolvedService();
+        if ($resolved !== null) {
+            throw new \LogicException(sprintf(
+                'Pooled workers must fork before resolving process-bound service "%s".',
+                $resolved,
+            ));
         }
 
         $db = \Infocyph\DBLayer\DB::class;
@@ -207,7 +215,11 @@ final readonly class WorkerManager
         }
     }
 
-    /** @return \Closure():bool */
+    /**
+     * @return \Closure():bool
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     private function generationStopRequested(): \Closure
     {
         $loaded = $this->application->loadedReleaseGeneration();
@@ -224,7 +236,10 @@ final readonly class WorkerManager
         return $this->watchGeneration($selected->releaseRoot, $selected->generation);
     }
 
-    /** @return array<string, array<string, mixed>> */
+    /**
+     * @return array<string, array<string, mixed>>
+     * @throws \UnexpectedValueException
+     */
     private function messagingDefinitions(): array
     {
         $configured = $this->application->config()->get('messaging.workers', []);
@@ -258,11 +273,13 @@ final readonly class WorkerManager
                 $this->stopCallback = \Closure::fromCallable($stopRequested);
             }
 
+            #[\Override]
             public function heartbeat(): void
             {
                 ($this->heartbeatCallback)();
             }
 
+            #[\Override]
             public function stopRequested(): bool
             {
                 return (bool) ($this->stopCallback)();
@@ -284,6 +301,9 @@ final readonly class WorkerManager
 
     /**
      * @return array<string, array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     private function providerDefinitions(
         string $routes,
@@ -312,6 +332,12 @@ final readonly class WorkerManager
      * @param array<string, mixed> $definition
      * @param callable():bool $stopRequested
      * @param callable():void $processHeartbeat
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     * @throws \Exception
+     * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     private function runMessaging(
         string $name,
@@ -320,7 +346,7 @@ final readonly class WorkerManager
         callable $processHeartbeat,
     ): int {
         if (!class_exists(Worker::class) || !interface_exists(WorkerLifecycle::class)) {
-            throw new \LogicException('Messaging workers require infocyph/omnibus ^2.6.');
+            throw new \LogicException('Messaging workers require infocyph/omnibus ^3.0.2.');
         }
 
         $configuredPool = ValueNormalizer::associativeArray($definition['pool'] ?? []);
@@ -328,7 +354,6 @@ final readonly class WorkerManager
             $this->assertPoolParentClean();
         }
 
-        /** @var OmnibusWorkerFactory $factory */
         $factory = $this->application->make(OmnibusWorkerFactory::class);
         $factory->options($name);
         $pool = $factory->pool($name);
@@ -381,6 +406,8 @@ final readonly class WorkerManager
      * @param array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float} $definition
      * @param callable():bool $stopRequested
      * @param callable():void $processHeartbeat
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Throwable
      */
     private function runProvider(
         string $name,
@@ -399,7 +426,7 @@ final readonly class WorkerManager
             ));
         }
 
-        $lock = $app->make(CacheLayerFactory::class)->lock();
+        $lock = $app->make(CacheManager::class)->lock();
         $handle = $lock->acquire(
             'foundation:worker:' . $name,
             $definition['lock_wait_seconds'],
@@ -438,6 +465,10 @@ final readonly class WorkerManager
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     private function selectedGeneration(FoundationReleaseBootstrap $bootstrap): LoadedReleaseGeneration
     {
         $current = new ActiveGeneration()->current($bootstrap->releaseRoot);

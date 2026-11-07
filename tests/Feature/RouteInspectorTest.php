@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Infocyph\Foundation\Command\CommandCatalog;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Routing\RouteInspector;
 
@@ -19,6 +20,7 @@ it('lists development routes without creating a standalone matcher cache', funct
             'app' => [
                 'base_path' => $basePath,
                 'env' => 'testing',
+                'capabilities' => [],
             ],
             'router' => [
                 'files' => ['web.php'],
@@ -26,7 +28,8 @@ it('lists development routes without creating a standalone matcher cache', funct
         ]);
         $routes = new RouteInspector($application)->routes()->all();
 
-        expect($routes)->toHaveCount(1)
+        expect(new CommandCatalog()->all()['route:list']->capabilities())->toBe([])
+            ->and($routes)->toHaveCount(1)
             ->and($routes[0]->getMethod())->toBe('GET')
             ->and($routes[0]->getPath())->toBe('/health')
             ->and(is_dir($basePath . '/bootstrap/cache/routes'))->toBeFalse();

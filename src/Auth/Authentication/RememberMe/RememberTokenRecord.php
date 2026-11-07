@@ -46,6 +46,7 @@ final readonly class RememberTokenRecord extends AbstractFamilyTokenRecord
         );
     }
 
+    #[\Override]
     protected function recreate(?int $rotatedAt, ?int $revokedAt): static
     {
         return new self(

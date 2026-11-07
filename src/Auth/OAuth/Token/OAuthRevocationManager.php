@@ -28,6 +28,9 @@ final readonly class OAuthRevocationManager
         $this->accessInspector = new OAuthAccessTokenInspector($accessTokens);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function revoke(
         #[\SensitiveParameter]
         string $token,

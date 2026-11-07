@@ -7,14 +7,24 @@ namespace Infocyph\Foundation\Notifications;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Application-facing notification channel registry.
+ *
+ * @api
+ */
 final readonly class NotificationChannelRegistry
 {
     public function __construct(
         private ConfigRepository $config,
-        private ?NotificationChannel $mail,
         private ContainerInterface $container,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function channel(string $name): NotificationChannel
     {
         $name = trim($name);
@@ -25,6 +35,11 @@ final readonly class NotificationChannelRegistry
         return $this->resolve($name);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function normalize(string $name, mixed $definition): NotificationChannel
     {
         if ($definition instanceof NotificationChannel) {
@@ -51,6 +66,12 @@ final readonly class NotificationChannelRegistry
         return $channel;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function resolve(string $name): NotificationChannel
     {
         $configured = $this->config->get('notifications.channels', []);
@@ -62,9 +83,11 @@ final readonly class NotificationChannelRegistry
             return $this->normalize($name, $configured[$name]);
         }
         if ($name === 'mail') {
-            return $this->mail ?? throw new \LogicException(
-                'The mail notification channel requires the optional infocyph/talkingbytes email integration.',
-            );
+            if (!$this->container->has(MailNotificationChannel::class)) {
+                throw new \LogicException('The mail notification channel requires the optional infocyph/talkingbytes email integration.');
+            }
+
+            return $this->normalize($name, MailNotificationChannel::class);
         }
 
         throw new \InvalidArgumentException(sprintf(

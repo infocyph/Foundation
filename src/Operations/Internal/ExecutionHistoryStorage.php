@@ -13,6 +13,14 @@ final readonly class ExecutionHistoryStorage
 
     public function __construct(private Application $application) {}
 
+    /** @return iterable<array<string,mixed>> */
+    public function allRecords(): iterable
+    {
+        foreach ($this->filesOldestFirst() as $path) {
+            yield from $this->records($path);
+        }
+    }
+
     /** @return list<string> */
     public function filesOldestFirst(): array
     {

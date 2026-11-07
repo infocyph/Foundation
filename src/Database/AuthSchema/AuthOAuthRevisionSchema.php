@@ -13,6 +13,7 @@ final readonly class AuthOAuthRevisionSchema implements Migration
 {
     public function __construct(private AuthTables $tables) {}
 
+    #[\Override]
     public function down(SchemaManager $schema, MigrationContext $context): void
     {
         foreach (array_reverse($this->legacyTables()) as $table) {
@@ -21,11 +22,13 @@ final readonly class AuthOAuthRevisionSchema implements Migration
         }
     }
 
+    #[\Override]
     public function id(): string
     {
         return '20260826000000_foundation_auth_oauth';
     }
 
+    #[\Override]
     public function up(SchemaManager $schema, MigrationContext $context): void
     {
         $this->createClients($schema);

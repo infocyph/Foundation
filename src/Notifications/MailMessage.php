@@ -11,6 +11,8 @@ use Infocyph\TalkingBytes\Email\EmailMessage;
  *
  * TalkingBytes remains the message-building and transport API; Foundation only
  * adds application sender-profile selection.
+ *
+ * @api
  */
 abstract class MailMessage
 {

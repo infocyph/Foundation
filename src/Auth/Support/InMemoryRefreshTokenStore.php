@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\Contract\Storage\RefreshTokenStoreInterface;
 
 final class InMemoryRefreshTokenStore extends AbstractInMemoryFamilyTokenStore implements RefreshTokenStoreInterface
 {
+    #[\Override]
     public function find(string $tokenId): ?RefreshTokenRecord
     {
         $record = $this->findStored($tokenId);
@@ -20,29 +21,45 @@ final class InMemoryRefreshTokenStore extends AbstractInMemoryFamilyTokenStore i
         return $record;
     }
 
+    #[\Override]
     public function revokeFamily(string $familyId): void
     {
         $revokedFamilyId = $familyId;
         $this->revokeStoredFamily($revokedFamilyId);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function rotate(string $tokenId, RefreshTokenRecord $replacement): void
     {
-        $replacementId = $replacement->id;
-        $this->rotateStored($tokenId, $replacement, $replacementId);
+        $current = $this->find($tokenId);
+        if ($current === null || !$this->rotateIfActive($current, $replacement)) {
+            throw new \RuntimeException('Token cannot be rotated more than once.');
+        }
     }
 
+    #[\Override]
+    public function rotateIfActive(RefreshTokenRecord $current, RefreshTokenRecord $replacement): bool
+    {
+        return $this->rotateStoredIfActive($current, $replacement);
+    }
+
+    #[\Override]
     public function save(RefreshTokenRecord $record): void
     {
         $tokenId = $record->id;
         $this->saveStored($record, $tokenId);
     }
 
+    #[\Override]
     public function wasFamilyRevoked(string $familyId): bool
     {
         return $this->wasStoredFamilyRevoked($familyId);
     }
 
+    #[\Override]
     protected function familyId(object $record): string
     {
         if (!$record instanceof RefreshTokenRecord) {
@@ -52,6 +69,7 @@ final class InMemoryRefreshTokenStore extends AbstractInMemoryFamilyTokenStore i
         return $record->familyId;
     }
 
+    #[\Override]
     protected function revokeRecord(object $record, int $revokedAt): object
     {
         if (!$record instanceof RefreshTokenRecord) {
@@ -61,6 +79,7 @@ final class InMemoryRefreshTokenStore extends AbstractInMemoryFamilyTokenStore i
         return $record->withRevokedAt($revokedAt);
     }
 
+    #[\Override]
     protected function rotateRecord(object $record, int $rotatedAt): object
     {
         if (!$record instanceof RefreshTokenRecord) {

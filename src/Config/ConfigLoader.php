@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Config;
 use Infocyph\ArrayKit\Config\ConfigMerge;
 use Infocyph\ArrayKit\Config\Support\Environment;
 
+/** @api */
 final class ConfigLoader
 {
     public const string MANIFEST_FILE = '__manifest.php';
@@ -17,7 +18,10 @@ final class ConfigLoader
 
     private const int CACHE_FORMAT = 6;
 
-    /** @param array<string, mixed> $inline */
+    /**
+     * @param array<string, mixed> $inline
+     * @throws \UnexpectedValueException
+     */
     public function load(array $inline = []): ConfigRepository
     {
         $normalized = $this->normalizeInput($inline);
@@ -40,7 +44,8 @@ final class ConfigLoader
         $cached = $cacheDirectory === null
             ? null
             : $this->loadCacheManifest($cacheDirectory);
-        if ($cacheDirectory !== null && ($cached['type'] ?? null) === self::TYPE_SINGLE) {
+        if ($cacheDirectory !== null && $cached !== null && $cached['type'] === self::TYPE_SINGLE) {
+            /** @psalm-var array{type:'single',file:string} $cached */
             $single = $this->loadSingleCache(
                 $cacheDirectory . DIRECTORY_SEPARATOR . $cached['file'],
                 $overrides,
@@ -50,7 +55,8 @@ final class ConfigLoader
             }
         }
 
-        if ($cacheDirectory !== null && ($cached['type'] ?? null) === self::TYPE_SHARDED) {
+        if ($cacheDirectory !== null && $cached !== null && $cached['type'] === self::TYPE_SHARDED) {
+            /** @psalm-var array{type:'sharded',namespaces:list<string>,complete:bool} $cached */
             return ConfigRepository::fromLazyFiles(
                 directory: $cacheDirectory,
                 cacheDirectory: $cacheDirectory,
@@ -70,6 +76,10 @@ final class ConfigLoader
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function writeCache(
         ConfigRepository $config,
         string $cacheDirectory,
@@ -116,6 +126,9 @@ final class ConfigLoader
             : $basePath . DIRECTORY_SEPARATOR . trim($path, DIRECTORY_SEPARATOR);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function cacheType(ConfigRepository $config, ?string $type): string
     {
         $configured = $type ?? $config->getString('app.config_cache.type', self::TYPE_SHARDED);
@@ -140,7 +153,8 @@ final class ConfigLoader
         }
 
         $namespaces = [];
-        foreach (glob($directory . DIRECTORY_SEPARATOR . '*.php') ?: [] as $file) {
+        $files = glob($directory . DIRECTORY_SEPARATOR . '*.php');
+        foreach ($files === false ? [] : $files as $file) {
             $namespace = pathinfo($file, PATHINFO_FILENAME);
             if ($namespace !== '' && $namespace[0] !== '_') {
                 $namespaces[] = $namespace;
@@ -178,14 +192,24 @@ final class ConfigLoader
             : $basePath . DIRECTORY_SEPARATOR . 'bootstrap/cache/config';
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \UnexpectedValueException
+     */
     private function defaults(): array
     {
         return $this->mergeConfigLayers([FoundationDefaults::all(), AuthDefaults::all()]);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function ensureCacheDirectory(string $directory): void
     {
+        if (is_link($directory)) {
+            throw new \RuntimeException('Configuration cache publication root cannot be a symbolic link.');
+        }
+
         if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create config cache directory "%s".', $directory));
         }
@@ -206,11 +230,7 @@ final class ConfigLoader
         } catch (\Throwable) {
             return null;
         }
-        if (!is_array($payload) || ($payload['_format'] ?? null) !== self::CACHE_FORMAT) {
-            return null;
-        }
-        $schema = $payload['_schema'] ?? null;
-        if (!is_string($schema) || !hash_equals($this->schemaFingerprint(), $schema)) {
+        if (!is_array($payload) || !$this->validManifestHeader($payload)) {
             return null;
         }
 
@@ -226,17 +246,14 @@ final class ConfigLoader
             return null;
         }
 
-        $namespaces = [];
-        foreach ($payload['_namespaces'] as $namespace) {
-            if (!is_string($namespace) || preg_match('/^[A-Za-z0-9_-]+$/', $namespace) !== 1) {
-                return null;
-            }
-            $namespaces[$namespace] = true;
+        $namespaces = $this->validatedNamespaces($payload['_namespaces']);
+        if ($namespaces === null) {
+            return null;
         }
 
         return [
             'type' => self::TYPE_SHARDED,
-            'namespaces' => array_keys($namespaces),
+            'namespaces' => $namespaces,
             'complete' => ($payload['_complete'] ?? false) === true,
         ];
     }
@@ -300,6 +317,7 @@ final class ConfigLoader
         return $input;
     }
 
+    /** @throws \UnexpectedValueException */
     private function schemaFingerprint(): string
     {
         $defaults = $this->defaults();
@@ -312,6 +330,7 @@ final class ConfigLoader
 
     /**
      * @return array{_format:int,_schema:string,_source:string,_type:string,_namespaces:list<string>,_complete:bool}
+     * @throws \RuntimeException
      */
     private function shardedCachePayload(
         ConfigRepository $config,
@@ -332,6 +351,7 @@ final class ConfigLoader
 
     /**
      * @return array{_format:int,_schema:string,_source:string,_type:string,_file:string}
+     * @throws \RuntimeException
      */
     private function singleCachePayload(
         ConfigRepository $config,
@@ -352,8 +372,9 @@ final class ConfigLoader
     private function sourceFingerprint(string $directory, string $basePath): string
     {
         $files = is_dir($directory)
-            ? (glob(rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php') ?: [])
-            : [];
+            ? glob(rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php')
+            : false;
+        $files = $files === false ? [] : $files;
         $providers = rtrim($basePath, DIRECTORY_SEPARATOR)
             . DIRECTORY_SEPARATOR . 'bootstrap'
             . DIRECTORY_SEPARATOR . 'providers.php';
@@ -381,7 +402,39 @@ final class ConfigLoader
         return hash('xxh128', implode('|', $metadata));
     }
 
-    /** @param array<string, mixed> $payload */
+    /**
+     * @param array<array-key,mixed> $values
+     * @return list<string>|null
+     */
+    private function validatedNamespaces(array $values): ?array
+    {
+        $namespaces = [];
+        foreach ($values as $namespace) {
+            if (!is_string($namespace) || preg_match('/^[A-Za-z0-9_-]+$/', $namespace) !== 1) {
+                return null;
+            }
+            $namespaces[$namespace] = true;
+        }
+
+        return array_keys($namespaces);
+    }
+
+    /** @param array<array-key,mixed> $payload */
+    private function validManifestHeader(array $payload): bool
+    {
+        if (($payload['_format'] ?? null) !== self::CACHE_FORMAT) {
+            return false;
+        }
+
+        $schema = $payload['_schema'] ?? null;
+
+        return is_string($schema) && hash_equals($this->schemaFingerprint(), $schema);
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @throws \RuntimeException
+     */
     private function writeManifest(string $directory, array $payload): void
     {
         $target = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::MANIFEST_FILE;

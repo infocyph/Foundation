@@ -1,6 +1,6 @@
 # CLI, schedules, and workers
 
-Foundation 2.0 has no `FoundationConsole`, `src/Console` hierarchy, or second
+Foundation uses no `FoundationConsole`, `src/Console` hierarchy, or second
 console framework. The root `infbyte` executable delegates to Foundation's
 `CommandDispatcher`.
 
@@ -149,8 +149,8 @@ Provider workers are unlocked by default. `singleton=true` opts into CacheLayer
 ownership, and `WorkerRuntime::heartbeat()` refreshes that ownership and checks
 runtime/worker restart generations.
 
-Single Omnibus 2.6 workers use native `WorkerLifecycle` callbacks for heartbeat
-and graceful stop requests. Omnibus 2.6 `WorkerPool` owns parent lifecycle polling and Unix process
+Single Omnibus 3.0.3 workers use native `WorkerLifecycle` callbacks for heartbeat
+and graceful stop requests. Omnibus 3.0.3 `WorkerPool` owns parent lifecycle polling and Unix process
 supervision; each child constructs a fresh Foundation worker application after
 fork, while Foundation supplies only heartbeat/generation-stop policy.
 

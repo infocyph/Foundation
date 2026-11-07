@@ -14,6 +14,7 @@ use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessResult;
 use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Process\ProcessTerminationReason;
+use Infocyph\Foundation\Runtime\CleanupGuard;
 use Infocyph\Foundation\Runtime\ExecutionId;
 
 final class CommandExecutionCoordinator
@@ -33,6 +34,7 @@ final class CommandExecutionCoordinator
     /**
      * @param list<string> $argv
      * @param callable(ExecutionId):int $inline
+     * @throws \Throwable
      */
     public function run(
         CommandDescriptor $descriptor,
@@ -51,36 +53,16 @@ final class CommandExecutionCoordinator
         $policy = $descriptor->definition->executionPolicy();
 
         if (!$policy->requiresSupervisor()) {
-            $this->record($history, $executionId, $name, CommandStatus::Running);
-
-            try {
-                $exitCode = $inline($executionId);
-                $this->record(
-                    $history,
-                    $executionId,
-                    $name,
-                    $exitCode === ExitCode::SUCCESS ? CommandStatus::Succeeded : CommandStatus::Failed,
-                    $exitCode,
-                );
-
-                return $exitCode;
-            } catch (\Throwable $exception) {
-                $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
-                    'exception' => $exception::class,
-                ]);
-
-                throw $exception;
-            }
+            return $this->runInline($history, $executionId, $name, $inline);
         }
 
         $lock = null;
         $handle = null;
+        $primaryFailure = null;
 
         try {
             if ($policy->overlap !== OverlapMode::Allow) {
-                if ($policy->overlap === OverlapMode::Wait) {
-                    $this->record($history, $executionId, $name, CommandStatus::Waiting);
-                }
+                $this->recordWaitIfNeeded($policy, $history, $executionId, $name);
                 $lock = $this->lockProvider();
                 $handle = $lock->acquire(
                     $policy->mutex ?? $name,
@@ -114,13 +96,24 @@ final class CommandExecutionCoordinator
 
             return $result->exitCode;
         } catch (\Throwable $exception) {
-            $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
-                'exception' => $exception::class,
-            ]);
+            $primaryFailure = $exception;
+            CleanupGuard::run(
+                $exception,
+                fn() => $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
+                    'exception' => $exception::class,
+                ]),
+            );
 
             throw $exception;
         } finally {
-            $lock?->release($handle);
+            CleanupGuard::run($primaryFailure, static fn() => self::releaseLock($lock, $handle));
+        }
+    }
+
+    private static function releaseLock(?LockProviderInterface $lock, ?LockHandle $handle): void
+    {
+        if ($lock !== null && $handle !== null) {
+            $lock->release($handle);
         }
     }
 
@@ -143,7 +136,7 @@ final class CommandExecutionCoordinator
             return null;
         }
 
-        $interval = max(100_000_000, (int) round($policy->leaseSeconds * 1_000_000_000 / 3));
+        $interval = max(100_000_000, (int) round($policy->leaseSeconds * (1_000_000_000.0 / 3.0)));
         $nextRefresh = hrtime(true) + $interval;
 
         return static function () use ($handle, $interval, $lock, $policy, &$nextRefresh): bool {
@@ -157,7 +150,13 @@ final class CommandExecutionCoordinator
         };
     }
 
-    /** @param list<string> $argv */
+    /**
+     * @param list<string> $argv
+     * @throws \LogicException
+     * @throws \RuntimeException
+     * @throws \Throwable
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function isolated(
         CommandDescriptor $descriptor,
         array $argv,
@@ -203,6 +202,10 @@ final class CommandExecutionCoordinator
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function lockProvider(): LockProviderInterface
     {
         if ($this->locks !== null) {
@@ -212,7 +215,10 @@ final class CommandExecutionCoordinator
         return $this->locks = $this->application->make(CacheLayerFactory::class)->lock();
     }
 
-    /** @param array<string, scalar|null> $metadata */
+    /**
+     * @param array<string, scalar|null> $metadata
+     * @throws \RuntimeException
+     */
     private function record(
         ExecutionHistory $history,
         ExecutionId $executionId,
@@ -229,6 +235,55 @@ final class CommandExecutionCoordinator
             exitCode: $exitCode,
             metadata: $metadata + ['runtime' => $this->application->runtimeMode()->value],
         );
+    }
+
+    /**
+     * @throws \RuntimeException
+     */
+    private function recordWaitIfNeeded(
+        CommandExecutionPolicy $policy,
+        ExecutionHistory $history,
+        ExecutionId $executionId,
+        string $name,
+    ): void {
+        if ($policy->overlap === OverlapMode::Wait) {
+            $this->record($history, $executionId, $name, CommandStatus::Waiting);
+        }
+    }
+
+    /**
+     * @param callable(ExecutionId):int $inline
+     * @throws \Throwable
+     */
+    private function runInline(
+        ExecutionHistory $history,
+        ExecutionId $executionId,
+        string $name,
+        callable $inline,
+    ): int {
+        $this->record($history, $executionId, $name, CommandStatus::Running);
+
+        try {
+            $exitCode = $inline($executionId);
+            $this->record(
+                $history,
+                $executionId,
+                $name,
+                $exitCode === ExitCode::SUCCESS ? CommandStatus::Succeeded : CommandStatus::Failed,
+                $exitCode,
+            );
+
+            return $exitCode;
+        } catch (\Throwable $exception) {
+            CleanupGuard::run(
+                $exception,
+                fn() => $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
+                    'exception' => $exception::class,
+                ]),
+            );
+
+            throw $exception;
+        }
     }
 
     private function status(ProcessResult $result): CommandStatus

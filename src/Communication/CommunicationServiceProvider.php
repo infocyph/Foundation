@@ -6,7 +6,6 @@ namespace Infocyph\Foundation\Communication;
 
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\ContainerBuilder;
@@ -21,83 +20,82 @@ use Infocyph\TalkingBytes\Webhook\WebhookSender;
 use Infocyph\TalkingBytes\Webhook\WebhookVerifier;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Built-in application service provider, selected through Foundation composition.
+ *
+ * @api
+ */
 final class CommunicationServiceProvider extends ServiceProvider
 {
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if (!class_exists(HttpClient::class)) {
             throw new \LogicException(
-                'Foundation communication services require infocyph/talkingbytes; run "php infbyte module:install communication".',
+                'Foundation communication services require infocyph/talkingbytes; run "php infbyte module:install execution.communication".',
             );
         }
 
-        $builder->singleton(CommunicationProfiles::class, FactoryDefinition::construct(
+        $builder->factory(CommunicationProfiles::class, FactoryDefinition::construct(
             CommunicationProfiles::class,
             [new ServiceReference(ConfigRepository::class)],
         ));
-        if (!$builder->definitions()->has(HttpClientConfig::class)) {
-            $builder->singleton(HttpClientConfig::class, FactoryDefinition::staticFactory(
+        $builder->factory(HttpClientConfig::class, FactoryDefinition::staticFactory(
+            CommunicationGraphFactory::class,
+            'httpConfig',
+            [new ServiceReference(CommunicationProfiles::class)],
+        ));
+        $builder->factory(
+            HttpClient::class,
+            FactoryDefinition::staticFactory(
                 CommunicationGraphFactory::class,
-                'httpConfig',
+                'http',
                 [new ServiceReference(CommunicationProfiles::class)],
-            ));
-        }
-        if (!$builder->definitions()->has(HttpClient::class)) {
-            $builder->bind(
-                HttpClient::class,
-                FactoryDefinition::staticFactory(
-                    CommunicationGraphFactory::class,
-                    'http',
-                    [new ServiceReference(CommunicationProfiles::class)],
-                ),
-                LifetimeEnum::Scoped,
-            );
-        }
-        if (!$builder->definitions()->has(WebhookSender::class)) {
-            $builder->bind(
-                WebhookSender::class,
-                FactoryDefinition::staticFactory(
-                    CommunicationGraphFactory::class,
-                    'webhookSender',
-                    [new ServiceReference(CommunicationProfiles::class)],
-                ),
-                LifetimeEnum::Scoped,
-            );
-        }
-        if (!$builder->definitions()->has(WebhookVerifier::class)) {
-            $builder->singleton(WebhookVerifier::class, FactoryDefinition::staticFactory(
+            ),
+            LifetimeEnum::Scoped,
+        );
+        $builder->factory(
+            WebhookSender::class,
+            FactoryDefinition::staticFactory(
                 CommunicationGraphFactory::class,
-                'webhookVerifier',
+                'webhookSender',
                 [new ServiceReference(CommunicationProfiles::class)],
-            ));
-        }
-        if (!$builder->definitions()->has(WebhookReceiver::class)) {
-            $this->registerWebhookReceiver($builder, $context);
-        }
-        if (!$builder->definitions()->has(GrpcInboundDispatcher::class)) {
-            $this->registerGrpcDispatcher($builder, $context);
-        }
-        if (!$builder->definitions()->has(GrpcInboundWorker::class)) {
-            $builder->singleton(GrpcInboundWorker::class, FactoryDefinition::construct(
-                GrpcInboundWorker::class,
-                [
-                    new ServiceReference(ContainerInterface::class),
-                    new ServiceReference(ConfigRepository::class),
-                ],
-            ));
-        }
+            ),
+            LifetimeEnum::Scoped,
+        );
+        $builder->factory(WebhookVerifier::class, FactoryDefinition::staticFactory(
+            CommunicationGraphFactory::class,
+            'webhookVerifier',
+            [new ServiceReference(CommunicationProfiles::class)],
+        ));
+        $this->registerWebhookReceiver($builder, $context);
+        $this->registerGrpcDispatcher($builder, $context);
+        $builder->factory(GrpcInboundWorker::class, FactoryDefinition::construct(
+            GrpcInboundWorker::class,
+            [
+                new ServiceReference(ContainerInterface::class),
+                new ServiceReference(ConfigRepository::class),
+            ],
+        ));
 
         $builder->alias('foundation.communication', CommunicationProfiles::class);
     }
 
     private function registerGrpcDispatcher(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $communication = is_array($context->config['communication'] ?? null) ? $context->config['communication'] : [];
-        $grpc = is_array($communication['grpc'] ?? null) ? $communication['grpc'] : [];
-        $inbound = is_array($grpc['inbound'] ?? null) ? $grpc['inbound'] : [];
-        $handlers = is_array($inbound['handlers'] ?? null) ? $inbound['handlers'] : [];
+        $communication = $context->config['communication'] ?? null;
+        $communication = is_array($communication) ? $communication : [];
+        $grpc = $communication['grpc'] ?? null;
+        $grpc = is_array($grpc) ? $grpc : [];
+        $inbound = $grpc['inbound'] ?? null;
+        $inbound = is_array($inbound) ? $inbound : [];
+        $handlers = $inbound['handlers'] ?? null;
+        $handlers = is_array($handlers) ? $handlers : [];
 
-        $builder->bind(
+        $builder->factory(
             GrpcInboundDispatcher::class,
             FactoryDefinition::staticFactory(
                 CommunicationGraphFactory::class,
@@ -112,13 +110,19 @@ final class CommunicationServiceProvider extends ServiceProvider
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function registerWebhookReceiver(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $communication = is_array($context->config['communication'] ?? null) ? $context->config['communication'] : [];
-        $webhooks = is_array($communication['webhooks'] ?? null) ? $communication['webhooks'] : [];
+        $communication = $context->config['communication'] ?? null;
+        $communication = is_array($communication) ? $communication : [];
+        $webhooks = $communication['webhooks'] ?? null;
+        $webhooks = is_array($webhooks) ? $webhooks : [];
         $profile = $webhooks['default_inbound'] ?? 'default';
         $profile = is_string($profile) && trim($profile) !== '' ? trim($profile) : 'default';
-        $inbound = is_array($webhooks['inbound'] ?? null) ? $webhooks['inbound'] : [];
+        $inbound = $webhooks['inbound'] ?? null;
+        $inbound = is_array($inbound) ? $inbound : [];
         $profileConfig = is_array($inbound[$profile] ?? null) ? $inbound[$profile] : [];
         $replay = ValueNormalizer::associativeArray($profileConfig['replay'] ?? []);
         $app = is_array($context->config['app'] ?? null) ? $context->config['app'] : [];
@@ -129,7 +133,7 @@ final class CommunicationServiceProvider extends ServiceProvider
             throw new \LogicException('Production WebhookReceiver requires replay protection.');
         }
         if (!$enabled) {
-            $builder->singleton(WebhookReceiver::class, FactoryDefinition::staticFactory(
+            $builder->factory(WebhookReceiver::class, FactoryDefinition::staticFactory(
                 CommunicationGraphFactory::class,
                 'webhookReceiver',
                 [
@@ -140,19 +144,19 @@ final class CommunicationServiceProvider extends ServiceProvider
 
             return;
         }
-        if (!$builder->definitions()->has(CacheLayerFactory::class)) {
+        if (!$context->permitsCapability('cache')) {
             throw new \LogicException(
                 'Webhook replay protection requires the Foundation cache capability.',
             );
         }
 
-        $builder->singleton(WebhookReceiver::class, FactoryDefinition::staticFactory(
+        $builder->factory(WebhookReceiver::class, FactoryDefinition::staticFactory(
             CommunicationGraphFactory::class,
             'protectedWebhookReceiver',
             [
                 new ServiceReference(CommunicationProfiles::class),
                 new ServiceReference(ConfigRepository::class),
-                new ServiceReference(CacheLayerFactory::class),
+                new ServiceReference(ContainerInterface::class),
             ],
         ));
     }

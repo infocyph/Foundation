@@ -61,6 +61,8 @@ use Infocyph\Foundation\Module\Internal\ModuleCatalogValidator;
  *     dependencies:list<ModuleDependency>,
  *     platform:PlatformRequirement
  * }
+ *
+ * @api
  */
 final class ModuleCatalog
 {
@@ -69,12 +71,12 @@ final class ModuleCatalog
         'auth' => [
             'packages' => [
                 'infocyph/otp' => [
-                    'constraint' => '^6.1',
+                    'constraint' => '^7.0.1',
                     'role' => 'feature',
                     'features' => ['otp', 'passkey'],
                 ],
                 'web-auth/webauthn-lib' => [
-                    'constraint' => '^5.3.9',
+                    'constraint' => '^5.3.12',
                     'role' => 'feature',
                     'features' => ['passkey'],
                 ],
@@ -189,7 +191,7 @@ final class ModuleCatalog
         'communication' => [
             'packages' => [
                 'infocyph/talkingbytes' => [
-                    'constraint' => '^2.1',
+                    'constraint' => '^2.3.1',
                     'role' => 'required',
                     'features' => [],
                 ],
@@ -225,7 +227,7 @@ final class ModuleCatalog
         'database' => [
             'packages' => [
                 'infocyph/dblayer' => [
-                    'constraint' => '^5.1',
+                    'constraint' => '^6.1.4',
                     'role' => 'required',
                     'features' => [],
                 ],
@@ -245,7 +247,7 @@ final class ModuleCatalog
         'filesystem' => [
             'packages' => [
                 'infocyph/pathwise' => [
-                    'constraint' => '^4.1',
+                    'constraint' => '^4.2.1',
                     'role' => 'required',
                     'features' => [],
                 ],
@@ -345,7 +347,7 @@ final class ModuleCatalog
         'messaging' => [
             'packages' => [
                 'infocyph/omnibus' => [
-                    'constraint' => '^2.6',
+                    'constraint' => '^3.0.3',
                     'role' => 'required',
                     'features' => [],
                 ],
@@ -353,11 +355,6 @@ final class ModuleCatalog
                     'constraint' => null,
                     'role' => 'optional',
                     'features' => ['sqs'],
-                ],
-                'infocyph/runwire' => [
-                    'constraint' => null,
-                    'role' => 'optional',
-                    'features' => ['runwire'],
                 ],
                 'php-amqplib/php-amqplib' => [
                     'constraint' => null,
@@ -378,16 +375,6 @@ final class ModuleCatalog
                         'extensions' => [],
                         'optional_extensions' => [],
                         'packages' => ['php-amqplib/php-amqplib'],
-                    ],
-                ],
-                'runwire' => [
-                    'description' => 'Runwire-backed process supervision.',
-                    'aliases' => ['runwire'],
-                    'dependencies' => [],
-                    'platform' => [
-                        'extensions' => [],
-                        'optional_extensions' => [],
-                        'packages' => ['infocyph/runwire'],
                     ],
                 ],
                 'sqs' => [
@@ -414,8 +401,8 @@ final class ModuleCatalog
                 ],
             ],
             'platform' => [
-                'extensions' => ['pcntl', 'posix'],
-                'optional_extensions' => ['memcached', 'msgpack', 'redis'],
+                'extensions' => [],
+                'optional_extensions' => ['memcached', 'msgpack', 'pcntl', 'posix', 'redis'],
                 'packages' => [],
             ],
         ],
@@ -452,7 +439,7 @@ final class ModuleCatalog
         'security' => [
             'packages' => [
                 'infocyph/epicrypt' => [
-                    'constraint' => '^3.1',
+                    'constraint' => '^3.3',
                     'role' => 'required',
                     'features' => [],
                 ],
@@ -487,7 +474,7 @@ final class ModuleCatalog
         'validation' => [
             'packages' => [
                 'infocyph/reqshield' => [
-                    'constraint' => '^3.2',
+                    'constraint' => '^3.3.1',
                     'role' => 'required',
                     'features' => [],
                 ],
@@ -523,8 +510,20 @@ final class ModuleCatalog
     }
 
     /**
+     * Fixed 4.0 module blueprint used during the staged lifecycle cutover.
+     * Legacy current module state/commands remain unchanged until Batch 2+.
+     *
+     * @return array<string,array<string,mixed>>
+     */
+    public function architecture(): array
+    {
+        return new ModuleArchitectureCatalog()->all();
+    }
+
+    /**
      * @phpstan-param ModuleDefinition $definition
      * @return array<string,string>
+     * @throws \InvalidArgumentException
      */
     public function featurePackages(array $definition, string $feature): array
     {
@@ -603,6 +602,7 @@ final class ModuleCatalog
     /**
      * @param list<string> $features
      * @phpstan-return ResolvedModule
+     * @throws \InvalidArgumentException
      */
     public function resolve(string $module, array $features = []): array
     {
@@ -691,26 +691,42 @@ final class ModuleCatalog
             if ($requested !== $package || $requirement['role'] !== 'feature') {
                 continue;
             }
-            if (count($requirement['features']) === 1) {
-                return $requirement['features'][0];
-            }
 
-            $explicit = $this->normalizeFeatures($definition, $requestedFeatures);
-            $matching = array_values(array_intersect($requirement['features'], $explicit));
-            if (count($matching) === 1) {
-                return $matching[0];
-            }
-            if ($matching !== []) {
-                return null;
-            }
-
-            throw new \InvalidArgumentException(sprintf(
-                'Package "%s" is shared by features %s; request the module with --feature explicitly.',
-                $package,
-                implode(', ', $requirement['features']),
-            ));
+            return $this->resolvePackageFeature($package, $requirement, $definition, $requestedFeatures);
         }
 
         return false;
+    }
+
+    /**
+     * @phpstan-param PackageRequirement $requirement
+     * @phpstan-param ModuleDefinition $definition
+     * @param list<string> $requestedFeatures
+     * @throws \InvalidArgumentException
+     */
+    private function resolvePackageFeature(
+        string $package,
+        array $requirement,
+        array $definition,
+        array $requestedFeatures,
+    ): ?string {
+        if (count($requirement['features']) === 1) {
+            return $requirement['features'][0];
+        }
+
+        $explicit = $this->normalizeFeatures($definition, $requestedFeatures);
+        $matching = array_values(array_intersect($requirement['features'], $explicit));
+        if (count($matching) === 1) {
+            return $matching[0];
+        }
+        if ($matching !== []) {
+            return null;
+        }
+
+        throw new \InvalidArgumentException(sprintf(
+            'Package "%s" is shared by features %s; request the module with --feature explicitly.',
+            $package,
+            implode(', ', $requirement['features']),
+        ));
     }
 }

@@ -19,8 +19,16 @@ use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 
+/**
+ * Application-facing OAuth authorization code lifecycle manager.
+ *
+ * @api
+ */
 final readonly class AuthorizationCodeManager
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         private OAuthAuthorizationCodeIssuer $issuer,
         private OAuthAuthorizationCodeConsumer $consumer,
@@ -34,6 +42,9 @@ final readonly class AuthorizationCodeManager
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function consume(
         #[\SensitiveParameter]
         string $code,
@@ -66,6 +77,10 @@ final readonly class AuthorizationCodeManager
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws OAuthProtocolException
+     */
     public function issue(AuthorizationRequest $request, PrincipalInterface $principal): OAuthAuthorizationCodeIssue
     {
         $accountId = $principal->accountId();
@@ -75,9 +90,30 @@ final readonly class AuthorizationCodeManager
         $this->assertPermissions($principal, $request);
 
         $metadata = $principal->metadata();
-        $authenticationTime = $metadata['auth_time'] ?? $this->clock->now();
-        if (!is_int($authenticationTime) || $authenticationTime < 1) {
-            $authenticationTime = $this->clock->now();
+        $authenticationTime = $metadata['auth_time'] ?? null;
+        $now = $this->clock->now();
+        if (!is_int($authenticationTime) || $authenticationTime < 1 || $authenticationTime > $now) {
+            if ($request->openId()) {
+                throw new OAuthProtocolException(
+                    'login_required',
+                    'OpenID authorization requires a verified authentication timestamp.',
+                    400,
+                    true,
+                );
+            }
+            // Non-OpenID OAuth codes do not assert an ID-token auth_time.
+            $authenticationTime = $now;
+        }
+        if ($request->openId()
+            && $request->openIdMaximumAuthenticationAge !== null
+            && ($now - $authenticationTime) > $request->openIdMaximumAuthenticationAge
+        ) {
+            throw new OAuthProtocolException(
+                'login_required',
+                'OpenID authorization requires recent authentication.',
+                400,
+                true,
+            );
         }
         $authenticationContext = is_string($metadata['acr'] ?? null) ? $metadata['acr'] : null;
         $authenticationMethods = is_array($metadata['amr'] ?? null)

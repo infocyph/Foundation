@@ -13,6 +13,9 @@ final readonly class ModuleConfigPublisher
     /**
      * @param list<string> $configured
      * @return array{published:list<string>,existing:list<string>}
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
+     * @throws \Throwable
      */
     public function publish(array $configured, bool $force): array
     {
@@ -50,8 +53,17 @@ final readonly class ModuleConfigPublisher
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function ensureDirectory(string $directory): void
     {
+        if (is_link($directory)) {
+            throw new \RuntimeException('Refusing symbolic-linked project config directory.');
+        }
+        if (file_exists($directory) && !is_dir($directory)) {
+            throw new \RuntimeException(sprintf('Unable to create project config directory "%s".', $directory));
+        }
         if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create project config directory "%s".', $directory));
         }
@@ -60,6 +72,7 @@ final readonly class ModuleConfigPublisher
     /**
      * @param list<string> $existing
      * @return array{publish:bool,backup:?string}
+     * @throws \RuntimeException
      */
     private function prepareTarget(string $target, string $temporary, array &$existing, bool $force): array
     {
@@ -98,6 +111,8 @@ final readonly class ModuleConfigPublisher
      * @param array<string,string> $sources
      * @param list<string> $existing
      * @return list<string>
+     * @throws \RuntimeException
+     * @throws \Throwable
      */
     private function publishFiles(string $directory, array $sources, array &$existing, bool $force): array
     {
@@ -191,6 +206,9 @@ final readonly class ModuleConfigPublisher
         return $errors;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function source(string $filename): string
     {
         $source = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'config'
@@ -243,7 +261,10 @@ final readonly class ModuleConfigPublisher
         }
     }
 
-    /** @param list<string> $existing */
+    /**
+     * @param list<string> $existing
+     * @throws \RuntimeException
+     */
     private function targetAlreadyExists(string $target, array &$existing, bool $force): bool
     {
         if (is_link($target)) {
@@ -266,6 +287,9 @@ final readonly class ModuleConfigPublisher
         return false;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function unlink(string $path, string $kind): void
     {
         if (is_file($path) && !unlink($path)) {

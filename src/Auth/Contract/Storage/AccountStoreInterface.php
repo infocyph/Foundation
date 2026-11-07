@@ -11,6 +11,12 @@ interface AccountStoreInterface
 {
     public function markVerified(string $accountId, int $verifiedAt): void;
 
+    /**
+     * Atomically mark an account verified only while its authoritative
+     * identifier/metadata email still matches the issued destination.
+     */
+    public function markVerifiedForEmail(string $accountId, string $email, int $verifiedAt): bool;
+
     public function save(AccountInterface $account): void;
 
     /**

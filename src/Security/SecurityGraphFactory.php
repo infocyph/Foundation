@@ -7,9 +7,17 @@ namespace Infocyph\Foundation\Security;
 use Infocyph\Epicrypt\Password\Enum\PasswordHashAlgorithm;
 use Infocyph\Epicrypt\Password\PasswordHashOptions;
 
+/**
+ * Generated runtime security capability factory entrypoint.
+ *
+ * @api
+ */
 final class SecurityGraphFactory
 {
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \InvalidArgumentException
+     */
     public static function passwordOptions(array $config): PasswordHashOptions
     {
         $algorithm = $config['algorithm'] ?? PasswordHashAlgorithm::ARGON2ID->value;
@@ -30,7 +38,10 @@ final class SecurityGraphFactory
         );
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \InvalidArgumentException
+     */
     private static function positiveInt(array $config, string $key, int $default): int
     {
         if (!array_key_exists($key, $config)) {

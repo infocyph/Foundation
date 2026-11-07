@@ -59,7 +59,12 @@ it('rejects an opened DBLayer parent connection before pool fork', function (): 
             ],
             'messaging' => foundationForkSafetyMessagingConfig(),
         ]);
-        $app->make(DBLayerFactory::class)->connection()->statement('SELECT 1');
+        // The fork guard must detect DBLayer's real process-wide facade registry.
+        // Execution-owned DBLayerFactory::connection() correctly requires a scope.
+        DB::addConnection([
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+        ], 'testing')->statement('SELECT 1');
 
         expect(fn() => new WorkerManager($app)->run('parallel'))
             ->toThrow(LogicException::class, 'DBLayer connections');
@@ -79,10 +84,13 @@ it('rejects a resolved TalkingBytes HTTP client before pool fork', function (): 
             'app' => ['base_path' => $basePath],
             'messaging' => foundationForkSafetyMessagingConfig(),
         ]);
-        expect($app->make(HttpClient::class))->toBeInstanceOf(HttpClient::class);
+        $app->execution()->run(static function () use ($app): void {
+            expect($app->make(HttpClient::class))->toBeInstanceOf(HttpClient::class);
 
-        expect(fn() => new WorkerManager($app)->run('parallel'))
-            ->toThrow(LogicException::class, HttpClient::class);
+            // Resolving a scoped client still makes the parent unsafe to fork.
+            expect(fn() => new WorkerManager($app)->run('parallel'))
+                ->toThrow(LogicException::class, HttpClient::class);
+        });
     } finally {
         foundationForkSafetyRemove($basePath);
     }

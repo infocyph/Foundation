@@ -11,6 +11,8 @@ use Infocyph\TalkingBytes\Email\ValueObject\EmailAddress;
 
 /**
  * Application mail orchestration over native TalkingBytes EmailMessage/Emailer.
+ *
+ * @api
  */
 final readonly class Mailer
 {
@@ -19,11 +21,19 @@ final readonly class Mailer
         private ConfigRepository $config,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function send(MailMessage $message): CommunicationResult
     {
         return $this->sendEmail($message->toEmail(), $message->senderProfile());
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function sendEmail(EmailMessage $message, ?string $profile = null): CommunicationResult
     {
         return $this->profiles->sender($profile)->send($this->applyDefaultFrom($message));

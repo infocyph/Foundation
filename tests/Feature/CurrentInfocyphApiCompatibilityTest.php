@@ -13,7 +13,7 @@ use Infocyph\Omnibus\Consumer\WorkerPool;
 use Infocyph\Omnibus\Failure\FailureManager;
 use Infocyph\Omnibus\Failure\FailureRetryClaim;
 
-it('accepts DBLayer 5 SQL Server connection configuration', function (): void {
+it('accepts DBLayer 6 SQL Server connection configuration', function (): void {
     expect(class_exists(ConnectionConfig::class))->toBeTrue();
 
     $config = ConnectionConfig::fromArray([
@@ -31,7 +31,7 @@ it('accepts DBLayer 5 SQL Server connection configuration', function (): void {
     expect($config)->toBeInstanceOf(ConnectionConfig::class);
 });
 
-it('targets DBLayer 5 bind sizing and monitoring surfaces', function (): void {
+it('targets DBLayer 6 bind sizing and monitoring surfaces', function (): void {
     expect(class_exists(Connection::class))->toBeTrue();
 
     $connection = new Connection(ConnectionConfig::fromArray([
@@ -52,7 +52,7 @@ it('targets DBLayer 5 bind sizing and monitoring surfaces', function (): void {
     }
 });
 
-it('targets the Omnibus 2.6 worker and failure lifecycle', function (): void {
+it('targets the Omnibus 3 worker and failure lifecycle', function (): void {
     expect(class_exists(Worker::class))->toBeTrue();
 
     expect(class_exists(WorkerOptions::class))->toBeTrue()
@@ -75,7 +75,7 @@ it('targets the Omnibus 2.6 worker and failure lifecycle', function (): void {
         ->and($options->maxMessages)->toBe(1);
 });
 
-it('targets the Omnibus 2.6 pool backend and lifecycle surface', function (): void {
+it('targets the Omnibus 3 pool backend and lifecycle surface', function (): void {
     expect(class_exists(WorkerPool::class))->toBeTrue()
         ->and(class_exists(NativeWorkerPoolBackend::class))->toBeTrue()
         ->and(interface_exists(WorkerLifecycle::class))->toBeTrue();

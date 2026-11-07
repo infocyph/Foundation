@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Notifications;
 
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\PathManager;
+use Infocyph\Foundation\Runtime\NativeRunwireOperation;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\TalkingBytes\Email\Config\ImapConfig;
 use Infocyph\TalkingBytes\Email\Config\Pop3Config;
@@ -24,6 +25,7 @@ use Infocyph\TalkingBytes\Email\Receiver\SpoolEmailReceiver;
  *
  * TalkingBytes owns transport/decorator composition, parsing, receiving and
  * mailbox behavior. Foundation owns profile selection, secrets and path policy.
+ * @api
  */
 final readonly class EmailProfiles
 {
@@ -36,6 +38,10 @@ final readonly class EmailProfiles
         private RawEmailParser $parser,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function authEmailer(): Emailer
     {
         $profile = $this->stringConfig(
@@ -46,20 +52,40 @@ final readonly class EmailProfiles
         return $this->sender($profile);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function imapMailbox(string $profile = 'default'): Mailbox
     {
-        return $this->mailboxes->usingImap(ImapConfig::fromArray(
+        $context = NativeRunwireOperation::current();
+        $factory = $context === null ? $this->mailboxes
+            : $this->mailboxes->withRunwire($context->runtime, $context->request, $context->scope);
+
+        return $factory->usingImap(ImapConfig::fromArray(
             $this->profile('notifications.email.mailboxes.imap', $profile),
         ));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function pop3Mailbox(string $profile = 'default'): Pop3Mailbox
     {
-        return $this->mailboxes->usingPop3(Pop3Config::fromArray(
+        $context = NativeRunwireOperation::current();
+        $factory = $context === null ? $this->mailboxes
+            : $this->mailboxes->withRunwire($context->runtime, $context->request, $context->scope);
+
+        return $factory->usingPop3(Pop3Config::fromArray(
             $this->profile('notifications.email.mailboxes.pop3', $profile),
         ));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function sender(?string $profile = null): Emailer
     {
         $config = $this->senderProfile($profile);
@@ -75,7 +101,11 @@ final readonly class EmailProfiles
             $fallbacks[] = $this->resolvedTransport($transport);
         }
 
-        return $this->senders->fromResolvedConfig([
+        $context = NativeRunwireOperation::current();
+        $factory = $context === null ? $this->senders
+            : $this->senders->withRunwire($context->runtime, $context->request, $context->scope);
+
+        return $factory->fromResolvedConfig([
             'transport' => $this->resolvedTransport($primary),
             'fallbacks' => $fallbacks,
             'retry' => ValueNormalizer::associativeArray($config['retry'] ?? []),
@@ -84,13 +114,21 @@ final readonly class EmailProfiles
         ]);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function spoolReceiver(string $profile = 'default'): SpoolEmailReceiver
     {
         $config = $this->resolveSpoolPaths(
             $this->profile('notifications.email.receivers.spool', $profile),
         );
 
-        return $this->receivers->usingSpool(
+        $context = NativeRunwireOperation::current();
+        $factory = $context === null ? $this->receivers
+            : $this->receivers->withRunwire($context->runtime, $context->request, $context->scope);
+
+        return $factory->usingSpool(
             SpoolConfig::fromArray($config),
             $this->parser,
             ValueNormalizer::bool($config['deleteAfterRead'] ?? false, false),
@@ -130,7 +168,10 @@ final readonly class EmailProfiles
         return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function profile(string $collectionKey, string $profile): array
     {
         $name = trim($profile);
@@ -149,7 +190,10 @@ final readonly class EmailProfiles
         return ValueNormalizer::associativeArray($profiles[$name]);
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \InvalidArgumentException
+     */
     private function requiredString(array $config, string $key): string
     {
         $value = $config[$key] ?? null;
@@ -174,7 +218,10 @@ final readonly class EmailProfiles
         return $config;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function resolvedTransport(string $transport): array
     {
         $config = $this->transportConfig($transport);
@@ -212,7 +259,10 @@ final readonly class EmailProfiles
         return $config;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function senderProfile(?string $profile): array
     {
         $name = is_string($profile) && trim($profile) !== '' ? trim($profile) : $this->defaultSender();
@@ -235,7 +285,10 @@ final readonly class EmailProfiles
         return is_string($value) && trim($value) !== '' ? trim($value) : $default;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function transportConfig(string $transport): array
     {
         return $this->profile('notifications.email.transports', $transport);

@@ -159,9 +159,9 @@ PHP);
         $readiness = new FoundationOptimizationCommandIO();
         $optimize = new FoundationOptimizationCommandIO();
 
-        expect($dispatcher->run(['infbyte', 'module:show', 'database'], $show))->toBe(ExitCode::SUCCESS)
-            ->and($dispatcher->run(['infbyte', 'module:doctor', 'database'], $doctor))->toBe(ExitCode::SUCCESS)
-            ->and($dispatcher->run(['infbyte', 'module:plan', 'database'], $plan))->toBe(ExitCode::SUCCESS)
+        expect($dispatcher->run(['infbyte', 'module:show', 'data.database'], $show))->toBe(ExitCode::SUCCESS)
+            ->and($dispatcher->run(['infbyte', 'module:doctor', 'data.database'], $doctor))->toBe(ExitCode::SUCCESS)
+            ->and($dispatcher->run(['infbyte', 'module:plan', 'data.database'], $plan))->toBe(ExitCode::SUCCESS)
             ->and($dispatcher->run(['infbyte', 'config:validate', '--production'], $validation))->toBe(ExitCode::SUCCESS)
             ->and($dispatcher->run(['infbyte', 'app:ready'], $readiness))->toBe(ExitCode::SUCCESS)
             ->and($dispatcher->run(['infbyte', 'optimize'], $optimize))->toBe(ExitCode::SUCCESS);
@@ -179,11 +179,11 @@ PHP);
             ->and($validationPayload)->toBeArray()
             ->and($readinessPayload)->toBeArray()
             ->and($optimizePayload)->toBeArray()
-            ->and($showPayload['enabled'] ?? true)->toBeFalse()
-            ->and($doctorPayload['enabled'] ?? true)->toBeFalse()
-            ->and($doctorPayload['ready'] ?? true)->toBeFalse()
-            ->and($planPayload['schema_version'] ?? null)->toBe(1)
-            ->and($planPayload['module'] ?? null)->toBe('database')
+            ->and($showPayload['states']['data.database']['enabled'] ?? true)->toBeFalse()
+            ->and($doctorPayload['states']['data.database']['enabled'] ?? true)->toBeFalse()
+            ->and($doctorPayload['states']['data.database']['packages']['infocyph/dblayer']['version'] ?? null)->toBeNull()
+            ->and($planPayload['schema_version'] ?? null)->toBe(2)
+            ->and($planPayload['requested'] ?? null)->toBe(['data.database'])
             ->and($validationPayload['valid'] ?? false)->toBeTrue()
             ->and($readinessPayload['schema_version'] ?? null)->toBe(1)
             ->and($readinessPayload['ready'] ?? false)->toBeTrue()

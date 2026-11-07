@@ -36,8 +36,8 @@ it('regrants revoked consent and rolls back partial client registration atomical
     $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
     $tables = new AuthTables();
     $runner = new MigrationRunner($factory->connection(), [new AuthOAuthRevisionSchema($tables)]);
-    $clients = new DBLayerOAuthClientStore($factory, $tables);
-    $consents = new DBLayerOAuthConsentStore($factory, $tables);
+    $clients = new DBLayerOAuthClientStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
+    $consents = new DBLayerOAuthConsentStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
     $now = 1_700_000_100;
     $client = new OAuthClient(
         id: 'client-existing-id',

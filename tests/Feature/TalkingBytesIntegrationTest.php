@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Notifications\EmailProfiles;
 use Infocyph\TalkingBytes\Email\EmailMailboxFactory;
@@ -14,6 +15,10 @@ use Infocyph\TalkingBytes\Email\Mailbox\Pop3Mailbox;
 use Infocyph\TalkingBytes\Email\Parser\AuthenticationResultsParser;
 use Infocyph\TalkingBytes\Email\Parser\BounceParser;
 use Infocyph\TalkingBytes\Email\Parser\RawEmailParser;
+use Infocyph\Runwire\Exception\CancelledException;
+use Infocyph\Runwire\RequestContext;
+use Infocyph\Runwire\Runtime\Enum\CancellationReason;
+use Infocyph\Runwire\RuntimeContext;
 
 beforeEach(function (): void {
     expect(class_exists(EmailMessage::class))->toBeTrue();
@@ -148,6 +153,35 @@ MAIL;
         expect($app->make(EmailMailboxFactory::class))->toBeObject()
             ->and($app->make(EmailReceiverFactory::class))->toBeObject()
             ->and($app->make(EmailSenderFactory::class))->toBeObject()
+            ->and($profiles->imapMailbox())->toBeInstanceOf(Mailbox::class)
+            ->and($profiles->pop3Mailbox())->toBeInstanceOf(Pop3Mailbox::class);
+
+        // The immutable native factories are recreated for each borrowed host
+        // scope; a cancelled request may not mint new sender/receiver/mailbox
+        // operations or poison later ordinary synchronous operations.
+        $runtime = RuntimeContext::standalone();
+        $hostRequest = RequestContext::create($runtime);
+        try {
+            CacheRunwire::share($hostRequest, null, static function () use ($profiles, $hostRequest): void {
+                expect(CacheRunwire::current()?->request)->toBe($hostRequest)
+                    ->and($profiles->sender())->toBeObject()
+                    ->and($profiles->spoolReceiver())->toBeObject()
+                    ->and($profiles->imapMailbox())->toBeInstanceOf(Mailbox::class)
+                    ->and($profiles->pop3Mailbox())->toBeInstanceOf(Pop3Mailbox::class);
+
+                $hostRequest->cancel(CancellationReason::HOST_CANCELLED);
+                expect(fn(): object => $profiles->sender())->toThrow(CancelledException::class)
+                    ->and(fn(): object => $profiles->spoolReceiver())->toThrow(CancelledException::class)
+                    ->and(fn(): object => $profiles->imapMailbox())->toThrow(CancelledException::class)
+                    ->and(fn(): object => $profiles->pop3Mailbox())->toThrow(CancelledException::class);
+            }, $runtime);
+        } finally {
+            $hostRequest->complete();
+        }
+
+        expect(CacheRunwire::current())->toBeNull()
+            ->and($profiles->sender())->toBeObject()
+            ->and($profiles->spoolReceiver())->toBeObject()
             ->and($profiles->imapMailbox())->toBeInstanceOf(Mailbox::class)
             ->and($profiles->pop3Mailbox())->toBeInstanceOf(Pop3Mailbox::class);
     } finally {

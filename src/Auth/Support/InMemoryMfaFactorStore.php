@@ -12,6 +12,7 @@ final class InMemoryMfaFactorStore implements MfaFactorCompareAndSwapStoreInterf
     /** @var array<string, MfaFactor> */
     private array $factors = [];
 
+    #[\Override]
     public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool
     {
         if ($expected === null) {
@@ -38,6 +39,7 @@ final class InMemoryMfaFactorStore implements MfaFactorCompareAndSwapStoreInterf
         return true;
     }
 
+    #[\Override]
     public function findForAccount(string $accountId): array
     {
         return array_values(array_filter(
@@ -46,11 +48,13 @@ final class InMemoryMfaFactorStore implements MfaFactorCompareAndSwapStoreInterf
         ));
     }
 
+    #[\Override]
     public function remove(string $factorId): void
     {
         unset($this->factors[$factorId]);
     }
 
+    #[\Override]
     public function save(MfaFactor $factor): void
     {
         $this->factors[$factor->id] = $factor;

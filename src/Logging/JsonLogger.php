@@ -23,6 +23,7 @@ final class JsonLogger extends AbstractLogger
 
     /**
      * @param list<string> $redactedKeys
+     * @throws \InvalidArgumentException
      */
     public function __construct(
         private readonly string $driver,
@@ -45,8 +46,11 @@ final class JsonLogger extends AbstractLogger
 
     /**
      * @param array<string, mixed> $context
+     * @throws \RuntimeException
+     * @throws \Psr\Log\InvalidArgumentException
      */
-    public function log($level, string|\Stringable $message, array $context = []): void
+    #[\Override]
+    public function log(mixed $level, string|\Stringable $message, array $context = []): void
     {
         $level = is_string($level) ? strtolower($level) : '';
         if (!isset(self::LEVELS[$level])) {

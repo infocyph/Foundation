@@ -10,9 +10,17 @@ use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
-/** Core path services have no dependency on the optional filesystem module. */
+/**
+ * Core path services have no dependency on the optional filesystem module.
+ *
+ * @api
+ */
 final class PathServiceProvider extends ServiceProvider
 {
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
+    #[\Override]
     public function boot(Application $app): void
     {
         if ((bool) $app->config()->get('paths.auto_create_runtime_directories', false)) {
@@ -20,12 +28,13 @@ final class PathServiceProvider extends ServiceProvider
         }
     }
 
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $app = is_array($context->config['app'] ?? null) ? $context->config['app'] : [];
         $paths = is_array($context->config['paths'] ?? null) ? $context->config['paths'] : [];
 
-        $builder->singleton(
+        $builder->factory(
             PathManager::class,
             FactoryDefinition::construct(PathManager::class, [
                 $this->basePath($app['base_path'] ?? null),

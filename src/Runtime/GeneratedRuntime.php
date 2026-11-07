@@ -10,10 +10,15 @@ use Infocyph\Foundation\Application\ServiceProviderInterface;
 use Infocyph\Foundation\Application\ServiceRegistry;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\InterMix\DI\Build\StaticRuntimeGenerator;
 use Infocyph\InterMix\DI\ProductionContainer;
 
-/** One generated CLI, worker, or scheduler runtime reused for its process lifetime. */
+/**
+ * One generated CLI, worker, or scheduler runtime reused for its process lifetime.
+ *
+ * @api
+ */
 final readonly class GeneratedRuntime
 {
     /** @param array<string,mixed> $metadata */
@@ -27,6 +32,12 @@ final readonly class GeneratedRuntime
     /**
      * @param array<string,mixed> $config
      * @param array<int|string,mixed> $capabilities Must match the compile-time topology.
+     * @throws \InvalidArgumentException
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public static function load(
         array $config,
@@ -41,6 +52,12 @@ final readonly class GeneratedRuntime
      * Load from an already-normalized compiled release config without source discovery.
      *
      * @param array<int|string,mixed> $capabilities Must match the compile-time topology.
+     * @throws \InvalidArgumentException
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public static function loadCompiled(
         ConfigRepository $config,
@@ -62,6 +79,10 @@ final readonly class GeneratedRuntime
      *
      * @param array<string,mixed> $config Used only to resolve a relative artifact path.
      * @param array<int|string,mixed> $capabilities
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public static function loadPrevalidated(
         array $config,
@@ -86,8 +107,7 @@ final readonly class GeneratedRuntime
         }
 
         $artifactPath = self::resolvePrevalidatedPath($config, $artifactPath);
-        self::assertTrustedMetadata($artifactPath, $trustedMetadataSha256);
-        $metadata = GeneratedRuntimeMetadata::read($artifactPath);
+        $metadata = GeneratedRuntimeMetadata::read($artifactPath, $trustedMetadataSha256);
         self::assertReleaseMetadata($metadata, $expectedEnvironment, $expectedConfigFingerprint);
         GeneratedRuntimeMetadata::assertPrevalidatedIdentity(
             $metadata,
@@ -110,6 +130,10 @@ final readonly class GeneratedRuntime
      * The generated artifact is still fully hash-validated by InterMix.
      *
      * @param array<int|string,mixed> $capabilities
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public static function loadRelease(
         RuntimeMode $runtime,
@@ -141,7 +165,11 @@ final readonly class GeneratedRuntime
         );
     }
 
-    /** @param array<string,mixed> $metadata */
+    /**
+     * @param array<string,mixed> $metadata
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private static function assertReleaseMetadata(
         array $metadata,
         ?string $expectedEnvironment,
@@ -164,21 +192,15 @@ final readonly class GeneratedRuntime
         }
     }
 
-    private static function assertTrustedMetadata(string $artifactPath, string $trustedSha256): void
-    {
-        $metadataPath = GeneratedRuntimeMetadata::path($artifactPath);
-        if (!is_file($metadataPath)) {
-            throw new \RuntimeException('Foundation generated-runtime metadata is missing.');
-        }
-        $actualSha256 = hash_file('sha256', $metadataPath);
-        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
-            throw new \RuntimeException('Foundation generated-runtime metadata trust identity mismatch.');
-        }
-    }
-
     /**
      * @param array<string,mixed>|ConfigRepository $config
      * @param array<int|string,mixed> $capabilities
+     * @throws \InvalidArgumentException
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     private static function bootValidated(
         array|ConfigRepository $config,
@@ -192,15 +214,14 @@ final readonly class GeneratedRuntime
 
         $graph = new NonWebGraphFactory()->compose($config, $runtime, $capabilities);
 
-        try {
-            new NonWebProductionGraph()->prepare($graph->builder);
-            $artifactPath = GeneratedRuntimeMetadata::resolvePath($graph->application, $artifactPath);
-            $metadata = GeneratedRuntimeMetadata::read($artifactPath);
-            GeneratedRuntimeMetadata::assertMatches($metadata, $graph);
-            $container = $graph->builder->production($artifactPath);
-        } finally {
-            $graph->application->container()->unset();
-        }
+        $artifactPath = GeneratedRuntimeMetadata::resolvePath($graph->application, $artifactPath);
+        $metadata = GeneratedRuntimeMetadata::read($artifactPath);
+        GeneratedRuntimeMetadata::assertMatches($metadata, $graph);
+
+        $builder = FoundationGraph::compose($graph->context);
+        $graph->bootstrapper->contribute($builder, $graph->context, $graph->providers);
+        new NonWebProductionGraph()->prepare($builder);
+        $container = $builder->production($artifactPath);
 
         return self::finishBoot(
             $runtime,
@@ -211,7 +232,12 @@ final readonly class GeneratedRuntime
         );
     }
 
-    /** @param array<string,mixed> $metadata */
+    /**
+     * @param array<string,mixed> $metadata
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private static function finishBoot(
         RuntimeMode $runtime,
         ProductionContainer $container,
@@ -244,7 +270,10 @@ final readonly class GeneratedRuntime
         );
     }
 
-    /** @param array<string,mixed> $metadata */
+    /**
+     * @param array<string,mixed> $metadata
+     * @throws \UnexpectedValueException
+     */
     private static function providerRegistry(array $metadata): ServiceRegistry
     {
         $classes = $metadata['provider_boot_order'] ?? null;
@@ -272,7 +301,10 @@ final readonly class GeneratedRuntime
         return $registry;
     }
 
-    /** @param array<string,mixed> $config */
+    /**
+     * @param array<string,mixed> $config
+     * @throws \InvalidArgumentException
+     */
     private static function resolvePrevalidatedPath(array $config, string $path): string
     {
         if ($path === '') {

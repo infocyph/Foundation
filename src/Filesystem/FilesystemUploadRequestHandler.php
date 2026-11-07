@@ -4,20 +4,40 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Filesystem;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
+use Infocyph\Pathwise\Integration\Runwire\RunwireExecutionContext;
 use Infocyph\Pathwise\Results\ChunkUploadState;
+use Infocyph\Pathwise\StreamHandler\UploadProcessor;
 use Infocyph\Pathwise\StreamHandler\UploadSource;
 use Infocyph\Webrick\Request\Core\UploadedFile;
 use Infocyph\Webrick\Request\Request;
 
+/**
+ * Application-facing upload request handling and chunk finalization.
+ *
+ * @api
+ */
 final readonly class FilesystemUploadRequestHandler
 {
     public function __construct(private FilesystemTransferFactory $transfers) {}
 
+    /**
+     * @throws \Infocyph\Pathwise\Exceptions\UploadException
+     * @throws \LogicException
+     */
     public function finalizeChunkUpload(string $uploadId, ?string $directory = null, ?string $disk = null): string
     {
-        return $this->transfers->upload($directory, $disk)->finalizeChunkUpload($uploadId);
+        return $this->withRunwire(
+            $this->transfers->upload($directory, $disk),
+            static fn(UploadProcessor $processor): string => $processor->finalizeChunkUpload($uploadId),
+        );
     }
 
+    /**
+     * @throws \Infocyph\Pathwise\Exceptions\UploadException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function processChunkUploadRequest(
         Request $request,
         string $field = 'file',
@@ -47,15 +67,25 @@ final readonly class FilesystemUploadRequestHandler
         );
         $resolvedFilename = $this->resolveFilename($originalFilename, $request, $file, $field);
 
-        return $processor->processChunkUploadSource(
-            $this->source($file, $resolvedFilename),
-            $resolvedUploadId,
-            $resolvedChunkIndex,
-            $resolvedTotalChunks,
-            $resolvedFilename,
+        $source = $this->source($file, $resolvedFilename);
+
+        return $this->withRunwire(
+            $processor,
+            static fn(UploadProcessor $bound): ChunkUploadState => $bound->processChunkUploadSource(
+                $source,
+                $resolvedUploadId,
+                $resolvedChunkIndex,
+                $resolvedTotalChunks,
+                $resolvedFilename,
+            ),
         );
     }
 
+    /**
+     * @throws \Infocyph\Pathwise\Exceptions\UploadException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function processUploadRequest(
         Request $request,
         string $field = 'file',
@@ -65,9 +95,12 @@ final readonly class FilesystemUploadRequestHandler
         $file = $this->uploadedFile($request, $field);
         $clientName = $file->getClientFilename() ?? $field;
 
-        return $this->transfers
-            ->upload($directory, $disk)
-            ->ingestSource($this->source($file, $clientName));
+        $source = $this->source($file, $clientName);
+
+        return $this->withRunwire(
+            $this->transfers->upload($directory, $disk),
+            static fn(UploadProcessor $processor): string => $processor->ingestSource($source),
+        );
     }
 
     private function resolveFilename(?string $filename, Request $request, UploadedFile $file, string $field): string
@@ -84,29 +117,40 @@ final readonly class FilesystemUploadRequestHandler
         return $file->getClientFilename() ?? $field;
     }
 
-    /** @param list<mixed> $candidates */
+    /**
+     * @param list<mixed> $candidates
+     * @throws \InvalidArgumentException
+     */
     private function resolveInt(?int $value, array $candidates, string $label): int
     {
-        if (is_int($value)) {
-            return $value;
+        if ($value !== null) {
+            return $this->validatedInt($value, $label);
         }
 
+        $resolved = null;
         foreach ($candidates as $candidate) {
-            if (is_int($candidate)) {
-                return $candidate;
+            if ($candidate === null) {
+                continue;
             }
-            if (is_string($candidate) && is_numeric($candidate)) {
-                return (int) $candidate;
+
+            $parsed = $this->validatedInt($candidate, $label);
+            if ($resolved !== null && $resolved !== $parsed) {
+                throw new \InvalidArgumentException(sprintf('Conflicting %s values in the upload request.', $label));
             }
+
+            $resolved = $parsed;
         }
 
-        throw new \InvalidArgumentException(sprintf(
+        return $resolved ?? throw new \InvalidArgumentException(sprintf(
             'Unable to resolve the %s for the chunk upload request.',
             $label,
         ));
     }
 
-    /** @param list<mixed> $candidates */
+    /**
+     * @param list<mixed> $candidates
+     * @throws \InvalidArgumentException
+     */
     private function resolveString(?string $value, array $candidates, string $label): string
     {
         if (is_string($value) && trim($value) !== '') {
@@ -138,6 +182,9 @@ final readonly class FilesystemUploadRequestHandler
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function uploadedFile(Request $request, string $field): UploadedFile
     {
         $file = $request->file($field);
@@ -149,5 +196,42 @@ final readonly class FilesystemUploadRequestHandler
         }
 
         return $file;
+    }
+
+    /**
+     * @throws \InvalidArgumentException
+     */
+    private function validatedInt(mixed $candidate, string $label): int
+    {
+        if (is_int($candidate) && $candidate >= 0) {
+            return $candidate;
+        }
+
+        if (is_string($candidate) && preg_match('/\A(?:0|[1-9][0-9]*)\z/D', $candidate) === 1) {
+            $parsed = filter_var($candidate, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+            if (is_int($parsed)) {
+                return $parsed;
+            }
+        }
+
+        throw new \InvalidArgumentException(sprintf('The %s must be a non-negative decimal integer.', $label));
+    }
+
+    /**
+     * @template T
+     * @param callable(UploadProcessor):T $operation
+     * @return T
+     */
+    private function withRunwire(UploadProcessor $processor, callable $operation): mixed
+    {
+        $borrowed = CacheRunwire::current();
+        if ($borrowed === null) {
+            return $operation($processor);
+        }
+
+        return $processor->withRunwire(
+            new RunwireExecutionContext($borrowed->runtime, $borrowed->request, $borrowed->scope),
+            $operation,
+        );
     }
 }

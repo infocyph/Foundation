@@ -10,6 +10,11 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
 use Infocyph\Foundation\Runtime\ExecutionId;
 
+/**
+ * Application command-line dispatch entrypoint.
+ *
+ * @api
+ */
 final readonly class CommandDispatcher
 {
     private const string SUPERVISED_ENV = 'INFOCYPH_FOUNDATION_SUPERVISED';
@@ -28,6 +33,9 @@ final readonly class CommandDispatcher
      * incompatible manifests fall back to the source route file.
      *
      * @param array<string, mixed> $config
+     * @throws \InvalidArgumentException
+     * @throws \UnexpectedValueException
+     * @throws \LogicException
      */
     public static function project(
         array $config = [],
@@ -85,7 +93,11 @@ final readonly class CommandDispatcher
         return $this->registry;
     }
 
-    /** @param list<string> $argv */
+    /**
+     * @param list<string> $argv
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function run(array $argv, ?CommandIO $io = null): int
     {
         $coarse = ParsedInput::fromArgv($argv);
@@ -175,6 +187,11 @@ final readonly class CommandDispatcher
         return $normalized;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \UnexpectedValueException
+     * @throws \Throwable
+     */
     private function application(RuntimeMode $runtime, ParsedInput $input): Application
     {
         $config = $this->config;
@@ -196,6 +213,7 @@ final readonly class CommandDispatcher
         if ($this->releaseBootstrap !== null
             && $runtime !== RuntimeMode::Web
             && !($runtime === RuntimeMode::Worker && $input->command === 'worker:run')
+            && !($runtime === RuntimeMode::Cli && $input->command === 'serve')
         ) {
             return $this->releaseBootstrap->nonWeb($config, $runtime);
         }
@@ -231,7 +249,7 @@ final readonly class CommandDispatcher
         }
 
         $profile = [
-            'duration_ms' => round((hrtime(true) - $startedAt) / 1_000_000, 3),
+            'duration_ms' => round(((float) hrtime(true) - (float) $startedAt) / 1_000_000.0, 3),
             'peak_memory_bytes' => memory_get_peak_usage(true),
             'peak_memory_growth_bytes' => max(0, memory_get_peak_usage(true) - $baselinePeak),
             'verbosity' => $input->verbosity(),
@@ -257,12 +275,15 @@ final readonly class CommandDispatcher
 
     private function resolverApplication(Application $application, CommandDescriptor $descriptor): Application
     {
-        return $this->unbootedWorkerSupervisor($descriptor) ? $application : $application->boot();
+        return $this->unbootedSupervisor($descriptor) ? $application : $application->boot();
     }
 
-    private function unbootedWorkerSupervisor(CommandDescriptor $descriptor): bool
+    private function unbootedSupervisor(CommandDescriptor $descriptor): bool
     {
-        return $descriptor->definition->commandRuntime() === RuntimeMode::Worker
-            && $descriptor->definition->commandName() === 'worker:run';
+        return match ($descriptor->definition->commandRuntime()) {
+            RuntimeMode::Worker => $descriptor->definition->commandName() === 'worker:run',
+            RuntimeMode::Cli => $descriptor->definition->commandName() === 'serve',
+            default => false,
+        };
     }
 }

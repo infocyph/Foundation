@@ -19,6 +19,7 @@ final class DatabaseSystemCommand extends SystemCommand
         private readonly DBLayerFactory $database,
     ) {}
 
+    #[\Override]
     protected function handle(): int
     {
         return match ($this->canonicalName()) {
@@ -73,6 +74,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return $this->option('connection');
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function destructiveMigration(string $operation): int
     {
         if (!$this->authorizeDestructive('migrate:' . $operation)) {
@@ -90,30 +97,17 @@ final class DatabaseSystemCommand extends SystemCommand
         return $this->migrationResult($migrations, ucfirst($operation) . ' migration operation completed.');
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function migrate(): int
     {
         $runner = $this->migrations->runner($this->connectionName());
         if ($this->flag('pretend')) {
-            $preview = $runner->pretend();
-            if ($this->io()->machineReadable()) {
-                return $this->emit(['migrations' => $preview, 'pretend' => true]);
-            }
-            if ($preview === []) {
-                $this->io()->info('No pending migration SQL.');
-
-                return ExitCode::SUCCESS;
-            }
-            foreach ($preview as $migration => $statements) {
-                $this->io()->writeln($migration . ':');
-                foreach ($statements as $statement) {
-                    $this->io()->writeln('  ' . $statement['sql']);
-                    if ($statement['bindings'] !== []) {
-                        $this->io()->writeln('    bindings=' . json_encode($statement['bindings'], JSON_THROW_ON_ERROR));
-                    }
-                }
-            }
-
-            return ExitCode::SUCCESS;
+            return $this->showMigrationPreview($runner->pretend());
         }
 
         $migrations = $runner->run($this->flag('step'));
@@ -140,6 +134,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function migrationStatus(): int
     {
         $status = $this->migrations->runner($this->connectionName())->status();
@@ -160,6 +160,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function monitor(): int
     {
         $connection = $this->database->connection($this->connectionName());
@@ -211,6 +217,9 @@ final class DatabaseSystemCommand extends SystemCommand
         return $this->emit($data);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function positiveInt(string $name, string $value): int
     {
         if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1) {
@@ -249,6 +258,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return $records;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function rollback(): int
     {
         $runner = $this->migrations->runner($this->connectionName());
@@ -260,6 +275,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return $this->migrationResult($migrations, 'Rollback completed.');
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function seed(): int
     {
         $transactional = !$this->input()->hasOption('transaction') || $this->flag('transaction');
@@ -268,6 +289,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return $this->emit(['seeded' => $count], sprintf('Ran %d database seeder(s).', $count));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function showDatabase(): int
     {
         $connection = $this->database->connection($this->connectionName());
@@ -289,6 +316,38 @@ final class DatabaseSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @param array<string,list<array{sql:string,bindings:array<int|string,mixed>}>> $preview
+     */
+    private function showMigrationPreview(array $preview): int
+    {
+        if ($this->io()->machineReadable()) {
+            return $this->emit(['migrations' => $preview, 'pretend' => true]);
+        }
+        if ($preview === []) {
+            $this->io()->info('No pending migration SQL.');
+
+            return ExitCode::SUCCESS;
+        }
+        foreach ($preview as $migration => $statements) {
+            $this->io()->writeln($migration . ':');
+            foreach ($statements as $statement) {
+                $this->io()->writeln('  ' . $statement['sql']);
+                if ($statement['bindings'] !== []) {
+                    $this->io()->writeln('    bindings=' . json_encode($statement['bindings'], JSON_THROW_ON_ERROR));
+                }
+            }
+        }
+
+        return ExitCode::SUCCESS;
+    }
+
+    /**
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function showTable(): int
     {
         $table = $this->argument(0);
@@ -317,6 +376,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return $exists ? ExitCode::SUCCESS : ExitCode::FAILURE;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function wipe(): int
     {
         if (!$this->authorizeDestructive('db:wipe')) {

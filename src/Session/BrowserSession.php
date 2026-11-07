@@ -10,6 +10,7 @@ use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\Foundation\Cache\FoundationCacheKey;
 use Infocyph\Webrick\Request\Request;
 
+/** @api */
 final class BrowserSession
 {
     public const string REQUEST_ATTRIBUTE = 'foundation.session';
@@ -44,6 +45,9 @@ final class BrowserSession
         private readonly SessionConfig $config,
     ) {}
 
+    /**
+     * @throws \LogicException
+     */
     public static function fromRequest(Request $request): self
     {
         $session = $request->getAttribute(self::REQUEST_ATTRIBUTE);
@@ -54,7 +58,11 @@ final class BrowserSession
         return $session;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function all(): array
     {
         $this->load();
@@ -62,6 +70,11 @@ final class BrowserSession
         return $this->data;
     }
 
+    /**
+     * @throws \LengthException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function commit(int $now): SessionCommit
     {
         $this->assertOpen();
@@ -97,6 +110,10 @@ final class BrowserSession
         return new SessionCommit(true, $id);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function csrfToken(): string
     {
         $this->load();
@@ -111,18 +128,32 @@ final class BrowserSession
         return $token;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function flash(string $key, mixed $value): void
     {
         $this->put($key, $value);
         $this->flashNext[$key] = true;
     }
 
-    /** @param array<string, mixed> $input */
+    /**
+     * @param array<string, mixed> $input
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function flashInput(array $input): void
     {
         $this->flash('_old_input', $input);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function forget(string ...$keys): void
     {
         $this->load();
@@ -135,6 +166,10 @@ final class BrowserSession
         }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function get(string $key, mixed $default = null): mixed
     {
         $this->load();
@@ -142,6 +177,10 @@ final class BrowserSession
         return $this->data[$key] ?? $default;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function has(string $key): bool
     {
         $this->load();
@@ -149,6 +188,10 @@ final class BrowserSession
         return array_key_exists($key, $this->data);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function id(): string
     {
         $this->load();
@@ -156,6 +199,10 @@ final class BrowserSession
         return $this->id ?? throw new \LogicException('The browser session has no identifier.');
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function invalidate(): void
     {
         $this->load();
@@ -166,7 +213,11 @@ final class BrowserSession
         $this->id = self::generateId();
     }
 
-    /** @param list<string> $keys */
+    /**
+     * @param list<string> $keys
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function keep(array $keys): void
     {
         $this->load();
@@ -177,7 +228,11 @@ final class BrowserSession
         }
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function oldInput(): array
     {
         $input = $this->get('_old_input', []);
@@ -195,6 +250,10 @@ final class BrowserSession
         return $normalized;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function pull(string $key, mixed $default = null): mixed
     {
         $value = $this->get($key, $default);
@@ -203,6 +262,11 @@ final class BrowserSession
         return $value;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function put(string $key, mixed $value): void
     {
         if ($key === '') {
@@ -213,12 +277,20 @@ final class BrowserSession
         $this->data[$key] = $value;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function reflash(): void
     {
         $this->load();
         $this->flashNext += $this->flashCurrent;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function regenerate(bool $destroy = true): string
     {
         $this->load();
@@ -231,6 +303,10 @@ final class BrowserSession
         return $this->id;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function regenerateCsrfToken(): string
     {
         $this->load();
@@ -260,6 +336,10 @@ final class BrowserSession
         return bin2hex(random_bytes(32));
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     private function acquireLock(string $id): void
     {
         if (!$this->config->lockEnabled) {
@@ -286,6 +366,9 @@ final class BrowserSession
         $this->lock = $lock;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function assertLockOwned(): void
     {
         if (
@@ -296,6 +379,9 @@ final class BrowserSession
         }
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function assertOpen(): void
     {
         if ($this->released) {
@@ -303,6 +389,9 @@ final class BrowserSession
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function deleteCurrent(): void
     {
         $id = $this->id;
@@ -312,6 +401,10 @@ final class BrowserSession
         }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     private function load(): void
     {
         $this->assertOpen();

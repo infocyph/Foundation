@@ -6,10 +6,18 @@ namespace Infocyph\Foundation\Testing;
 
 use Infocyph\Webrick\Response\Response;
 
+/**
+ * Public fluent HTTP response test assertions.
+ *
+ * @api
+ */
 final readonly class TestResponse
 {
     public function __construct(private Response $response) {}
 
+    /**
+     * @throws \RuntimeException
+     */
     public function assertHeader(string $name, ?string $value = null): self
     {
         $actual = $this->response->getHeaderLine($name);
@@ -27,6 +35,7 @@ final readonly class TestResponse
 
     /**
      * @param array<string, mixed> $expected
+     * @throws \RuntimeException
      */
     public function assertJson(array $expected): self
     {
@@ -42,6 +51,9 @@ final readonly class TestResponse
         return $this;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public function assertJsonPath(string $path, mixed $expected): self
     {
         $value = $this->json();
@@ -61,6 +73,9 @@ final readonly class TestResponse
         return $this;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public function assertStatus(int $status): self
     {
         if ($this->response->getStatusCode() !== $status) {
@@ -81,6 +96,7 @@ final readonly class TestResponse
 
     /**
      * @return array<array-key, mixed>
+     * @throws \UnexpectedValueException
      */
     public function json(): array
     {

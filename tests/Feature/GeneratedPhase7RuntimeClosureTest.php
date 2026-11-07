@@ -19,6 +19,7 @@ use Infocyph\Foundation\Scheduling\SchedulerRuntime;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Envelope\MessageIdStamp;
 
@@ -38,10 +39,17 @@ final class FoundationPhase7GeneratedProvider extends ServiceProvider
 {
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        unset($context);
-        $builder->scoped(
+        if ($context->runtimeMode === RuntimeMode::Worker) {
+            $builder->input('foundation.phase7.worker.item');
+            $builder->input(\stdClass::class);
+        }
+        if ($context->runtimeMode === RuntimeMode::Scheduler) {
+            $builder->input('foundation.phase7.scheduler.item');
+        }
+        $builder->factory(
             FoundationPhase7GeneratedScopedProbe::class,
             FactoryDefinition::construct(FoundationPhase7GeneratedScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
     }
 }
@@ -78,8 +86,7 @@ it('runs the existing scheduler manager on one trusted generated container with 
             $artifact,
             ['cache'],
         );
-        expect($report['skipped'])->toBe([])
-            ->and($report['capabilities'])->toBe(['cache' => true]);
+        expect($report['skipped'])->toBe([])->and($report['capabilities'])->toBe(['cache' => true]);
 
         foundationPhase7PoisonProviders($project, 'generated scheduler rebuilt source providers');
         $runtime = GeneratedRuntime::loadPrevalidated(

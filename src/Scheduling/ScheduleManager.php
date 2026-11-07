@@ -8,7 +8,7 @@ use Closure;
 use Infocyph\CacheLayer\Cache\Lock\LockHandle;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\Foundation\Application\Application;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Cache\FoundationCacheKey;
 use Infocyph\Foundation\Command\CommandStatus;
 use Infocyph\Foundation\Operations\ExecutionHistory;
@@ -21,12 +21,20 @@ use Infocyph\Foundation\Process\ProcessTerminationReason;
 use Infocyph\Foundation\Runtime\CleanupGuard;
 use Infocyph\Foundation\Runtime\ExecutionId;
 
+/**
+ * Application-facing scheduling and coordination manager.
+ *
+ * @api
+ */
 final readonly class ScheduleManager
 {
     private const int MANIFEST_VERSION = 1;
 
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \RuntimeException
+     */
     public function clear(string $manifest = 'bootstrap/cache/schedule.php'): bool
     {
         $path = $this->path($manifest);
@@ -45,13 +53,19 @@ final readonly class ScheduleManager
         return is_file($this->path($routes));
     }
 
-    /** @return list<ScheduledCommand> */
+    /**
+     * @return list<ScheduledCommand>
+     * @throws \UnexpectedValueException
+     */
     public function entries(string $routes = 'routes/schedule.php', string $manifest = 'bootstrap/cache/schedule.php'): array
     {
         return $this->load($routes, $manifest)->entries();
     }
 
-    /** @return list<ScheduleRun> */
+    /**
+     * @return list<ScheduleRun>
+     * @throws \UnexpectedValueException
+     */
     public function runDue(
         string $routes = 'routes/schedule.php',
         string $manifest = 'bootstrap/cache/schedule.php',
@@ -68,6 +82,13 @@ final readonly class ScheduleManager
         return $runs;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \UnexpectedValueException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Throwable
+     */
     public function runNamed(
         string $name,
         string $routes = 'routes/schedule.php',
@@ -104,6 +125,9 @@ final readonly class ScheduleManager
         throw new \InvalidArgumentException(sprintf('Scheduled entry "%s" is not defined.', $name));
     }
 
+    /**
+     * @throws \Throwable
+     */
     public function work(
         int $sleepSeconds = 60,
         string $routes = 'routes/schedule.php',
@@ -132,12 +156,8 @@ final readonly class ScheduleManager
                     break;
                 }
 
-                $remaining = $sleepSeconds;
-                while ($remaining-- > 0) {
-                    if ($this->interrupted($control, $runtimeToken, $scheduleToken)) {
-                        return 0;
-                    }
-                    usleep(1_000_000);
+                if ($this->interruptedDuringWait($sleepSeconds, $control, $runtimeToken, $scheduleToken)) {
+                    return 0;
                 }
             }
 
@@ -154,6 +174,9 @@ final readonly class ScheduleManager
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public function write(string $routes = 'routes/schedule.php', string $manifest = 'bootstrap/cache/schedule.php'): string
     {
         $path = $this->path($manifest);
@@ -188,6 +211,9 @@ final readonly class ScheduleManager
         return $path;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function executable(): string
     {
         $configured = $this->application->config()->get('command.executable');
@@ -202,6 +228,12 @@ final readonly class ScheduleManager
             : dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'infbyte';
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \Throwable
+     */
     private function executeProcess(ScheduledCommand $entry, ?Closure $heartbeat): ProcessResult
     {
         return new ProcessRunner()->run(
@@ -227,6 +259,25 @@ final readonly class ScheduleManager
             || $control->changed('schedule', null, $scheduleToken);
     }
 
+    private function interruptedDuringWait(
+        int $seconds,
+        RuntimeControl $control,
+        string $runtimeToken,
+        string $scheduleToken,
+    ): bool {
+        while ($seconds-- > 0) {
+            if ($this->interrupted($control, $runtimeToken, $scheduleToken)) {
+                return true;
+            }
+            usleep(1_000_000);
+        }
+
+        return false;
+    }
+
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function load(string $routes, string $manifest): Schedule
     {
         if ($manifest !== '') {
@@ -262,6 +313,9 @@ final readonly class ScheduleManager
         }
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function loadRoutes(string $routePath): Schedule
     {
         if (!is_file($routePath)) {
@@ -308,7 +362,10 @@ final readonly class ScheduleManager
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function processCommand(ScheduledCommand $entry): array
     {
         $process = [PHP_BINARY];
@@ -335,7 +392,7 @@ final readonly class ScheduleManager
         $leaseSeconds = $entry->overlapLeaseSeconds();
         $refreshIntervalNs = max(
             1,
-            (int) floor(min($leaseSeconds / 3.0, 5.0) * 1_000_000_000),
+            (int) floor(min($leaseSeconds / 3.0, 5.0) * 1_000_000_000.0),
         );
         $nextRefreshAt = hrtime(true) + $refreshIntervalNs;
 
@@ -360,7 +417,10 @@ final readonly class ScheduleManager
         };
     }
 
-    /** @param array<string, scalar|null> $metadata */
+    /**
+     * @param array<string, scalar|null> $metadata
+     * @throws \RuntimeException
+     */
     private function record(
         ExecutionHistory $history,
         ExecutionId $executionId,
@@ -379,6 +439,11 @@ final readonly class ScheduleManager
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Throwable
+     */
     private function runEntry(ScheduledCommand $entry): ScheduleRun
     {
         $executionId = ExecutionId::generate();
@@ -390,6 +455,9 @@ final readonly class ScheduleManager
         );
     }
 
+    /**
+     * @throws \Throwable
+     */
     private function runScopedEntry(ScheduledCommand $entry, ExecutionId $executionId): ScheduleRun
     {
         $history = new ExecutionHistory($this->application);
@@ -465,6 +533,10 @@ final readonly class ScheduleManager
     /**
      * @param array<string,scalar|null> $identity
      * @return array{?LockProviderInterface,?LockHandle,?ScheduleRun}
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     private function scheduleLock(
         ScheduledCommand $entry,
@@ -477,7 +549,7 @@ final readonly class ScheduleManager
             $this->record($history, $executionId, $name, CommandStatus::Waiting, metadata: $identity);
         }
 
-        $lock = $this->application->make(CacheLayerFactory::class)->lock();
+        $lock = $this->application->make(CacheManager::class)->lock();
         $handle = $lock->acquire(
             FoundationCacheKey::fingerprint('schedule-lock', 'scheduled-command', $entry->identity()),
             $entry->overlapWaitSeconds(),

@@ -12,6 +12,7 @@ abstract class JsonResource implements JsonSerializable
 
     abstract public function resolve(): mixed;
 
+    #[\Override]
     final public function jsonSerialize(): mixed
     {
         return $this->resolve();

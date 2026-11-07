@@ -7,6 +7,11 @@ namespace Infocyph\Foundation\Testing;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Webrick\Request\Request;
 
+/**
+ * Public HTTP integration test client.
+ *
+ * @api
+ */
 final class HttpTestClient
 {
     /** @var array<string,string|list<string>> */
@@ -15,6 +20,9 @@ final class HttpTestClient
         'Host' => 'localhost',
     ];
 
+    /**
+     * @throws \LogicException
+     */
     public function __construct(private readonly Application $application)
     {
         if (!$application->runningInWeb()) {
@@ -24,6 +32,9 @@ final class HttpTestClient
 
     /**
      * @param array<string,mixed> $query
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function delete(string $uri, array $query = []): TestResponse
     {
@@ -32,6 +43,9 @@ final class HttpTestClient
 
     /**
      * @param array<string,mixed> $query
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function get(string $uri, array $query = []): TestResponse
     {
@@ -40,6 +54,9 @@ final class HttpTestClient
 
     /**
      * @param array<string,mixed> $data
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function patch(string $uri, array $data = []): TestResponse
     {
@@ -48,6 +65,9 @@ final class HttpTestClient
 
     /**
      * @param array<string,mixed> $data
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function post(string $uri, array $data = []): TestResponse
     {
@@ -56,6 +76,9 @@ final class HttpTestClient
 
     /**
      * @param array<string,mixed> $data
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function put(string $uri, array $data = []): TestResponse
     {
@@ -66,6 +89,9 @@ final class HttpTestClient
      * @param array<string,mixed> $query
      * @param array<string,mixed> $post
      * @param array<string,string|list<string>> $headers
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function request(
         string $method,

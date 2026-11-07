@@ -19,6 +19,7 @@ use Infocyph\ReqShield\Validator;
  * Rule execution, sanitization, casting, schema compilation and validation
  * semantics remain ReqShield responsibilities. Foundation only resolves the
  * application schema and applies its configured profile.
+ * @api
  */
 final readonly class ValidatorFactory
 {
@@ -28,11 +29,17 @@ final readonly class ValidatorFactory
         private ?DatabaseProvider $database = null,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function compile(string $schema): CompiledValidator
     {
         return new CompiledValidator($this->make($schema));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function make(string $schema): Validator
     {
         return $this->configure(
@@ -47,6 +54,7 @@ final readonly class ValidatorFactory
      *
      * @param array<string,mixed> $rules
      * @param array<string,mixed> $overrides
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function makeRules(array $rules, array $overrides = []): Validator
     {
@@ -56,7 +64,10 @@ final readonly class ValidatorFactory
         );
     }
 
-    /** @param array<string,mixed> $options */
+    /**
+     * @param array<string,mixed> $options
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function configure(Validator $validator, array $options): Validator
     {
         $validator->setFailFast(ValueNormalizer::bool($options['fail_fast'] ?? true, true));
@@ -95,7 +106,10 @@ final readonly class ValidatorFactory
         }
     }
 
-    /** @param array<string,mixed> $options */
+    /**
+     * @param array<string,mixed> $options
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function configureLimits(Validator $validator, array $options): void
     {
         $limits = ValueNormalizer::associativeArray($options['limits'] ?? []);
@@ -218,6 +232,9 @@ final readonly class ValidatorFactory
         return $options;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function positiveInt(mixed $value, int $default, string $name): int
     {
         if ($value === null) {
@@ -235,7 +252,10 @@ final readonly class ValidatorFactory
         return $resolved;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function rules(string $schema): array
     {
         $rules = $this->schemas->schema($schema);
@@ -258,25 +278,31 @@ final readonly class ValidatorFactory
             if (!is_string($key) || $key === '') {
                 continue;
             }
-            if (is_string($pipeline) || is_callable($pipeline)) {
-                $normalized[$key] = $pipeline;
-
-                continue;
-            }
-            if (!is_array($pipeline)) {
-                continue;
-            }
-
-            $steps = array_values(array_filter(
-                $pipeline,
-                static fn(mixed $step): bool => is_string($step) || is_callable($step),
-            ));
-            if ($steps !== []) {
+            $steps = $this->sanitizerPipeline($pipeline);
+            if ($steps !== null) {
                 $normalized[$key] = $steps;
             }
         }
 
         return $normalized;
+    }
+
+    /** @return string|callable|list<string|callable>|null */
+    private function sanitizerPipeline(mixed $pipeline): mixed
+    {
+        if (is_string($pipeline) || is_callable($pipeline)) {
+            return $pipeline;
+        }
+        if (!is_array($pipeline)) {
+            return null;
+        }
+
+        $steps = array_values(array_filter(
+            $pipeline,
+            static fn(mixed $step): bool => is_string($step) || is_callable($step),
+        ));
+
+        return $steps !== [] ? $steps : null;
     }
 
     /** @return array<string, string> */

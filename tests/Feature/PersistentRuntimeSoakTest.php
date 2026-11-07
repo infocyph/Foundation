@@ -16,7 +16,7 @@ final class FoundationPersistentRuntimeSoakProvider extends ServiceProvider
     {
         unset($context);
 
-        $builder->bindFactory(
+        $builder->factory(
             'persistent.runtime.soak.probe',
             static fn(): FoundationPersistentRuntimeSoakProbe => new FoundationPersistentRuntimeSoakProbe(),
             LifetimeEnum::Scoped,

@@ -9,20 +9,32 @@ use Infocyph\DBLayer\Migration\Migration;
 use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\DBLayer\Migration\Seeder;
 use Infocyph\DBLayer\Migration\SeedRunner;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
+use Infocyph\InterMix\DI\RuntimeContainerInterface;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Application-facing DBLayer migration and seeding orchestration.
+ *
+ * @api
+ */
 final readonly class DatabaseMigrationManager
 {
     public function __construct(
         private ConfigRepository $config,
         private DBLayerFactory $factory,
         private ContainerInterface $services,
-        private ?CacheLayerFactory $cache = null,
+        private ?CacheManager $cache = null,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function runner(?string $connection = null): MigrationRunner
     {
         return new MigrationRunner(
@@ -38,6 +50,12 @@ final readonly class DatabaseMigrationManager
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function seed(?string $connection = null, bool $transactional = true): int
     {
         return new SeedRunner($this->factory->connection($connection))->run(
@@ -46,7 +64,10 @@ final readonly class DatabaseMigrationManager
         );
     }
 
-    /** @return list<class-string> */
+    /**
+     * @return list<class-string>
+     * @throws \InvalidArgumentException
+     */
     private function definitions(string $key): array
     {
         $configured = $this->config->get($key, []);
@@ -72,13 +93,16 @@ final readonly class DatabaseMigrationManager
         return is_numeric($value) ? (float) $value : $default;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function locks(): ?LockProviderInterface
     {
         $store = ValueNormalizer::nullableString($this->config->get('database.migrations.lock_store'));
         if ($store === null) {
             return null;
         }
-        if (!$this->cache instanceof CacheLayerFactory) {
+        if (!$this->cache instanceof CacheManager) {
             throw new \LogicException(
                 'Database migration locks require the Foundation cache capability.',
             );
@@ -87,7 +111,10 @@ final readonly class DatabaseMigrationManager
         return $this->cache->lock($store);
     }
 
-    /** @return list<Migration> */
+    /**
+     * @return list<Migration>
+     * @throws \InvalidArgumentException
+     */
     private function migrations(): array
     {
         $migrations = [];
@@ -106,9 +133,16 @@ final readonly class DatabaseMigrationManager
         return $migrations;
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function resolve(string $definition): object
     {
-        $resolved = $this->services->get($definition);
+        $resolved = $this->services instanceof RuntimeContainerInterface
+            && !$this->services->has($definition)
+            && class_exists($definition)
+                ? $this->services->make($definition)
+                : $this->services->get($definition);
         if (!is_object($resolved)) {
             throw new \UnexpectedValueException(sprintf(
                 'Database definition "%s" did not resolve to an object.',
@@ -119,7 +153,10 @@ final readonly class DatabaseMigrationManager
         return $resolved;
     }
 
-    /** @return list<Seeder|callable> */
+    /**
+     * @return list<Seeder|callable>
+     * @throws \InvalidArgumentException
+     */
     private function seeders(): array
     {
         $seeders = [];

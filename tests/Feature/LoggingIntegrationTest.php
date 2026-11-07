@@ -8,6 +8,7 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Logging\ExceptionReporter;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Logging\JsonLogger;
+use Infocyph\Foundation\Logging\LogTailer;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
@@ -80,6 +81,7 @@ it('uses an application supplied PSR logger at the HTTP reporting boundary', fun
         {
             unset($context);
 
+            $builder->unbind(LoggerInterface::class);
             $builder->value(LoggerInterface::class, $this->logger);
         }
     };
@@ -152,10 +154,7 @@ it('resolves relative log paths from the application and includes exception deta
 
 it('keeps web-only logging out of the CLI graph', function (): void {
     $app = Foundation::cli();
-    $repository = $app->container()->getRepository();
-
-    expect($repository->hasResolvedSingleton(LoggerInterface::class))->toBeFalse()
-        ->and($app->has(LoggerInterface::class))->toBeFalse();
+    expect($app->has(LoggerInterface::class))->toBeFalse();
 });
 
 it('supports exception exclusions, sampling, and bounded repeated reporting', function (): void {
@@ -181,4 +180,42 @@ it('supports exception exclusions, sampling, and bounded repeated reporting', fu
     $sampledOut->report('error', ['exception' => new RuntimeException('discarded')]);
 
     expect($logger->records)->toHaveCount(1);
+});
+
+it('reopens a rotated log before relinquishing the original descriptor', function (): void {
+    $directory = sys_get_temp_dir() . '/foundation-log-rotation-' . bin2hex(random_bytes(6));
+    mkdir($directory, 0775, true);
+    $path = $directory . '/app.log';
+    $archived = $directory . '/app.log.1';
+    file_put_contents($path, "original\n");
+    $original = fopen($path, 'rb');
+    expect(is_resource($original))->toBeTrue();
+
+    $replacement = null;
+    try {
+        rename($path, $archived);
+        file_put_contents($path, "replacement\n");
+
+        $refresh = new ReflectionMethod(LogTailer::class, 'refreshStream');
+        $replacement = $refresh->invoke(new LogTailer(), $original, $path);
+
+        expect(is_resource($original))->toBeFalse()
+            ->and(is_resource($replacement))->toBeTrue();
+
+        expect(fgets($replacement))->toBe("replacement\n");
+    } finally {
+        if (is_resource($replacement)) {
+            fclose($replacement);
+        }
+        if (is_resource($original)) {
+            fclose($original);
+        }
+        if (is_file($archived)) {
+            unlink($archived);
+        }
+        if (is_file($path)) {
+            unlink($path);
+        }
+        rmdir($directory);
+    }
 });

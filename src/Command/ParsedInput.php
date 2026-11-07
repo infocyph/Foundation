@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Command;
 
+/**
+ * Public parsed command-line input contract.
+ *
+ * @api
+ */
 final readonly class ParsedInput
 {
     /** @var array<string, array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}> */
@@ -31,7 +36,10 @@ final readonly class ParsedInput
         public array $raw,
     ) {}
 
-    /** @param list<string> $argv */
+    /**
+     * @param list<string> $argv
+     * @throws \InvalidArgumentException
+     */
     public static function fromArgv(array $argv, ?CommandDefinition $definition = null): self
     {
         $tokens = array_slice($argv, 1);
@@ -164,6 +172,7 @@ final readonly class ParsedInput
      * @param array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool} $metadata
      * @param list<string> $tokens
      * @param array<string, string|bool|list<string>> $options
+     * @throws \InvalidArgumentException
      */
     private static function consumeDefinedLongOption(
         array $tokens,
@@ -196,7 +205,10 @@ final readonly class ParsedInput
         return $inlineValue === null ? $index + 1 : $index;
     }
 
-    /** @param array<string, string|bool|list<string>> $options */
+    /**
+     * @param array<string, string|bool|list<string>> $options
+     * @throws \InvalidArgumentException
+     */
     private static function consumeLongFlag(
         int $index,
         array &$options,
@@ -221,6 +233,7 @@ final readonly class ParsedInput
     /**
      * @param list<string> $tokens
      * @param array<string, string|bool|list<string>> $options
+     * @throws \InvalidArgumentException
      */
     private static function consumeLongOption(
         array $tokens,
@@ -286,14 +299,7 @@ final readonly class ParsedInput
                 continue;
             }
 
-            $value = substr($cluster, $offset + 1);
-            if ($value === '') {
-                $value = $tokens[$index + 1] ?? null;
-                if (!is_string($value) || $value === '--') {
-                    throw new \InvalidArgumentException(sprintf('Option "-%s" requires a value.', $short));
-                }
-                $index++;
-            }
+            $value = self::resolveShortOptionValue($tokens, $index, $cluster, $offset, $short);
             self::addOption($options, $metadata['name'], $value, $metadata['multiple']);
 
             break;
@@ -367,6 +373,31 @@ final readonly class ParsedInput
         return [$candidate, $candidateMetadata, true];
     }
 
+    /**
+     * @param list<string> $tokens
+     * @throws \InvalidArgumentException
+     */
+    private static function resolveShortOptionValue(
+        array $tokens,
+        int &$index,
+        string $cluster,
+        int $offset,
+        string $short,
+    ): string {
+        $value = substr($cluster, $offset + 1);
+        if ($value !== '') {
+            return $value;
+        }
+
+        $next = $tokens[$index + 1] ?? null;
+        if (!is_string($next) || $next === '--') {
+            throw new \InvalidArgumentException(sprintf('Option "-%s" requires a value.', $short));
+        }
+        $index++;
+
+        return $next;
+    }
+
     /** @return array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}|null */
     private static function shortMetadata(string $short, ?CommandDefinition $definition): ?array
     {
@@ -397,11 +428,17 @@ final readonly class ParsedInput
             return [$body, null];
         }
 
-        [$name, $value] = explode('=', $body, 2);
+        $separator = strpos($body, '=');
+        if ($separator === false) {
+            return [$body, null];
+        }
 
-        return [$name, $value];
+        return [substr($body, 0, $separator), substr($body, $separator + 1)];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function validateArguments(self $input, CommandDefinition $definition): void
     {
         $declared = $definition->arguments();

@@ -9,6 +9,10 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialCompareAndSwapStoreInterfa
 
 final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore implements PasskeyCredentialCompareAndSwapStoreInterface
 {
+    /**
+     * @throws \Throwable
+     */
+    #[\Override]
     public function compareAndSwap(?PasskeyCredential $expected, PasskeyCredential $updated): bool
     {
         if ($expected === null) {
@@ -42,15 +46,28 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
             ->update($record) === 1;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function findByCredentialId(string $credentialId): ?PasskeyCredential
     {
-        return $this->firstMapped(
-            sprintf('SELECT * FROM %s WHERE credential_id = ? AND revoked_at IS NULL', $this->table('passkeyCredentials')),
+        $credential = $this->firstMapped(
+            sprintf('SELECT * FROM %s WHERE credential_id_hash = ? AND revoked_at IS NULL', $this->table('passkeyCredentials')),
             $this->mapCredential(...),
-            [$credentialId],
+            [hash('sha3-256', $credentialId)],
         );
+
+        return $credential?->credentialId === $credentialId ? $credential : null;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function findForAccount(string $accountId): array
     {
         return $this->allMapped(
@@ -60,21 +77,41 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function revoke(string $credentialId): void
     {
         $this->updateWhere(
             'passkeyCredentials',
             ['revoked_at' => $this->now()],
-            '(credential_id = ? OR id = ?) AND revoked_at IS NULL',
-            [$credentialId, $credentialId],
+            '(credential_id_hash = ? OR id = ?) AND revoked_at IS NULL',
+            [hash('sha3-256', $credentialId), $credentialId],
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function save(PasskeyCredential $credential): void
     {
         $this->upsertRecord('passkeyCredentials', 'id', $this->record($credential));
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \Throwable
+     */
+    #[\Override]
     public function updateUsage(string $credentialId, int $signCount, int $usedAt): void
     {
         $credential = $this->findByCredentialId($credentialId);
@@ -113,6 +150,7 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
             'id' => $credential->id,
             'account_id' => $credential->accountId,
             'credential_id' => $credential->credentialId,
+            'credential_id_hash' => hash('sha3-256', $credential->credentialId),
             'credential_record' => $credential->credentialRecordJson,
             'public_key' => $credential->publicKey,
             'sign_count' => $credential->signCount,

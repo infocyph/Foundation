@@ -20,6 +20,7 @@ final class InMemoryRoleStore implements RoleAssignmentStoreInterface, RoleStore
      */
     private array $roles = [];
 
+    #[\Override]
     public function assignRole(string $accountId, string $roleId): void
     {
         $this->accountRoles[$accountId] ??= [];
@@ -29,6 +30,7 @@ final class InMemoryRoleStore implements RoleAssignmentStoreInterface, RoleStore
         }
     }
 
+    #[\Override]
     public function revokeRole(string $accountId, string $roleId): void
     {
         $this->accountRoles[$accountId] = array_values(array_filter(
@@ -37,6 +39,7 @@ final class InMemoryRoleStore implements RoleAssignmentStoreInterface, RoleStore
         ));
     }
 
+    #[\Override]
     public function rolesForAccount(string $accountId): array
     {
         $roles = [];
@@ -50,6 +53,7 @@ final class InMemoryRoleStore implements RoleAssignmentStoreInterface, RoleStore
         return $roles;
     }
 
+    #[\Override]
     public function save(Role $role): void
     {
         $this->roles[$role->id] = $role;

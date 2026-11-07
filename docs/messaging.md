@@ -1,6 +1,6 @@
 # Events, queues, workers, and scheduled messages
 
-Foundation composes Omnibus 2.6 through the purpose-first `messaging` module.
+Foundation composes Omnibus 3.0.3 through the purpose-first `messaging` module.
 Omnibus owns message delivery, receiving, retries, failure storage, handler
 execution, worker loops, and the optional Unix process pool. Foundation owns
 application configuration, DI composition, job middleware adaptation,
@@ -9,7 +9,7 @@ execution-scope cleanup, and persistent-runtime control.
 Install and publish messaging configuration with:
 
 ```bash
-php infbyte module:install messaging
+php infbyte module:install execution.messaging
 ```
 
 Foundation ships a bounded `messaging.workers.default` profile, but no worker
@@ -75,7 +75,7 @@ remain Omnibus responsibilities.
 
 ## Handler middleware and Foundation JobMiddleware
 
-Omnibus 2.6 supplies the framework-neutral handler pipeline:
+Omnibus 3.0.3 supplies the framework-neutral handler pipeline:
 
 ```text
 ExecutionScope
@@ -103,7 +103,7 @@ php infbyte create:job-middleware AuditJob
 
 ## Durable DBLayer messaging
 
-Durable messaging is opt-in and uses Omnibus 2.6's native DBLayer integrations;
+Durable messaging is opt-in and uses Omnibus 3.0.3's native DBLayer integrations;
 Foundation does not implement a second queue/failure/workflow engine.
 
 A minimal database-backed profile is:
@@ -158,33 +158,25 @@ failure inspection volatile; a custom binding is fully application-owned.
 Provision or inspect Omnibus's durable tables through the module lifecycle:
 
 ```bash
-php infbyte module:schema:status messaging
-php infbyte module:schema:install messaging
+php infbyte module:schema:status execution.messaging
+php infbyte module:schema:install execution.messaging
 php infbyte module:schema:sync
 ```
 
 The messaging schema remains non-applicable while
 `messaging.durable.enabled=false`.
 
-### Omnibus 2.5 → 2.6 durable cutover
+### Retained durable state across releases
 
-Omnibus 2.6 can read legacy 2.5 unwrapped DB payloads, but 2.6 writes the new
-wrapped stored-payload format. Therefore do not run 2.5 readers/writers against
-the same queue/workflow/failure tables once a 2.6 writer is active.
+Before upgrading persisted queue, workflow, or failure-store data, drain or quiesce
+active workers and capture a compatible database snapshot. Verify the installed
+Omnibus 3.0.3 codecs, transport schema, reserved-message receipts, failure
+redelivery and restart ownership against the retained data. Restore a coherent
+code/dependency/database snapshot for rollback; do not start older readers on
+newly written formats without an explicitly verified data migration.
 
-For a durable upgrade:
-
-1. stop/drain every 2.5 queue, workflow, and failure-store reader/writer;
-2. deploy/provision the 2.6 application and validate codec aliases;
-3. start only 2.6 writers/readers;
-4. keep old message aliases/codecs available until legacy rows and retained
-   failures are drained;
-5. do not roll back to 2.5 after 2.6 has written wrapped payloads unless the
-   durable data has been separately converted or restored from a compatible
-   snapshot.
-
-This is an operational cutover requirement, not a second Foundation migration
-format.
+See [the retained-data rehearsal](foundation-4-retained-data-rehearsal.md)
+for the Foundation 4 deployment and rollback checklist.
 
 ## Bounded consumption
 
@@ -259,7 +251,7 @@ php infbyte worker:run reports
 
 Omnibus `Worker` owns idle backoff, signal handling, receive batching, runtime,
 message-count, absolute-memory, and memory-growth limits. Foundation supplies an
-Omnibus 2.6 `WorkerLifecycle` implementation that updates process visibility and
+Omnibus 3.0.3 `WorkerLifecycle` implementation that updates process visibility and
 checks Foundation runtime/worker generation tokens.
 
 That means single messaging workers can observe:
@@ -287,8 +279,9 @@ Process-registry state is heartbeat-based observability, not supervisor truth.
 
 ## Optional process pool
 
-Omnibus 2.6 itself requires `pcntl` and `posix`. Foundation can explicitly
-enable its native `WorkerPool` profile:
+Ordinary synchronous messaging does not require `pcntl` or `posix`. The
+selected native Unix `WorkerPool` requires the supported process extensions;
+Foundation can explicitly enable that profile:
 
 ```php
 'pool' => [
@@ -300,7 +293,7 @@ enable its native `WorkerPool` profile:
 ],
 ```
 
-Omnibus 2.6 owns native pool supervision and parent `WorkerLifecycle` polling.
+Omnibus 3.0.3 owns native pool supervision and parent `WorkerLifecycle` polling.
 Foundation supplies only its heartbeat/generation-stop policy; there is no
 Foundation SIGALRM/watchdog layer. Each child creates and boots a fresh
 Foundation application after fork. Parent-side worker configuration reads remain

@@ -11,6 +11,11 @@ use Infocyph\Foundation\Cache\FoundationCacheKey;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\UID\Id;
 
+/**
+ * Application-facing runtime control and signal contract.
+ *
+ * @api
+ */
 final readonly class RuntimeControl
 {
     public function __construct(private Application $application) {}
@@ -20,6 +25,13 @@ final readonly class RuntimeControl
         return !hash_equals($baseline, $this->token($scope, $name));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
+     */
     public function signal(string $scope, ?string $name = null): string
     {
         $scope = $this->key($scope, $name);
@@ -37,7 +49,13 @@ final readonly class RuntimeControl
         return $token;
     }
 
-    /** @return array<string,array{token:string,signaled_at:string}> */
+    /**
+     * @return array<string,array{token:string,signaled_at:string}>
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function status(): array
     {
         $state = $this->read();
@@ -65,11 +83,18 @@ final readonly class RuntimeControl
             : '';
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function cache(): \Infocyph\CacheLayer\Cache\CacheInterface
     {
         return $this->application->make(CacheManager::class)->store($this->cacheStore());
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function cacheKey(): string
     {
         return FoundationCacheKey::fingerprint(
@@ -86,6 +111,9 @@ final readonly class RuntimeControl
         return is_string($store) && $store !== '' ? $store : null;
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function driver(): string
     {
         $driver = strtolower(ValueNormalizer::string(
@@ -99,6 +127,9 @@ final readonly class RuntimeControl
         return $driver;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function ensureDirectory(string $path): void
     {
         $directory = dirname($path);
@@ -107,6 +138,9 @@ final readonly class RuntimeControl
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function key(string $scope, ?string $name): string
     {
         $scope = strtolower(trim($scope));
@@ -130,29 +164,18 @@ final readonly class RuntimeControl
         return is_string($key) && $key !== '' ? $key : 'foundation:runtime-control';
     }
 
-    /** @param callable(array<string,mixed>):array<string,mixed> $mutation */
+    /**
+     * @param callable(array<string,mixed>):array<string,mixed> $mutation
+     * @throws \Throwable
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     */
     private function mutate(callable $mutation): void
     {
         if ($this->driver() === 'cache') {
-            $lock = $this->application->make(CacheLayerFactory::class)->lock();
-            $handle = $lock->acquire(
-                FoundationCacheKey::fingerprint(
-                    'runtime-lock',
-                    'runtime-control',
-                    $this->logicalCacheKey(),
-                ),
-                5.0,
-                15.0,
-            );
-            if ($handle === null) {
-                throw new \RuntimeException('Unable to acquire the runtime-control update lock.');
-            }
-
-            try {
-                $this->write($mutation($this->read()));
-            } finally {
-                $lock->release($handle);
-            }
+            $this->mutateCache($mutation);
 
             return;
         }
@@ -179,6 +202,45 @@ final readonly class RuntimeControl
         }
     }
 
+    /**
+     * @param callable(array<string,mixed>):array<string,mixed> $mutation
+     * @throws \Throwable
+     */
+    private function mutateCache(callable $mutation): void
+    {
+        $lock = $this->application->make(CacheLayerFactory::class)->lock();
+        $handle = $lock->acquire(
+            FoundationCacheKey::fingerprint(
+                'runtime-lock',
+                'runtime-control',
+                $this->logicalCacheKey(),
+            ),
+            5.0,
+            15.0,
+        );
+        if ($handle === null) {
+            throw new \RuntimeException('Unable to acquire the runtime-control update lock.');
+        }
+
+        $primaryFailure = null;
+
+        try {
+            $this->write($mutation($this->read()));
+        } catch (\Throwable $exception) {
+            $primaryFailure = $exception;
+
+            throw $exception;
+        } finally {
+            try {
+                $lock->release($handle);
+            } catch (\Throwable $cleanupFailure) {
+                if ($primaryFailure === null) {
+                    throw $cleanupFailure;
+                }
+            }
+        }
+    }
+
     private function path(): string
     {
         $configured = $this->application->config()->get(
@@ -194,7 +256,13 @@ final readonly class RuntimeControl
             : $this->application->basePath(trim($configured, DIRECTORY_SEPARATOR));
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * @return array<string,mixed>
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function read(): array
     {
         if ($this->driver() === 'cache') {
@@ -219,7 +287,13 @@ final readonly class RuntimeControl
         return ValueNormalizer::associativeArray($decoded);
     }
 
-    /** @param array<string,mixed> $state */
+    /**
+     * @param array<string,mixed> $state
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function write(array $state): void
     {
         if ($this->driver() === 'cache') {

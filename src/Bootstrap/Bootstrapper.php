@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Bootstrap;
 
+use Composer\InstalledVersions;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ProviderFileLoader;
@@ -22,10 +23,11 @@ use Infocyph\Foundation\Http\HttpServiceProvider;
 use Infocyph\Foundation\Http\JsonDispatch\JsonDispatchServiceProvider;
 use Infocyph\Foundation\Logging\LoggingServiceProvider;
 use Infocyph\Foundation\Messaging\MessagingServiceProvider;
+use Infocyph\Foundation\Module\ModuleArchitectureCatalog;
+use Infocyph\Foundation\Module\ModuleFeatureCapabilityPolicy;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
 use Infocyph\Foundation\Routing\RouteFileLoader;
 use Infocyph\Foundation\Routing\RoutingServiceProvider;
-use Infocyph\Foundation\Runtime\RuntimeScopeCleanup;
 use Infocyph\Foundation\Security\SecurityServiceProvider;
 use Infocyph\Foundation\Session\SessionServiceProvider;
 use Infocyph\Foundation\Validation\ValidationServiceProvider;
@@ -72,6 +74,11 @@ final class Bootstrapper
         HttpServiceProvider::class,
     ];
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
     public function boot(Application $app): void
     {
         $app->providers()->boot($app);
@@ -81,6 +88,10 @@ final class Bootstrapper
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
+     * @throws \LogicException
+     */
     public function compose(
         ContainerBuilder $builder,
         FoundationBuildContext $context,
@@ -89,18 +100,8 @@ final class Bootstrapper
         $registry ??= new ServiceRegistry();
         $registry->add(new PathServiceProvider());
 
-        foreach (self::OPTIONAL_BUILT_INS as $provider) {
-            $capability = self::OPTIONAL_CAPABILITIES[$provider];
-            if (($context->hasCapabilityOverride($capability) && !$context->hasCapability($capability))
-                || (!$context->hasCapabilityOverride($capability)
-                    && $context->capabilitiesExplicit
-                    && !$context->hasCapability($capability))
-                || !$this->providerDependencyAvailable($provider)
-            ) {
-                continue;
-            }
-            $registry->add($this->instantiateProvider($provider));
-        }
+        $this->assertSelectedFeaturePackages($context);
+        $this->registerOptionalProviders($context, $registry);
 
         if ($context->runtimeMode === RuntimeMode::Web) {
             foreach (self::WEB_BUILT_INS as $provider) {
@@ -115,12 +116,25 @@ final class Bootstrapper
             $registry->add($provider);
         }
 
-        $registry->contribute($builder, $context);
-        $this->registerScopeCleanup($builder, $context);
+        $this->contribute($builder, $context, $registry);
 
         return $registry;
     }
 
+    /**
+     * @throws \LogicException
+     */
+    public function contribute(
+        ContainerBuilder $builder,
+        FoundationBuildContext $context,
+        ServiceRegistry $registry,
+    ): void {
+        $registry->contribute($builder, $context);
+    }
+
+    /**
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
+     */
     private function assertProviderGroup(int|string $group, mixed $entries): void
     {
         if (!is_string($group) || !in_array($group, self::PROVIDER_GROUPS, true)) {
@@ -137,7 +151,41 @@ final class Bootstrapper
         }
     }
 
-    /** @return list<ServiceProviderInterface> */
+    /**
+     * Selected optional features must fail before providers contribute a partial graph.
+     * Composer owns installation; Foundation reports the exact feature and package.
+     *
+     * @throws \LogicException
+     */
+    private function assertSelectedFeaturePackages(FoundationBuildContext $context): void
+    {
+        if ($context->featureSelections === null) {
+            return;
+        }
+
+        $catalog = new ModuleArchitectureCatalog();
+        foreach ($context->featureSelections as $id => $selected) {
+            if (!$selected) {
+                continue;
+            }
+
+            foreach ($catalog->resolve($id)['definition']['packages'] as $package => $constraint) {
+                if (!InstalledVersions::isInstalled($package)) {
+                    throw new \LogicException(sprintf(
+                        'Selected feature %s requires package %s (%s); install it before compiling the Foundation runtime.',
+                        $id,
+                        $package,
+                        $constraint,
+                    ));
+                }
+            }
+        }
+    }
+
+    /**
+     * @return list<ServiceProviderInterface>
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
+     */
     private function configuredProviders(FoundationBuildContext $context): array
     {
         $configured = $context->config['providers'] ?? [];
@@ -169,6 +217,9 @@ final class Bootstrapper
         return array_values($providers);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
+     */
     private function instantiateProvider(mixed $provider): ServiceProviderInterface
     {
         if ($provider instanceof ServiceProviderInterface) {
@@ -215,7 +266,10 @@ final class Bootstrapper
         return $dependency === null || class_exists($dependency);
     }
 
-    /** @return list<ServiceProviderInterface> */
+    /**
+     * @return list<ServiceProviderInterface>
+     * @throws \Infocyph\Foundation\Exception\BootstrapException
+     */
     private function providerFileProviders(FoundationBuildContext $context): array
     {
         if ($context->compiledConfig) {
@@ -252,15 +306,21 @@ final class Bootstrapper
         return $normalized;
     }
 
-    private function registerScopeCleanup(ContainerBuilder $builder, FoundationBuildContext $context): void
+    private function registerOptionalProviders(FoundationBuildContext $context, ServiceRegistry $registry): void
     {
-        if ($context->runtimeMode !== RuntimeMode::Web) {
-            return;
-        }
+        foreach (self::OPTIONAL_BUILT_INS as $provider) {
+            $capability = self::OPTIONAL_CAPABILITIES[$provider];
+            if (!$context->permitsCapability($capability)) {
+                continue;
+            }
+            if (!$this->providerDependencyAvailable($provider)) {
+                if ($context->featureSelections !== null && ModuleFeatureCapabilityPolicy::owner($capability) !== null) {
+                    throw new \LogicException(sprintf('Selected feature provider %s is unavailable.', $capability));
+                }
 
-        $builder->onScopeLeave(
-            $context->runtimeMode->scopeName(),
-            RuntimeScopeCleanup::handle(...),
-        );
+                continue;
+            }
+            $registry->add($this->instantiateProvider($provider));
+        }
     }
 }

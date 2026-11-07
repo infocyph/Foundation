@@ -229,6 +229,7 @@ return [
     |     'cluster' => 'production-catalog',
     |     'node_id' => 'web-az1-03',
     |     'transport' => 'events',
+    |     'transport_identity' => 'catalog-events-v1', // change after event-history reset
     |     'consumer_batch_size' => 1000,
     |     'invalidate_locally_first' => true,
     | ],

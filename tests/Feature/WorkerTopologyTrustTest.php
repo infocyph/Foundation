@@ -39,7 +39,7 @@ it('rejects missing or tampered generated worker topology artifacts', function (
 
         file_put_contents($artifact, "<?php\n\nreturn ['format' => 1, 'providers' => []];\n");
         expect(fn() => $topology->load($artifact, $compiled['sha256']))
-            ->toThrow(RuntimeException::class, 'Foundation worker topology trust identity mismatch.');
+            ->toThrow(RuntimeException::class, 'Foundation release artifact trust identity mismatch.');
 
         unlink($artifact);
         expect(fn() => $topology->load($artifact, $compiled['sha256']))

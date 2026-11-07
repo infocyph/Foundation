@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\TalkingBytes;
 
+use Infocyph\Foundation\Auth\Account\AccountInterface;
 use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Notification\AuthNotification;
@@ -11,6 +12,11 @@ use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
 use Infocyph\TalkingBytes\Email\Emailer;
 use Infocyph\TalkingBytes\Email\ValueObject\EmailAddress;
 
+/**
+ * Native TalkingBytes authentication notification adapter.
+ *
+ * @api
+ */
 final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
 {
     /**
@@ -25,6 +31,10 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         private ?string $from = null,
     ) {}
 
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function send(AuthNotification $notification): void
     {
         $recipient = $this->resolveRecipient($notification);
@@ -49,6 +59,28 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
+    private function accountRecipient(AuthNotification $notification): ?string
+    {
+        $account = $notification->accountId === null ? null : $this->accounts->findById($notification->accountId);
+        if ($account === null) {
+            if ($notification->type === AuthNotificationType::PASSWORD_RESET_REQUESTED) {
+                throw new \RuntimeException('Password reset requires an existing account recipient.');
+            }
+
+            return null;
+        }
+
+        $recipient = $this->storedAddress($account);
+        if ($recipient === null && $notification->type === AuthNotificationType::PASSWORD_RESET_REQUESTED) {
+            throw new \RuntimeException('Password reset account has no valid trusted email recipient.');
+        }
+
+        return $recipient;
+    }
+
     private function isCriticalByDefault(AuthNotificationType $type): bool
     {
         return in_array($type, [
@@ -59,36 +91,29 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         ], true);
     }
 
+    /**
+     * Account-linked notifications resolve the recipient from authoritative account
+     * state, including the explicit destination of verification notifications.
+     */
+    private function passwordlessRecipient(AuthNotification $notification): ?string
+    {
+        $identifier = $notification->payload['identifier'] ?? null;
+        if (!is_string($identifier) || $identifier === '') {
+            return null;
+        }
+
+        $account = $this->accounts->findByIdentifier($identifier);
+
+        return $account === null ? null : $this->storedAddress($account);
+    }
+
     private function resolveRecipient(AuthNotification $notification): ?string
     {
-        $candidates = [
-            $notification->payload['email'] ?? null,
-            $notification->payload['identifier'] ?? null,
-            $notification->payload['account_email'] ?? null,
-            $notification->payload['recipient_email'] ?? null,
-        ];
-
-        if ($notification->accountId !== null) {
-            $account = $this->accounts->findById($notification->accountId);
-            if ($account !== null) {
-                $candidates[] = $account->metadata()['email'] ?? null;
-                $candidates[] = $account->identifier();
-            }
-        }
-
-        foreach ($candidates as $candidate) {
-            if (!is_string($candidate) || $candidate === '') {
-                continue;
-            }
-
-            try {
-                return EmailAddress::fromMailbox($candidate)->email;
-            } catch (\Throwable) {
-                continue;
-            }
-        }
-
-        return null;
+        return match ($notification->type) {
+            AuthNotificationType::EMAIL_VERIFICATION_REQUESTED => $this->verificationRecipient($notification),
+            AuthNotificationType::PASSWORDLESS_LOGIN_REQUESTED => $this->passwordlessRecipient($notification),
+            default => $this->accountRecipient($notification),
+        };
     }
 
     private function shouldThrow(AuthNotification $notification): bool
@@ -99,5 +124,52 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
 
         return in_array($notification->type->value, $this->criticalTypes, true)
             || $this->isCriticalByDefault($notification->type);
+    }
+
+    private function storedAddress(AccountInterface $account): ?string
+    {
+        foreach ([$account->identifier(), $account->metadata()['email'] ?? null] as $candidate) {
+            // Match the verification manager's authoritative-email rule:
+            // a username that looks like a display-name mailbox is not an
+            // account email and must not shadow stored metadata.email.
+            if (!is_string($candidate) || filter_var($candidate, FILTER_VALIDATE_EMAIL) === false) {
+                continue;
+            }
+
+            try {
+                return EmailAddress::fromMailbox($candidate)->email;
+            } catch (\InvalidArgumentException) {
+                continue;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @throws \RuntimeException
+     */
+    private function verificationRecipient(AuthNotification $notification): string
+    {
+        $email = $notification->payload['email'] ?? null;
+        if (!is_string($email) || $email === '') {
+            throw new \RuntimeException('Email verification requires an explicit destination.');
+        }
+
+        try {
+            $recipient = EmailAddress::fromMailbox($email)->email;
+        } catch (\InvalidArgumentException $exception) {
+            throw new \RuntimeException('Email verification destination is invalid.', 0, $exception);
+        }
+
+        $account = $notification->accountId === null
+            ? null
+            : $this->accounts->findById($notification->accountId);
+        $trusted = $account === null ? null : $this->storedAddress($account);
+        if ($trusted === null || strcasecmp($trusted, $recipient) !== 0) {
+            throw new \RuntimeException('Email verification requires an account-stored destination.');
+        }
+
+        return $recipient;
     }
 }

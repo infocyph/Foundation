@@ -4,21 +4,36 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Routing;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwireIntegration;
+
+use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\RuntimeMode;
+use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Http\Response\ExceptionRenderer;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
+use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
+use Infocyph\InterMix\DI\Build\StaticRuntimeGenerator;
 use Infocyph\InterMix\DI\ProductionContainer;
+use Infocyph\InterMix\DI\ScopeContext;
+use Infocyph\InterMix\Integration\Runwire\RunwireIntegration;
+use Infocyph\Runwire\Coroutine\CoroutineScope;
+use Infocyph\Runwire\Http\HttpRequest;
+use Infocyph\Runwire\Http\ResponseWriterInterface;
+use Infocyph\Runwire\RuntimeContext;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 use Infocyph\Webrick\Router\Build\ReleaseManifestLoader;
-use Infocyph\Webrick\Router\Build\RouterArtifactLoader;
 use Infocyph\Webrick\Router\Kernel\CompiledRouterKernel;
 use Infocyph\Webrick\Router\Kernel\ErrorHandler;
 use Infocyph\Webrick\Runtime\Http\RuntimeAdapterInterface;
 use Infocyph\Webrick\Runtime\Http\RuntimeCapabilities;
 use Infocyph\Webrick\Runtime\Http\RuntimeServer;
+use Infocyph\Webrick\Runtime\Http\RunwireRuntimeAdapter;
+use Infocyph\Webrick\Runtime\Http\RunwireRuntimeApplication;
 use Infocyph\Webrick\Runtime\Http\SapiRuntimeAdapter;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -37,6 +52,8 @@ final readonly class WebReleaseRuntime
     /**
      * @param array<string, mixed> $config
      * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     public static function load(
         array $config,
@@ -51,6 +68,9 @@ final readonly class WebReleaseRuntime
      * Load one release from a trusted normalized config snapshot without source discovery.
      *
      * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     public static function loadCompiled(
         ConfigRepository $config,
@@ -71,6 +91,9 @@ final readonly class WebReleaseRuntime
      *
      * @param array<string, mixed> $config
      * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     public static function loadPrevalidated(
         array $config,
@@ -79,15 +102,18 @@ final readonly class WebReleaseRuntime
         ?RuntimeAdapterInterface $adapter = null,
         array $foundationCapabilities = [],
     ): self {
-        self::assertTrustedManifest($releaseManifestPath, $trustedManifestSha256);
+        $trustedManifest = self::loadTrustedManifest($releaseManifestPath, $trustedManifestSha256);
 
-        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities);
+        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities, trustedManifest: $trustedManifest);
     }
 
     /**
      * Trusted load from a normalized config snapshot owned by the same Foundation generation.
      *
      * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     public static function loadPrevalidatedCompiled(
         ConfigRepository $config,
@@ -98,11 +124,104 @@ final readonly class WebReleaseRuntime
         ?string $matcherCachePath = null,
     ): self {
         self::assertCompiledConfig($config);
-        self::assertTrustedManifest($releaseManifestPath, $trustedManifestSha256);
+        $trustedManifest = self::loadTrustedManifest($releaseManifestPath, $trustedManifestSha256);
 
-        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities, $matcherCachePath);
+        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities, $matcherCachePath, $trustedManifest);
     }
 
+    /**
+     * Construct the selected Webrick/Runwire host application from this trusted
+     * compiled web generation and a caller-owned Runwire runtime.
+     *
+     * Webrick owns HTTP adaptation/response emission, InterMix owns scoped DI,
+     * and Runwire owns request/task/cancellation/shutdown lifetimes. Core
+     * declares the native inputs without creating a host or runtime.
+     *
+     * @param null|callable(HttpRequest):?CoroutineScope $coroutineScope
+     * @param null|callable(HttpRequest):?ScopeContext $scopeContext
+     * @throws \LogicException
+     * @throws \Throwable
+     */
+    public function runwireApplication(
+        RuntimeContext $runtime,
+        ?callable $coroutineScope = null,
+        ?callable $scopeContext = null,
+    ): RunwireRuntimeApplication {
+        foreach ([RuntimeContext::class, \Infocyph\Runwire\RequestContext::class, CoroutineScope::class] as $id) {
+            if (!$this->container->has($id)) {
+                throw new \LogicException(
+                    'Runwire web hosting requires a Foundation release with native Core runtime inputs.',
+                );
+            }
+        }
+
+        // A runtime from a retired process cannot own this host after a fork.
+        $pid = getmypid();
+        if (!is_int($pid) || $runtime->pid !== $pid) {
+            throw new \LogicException('Runwire web host runtime belongs to a different process.');
+        }
+
+        // Each Runwire host independently protects its immutable release against
+        // pruning, even if the bootstrap loader or another host is destroyed.
+        $generation = $this->loadedReleaseGeneration;
+        $hostLease = $generation === null ? null : ReleaseGenerationLease::acquireShared(
+            $generation->releaseRoot,
+            $generation->generation,
+        );
+        $integration = new RunwireIntegration($this->container);
+        $integration->bind($runtime);
+
+        try {
+            $adapter = new RunwireRuntimeAdapter(
+                runtimeContext: $runtime,
+                interMix: $integration,
+                coroutineScope: $coroutineScope === null
+                    ? null
+                    : static function (HttpRequest $request): ?CoroutineScope {
+                        unset($request);
+
+                        return CacheRunwireIntegration::current()?->scope;
+                    },
+                scopeContext: $scopeContext,
+            );
+            $server = new RuntimeServer($this->kernel, $adapter);
+
+            return new RunwireRuntimeApplication(
+                handler: static function (HttpRequest $request, ResponseWriterInterface $writer) use (
+                    $server,
+                    $runtime,
+                    $coroutineScope,
+                ): void {
+                    CacheRunwireIntegration::share(
+                        $request->context,
+                        $coroutineScope === null ? null : $coroutineScope($request),
+                        static fn() => $server->handle($request, $writer),
+                        $runtime,
+                    );
+                },
+                runtimeContext: $runtime,
+                shutdown: static function () use ($integration, $runtime, $hostLease): void {
+                    try {
+                        $integration->release($runtime);
+                    } finally {
+                        $hostLease?->release();
+                    }
+                },
+            );
+        } catch (\Throwable $exception) {
+            try {
+                $integration->release($runtime);
+            } finally {
+                $hostLease?->release();
+            }
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function assertCompiledConfig(ConfigRepository $config): void
     {
         if (!$config->isCompiled()) {
@@ -110,28 +229,29 @@ final readonly class WebReleaseRuntime
         }
     }
 
-    private static function assertTrustedManifest(string $releaseManifestPath, string $trustedSha256): void
-    {
-        $trustedSha256 = strtolower(trim($trustedSha256));
-        if (preg_match('/^[a-f0-9]{64}$/D', $trustedSha256) !== 1) {
-            throw new \InvalidArgumentException('Trusted Foundation web release manifest SHA-256 is invalid.');
-        }
-
-        $runtimePath = WebrickReleaseCompiler::runtimeManifestPath($releaseManifestPath);
-        $selectedPath = is_file($runtimePath) ? $runtimePath : $releaseManifestPath;
-        if (!is_file($selectedPath)) {
-            throw new \RuntimeException('Foundation web release manifest is missing.');
-        }
-
-        $actualSha256 = hash_file('sha256', $selectedPath);
-        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
-            throw new \RuntimeException('Foundation web release manifest trust identity mismatch.');
+    /**
+     * @param array<string, mixed> $manifest
+     * @throws \RuntimeException
+     */
+    private static function assertManifestIdentity(
+        array $manifest,
+        string $environment,
+        string $configFingerprint,
+    ): void {
+        if (($manifest['environment'] ?? null) !== $environment
+            || !is_string($manifest['config_fingerprint'] ?? null)
+            || !hash_equals($configFingerprint, $manifest['config_fingerprint'])
+        ) {
+            throw new \RuntimeException('Foundation web release configuration identity mismatch.');
         }
     }
 
     /**
      * @param array<string, mixed>|ConfigRepository $config
      * @param array<int|string, mixed> $foundationCapabilities
+     * @param array<string,mixed>|null $trustedManifest
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     private static function boot(
         array|ConfigRepository $config,
@@ -140,51 +260,32 @@ final readonly class WebReleaseRuntime
         bool $prevalidated,
         array $foundationCapabilities,
         ?string $matcherCachePath = null,
+        ?array $trustedManifest = null,
     ): self {
-        $graph = new WebGraphFactory()->compose($config, $foundationCapabilities);
-        $settings = new WebReleaseConfiguration($graph);
+        $graph = $prevalidated
+            ? null
+            : new WebGraphFactory()->compose($config, $foundationCapabilities, new WebProductionGraph());
+        $sourceConfig = $graph->config ?? ($config instanceof ConfigRepository ? $config : new ConfigLoader()->load($config));
+        $context = $graph->context ?? FoundationBuildContext::fromConfig($sourceConfig, RuntimeMode::Web, $foundationCapabilities);
+        $settings = new WebReleaseConfiguration($context, $sourceConfig, $graph?->application->paths());
         $settings->assertArtifactSafeMiddleware();
         $releaseManifestPath = $settings->resolvePath($releaseManifestPath);
-        $manifest = new ReleaseManifestLoader()->load($releaseManifestPath);
+        $manifest = $trustedManifest ?? new ReleaseManifestLoader()->load($releaseManifestPath);
 
         $environment = $settings->environment();
         $configFingerprint = $settings->configFingerprint();
-        if (($manifest['environment'] ?? null) !== $environment
-            || !is_string($manifest['config_fingerprint'] ?? null)
-            || !hash_equals($configFingerprint, $manifest['config_fingerprint'])
-        ) {
-            throw new \RuntimeException('Foundation web release configuration identity mismatch.');
-        }
+        self::assertManifestIdentity($manifest, $environment, $configFingerprint);
 
-        $intermix = $manifest['intermix'] ?? null;
-        $webrick = $manifest['webrick'] ?? null;
-        if (!is_array($intermix) || !is_array($webrick)) {
-            throw new \UnexpectedValueException('Foundation web release manifest is incomplete.');
-        }
+        [$intermix, $webrick] = self::manifestArtifacts($manifest);
 
         $intermixPath = $settings->resolvePath(self::stringField($intermix, 'path'));
         $routerPath = $settings->resolvePath(self::stringField($webrick, 'path'));
         $intermixDigest = self::stringField($intermix, 'digest');
         $routerFingerprint = self::stringField($webrick, 'fingerprint');
 
-        $routerLoader = new RouterArtifactLoader();
-        $artifact = $prevalidated
-            ? $routerLoader->loadPrevalidated(
-                path: $routerPath,
-                trustedArtifactFingerprint: $routerFingerprint,
-                expectedEnvironment: $environment,
-                expectedConfigFingerprint: $configFingerprint,
-            )
-            : $routerLoader->load(
-                path: $routerPath,
-                expectedEnvironment: $environment,
-                expectedConfigFingerprint: $configFingerprint,
-            );
-        new WebProductionGraph()->prepareRuntime($graph->builder, $artifact);
-        $container = $prevalidated
-            ? $graph->builder->productionPrevalidated($intermixPath, $intermixDigest)
-            : $graph->builder->production($intermixPath);
-        $graph->application->container()->unset();
+        $container = $graph?->builder->production($intermixPath) ?? new StaticRuntimeGenerator()->loadPrevalidated($intermixPath, $intermixDigest);
+
+        $settings = self::runtimeSettings($context, $container);
 
         $logger = $container->get(LoggerInterface::class);
         if (!$logger instanceof LoggerInterface) {
@@ -250,7 +351,96 @@ final readonly class WebReleaseRuntime
         return new self($container, $kernel, $server, $capabilities);
     }
 
-    /** @param array<array-key, mixed> $source */
+    /**
+     * @return array<string,mixed>
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
+    private static function loadTrustedManifest(string $releaseManifestPath, string $trustedSha256): array
+    {
+        $trustedSha256 = strtolower(trim($trustedSha256));
+        if (preg_match('/^[a-f0-9]{64}$/D', $trustedSha256) !== 1) {
+            throw new \InvalidArgumentException('Trusted Foundation web release manifest SHA-256 is invalid.');
+        }
+
+        $runtimePath = WebrickReleaseCompiler::runtimeManifestPath($releaseManifestPath);
+        $useRuntime = is_file($runtimePath);
+        $selectedPath = $useRuntime ? $runtimePath : $releaseManifestPath;
+        if (!is_file($selectedPath)) {
+            throw new \RuntimeException('Foundation web release manifest is missing.');
+        }
+
+        // Verify the captured bytes, not a path that Webrick can reopen later.
+        $contents = file_get_contents($selectedPath);
+        if (!is_string($contents) || !hash_equals($trustedSha256, hash('sha256', $contents))) {
+            throw new \RuntimeException('Foundation web release manifest trust identity mismatch.');
+        }
+
+        // Preserve Webrick's native release-schema validation using a private,
+        // short-lived copy. The original path must never be read a second time.
+        $directory = sys_get_temp_dir() . '/foundation-web-trust-' . bin2hex(random_bytes(12));
+        if (!mkdir($directory, 0700)) {
+            throw new \RuntimeException('Unable to stage the trusted Webrick release manifest.');
+        }
+        $privateManifestPath = $directory . '/release.json';
+        $privatePath = $useRuntime
+            ? WebrickReleaseCompiler::runtimeManifestPath($privateManifestPath)
+            : $privateManifestPath;
+
+        try {
+            if (file_put_contents($privatePath, $contents, LOCK_EX) !== strlen($contents)) {
+                throw new \RuntimeException('Unable to write the trusted Webrick manifest copy.');
+            }
+
+            return new ReleaseManifestLoader()->load($privateManifestPath);
+        } finally {
+            if (is_file($privatePath)) {
+                unlink($privatePath);
+            }
+            rmdir($directory);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $manifest
+     * @return array{array<array-key, mixed>, array<array-key, mixed>}
+     * @throws \UnexpectedValueException
+     */
+    private static function manifestArtifacts(array $manifest): array
+    {
+        $intermix = $manifest['intermix'] ?? null;
+        $webrick = $manifest['webrick'] ?? null;
+        if (!is_array($intermix) || !is_array($webrick)) {
+            throw new \UnexpectedValueException('Foundation web release manifest is incomplete.');
+        }
+
+        return [$intermix, $webrick];
+    }
+
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
+    private static function runtimeSettings(FoundationBuildContext $context, ProductionContainer $container): WebReleaseConfiguration
+    {
+        if ($container->get('foundation.web.capabilities') !== $context->capabilities) {
+            throw new \RuntimeException('Foundation web release capability identity mismatch.');
+        }
+        $runtimeConfig = $container->get(ConfigRepository::class);
+        $paths = $container->get(PathManager::class);
+        if (!$runtimeConfig instanceof ConfigRepository || !$paths instanceof PathManager) {
+            throw new \LogicException('Compiled Foundation web runtime did not produce its configuration and paths.');
+        }
+        $settings = new WebReleaseConfiguration($context, $runtimeConfig, $paths);
+        $settings->assertArtifactSafeMiddleware();
+
+        return $settings;
+    }
+
+    /**
+     * @param array<array-key, mixed> $source
+     * @throws \UnexpectedValueException
+     */
     private static function stringField(array $source, string $field): string
     {
         $value = $source[$field] ?? null;

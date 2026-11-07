@@ -43,7 +43,7 @@ it('allows exactly one authorization-code redemption across two independent proc
     $tables = new AuthTables();
     $connection = $factory->connection();
     $runner = new MigrationRunner($connection, [new AuthOAuthRevisionSchema($tables)]);
-    $store = new DBLayerOAuthAuthorizationCodeStore($factory, $tables);
+    $store = new DBLayerOAuthAuthorizationCodeStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
 
     $child = <<<'PHP'
 <?php
@@ -70,7 +70,7 @@ $config = new ConfigRepository([
 ]);
 $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
 $factory->connection()->setQueryTimeoutMs(5000);
-$store = new DBLayerOAuthAuthorizationCodeStore($factory, new AuthTables());
+$store = new DBLayerOAuthAuthorizationCodeStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), new AuthTables());
 while (!is_file($barrier)) {
     usleep(1000);
 }

@@ -11,6 +11,10 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerStore;
 
 final readonly class DBLayerEpicryptAccessTokenStatusStore extends DBLayerStore implements OAuthAccessTokenStatusStoreInterface
 {
+    /**
+     * @throws \Throwable
+     */
+    #[\Override]
     public function create(OAuthAccessTokenStatusRecord $record): bool
     {
         $id = $this->id($record->issuer, $record->tokenId);
@@ -37,6 +41,10 @@ final readonly class DBLayerEpicryptAccessTokenStatusStore extends DBLayerStore 
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function find(string $issuer, string $tokenId): ?OAuthAccessTokenStatusRecord
     {
         $row = $this->first(
@@ -47,6 +55,13 @@ final readonly class DBLayerEpicryptAccessTokenStatusStore extends DBLayerStore 
         return is_array($row) ? $this->map($row, $issuer, $tokenId) : null;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
+    #[\Override]
     public function revoke(string $issuer, string $tokenId, int $revokedAt): ?OAuthAccessTokenStatusRecord
     {
         $result = $this->connection()->transaction(function (Connection $transaction) use ($issuer, $tokenId, $revokedAt): ?OAuthAccessTokenStatusRecord {

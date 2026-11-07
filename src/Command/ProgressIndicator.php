@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Command;
 
+/**
+ * Application-facing command progress reporting.
+ *
+ * @api
+ */
 final readonly class ProgressIndicator
 {
     private const array SPINNER = ['|', '/', '-', '\\'];
@@ -15,6 +20,7 @@ final readonly class ProgressIndicator
      * feedback when it is not. The callback receives ($item, $zeroBasedIndex).
      *
      * @param iterable<mixed> $items
+     * @throws \Throwable
      */
     public function iterate(
         iterable $items,
@@ -46,6 +52,8 @@ final readonly class ProgressIndicator
      * @template T
      * @param callable():T $task
      * @return T
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
      */
     public function task(string $label, callable $task): mixed
     {
@@ -71,6 +79,9 @@ final readonly class ProgressIndicator
         return $result;
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function assertProducedTotal(int $count, ?int $total, bool $render): void
     {
         if ($total === null || $count === $total) {
@@ -87,6 +98,9 @@ final readonly class ProgressIndicator
         ));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function assertTotal(?int $total): void
     {
         if ($total !== null && $total < 0) {
@@ -130,7 +144,7 @@ final readonly class ProgressIndicator
     private function render(string $label, int $current, ?int $total): void
     {
         if ($total === null) {
-            $frame = self::SPINNER[$current % count(self::SPINNER)];
+            $frame = self::SPINNER[max(0, $current) % count(self::SPINNER)];
             $this->io->write(sprintf("\r%s %s %d", $frame, $label, $current));
 
             return;
@@ -138,9 +152,9 @@ final readonly class ProgressIndicator
 
         $ratio = $total === 0 ? 1.0 : min(1.0, $current / $total);
         $width = 24;
-        $filled = (int) floor($ratio * $width);
+        $filled = (int) floor((float) $ratio * (float) $width);
         $bar = str_repeat('#', $filled) . str_repeat('-', $width - $filled);
-        $percent = (int) round($ratio * 100);
+        $percent = (int) round((float) $ratio * 100.0);
         $this->io->write(sprintf("\r[%s] %3d%% %s (%d/%d)", $bar, $percent, $label, $current, $total));
     }
 

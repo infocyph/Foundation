@@ -22,6 +22,7 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyRegistrationResult;
 use Infocyph\Foundation\Auth\Passkey\PasskeyRegistrationStatus;
 use Infocyph\Foundation\Support\ValueNormalizer;
 
+/** @api */
 final readonly class AuthActions
 {
     public function __construct(
@@ -30,6 +31,10 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     public function finishPasskeyAuthentication(array $payload): PasskeyAuthenticationOutcome
     {
@@ -41,6 +46,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function finishPasskeyRegistration(array $payload): PasskeyRegistrationOutcome
     {
@@ -61,6 +69,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function login(array $payload): LoginResult
     {
@@ -72,6 +83,12 @@ final readonly class AuthActions
         ));
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function logout(?string $sessionId = null): LogoutResult
     {
         $principals = $this->services->principals();
@@ -93,6 +110,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function requestEmailVerification(array $payload): EmailVerificationResult
     {
@@ -105,17 +125,34 @@ final readonly class AuthActions
             );
         }
 
-        $email = $this->string($payload, 'email', $account->identifier());
+        $email = $this->emailVerificationDestination($account, $payload);
+        if ($email === null) {
+            return new EmailVerificationResult(
+                EmailVerificationStatus::INVALID,
+                code: 'email_destination_untrusted',
+                context: $this->context($payload),
+            );
+        }
 
-        return $this->services->emailVerification()->issue(
+        $result = $this->services->emailVerification()->issue(
             $account->id(),
             $email,
             $this->context($payload),
+        );
+
+        return new EmailVerificationResult(
+            $result->status,
+            $result->request,
+            code: $result->code,
+            context: $result->context,
         );
     }
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function requestMfa(array $payload): MfaChallengeResult
     {
@@ -138,17 +175,29 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function requestPasswordless(array $payload): PasswordlessResult
     {
-        return $this->services->passwordless()->issue(
+        $result = $this->services->passwordless()->issue(
             $this->string($payload, 'identifier', $this->string($payload, 'email')),
             $this->context($payload),
+        );
+
+        return new PasswordlessResult(
+            $result->status,
+            code: $result->code,
+            context: $result->context,
         );
     }
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function requestPasswordReset(array $payload): PasswordResetResult
     {
@@ -161,14 +210,24 @@ final readonly class AuthActions
             );
         }
 
-        return $this->services->passwordResets()->issue(
+        $result = $this->services->passwordResets()->issue(
             $account->id(),
             $this->context($payload),
+        );
+
+        return new PasswordResetResult(
+            $result->status,
+            $result->request,
+            code: $result->code,
+            context: $result->context,
         );
     }
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function resetPassword(array $payload): PasswordResetResult
     {
@@ -183,6 +242,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function startPasskeyAuthentication(array $payload): PasskeyAuthenticationOutcome
     {
@@ -194,6 +256,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function startPasskeyRegistration(array $payload): PasskeyRegistrationOutcome
     {
@@ -214,6 +279,10 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     * @throws \RuntimeException
      */
     public function verifyEmail(array $payload): EmailVerificationResult
     {
@@ -225,6 +294,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function verifyMfa(array $payload): MfaChallengeResult
     {
@@ -257,6 +329,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function verifyPasswordless(array $payload): PasswordlessResult
     {
@@ -268,6 +343,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     private function accountId(array $payload): ?string
     {
@@ -416,6 +494,27 @@ final readonly class AuthActions
     }
 
     /**
+     * Only a stored account destination may activate its verified status.
+     * Arbitrary address changes require a separate authorized account-change flow.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function emailVerificationDestination(AccountInterface $account, array $payload): ?string
+    {
+        $identifier = $account->identifier();
+        $email = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false
+            ? $identifier
+            : ($account->metadata()['email'] ?? null);
+        if (!is_string($email) || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            return null;
+        }
+
+        $requested = $this->nullableString($payload, 'email');
+
+        return $requested === null || strcasecmp($requested, $email) === 0 ? $email : null;
+    }
+
+    /**
      * @param array<string, mixed> $payload
      */
     private function int(array $payload, string $key, int $default = 0): int
@@ -559,6 +658,9 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     private function resolveAccount(array $payload): ?AccountInterface
     {

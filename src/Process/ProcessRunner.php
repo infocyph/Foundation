@@ -8,7 +8,9 @@ use Infocyph\Foundation\Process\Internal\ProcessCapture;
 use Infocyph\Foundation\Process\Internal\ProcessOutcome;
 use Infocyph\Foundation\Process\Internal\ProcessSignals;
 use Infocyph\Foundation\Process\Internal\ProcessTree;
+use Infocyph\Foundation\Runtime\CleanupGuard;
 
+/** @api */
 final readonly class ProcessRunner
 {
     private ProcessCapture $capture;
@@ -24,7 +26,11 @@ final readonly class ProcessRunner
         $this->capture = new ProcessCapture($this->tree, $this->signals);
     }
 
-    /** @param list<string>|string $command Prefer an argument list to bypass the shell. */
+    /**
+     * @param list<string>|string $command Prefer an argument list to bypass the shell.
+     * @throws \RuntimeException
+     * @throws \Throwable
+     */
     public function run(array|string $command, ?ProcessOptions $options = null): ProcessResult
     {
         $options ??= new ProcessOptions();
@@ -57,15 +63,21 @@ final readonly class ProcessRunner
         try {
             return $this->capture->run($process, $pipes, $options, $tree);
         } catch (\Throwable $exception) {
-            $this->closePipes($pipes);
-            $this->tree->terminate($process, $options->terminationGraceSeconds, $tree);
-            proc_close($process);
+            CleanupGuard::run(
+                $exception,
+                fn() => $this->closePipes($pipes),
+                fn() => $this->tree->terminate($process, $options->terminationGraceSeconds, $tree),
+                static fn() => proc_close($process),
+            );
 
             throw $exception;
         }
     }
 
-    /** @param list<string>|string $command */
+    /**
+     * @param list<string>|string $command
+     * @throws \InvalidArgumentException
+     */
     private function assertCommand(array|string $command): void
     {
         if (is_string($command)) {
@@ -80,7 +92,7 @@ final readonly class ProcessRunner
         }
     }
 
-    /** @param array<int, resource> $pipes */
+    /** @param array<int, mixed> $pipes Closed pipe handles may no longer be resources. */
     private function closePipes(array $pipes): void
     {
         foreach ($pipes as $pipe) {
@@ -142,7 +154,11 @@ final readonly class ProcessRunner
         return $options;
     }
 
-    /** @param list<string>|string $command */
+    /**
+     * @param list<string>|string $command
+     * @throws \RuntimeException
+     * @throws \Throwable
+     */
     private function runInteractive(array|string $command, ProcessOptions $options): ProcessResult
     {
         $process = proc_open(
@@ -161,16 +177,17 @@ final readonly class ProcessRunner
         $startedAt = ProcessOutcome::clock();
         $reason = null;
         $interruptedSignal = null;
-        $signalState = $this->signals->register(
-            $options,
-            static function (int $signal) use (&$interruptedSignal): void {
-                $interruptedSignal = $signal;
-            },
-        );
-        $status = proc_get_status($process);
+        $signalState = null;
 
         try {
-            while (($status = proc_get_status($process))['running']) {
+            $signalState = $this->signals->register(
+                $options,
+                static function (int $signal) use (&$interruptedSignal): void {
+                    $interruptedSignal = $signal;
+                },
+            );
+
+            while (proc_get_status($process)['running']) {
                 $reason = $this->interactiveTermination($options, $startedAt, $interruptedSignal);
                 if ($reason !== null) {
                     break;
@@ -182,6 +199,20 @@ final readonly class ProcessRunner
                 $this->tree->terminate($process, $options->terminationGraceSeconds, $tree);
             }
             $status = proc_get_status($process);
+        } catch (\Throwable $exception) {
+            // A throwing heartbeat or cancellation probe must not orphan a
+            // child. Preserve the original failure if termination also fails.
+            CleanupGuard::run(
+                $exception,
+                function () use ($process, $options, $tree): void {
+                    $this->tree->terminate($process, $options->terminationGraceSeconds, $tree);
+                },
+                static function () use ($process): void {
+                    proc_close($process);
+                },
+            );
+
+            throw $exception;
         } finally {
             $this->signals->restore($signalState);
         }

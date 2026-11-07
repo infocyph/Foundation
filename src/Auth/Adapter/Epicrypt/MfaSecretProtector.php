@@ -26,6 +26,9 @@ final readonly class MfaSecretProtector
         private StringProtector $protector = new StringProtector(),
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function protect(MfaFactor $factor): MfaFactor
     {
         $metadata = $factor->metadata;
@@ -65,11 +68,19 @@ final readonly class MfaSecretProtector
         return $this->factorWithMetadata($factor, $metadata);
     }
 
+    /**
+     * @throws \Infocyph\Epicrypt\Exception\Crypto\DecryptionException
+     * @throws \InvalidArgumentException
+     */
     public function unprotect(MfaFactor $factor): MfaFactor
     {
         return $this->unprotectResult($factor)->factor;
     }
 
+    /**
+     * @throws \Infocyph\Epicrypt\Exception\Crypto\DecryptionException
+     * @throws \InvalidArgumentException
+     */
     public function unprotectResult(MfaFactor $factor): MfaSecretProtectionResult
     {
         $metadata = $factor->metadata;
@@ -87,29 +98,9 @@ final readonly class MfaSecretProtector
         $legacyPlaintext = false;
         $usedFallbackKey = false;
         foreach (self::SECRET_FIELDS as $field) {
-            $value = $otp[$field] ?? null;
-            if (!is_string($value) || $value === '') {
-                continue;
+            if ($this->unprotectOtpField($factor, $field, $otp, $marker, $legacyPlaintext, $usedFallbackKey)) {
+                $changed = true;
             }
-
-            if (!str_starts_with($value, 'ep2.')) {
-                if ($marker !== null || !$this->allowLegacyPlaintext) {
-                    throw new DecryptionException('MFA factor contains an unprotected symmetric secret.');
-                }
-
-                $legacyPlaintext = true;
-
-                continue;
-            }
-
-            $result = $this->protector->unprotectWithKeyRing(
-                $value,
-                $this->keys,
-                $this->options($factor, $field),
-            );
-            $otp[$field] = $result->value;
-            $usedFallbackKey = $usedFallbackKey || $result->usedFallbackKey;
-            $changed = true;
         }
 
         if ($marker !== null) {
@@ -129,7 +120,10 @@ final readonly class MfaSecretProtector
         );
     }
 
-    /** @param array<string, mixed> $metadata */
+    /**
+     * @param array<string, mixed> $metadata
+     * @throws \InvalidArgumentException
+     */
     private function factorWithMetadata(MfaFactor $factor, array $metadata): MfaFactor
     {
         return new MfaFactor(
@@ -177,6 +171,43 @@ final readonly class MfaSecretProtector
         }
 
         return $normalized;
+    }
+
+    /**
+     * @param array<string,mixed> $otp
+     * @throws \Infocyph\Epicrypt\Exception\Crypto\DecryptionException
+     */
+    private function unprotectOtpField(
+        MfaFactor $factor,
+        string $field,
+        array &$otp,
+        mixed $marker,
+        bool &$legacyPlaintext,
+        bool &$usedFallbackKey,
+    ): bool {
+        $value = $otp[$field] ?? null;
+        if (!is_string($value) || $value === '') {
+            return false;
+        }
+        if (!str_starts_with($value, 'ep2.')) {
+            if ($marker !== null || !$this->allowLegacyPlaintext) {
+                throw new DecryptionException('MFA factor contains an unprotected symmetric secret.');
+            }
+
+            $legacyPlaintext = true;
+
+            return false;
+        }
+
+        $result = $this->protector->unprotectWithKeyRing(
+            $value,
+            $this->keys,
+            $this->options($factor, $field),
+        );
+        $otp[$field] = $result->value;
+        $usedFallbackKey = $usedFallbackKey || $result->usedFallbackKey;
+
+        return true;
     }
 
     private function validMarker(mixed $marker): bool

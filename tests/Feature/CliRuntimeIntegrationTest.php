@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Command\CommandContext;
 use Infocyph\Foundation\Command\CommandDefinition;
 use Infocyph\Foundation\Command\CommandDispatcher;
@@ -13,6 +15,13 @@ use Infocyph\Foundation\Command\CommandIO;
 use Infocyph\Foundation\Command\CommandRegistry;
 use Infocyph\Foundation\Command\ExitCode;
 use Infocyph\Foundation\Command\OverlapMode;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\Runwire\Exception\RuntimeUnavailableException;
+use Infocyph\Runwire\Http\Enum\AdaptivePolicyMode;
+use Infocyph\Runwire\Runtime\Enum\RuntimeDriver;
+use Infocyph\Runwire\Runtime\RuntimeEnvironmentProbe;
+use Infocyph\Runwire\Runtime\RuntimeSelector;
+use Infocyph\Runwire\RuntimeOptions;
 
 final class FoundationCliRuntimeIO implements CommandIO
 {
@@ -416,6 +425,114 @@ it('skips overlapping commands under a shared file lock and records cancellation
         foundationCliRuntimeRemoveDirectory($project);
     }
 });
+
+final class FoundationServeUnbootedProvider extends ServiceProvider
+{
+    public function boot(Application $app): void
+    {
+        unset($app);
+
+        throw new LogicException('Serve supervisor booted application services before its worker.');
+    }
+
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+    {
+        unset($builder, $context);
+    }
+}
+
+it('preflights Runwire serving without publishing a release or opening a listener', function (): void {
+    $project = foundationCliRuntimeProject();
+    mkdir($project . '/public');
+    file_put_contents($project . '/bootstrap/providers.php', '<?php return ["common" => ['
+        . FoundationServeUnbootedProvider::class . '::class]];');
+
+    try {
+        $io = new FoundationCliRuntimeIO(machine: true);
+        $selected = new RuntimeSelector()->select(new RuntimeOptions(), new RuntimeEnvironmentProbe()->probe());
+
+        expect(foundationCliRuntimeDispatcher($project)->run(['infbyte', 'serve', '--dry-run', '--json'], $io))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($io->payloads[0])->toMatchArray([
+                'requested_runtime' => RuntimeDriver::AUTO->value,
+                'runtime' => $selected->driver->value,
+                'endpoint' => 'http://127.0.0.1:8000',
+                'protocol_policy' => AdaptivePolicyMode::FIXED->value,
+            ])
+            ->and(is_dir($project . '/storage/releases'))->toBeFalse();
+    } finally {
+        foundationCliRuntimeRemoveDirectory($project);
+    }
+});
+
+it('uses the native selector for every installed runtime enum case', function (): void {
+    $project = foundationCliRuntimeProject();
+    mkdir($project . '/public');
+
+    try {
+        $environment = new RuntimeEnvironmentProbe()->probe();
+        foreach (RuntimeDriver::cases() as $driver) {
+            $io = new FoundationCliRuntimeIO(machine: true);
+            try {
+                $selected = new RuntimeSelector()->select(new RuntimeOptions(driver: $driver), $environment);
+            } catch (RuntimeUnavailableException $exception) {
+                expect(foundationCliRuntimeDispatcher($project)->run([
+                    'infbyte', 'serve', '--runtime=' . $driver->value, '--dry-run', '--json',
+                ], $io))->toBe(ExitCode::FAILURE)
+                    ->and($io->errors)->toContain($exception->getMessage());
+                continue;
+            }
+
+            expect(foundationCliRuntimeDispatcher($project)->run([
+                'infbyte', 'serve', '--runtime=' . $driver->value, '--dry-run', '--json',
+            ], $io))->toBe(ExitCode::SUCCESS)
+                ->and($io->payloads[0]['requested_runtime'])->toBe($driver->value)
+                ->and($io->payloads[0]['runtime'])->toBe($selected->driver->value);
+        }
+        expect(is_dir($project . '/storage/releases'))->toBeFalse();
+    } finally {
+        foundationCliRuntimeRemoveDirectory($project);
+    }
+});
+
+it('accepts native protocol policies independently of runtime selection', function (): void {
+    $project = foundationCliRuntimeProject();
+    mkdir($project . '/public');
+
+    try {
+        foreach (AdaptivePolicyMode::cases() as $policy) {
+            $io = new FoundationCliRuntimeIO(machine: true);
+            expect(foundationCliRuntimeDispatcher($project)->run([
+                'infbyte', 'serve', '--runtime=native', '--workers=1',
+                '--protocol-policy=' . $policy->value, '--dry-run', '--json',
+            ], $io))->toBe(ExitCode::SUCCESS)
+                ->and($io->payloads[0])->toMatchArray([
+                    'requested_runtime' => 'native',
+                    'runtime' => 'native',
+                    'workers' => 1,
+                    'protocol_policy' => $policy->value,
+                ]);
+        }
+    } finally {
+        foundationCliRuntimeRemoveDirectory($project);
+    }
+});
+
+it('rejects malformed serving options before creating release artifacts', function (string $option): void {
+    $project = foundationCliRuntimeProject();
+    mkdir($project . '/public');
+
+    try {
+        $io = new FoundationCliRuntimeIO();
+        expect(foundationCliRuntimeDispatcher($project)->run([
+            'infbyte', 'serve', $option, '--dry-run',
+        ], $io))->toBe(ExitCode::FAILURE)
+            ->and($io->errors)->not->toBeEmpty()
+            ->and(is_dir($project . '/storage/releases'))->toBeFalse();
+    } finally {
+        foundationCliRuntimeRemoveDirectory($project);
+    }
+})->with(['--runtime=imaginary', '--protocol-policy=imaginary', '--workers=-1', '--workers=1.5', '--workers=1025', '--port=65536', '--host=']);
 
 function foundationCliRuntimeDispatcher(
     string $project,

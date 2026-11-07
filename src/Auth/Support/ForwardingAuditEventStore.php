@@ -8,6 +8,11 @@ use Closure;
 use Infocyph\Foundation\Auth\Audit\AuthEvent;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 
+/**
+ * Application-selectable audit store decorator for forwarding recorded events.
+ *
+ * @api
+ */
 final readonly class ForwardingAuditEventStore implements AuditEventStoreInterface
 {
     /** @var Closure(AuthEvent): void */
@@ -21,6 +26,7 @@ final readonly class ForwardingAuditEventStore implements AuditEventStoreInterfa
         $this->forward = Closure::fromCallable($forward);
     }
 
+    #[\Override]
     public function record(AuthEvent $event): void
     {
         $this->store->record($event);

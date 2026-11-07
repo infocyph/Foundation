@@ -4,12 +4,21 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Command;
 
+/**
+ * Application-facing base class for custom commands.
+ *
+ * @api
+ */
 abstract class Command implements CommandHandlerInterface
 {
     private ?CommandContext $context = null;
 
     abstract protected function handle(): int;
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     final public function run(CommandContext $context): int
     {
         if ($this->context !== null) {
@@ -98,6 +107,7 @@ abstract class Command implements CommandHandlerInterface
      * Process an iterable with progress feedback. Pass null total for spinner-style feedback.
      *
      * @param iterable<mixed> $items
+     * @throws \Throwable
      */
     final protected function progress(
         iterable $items,
@@ -131,6 +141,8 @@ abstract class Command implements CommandHandlerInterface
      * @template T
      * @param callable():T $task
      * @return T
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
      */
     final protected function task(string $label, callable $task): mixed
     {

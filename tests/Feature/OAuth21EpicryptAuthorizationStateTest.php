@@ -29,7 +29,7 @@ it('persists only authorization-code state and consumes it atomically', function
     ])), RuntimeStateContainer::execution());
     $tables = new AuthTables();
     oauth21EpicryptStateMigrations($factory, $tables);
-    $store = new DBLayerEpicryptAuthorizationCodeStore($factory, $tables);
+    $store = new DBLayerEpicryptAuthorizationCodeStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
     $now = 1_700_000_000;
     $record = new AuthorizationCodeRecord(
         codeId: str_repeat('A', 32),
@@ -77,7 +77,7 @@ it('distinguishes expired authorization-code state without consuming it', functi
     ])), RuntimeStateContainer::execution());
     $tables = new AuthTables();
     oauth21EpicryptStateMigrations($factory, $tables);
-    $store = new DBLayerEpicryptAuthorizationCodeStore($factory, $tables);
+    $store = new DBLayerEpicryptAuthorizationCodeStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
     $record = new AuthorizationCodeRecord(
         codeId: str_repeat('B', 32),
         authorizationId: 'authorization-expired',
@@ -105,7 +105,7 @@ it('projects Epicrypt authorizations through the authoritative Foundation author
     ])), RuntimeStateContainer::execution());
     $tables = new AuthTables();
     oauth21EpicryptStateMigrations($factory, $tables);
-    $store = new DBLayerEpicryptOAuthAuthorizationStore($factory, $tables);
+    $store = new DBLayerEpicryptOAuthAuthorizationStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
     $record = new OAuthAuthorizationRecord(
         authorizationId: 'authorization-1',
         subject: 'account-1',

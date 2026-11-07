@@ -66,28 +66,28 @@ Every publishable specialist key is documented inline in its Foundation template
 | Configuration | Template | Owner |
 | --- | --- | --- |
 | CacheLayer stores/counters/locks/clusters | `resources/config/cache.php` | Foundation core cache infrastructure |
-| HTTP/webhook/gRPC profiles | `resources/config/communication.php` | `communication` |
-| DBLayer connections/migrations/seeders | `resources/config/database.php` | `database` |
-| Pathwise disks/upload/download policy | `resources/config/filesystem.php` | `filesystem` |
-| PSR-3 logging/exception policy | `resources/config/logging.php` | `logging` |
-| Omnibus routes/handlers/middleware/retry/workers | `resources/config/messaging.php` | `messaging` |
-| Email and application notifications | `resources/config/notifications.php` | `communication` |
-| Runtime operations/history/maintenance | `resources/config/operations.php` | `operations` |
-| JsonDispatch response profile | `resources/config/responses.php` | `resources` |
-| Epicrypt application security policy | `resources/config/security.php` | `security` |
-| Browser sessions/CSRF | `resources/config/session.php` | `session` |
-| ReqShield validation | `resources/config/validation.php` | `validation` |
+| HTTP/webhook/gRPC profiles | `resources/config/communication.php` | `execution.communication` |
+| DBLayer connections/migrations/seeders | `resources/config/database.php` | `data.database` |
+| Pathwise disks/upload/download policy | `resources/config/filesystem.php` | `data.filesystem` |
+| PSR-3 logging/exception policy | `resources/config/logging.php` | Foundation Core |
+| Omnibus routes/handlers/middleware/retry/workers | `resources/config/messaging.php` | `execution.messaging` |
+| Email and application notifications | `resources/config/notifications.php` | Foundation Core |
+| Runtime operations/history/maintenance | `resources/config/operations.php` | Foundation Core |
+| JsonDispatch response profile | `resources/config/responses.php` | Foundation Core |
+| Epicrypt application security policy | `resources/config/security.php` | `security.crypto` |
+| Browser sessions/CSRF | `resources/config/session.php` | Foundation Core |
+| ReqShield validation | `resources/config/validation.php` | `security.validation` |
 
 Publish without overwriting host config:
 
 ```bash
-php infbyte module:config:publish database
-php infbyte module:config:publish operations
+php infbyte module:config:publish data.database
+php infbyte module:config:publish security.crypto
 ```
 
-Explicit replacement of module-owned configuration requires `--force`.
+Feature-owned configuration publication never overwrites an application-owned file; Core configuration has its own lifecycle and is not an optional module.
 
-`module:install <module>` publishes config for optional modules but never silently overwrites existing application config. `cache.php` is core application configuration and ships with the application skeleton rather than being module-published.
+`module:install <module.feature>` publishes only selected owner configuration; bare module groups never install all their features. `cache.php` is core application configuration and ships with the application skeleton rather than being module-published.
 
 Infrastructure values remain in their owning config; auth does not duplicate
 database/cache/security/communication settings.
@@ -101,7 +101,7 @@ The live InterMix composition knobs are intentionally small:
 - `app.container.debug_tracing.enabled` and `.level` — InterMix diagnostic tracing.
 
 The following old runtime switches are removed and must not be carried into
-Foundation 3 application configuration:
+Foundation 4 application configuration:
 
 - `app.container.alias`;
 - `app.container.compiled`;

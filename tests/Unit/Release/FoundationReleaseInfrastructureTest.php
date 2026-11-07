@@ -57,6 +57,7 @@ it('serializes release build-plane mutations without changing the active generat
 
         $reacquired = FoundationReleaseBuildLock::acquire($root);
         $reacquired->release();
+        $reacquired->release();
         expect($active->current($root)['generation'])->toBe('stable');
     } finally {
         foundationReleaseInfrastructureRemove($root);
@@ -148,6 +149,7 @@ it('preserves draining generations until their runtime lease is released', funct
             expect($compiler->prune($root, keep: 1))->toBe([])
                 ->and(is_dir($root . '/generations/draining'))->toBeTrue();
         } finally {
+            $lease->release();
             $lease->release();
         }
 

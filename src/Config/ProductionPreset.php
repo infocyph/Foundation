@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Config;
 
+/**
+ * Application production configuration preset.
+ *
+ * @api
+ */
 final class ProductionPreset implements FoundationPreset
 {
+    #[\Override]
     public function config(): array
     {
         return [

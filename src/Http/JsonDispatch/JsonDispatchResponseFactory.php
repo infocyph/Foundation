@@ -11,10 +11,18 @@ use Infocyph\ReqShield\Support\ValidationResult;
 use Infocyph\Webrick\Response\Response;
 use JsonSerializable;
 
+/**
+ * Public JSON dispatch response assembly contract.
+ *
+ * @api
+ */
 final readonly class JsonDispatchResponseFactory
 {
     public const string SPECIFICATION_VERSION = '3.0.0';
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         private string $vendor = 'infocyph',
         private string $applicationVersion = '1.0.0',
@@ -30,6 +38,7 @@ final readonly class JsonDispatchResponseFactory
 
     /**
      * @param list<Issue> $issues
+     * @throws \InvalidArgumentException
      */
     public function error(
         array $issues,
@@ -41,6 +50,7 @@ final readonly class JsonDispatchResponseFactory
 
     /**
      * @param list<Issue> $issues
+     * @throws \InvalidArgumentException
      */
     public function fail(
         array $issues,
@@ -50,6 +60,9 @@ final readonly class JsonDispatchResponseFactory
         return $this->problem('fail', $issues, $status, $message);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function failureFromValidation(
         ValidationResult $validation,
         int $status = 422,
@@ -113,6 +126,9 @@ final readonly class JsonDispatchResponseFactory
         ], $status);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function success(
         mixed $data = null,
         int $status = 200,
@@ -152,28 +168,44 @@ final readonly class JsonDispatchResponseFactory
     private function pagination(PaginatorInterface $paginator): array
     {
         if ($paginator instanceof CursorPaginator) {
-            return array_filter([
+            $pagination = [
                 'mode' => 'cursor',
                 'limit' => $paginator->perPage(),
                 'count' => $paginator->count(),
                 'has_more' => $paginator->hasMorePages(),
-                'next_cursor' => $paginator->nextCursor(),
-                'previous_cursor' => $paginator->previousCursor(),
-            ], static fn(mixed $value): bool => $value !== null);
+            ];
+            $nextCursor = $paginator->nextCursor();
+            if ($nextCursor !== null) {
+                $pagination['next_cursor'] = $nextCursor;
+            }
+            $previousCursor = $paginator->previousCursor();
+            if ($previousCursor !== null) {
+                $pagination['previous_cursor'] = $previousCursor;
+            }
+
+            return $pagination;
         }
 
-        return array_filter([
+        $pagination = [
             'mode' => 'offset',
             'offset' => max(0, ($paginator->currentPage() - 1) * $paginator->perPage()),
             'limit' => $paginator->perPage(),
             'count' => $paginator->count(),
-            'total' => $paginator->total(),
-        ], static fn(mixed $value): bool => $value !== null);
+        ];
+        $total = $paginator->total();
+        if ($total !== null) {
+            $pagination['total'] = $total;
+        }
+
+        return $pagination;
     }
 
     private function pointer(string $field): string
     {
-        $segments = preg_split('/[.\\[\\]]+/', $field, -1, PREG_SPLIT_NO_EMPTY) ?: [$field];
+        $segments = preg_split('/[.\\[\\]]+/', $field, -1, PREG_SPLIT_NO_EMPTY);
+        if ($segments === false) {
+            $segments = [$field];
+        }
 
         return '/' . implode('/', array_map(
             static fn(string $segment): string => str_replace(['~', '/'], ['~0', '~1'], $segment),
@@ -183,6 +215,7 @@ final readonly class JsonDispatchResponseFactory
 
     /**
      * @param list<Issue> $issues
+     * @throws \InvalidArgumentException
      */
     private function problem(string $type, array $issues, int $status, ?string $message): Response
     {

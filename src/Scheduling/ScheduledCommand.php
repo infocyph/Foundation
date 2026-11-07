@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Scheduling;
 
+/** @api */
 final class ScheduledCommand
 {
     /** @var list<string> */
@@ -27,6 +28,9 @@ final class ScheduledCommand
 
     private bool $withoutOverlap = false;
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(private readonly string $command)
     {
         if ($command === '') {
@@ -36,7 +40,10 @@ final class ScheduledCommand
         $this->timezone = new \DateTimeZone(date_default_timezone_get());
     }
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param array<string, mixed> $data
+     * @throws \InvalidArgumentException
+     */
     public static function fromManifest(array $data): self
     {
         $command = new self(self::stringValue($data['command'] ?? null, ''));
@@ -70,7 +77,10 @@ final class ScheduledCommand
         return $command;
     }
 
-    /** @param list<string> $arguments */
+    /**
+     * @param list<string> $arguments
+     * @throws \InvalidArgumentException
+     */
     public function arguments(array $arguments): self
     {
         if (array_any($arguments, static fn(string $argument): bool => $argument === '')) {
@@ -92,6 +102,9 @@ final class ScheduledCommand
         return $this->arguments;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function cron(string $expression): self
     {
         $this->cron = new CronExpression($expression);
@@ -99,6 +112,9 @@ final class ScheduledCommand
         return $this;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function dailyAt(string $time): self
     {
         if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time) !== 1) {
@@ -114,11 +130,17 @@ final class ScheduledCommand
         return $this->cron->matches(new \DateTimeImmutable('@' . $now->getTimestamp())->setTimezone($this->timezone));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function everyMinute(): self
     {
         return $this->cron('* * * * *');
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function hourly(): self
     {
         return $this->cron('0 * * * *');
@@ -134,6 +156,9 @@ final class ScheduledCommand
         ], JSON_THROW_ON_ERROR));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function key(string $key): self
     {
         if ($key === '' || strlen($key) > 128 || preg_match('/^[A-Za-z0-9._:-]+$/D', $key) !== 1) {
@@ -144,6 +169,9 @@ final class ScheduledCommand
         return $this;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function memoryLimit(int $megabytes): self
     {
         if ($megabytes < 1) {
@@ -159,6 +187,9 @@ final class ScheduledCommand
         return $this->memoryLimitMegabytes;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function onOneServer(bool $enabled = true, float $leaseSeconds = 300.0, float $waitSeconds = 0.0): self
     {
         $this->assertLockTiming($leaseSeconds, $waitSeconds);
@@ -189,6 +220,9 @@ final class ScheduledCommand
         return $this->onOneServer;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function timeout(float $seconds): self
     {
         if (!is_finite($seconds) || $seconds <= 0) {
@@ -204,8 +238,13 @@ final class ScheduledCommand
         return $this->timeoutSeconds;
     }
 
+    /** @throws \InvalidArgumentException */
     public function timezone(string|\DateTimeZone $timezone): self
     {
+        if ($timezone === '') {
+            throw new \InvalidArgumentException('Schedule timezone must be non-empty.');
+        }
+
         $this->timezone = is_string($timezone) ? new \DateTimeZone($timezone) : $timezone;
 
         return $this;
@@ -229,6 +268,9 @@ final class ScheduledCommand
         ];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function withoutOverlap(bool $enabled = true, float $leaseSeconds = 300.0, float $waitSeconds = 0.0): self
     {
         $this->assertLockTiming($leaseSeconds, $waitSeconds);
@@ -298,6 +340,9 @@ final class ScheduledCommand
         return is_string($value) ? $value : $default;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function assertLockTiming(float $leaseSeconds, float $waitSeconds): void
     {
         if (!is_finite($leaseSeconds) || !is_finite($waitSeconds) || $leaseSeconds <= 0 || $waitSeconds < 0) {

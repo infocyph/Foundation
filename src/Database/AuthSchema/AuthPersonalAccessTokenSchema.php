@@ -13,6 +13,7 @@ final readonly class AuthPersonalAccessTokenSchema implements Migration
 {
     public function __construct(private AuthTables $tables) {}
 
+    #[\Override]
     public function down(SchemaManager $schema, MigrationContext $context): void
     {
         $schema->dropIfExists($this->tables->personalAccessTokens());
@@ -20,11 +21,13 @@ final readonly class AuthPersonalAccessTokenSchema implements Migration
         $context->checkpoint();
     }
 
+    #[\Override]
     public function id(): string
     {
         return '20260922000000_foundation_auth_personal_access_tokens';
     }
 
+    #[\Override]
     public function up(SchemaManager $schema, MigrationContext $context): void
     {
         if (!$schema->hasTable($this->tables->personalAccessTokenSubjects())) {

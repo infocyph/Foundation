@@ -14,9 +14,11 @@ use Infocyph\Foundation\Operations\ExecutionHistory;
 use Infocyph\Foundation\Operations\RuntimeControl;
 use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
 use Infocyph\Foundation\Scheduling\ScheduleManager;
+use Infocyph\Foundation\Scheduling\ScheduledCommand;
 use Infocyph\Foundation\Scheduling\SchedulerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
 final class FoundationSchedulerRuntimeIO implements CommandIO
 {
@@ -133,9 +135,10 @@ final class FoundationSchedulerServiceProvider extends ServiceProvider
     {
         unset($context);
 
-        $builder->scoped(
+        $builder->factory(
             'scheduler.runtime.scoped',
             FactoryDefinition::construct(FoundationSchedulerScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
     }
 }
@@ -166,6 +169,15 @@ final class FoundationSchedulerScheduledMessageHandler
 
 beforeEach(function (): void {
     FoundationSchedulerScheduledMessageHandler::$handled = [];
+});
+
+it('rejects an empty schedule timezone and keeps explicit DateTimeZone objects', function (): void {
+    $scheduled = new ScheduledCommand('scheduler:probe');
+    expect(fn() => $scheduled->timezone(''))
+        ->toThrow(InvalidArgumentException::class, 'non-empty');
+
+    $scheduled->timezone(new DateTimeZone('UTC'));
+    expect($scheduled->toManifest()['timezone'])->toBe('UTC');
 });
 
 it('runs Scheduler execution units in fresh InterMix scopes', function (): void {

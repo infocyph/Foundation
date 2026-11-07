@@ -35,6 +35,9 @@ final readonly class AuthMfaKeyResolver
         return $this->config->get('auth.otp.secret_protection.allow_legacy_plaintext', false) === true;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function assertProductionReady(): void
     {
         if (!$this->config->isProduction()) {
@@ -45,6 +48,9 @@ final readonly class AuthMfaKeyResolver
         $this->mfaSecretKeyRing();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function mfaSecretKeyRing(): KeyRing
     {
         $configured = $this->config->get('auth.otp.secret_protection.keys', []);
@@ -88,6 +94,9 @@ final readonly class AuthMfaKeyResolver
         return $ring;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function recoveryHmacKey(): string
     {
         $environment = $this->environmentName(
@@ -125,6 +134,9 @@ final readonly class AuthMfaKeyResolver
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function assertProtectionKey(#[\SensitiveParameter] string $key): void
     {
         try {
@@ -141,6 +153,9 @@ final readonly class AuthMfaKeyResolver
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function environmentName(mixed $value): string
     {
         if (!is_string($value) || preg_match('/\A[A-Z][A-Z0-9_]{1,127}\z/D', $value) !== 1) {
@@ -161,6 +176,9 @@ final readonly class AuthMfaKeyResolver
         };
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function mfaKeyEntry(mixed $definition): KeyRingEntry
     {
         if (!is_array($definition)) {
@@ -194,6 +212,9 @@ final readonly class AuthMfaKeyResolver
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function timestamp(mixed $value): ?int
     {
         if ($value === null) {

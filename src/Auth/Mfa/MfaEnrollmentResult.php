@@ -25,6 +25,7 @@ final readonly class MfaEnrollmentResult
     /**
      * @return list<\UnitEnum>
      */
+    #[\Override]
     protected function successfulStatuses(): array
     {
         return [MfaStatus::ENROLLED, MfaStatus::ACTIVATED, MfaStatus::REMOVED];

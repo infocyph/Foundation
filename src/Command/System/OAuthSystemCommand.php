@@ -23,6 +23,10 @@ final class OAuthSystemCommand extends SystemCommand
 {
     public function __construct(private readonly Application $application) {}
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     protected function handle(): int
     {
         $this->assertOAuthEnabled();
@@ -41,6 +45,9 @@ final class OAuthSystemCommand extends SystemCommand
         };
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function assertOAuthEnabled(): void
     {
         if ($this->application->config()->get('auth.oauth.enabled', false) !== true) {
@@ -48,6 +55,9 @@ final class OAuthSystemCommand extends SystemCommand
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function auditor(): OAuthAuditRecorder
     {
         return $this->application->make(OAuthAuditRecorder::class);
@@ -68,6 +78,10 @@ final class OAuthSystemCommand extends SystemCommand
         ];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function authorizationList(): int
     {
         $authorizations = array_map(
@@ -78,6 +92,9 @@ final class OAuthSystemCommand extends SystemCommand
         return $this->emit(['authorizations' => $authorizations, 'count' => count($authorizations)]);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function authorizationRevoke(): int
     {
         $authorizationId = $this->requiredArgument();
@@ -110,6 +127,9 @@ final class OAuthSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function authorizationStore(): OAuthAuthorizationStoreInterface
     {
         return $this->application->make(OAuthAuthorizationStoreInterface::class);
@@ -129,6 +149,10 @@ final class OAuthSystemCommand extends SystemCommand
         return $this->io()->confirm($question, false);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function clientCreate(): int
     {
         $type = OAuthClientType::tryFrom($this->option('type', OAuthClientType::Confidential->value) ?? '');
@@ -183,6 +207,10 @@ final class OAuthSystemCommand extends SystemCommand
         ];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function clientList(): int
     {
         $clients = array_map(
@@ -193,6 +221,10 @@ final class OAuthSystemCommand extends SystemCommand
         return $this->emit(['clients' => $clients, 'count' => count($clients)]);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function clientRotateSecret(): int
     {
         $clientId = $this->requiredArgument();
@@ -204,11 +236,17 @@ final class OAuthSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function clients(): OAuthClientManager
     {
         return $this->application->make(OAuthClientManager::class);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function clientSetEnabled(bool $enabled): int
     {
         $clientId = $this->requiredArgument();
@@ -224,6 +262,9 @@ final class OAuthSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function clientShow(): int
     {
         $clientId = $this->requiredArgument();
@@ -241,11 +282,17 @@ final class OAuthSystemCommand extends SystemCommand
         ]);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function clientStore(): OAuthClientStoreInterface
     {
         return $this->application->make(OAuthClientStoreInterface::class);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function clock(): ClockInterface
     {
         return $this->application->make(ClockInterface::class);
@@ -257,6 +304,9 @@ final class OAuthSystemCommand extends SystemCommand
             ?? throw new \InvalidArgumentException(sprintf('Unsupported OAuth grant "%s".', $value));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function keyCheck(): int
     {
         try {
@@ -290,6 +340,9 @@ final class OAuthSystemCommand extends SystemCommand
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function positiveLimit(): int
     {
         $value = $this->option('limit');

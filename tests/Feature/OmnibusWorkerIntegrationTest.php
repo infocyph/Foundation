@@ -12,6 +12,7 @@ use Infocyph\Foundation\Messaging\OmnibusWorkerFactory;
 use Infocyph\Foundation\Worker\WorkerManager;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\MessageBus;
 
@@ -60,9 +61,10 @@ it('runs bounded Omnibus workers with a fresh Foundation execution scope per mes
         {
             unset($context);
 
-            $builder->scoped(
+            $builder->factory(
                 FoundationWorkerProbe::class,
                 FactoryDefinition::construct(FoundationWorkerProbe::class),
+                LifetimeEnum::Scoped,
             );
         }
     };

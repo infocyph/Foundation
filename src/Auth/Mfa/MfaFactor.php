@@ -8,6 +8,7 @@ final readonly class MfaFactor
 {
     /**
      * @param array<string, mixed> $metadata
+     * @throws \InvalidArgumentException
      */
     public function __construct(
         public string $id,
@@ -24,6 +25,10 @@ final readonly class MfaFactor
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \OverflowException
+     */
     public function activated(): self
     {
         return new self(
@@ -38,7 +43,11 @@ final readonly class MfaFactor
         );
     }
 
-    /** @param array<string, mixed> $metadata */
+    /**
+     * @param array<string, mixed> $metadata
+     * @throws \InvalidArgumentException
+     * @throws \OverflowException
+     */
     public function withMetadata(array $metadata): self
     {
         return new self(
@@ -53,6 +62,9 @@ final readonly class MfaFactor
         );
     }
 
+    /**
+     * @throws \OverflowException
+     */
     private function nextRevision(): int
     {
         if ($this->revision === PHP_INT_MAX) {

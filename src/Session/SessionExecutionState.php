@@ -12,6 +12,17 @@ final class SessionExecutionState
 
     public ?SessionStoreInterface $store = null;
 
+    /**
+     * @throws \Throwable
+     */
+    public function __destruct()
+    {
+        $this->reset(false);
+    }
+
+    /**
+     * @throws \Throwable
+     */
     public function reset(bool $throw = true): void
     {
         $active = array_reverse($this->active);

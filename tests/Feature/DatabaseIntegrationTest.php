@@ -13,14 +13,19 @@ use Infocyph\DBLayer\Migration\SeedContext;
 use Infocyph\DBLayer\Migration\Seeder;
 use Infocyph\DBLayer\Schema\Blueprint;
 use Infocyph\DBLayer\Schema\SchemaManager;
+use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DatabaseMigrationManager;
 use Infocyph\Foundation\Database\DBLayerFactory;
+use Infocyph\Foundation\Database\DatabaseServiceProvider;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Testing\TestKit;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
 final class FoundationExampleMigration implements Migration
 {
@@ -110,33 +115,35 @@ it('runs configured migrations seeders and database test transactions', function
     ]);
 
     try {
-        $factory = $app->make(DBLayerFactory::class);
-        $migrations = $app->make(DatabaseMigrationManager::class);
-        $connection = $factory->connection();
-        $runner = $migrations->runner();
-        $testing = $app->make(TestKit::class);
+        $app->execution()->run(static function () use ($app): void {
+            $factory = $app->make(DBLayerFactory::class);
+            $migrations = $app->make(DatabaseMigrationManager::class);
+            $connection = $factory->connection();
+            $runner = $migrations->runner();
+            $testing = $app->make(TestKit::class);
 
-        expect($runner->run())->toBe(['20260730000000_create_foundation_examples'])
-            ->and($migrations->seed())->toBe(1)
-            ->and($connection->select('SELECT name FROM foundation_examples ORDER BY id'))
-            ->toBe([['name' => 'seeded']]);
+            expect($runner->run())->toBe(['20260730000000_create_foundation_examples'])
+                ->and($migrations->seed())->toBe(1)
+                ->and($connection->select('SELECT name FROM foundation_examples ORDER BY id'))
+                ->toBe([['name' => 'seeded']]);
 
-        $result = $testing->database()->transaction(
-            function () use ($connection): string {
-                $connection->statement(
-                    'INSERT INTO foundation_examples (name) VALUES (?)',
-                    ['temporary'],
-                );
+            $result = $testing->database()->transaction(
+                function () use ($connection): string {
+                    $connection->statement(
+                        'INSERT INTO foundation_examples (name) VALUES (?)',
+                        ['temporary'],
+                    );
 
-                return 'completed';
-            },
-        );
+                    return 'completed';
+                },
+            );
 
-        expect($result)->toBe('completed')
-            ->and($connection->select('SELECT name FROM foundation_examples ORDER BY id'))
-            ->toBe([['name' => 'seeded']])
-            ->and($testing->database()->refresh())
-            ->toBe(['20260730000000_create_foundation_examples']);
+            expect($result)->toBe('completed')
+                ->and($connection->select('SELECT name FROM foundation_examples ORDER BY id'))
+                ->toBe([['name' => 'seeded']])
+                ->and($testing->database()->refresh())
+                ->toBe(['20260730000000_create_foundation_examples']);
+        });
     } finally {
         DB::purge();
         foundationDatabaseRemove($basePath);
@@ -182,6 +189,26 @@ it('requires explicit authorization for destructive migration operations', funct
         ->toThrow(MigrationException::class, 'requires explicit authorization')
         ->and($runner->reset(true))->toBe(['20260730000000_create_foundation_examples'])
         ->and($schema->hasTable('foundation_examples'))->toBeFalse();
+});
+
+it('exports the scoped DBLayer native recipe from the owning provider without a forwarding facade', function (): void {
+    $context = FoundationBuildContext::fromConfig(
+        new ConfigRepository(['app' => ['env' => 'testing']]),
+        RuntimeMode::Web,
+        ['database'],
+    );
+    $builder = new ContainerBuilder();
+    new DatabaseServiceProvider()->contribute($builder, $context);
+
+    $definition = $builder->definitionGraph()->definitions()[Connection::class] ?? null;
+    expect($definition)->toBeInstanceOf(FactoryDefinition::class)
+        ->and($definition->signature()['class'])->toBe(DatabaseServiceProvider::class)
+        ->and($definition->signature()['method'])->toBe('scopedConnection')
+        ->and($definition->signature()['arguments'])->toBe([
+            ['service' => DBLayerFactory::class],
+        ])
+        ->and(class_exists('Infocyph\\Foundation\\Database\\DatabaseGraphFactory'))
+        ->toBeFalse();
 });
 
 it('exposes scoped DBLayer connections while Foundation keeps composition policy', function (): void {

@@ -23,6 +23,7 @@ final class RuntimeSystemCommand extends SystemCommand
 {
     public function __construct(private readonly Application $application) {}
 
+    #[\Override]
     protected function handle(): int
     {
         return match ($this->canonicalName()) {
@@ -50,6 +51,9 @@ final class RuntimeSystemCommand extends SystemCommand
         return $value === null || is_scalar($value) ? $value : json_encode($value, JSON_THROW_ON_ERROR);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function consume(): int
     {
         $queue = $this->option('queue', 'default') ?? 'default';
@@ -82,6 +86,9 @@ final class RuntimeSystemCommand extends SystemCommand
         return $result->failed === 0 ? ExitCode::SUCCESS : ExitCode::FAILURE;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function dispatchScheduledMessage(): int
     {
         $name = $this->argument(0)
@@ -94,6 +101,9 @@ final class RuntimeSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function nullablePositiveIntOption(string $name): ?int
     {
         $value = $this->option($name);
@@ -104,6 +114,9 @@ final class RuntimeSystemCommand extends SystemCommand
         return $this->positiveInt($name, $value);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function positiveFloatOption(string $name, float $default): float
     {
         $value = $this->option($name);
@@ -117,6 +130,9 @@ final class RuntimeSystemCommand extends SystemCommand
         return (float) $value;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function positiveInt(string $name, string $value, ?int $maximum = null): int
     {
         if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1) {
@@ -160,6 +176,11 @@ final class RuntimeSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     */
     private function routeList(): int
     {
         $routes = new RouteInspector($this->application)->routes($this->option('routes'))->all();
@@ -197,6 +218,9 @@ final class RuntimeSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function scheduleCache(): int
     {
         $path = new ScheduleManager($this->application)->write();
@@ -204,6 +228,9 @@ final class RuntimeSystemCommand extends SystemCommand
         return $this->emit(['path' => $path], 'Schedule manifest cached: ' . $path);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function scheduleClear(): int
     {
         $removed = new ScheduleManager($this->application)->clear();
@@ -214,6 +241,9 @@ final class RuntimeSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function scheduleList(): int
     {
         $entries = new ScheduleManager($this->application)->entries();
@@ -255,6 +285,9 @@ final class RuntimeSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function scheduleRun(): int
     {
         $runs = new ScheduleManager($this->application)->runDue();
@@ -293,6 +326,13 @@ final class RuntimeSystemCommand extends SystemCommand
         ];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \UnexpectedValueException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Throwable
+     */
     private function scheduleTest(): int
     {
         $name = $this->argument(0)
@@ -307,6 +347,9 @@ final class RuntimeSystemCommand extends SystemCommand
         return $run->successful() ? ExitCode::SUCCESS : ExitCode::FAILURE;
     }
 
+    /**
+     * @throws \Throwable
+     */
     private function scheduleWork(): int
     {
         $sleep = $this->positiveIntOption('sleep', 60);
@@ -318,6 +361,12 @@ final class RuntimeSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function sessionPrune(): int
     {
         $limit = $this->positiveIntOption('limit', 1_000);
@@ -326,6 +375,10 @@ final class RuntimeSystemCommand extends SystemCommand
         return $this->emit(['pruned' => $count], sprintf('Pruned %d expired session(s).', $count));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
+     */
     private function storageLink(): int
     {
         $links = $this->application->make(StorageLinkManager::class)->create();
@@ -333,6 +386,10 @@ final class RuntimeSystemCommand extends SystemCommand
         return $this->renderStorage($links, 'Created');
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
+     */
     private function storageStatus(): int
     {
         $links = $this->application->make(StorageLinkManager::class)->status();
@@ -356,6 +413,10 @@ final class RuntimeSystemCommand extends SystemCommand
             : ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
+     */
     private function storageUnlink(): int
     {
         $links = $this->application->make(StorageLinkManager::class)->remove();
@@ -363,6 +424,11 @@ final class RuntimeSystemCommand extends SystemCommand
         return $this->renderStorage($links, 'Removed');
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     */
     private function workerList(): int
     {
         $workers = new WorkerManager($this->application)->all();
@@ -392,6 +458,11 @@ final class RuntimeSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Throwable
+     */
     private function workerRun(): int
     {
         $name = $this->argument(0)

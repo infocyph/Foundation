@@ -10,17 +10,28 @@ use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Facade\Router;
 use Infocyph\Webrick\Router\Route\Collection;
 
+/**
+ * Public development-time route inspection service.
+ *
+ * @api
+ */
 final readonly class RouteInspector
 {
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     */
     public function routes(?string $routes = null): Collection
     {
         $config = $this->application->config()->all();
         $config['_config_cache'] = false;
 
         if ($routes !== null && trim($routes) !== '') {
-            $router = is_array($config['router'] ?? null) ? $config['router'] : [];
+            $router = $config['router'] ?? null;
+            $router = is_array($router) ? $router : [];
             $router['files'] = self::routeFiles($routes);
             $config['router'] = $router;
         }

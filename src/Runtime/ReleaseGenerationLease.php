@@ -29,6 +29,10 @@ final class ReleaseGenerationLease
         $this->release();
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     public static function acquireShared(string $releaseRoot, string $generation): self
     {
         $lease = self::acquire($releaseRoot, $generation, LOCK_SH | LOCK_NB);
@@ -42,6 +46,9 @@ final class ReleaseGenerationLease
         return $lease;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public static function initialize(string $generationDirectory): void
     {
         if (!is_dir($generationDirectory)) {
@@ -57,6 +64,10 @@ final class ReleaseGenerationLease
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     public static function tryExclusive(string $releaseRoot, string $generation): ?self
     {
         return self::acquire($releaseRoot, $generation, LOCK_EX | LOCK_NB);
@@ -68,12 +79,17 @@ final class ReleaseGenerationLease
             return;
         }
 
-        flock($this->handle, LOCK_UN);
-        fclose($this->handle);
+        $handle = $this->handle;
         $this->handle = null;
+        flock($handle, LOCK_UN);
+        fclose($handle);
     }
 
-    /** @param int<0, 7> $operation */
+    /**
+     * @param int<0, 7> $operation
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     private static function acquire(string $releaseRoot, string $generation, int $operation): ?self
     {
         $path = self::path($releaseRoot, $generation);
@@ -100,6 +116,9 @@ final class ReleaseGenerationLease
         return new self($handle);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function path(string $releaseRoot, string $generation): string
     {
         self::validateGeneration($generation);
@@ -113,6 +132,9 @@ final class ReleaseGenerationLease
             . self::MARKER;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function validateGeneration(string $generation): void
     {
         if (preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*$/D', $generation) !== 1) {

@@ -7,6 +7,11 @@ namespace Infocyph\Foundation\Testing;
 use Infocyph\Foundation\Database\DatabaseMigrationManager;
 use Infocyph\Foundation\Database\DBLayerFactory;
 
+/**
+ * Public database testing and transaction helpers.
+ *
+ * @api
+ */
 final readonly class DatabaseTestManager
 {
     public function __construct(
@@ -14,17 +19,35 @@ final readonly class DatabaseTestManager
         private DatabaseMigrationManager $migrations,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function begin(?string $connection = null): void
     {
         $this->database->connection($connection)->begin();
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function refresh(?string $connection = null): array
     {
         return $this->migrations->runner($connection)->refresh(true);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function rollback(?string $connection = null): void
     {
         $database = $this->database->connection($connection);
@@ -38,6 +61,10 @@ final readonly class DatabaseTestManager
      * @template T
      * @param callable():T $test
      * @return T
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function transaction(callable $test, ?string $connection = null): mixed
     {

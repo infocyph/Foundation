@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Validation\FormRequest;
 use Infocyph\Foundation\Validation\ValidatorFactory;
 use Infocyph\ReqShield\CompiledValidator;
 use Infocyph\ReqShield\Exceptions\FrozenSchemaRegistryException;
@@ -10,6 +11,7 @@ use Infocyph\ReqShield\Exceptions\InputLimitException;
 use Infocyph\ReqShield\Schema\SchemaRegistry;
 use Infocyph\ReqShield\Support\ValidationContext;
 use Infocyph\ReqShield\Validator as ReqShieldValidator;
+use Infocyph\Webrick\Request\Request;
 
 final class FoundationValidationUserData
 {
@@ -37,7 +39,7 @@ it('accepts validation policy only from documented defaults and schema overrides
         ->and($result->errors())->not->toHaveKey('extra');
 });
 
-it('exposes ReqShield 3.2 runtime features through the thin Foundation validator factory', function (): void {
+it('exposes ReqShield 3.3 runtime features through the thin Foundation validator factory', function (): void {
     $app = Foundation::web([
         'validation' => [
             'defaults' => [
@@ -127,6 +129,77 @@ it('exposes ReqShield 3.2 runtime features through the thin Foundation validator
         ])->fails())->toBeTrue();
 });
 
+
+it('isolates FormRequest overrides and native ReqShield profiles across reused validation calls', function (): void {
+    $app = Foundation::web([
+        'validation' => [
+            'defaults' => [
+                'sanitizers' => ['email' => ['trim', 'lowercase']],
+                'casts' => ['age' => 'integer'],
+                'messages' => ['email.required' => 'Email required by default.'],
+            ],
+        ],
+    ])->boot();
+
+    $factory = $app->make(ValidatorFactory::class);
+    $form = new class($factory) extends FormRequest {
+        protected function rules(Request $request): array
+        {
+            unset($request);
+
+            return ['email' => 'required|email', 'age' => 'required|integer'];
+        }
+
+        protected function options(Request $request): array
+        {
+            unset($request);
+
+            return [
+                'strip_unknown' => true,
+                'dto' => FoundationValidationUserData::class,
+                'limits' => ['max_fields' => 4],
+            ];
+        }
+    };
+    $request = static fn(array $post): Request => Request::fake(
+        post: $post,
+        method: 'POST',
+        headers: ['Host' => 'localhost'],
+    );
+
+    $first = $form->validate($request([
+        'email' => '  FIRST@EXAMPLE.TEST  ',
+        'age' => '21',
+        'ignored' => 'secret',
+    ]));
+    $dto = $first->toDTO();
+
+    expect($first->passes())->toBeTrue()
+        ->and($first->typed())->toBe(['email' => 'first@example.test', 'age' => 21])
+        ->and($dto)->toBeInstanceOf(FoundationValidationUserData::class)
+        ->and($dto->email)->toBe('first@example.test')
+        ->and($dto->age)->toBe(21)
+        ->and($form->validate($request([
+            'email' => '  SECOND@EXAMPLE.TEST  ',
+            'age' => '22',
+            'ignored' => 'other',
+        ]))->typed())->toBe(['email' => 'second@example.test', 'age' => 22])
+        ->and($form->validate($request(['age' => '21']))->first('email'))
+        ->toBe('Email required by default.');
+
+    // A request-only DTO/strip policy must not leak to another validator
+    // resolved from the same long-lived Foundation factory.
+    $plain = $factory->makeRules(['email' => 'required|email'], [
+        'sanitizers' => ['email' => ['trim']],
+    ])->validate(['email' => '  UPPER@EXAMPLE.TEST  ']);
+    $defaults = $factory->makeRules(['email' => 'required|email'])
+        ->validate(['email' => '  LOWER@EXAMPLE.TEST  ']);
+
+    expect($plain->typed()['email'] ?? null)->toBe('UPPER@EXAMPLE.TEST')
+        ->and($plain->toDTO())->not->toBeInstanceOf(FoundationValidationUserData::class)
+        ->and($defaults->typed()['email'] ?? null)->toBe('lower@example.test')
+        ->and($defaults->toDTO())->not->toBeInstanceOf(FoundationValidationUserData::class);
+});
 
 it('freezes named validation schema topology at application composition', function (): void {
     $app = Foundation::web([

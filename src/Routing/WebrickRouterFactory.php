@@ -6,7 +6,6 @@ namespace Infocyph\Foundation\Routing;
 
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\Container;
-use Infocyph\InterMix\DI\Invoker;
 use Infocyph\Webrick\Interfaces\RouteInterface;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Facade\Router;
@@ -20,6 +19,11 @@ use Infocyph\Webrick\Router\Route\Collection;
 use Infocyph\Webrick\Router\Url\SignedUrlConfig;
 use Psr\Log\LoggerInterface;
 
+/**
+ * Public development-mode Webrick router composition.
+ *
+ * @api
+ */
 final class WebrickRouterFactory
 {
     private ?RouterKernel $kernel = null;
@@ -36,6 +40,9 @@ final class WebrickRouterFactory
         private readonly LoggerInterface $logger,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function kernel(?ErrorHandler $errorHandler = null): RouterKernel
     {
         if ($this->kernel !== null) {
@@ -60,7 +67,7 @@ final class WebrickRouterFactory
                     );
                 }
             },
-            invoker: Invoker::with($this->container),
+            invoker: $this->container,
             registrarOptions: [
                 'autoSlashRedirect' => (bool) $this->config->get('router.auto_slash_redirect', false),
                 'exposeUrlServices' => (bool) $this->config->get('router.expose_url_services', false),
@@ -75,6 +82,9 @@ final class WebrickRouterFactory
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function router(): Registrar
     {
         if ($this->registrar !== null) {
@@ -102,6 +112,7 @@ final class WebrickRouterFactory
         return $registrar;
     }
 
+    /** @throws \Infocyph\Foundation\Exception\ConfigurationException */
     public function routes(): Collection
     {
         $this->router();
@@ -133,6 +144,7 @@ final class WebrickRouterFactory
         return $aliases;
     }
 
+    /** @throws \Infocyph\Foundation\Exception\ConfigurationException */
     private function bindUrlServices(): void
     {
         $callback = $this->bindUrlServicesCallback();
@@ -143,6 +155,9 @@ final class WebrickRouterFactory
         $callback($this->routes());
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function bindUrlServicesCallback(): ?\Closure
     {
         $baseUri = $this->stringConfig('router.url_base_uri');
@@ -225,6 +240,9 @@ final class WebrickRouterFactory
         $register($registrar);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function signedUrlConfig(): ?SignedUrlConfig
     {
         return new SignedUrlKeyResolver($this->config)->resolve();

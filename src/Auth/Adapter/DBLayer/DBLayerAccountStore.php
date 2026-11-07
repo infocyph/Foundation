@@ -12,6 +12,13 @@ use Infocyph\Foundation\Auth\Contract\Storage\AccountStoreInterface;
 
 final readonly class DBLayerAccountStore extends DBLayerStore implements AccountProviderInterface, AccountStoreInterface
 {
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function findById(string $id): ?AccountInterface
     {
         $row = $this->first(
@@ -22,6 +29,13 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         return $row === null ? null : $this->mapAccount($row);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function findByIdentifier(string $identifier): ?AccountInterface
     {
         $row = $this->first(
@@ -32,6 +46,13 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         return $row === null ? null : $this->mapAccount($row);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function markVerified(string $accountId, int $verifiedAt): void
     {
         $account = $this->findById($accountId);
@@ -51,6 +72,75 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         );
     }
 
+    /**
+     * Compare the original database row at the update boundary. The email may
+     * live in a username account's JSON metadata, so a separate email-column
+     * comparison is insufficient.
+     *
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
+    public function markVerifiedForEmail(string $accountId, string $email, int $verifiedAt): bool
+    {
+        $row = $this->first(
+            sprintf('SELECT identifier, status, metadata FROM %s WHERE id = ?', $this->table('accounts')),
+            [$accountId],
+        );
+        if ($row === null) {
+            return false;
+        }
+
+        $identifier = $this->string($row['identifier'] ?? null);
+        $originalMetadata = $row['metadata'] ?? null;
+        $metadata = DBLayerJson::decode($originalMetadata);
+        $storedEmail = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false
+            ? $identifier
+            : ($metadata['email'] ?? null);
+        if (!is_string($storedEmail)
+            || filter_var($storedEmail, FILTER_VALIDATE_EMAIL) === false
+            || strcasecmp($storedEmail, $email) !== 0
+        ) {
+            return false;
+        }
+
+        $status = AccountStatus::from($this->string($row['status'] ?? null));
+        $metadata['verified_at'] = $verifiedAt;
+        $where = 'id = ? AND identifier = ? AND status = ?';
+        $bindings = [$accountId, $identifier, $status->value];
+        if ($originalMetadata === null) {
+            $where .= ' AND metadata IS NULL';
+        } elseif (is_string($originalMetadata)) {
+            $condition = match ($this->connection()->getDriverName()) {
+                'pgsql' => 'CAST(metadata AS TEXT) = ?',
+                'mysql', 'mariadb' => 'CAST(metadata AS BINARY) = CAST(? AS BINARY)',
+                'mssql' => 'CONVERT(VARBINARY(MAX), metadata) = CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), ?))',
+                'sqlite' => 'metadata = ?',
+                default => throw new \LogicException('Atomic account email verification requires a supported database driver.'),
+            };
+            $where .= ' AND ' . $condition;
+            $bindings[] = $originalMetadata;
+        } else {
+            return false;
+        }
+
+        return $this->query('accounts')->whereRaw($where, $bindings)->update([
+            'status' => $status === AccountStatus::PENDING_VERIFICATION
+                ? AccountStatus::ACTIVE->value
+                : $status->value,
+            'metadata' => DBLayerJson::encode($metadata),
+        ]) === 1;
+    }
+
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function save(AccountInterface $account): void
     {
         if ($this->findById($account->id()) !== null) {
@@ -80,6 +170,13 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function updateMetadata(string $accountId, array $metadata): void
     {
         $this->execute(
@@ -88,6 +185,13 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function updatePasswordHash(string $accountId, string $passwordHash): void
     {
         $this->execute(
@@ -96,6 +200,13 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function updateStatus(string $accountId, AccountStatus $status): void
     {
         $this->execute(

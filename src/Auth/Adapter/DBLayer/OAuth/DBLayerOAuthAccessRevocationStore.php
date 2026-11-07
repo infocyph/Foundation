@@ -11,6 +11,10 @@ use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenRevocation;
 
 final readonly class DBLayerOAuthAccessRevocationStore extends DBLayerStore implements OAuthAccessRevocationStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function isRevoked(string $tokenId, int $now): bool
     {
         return $this->exists(
@@ -22,6 +26,14 @@ final readonly class DBLayerOAuthAccessRevocationStore extends DBLayerStore impl
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function revoke(OAuthAccessTokenRevocation $revocation): void
     {
         $this->upsertRecord('oauthAccessRevocations', 'token_id', [

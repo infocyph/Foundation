@@ -27,6 +27,7 @@ final class CollectingAuthNotifier implements AuthNotifierInterface
         return $this->notifications;
     }
 
+    #[\Override]
     public function send(AuthNotification $notification): void
     {
         $this->notifications[] = $notification;

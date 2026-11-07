@@ -56,12 +56,16 @@ it('keeps OAuth and application bearer token profiles mutually exclusive', funct
         ]);
         $applicationResolver = new BearerTokenPrincipalResolver(
             $httpConfig,
-            $applicationTokens,
-            $fixture->accounts,
+            new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([
+                \Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface::class => $applicationTokens,
+                \Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface::class => $fixture->accounts,
+            ]),
         );
         $oauthResolver = new OAuthBearerTokenPrincipalResolver(
             $httpConfig,
-            $fixture->accessValidator,
+            new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([
+                \Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator::class => $fixture->accessValidator,
+            ]),
         );
 
         $oauthRequest = Request::fake(headers: ['Authorization' => 'Bearer ' . $oauthToken]);

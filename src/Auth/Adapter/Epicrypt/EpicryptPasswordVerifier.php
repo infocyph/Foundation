@@ -14,6 +14,7 @@ final readonly class EpicryptPasswordVerifier implements PasswordVerifierInterfa
         private PasswordHasher $hasher,
     ) {}
 
+    #[\Override]
     public function verify(string $plainPassword, string $storedHash): PasswordVerificationResult
     {
         $result = $this->hasher->verifyAndRehash($plainPassword, $storedHash);

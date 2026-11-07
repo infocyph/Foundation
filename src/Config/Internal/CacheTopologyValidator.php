@@ -44,6 +44,20 @@ final readonly class CacheTopologyValidator
         return $named;
     }
 
+    /** @param array<mixed> $cluster */
+    private function hasStableNodeId(array $cluster): bool
+    {
+        return is_string($cluster['node_id'] ?? null) && $cluster['node_id'] !== '';
+    }
+
+    /** @param array<mixed> $cluster */
+    private function hasStableTransportIdentity(array $cluster): bool
+    {
+        $identity = $cluster['transport_identity'] ?? null;
+
+        return is_string($identity) && preg_match('/^[A-Za-z0-9_.-]{1,128}$/D', $identity) === 1;
+    }
+
     private function isAbsolutePath(string $path): bool
     {
         return preg_match('/^(?:[A-Z]:[\\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
@@ -62,6 +76,21 @@ final readonly class CacheTopologyValidator
         return str_starts_with($file, $directory . '/');
     }
 
+    /** @param array<string,mixed> $stores */
+    private function referencesNodeStore(mixed $name, array $stores): bool
+    {
+        return is_string($name)
+            && isset($stores[$name])
+            && is_array($stores[$name])
+            && ($stores[$name]['driver'] ?? null) === 'node';
+    }
+
+    /** @param array<string,mixed> $transports */
+    private function referencesSharedTransport(mixed $name, array $transports): bool
+    {
+        return is_string($name) && isset($transports[$name]) && is_array($transports[$name]);
+    }
+
     private function reservedPurpose(mixed $value): bool
     {
         return is_string($value)
@@ -73,6 +102,23 @@ final readonly class CacheTopologyValidator
         $value = $this->config->get($key, $default);
 
         return is_string($value) ? $value : $default;
+    }
+
+    /**
+     * @param array<mixed> $cluster
+     * @return list<ConfigIssue>
+     */
+    private function validateClusterIdentity(array $cluster, string $key): array
+    {
+        $issues = [];
+        if (!$this->hasStableNodeId($cluster)) {
+            $issues[] = new ConfigIssue($key . '.node_id must be a stable explicit instance identity.', $key . '.node_id');
+        }
+        if (!$this->hasStableTransportIdentity($cluster)) {
+            $issues[] = new ConfigIssue($key . '.transport_identity must be a stable history identity (1-128 A-Z, a-z, 0-9, _, ., -).', $key . '.transport_identity');
+        }
+
+        return $issues;
     }
 
     /**
@@ -92,20 +138,11 @@ final readonly class CacheTopologyValidator
             $key = 'cache.clusters.' . $name;
             $store = $cluster['store'] ?? null;
             $transport = $cluster['transport'] ?? null;
-            if (!is_string($cluster['node_id'] ?? null) || $cluster['node_id'] === '') {
-                $issues[] = new ConfigIssue($key . '.node_id must be a stable explicit instance identity.', $key . '.node_id');
-            }
-            if (!is_string($store)
-                || !isset($stores[$store])
-                || !is_array($stores[$store])
-                || ($stores[$store]['driver'] ?? null) !== 'node'
-            ) {
+            array_push($issues, ...$this->validateClusterIdentity($cluster, $key));
+            if (!$this->referencesNodeStore($store, $stores)) {
                 $issues[] = new ConfigIssue($key . '.store must reference a node cache store.', $key . '.store');
             }
-            if (!is_string($transport)
-                || !isset($transports[$transport])
-                || !is_array($transports[$transport])
-            ) {
+            if (!$this->referencesSharedTransport($transport, $transports)) {
                 $issues[] = new ConfigIssue($key . '.transport must reference a configured shared transport.', $key . '.transport');
             }
             if ($this->reservedPurpose($name) || $this->reservedPurpose($cluster['purpose'] ?? null)) {

@@ -18,7 +18,10 @@ final readonly class ProductionSecurityValidator
         $this->state = new SharedStateTopology($config);
     }
 
-    /** @return list<ConfigIssue> */
+    /**
+     * @return list<ConfigIssue>
+     * @throws \UnexpectedValueException
+     */
     public function validate(): array
     {
         $issues = [];

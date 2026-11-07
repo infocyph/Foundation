@@ -11,6 +11,9 @@ it('keeps direct SHA-256 hashing inside protocol and cryptographic source bounda
         '/Auth/OAuth/',
         '/Auth/Support/',
         '/Security/',
+        '/Release/FoundationReleaseManifest.php', // Trusted release-manifest authentication is an explicit cryptographic boundary.
+        '/Routing/WebReleaseRuntime.php', // Verifies captured Webrick release bytes before native manifest validation.
+        '/Runtime/GeneratedRuntimeMetadata.php', // Authenticates the exact JSON bytes passed to the metadata decoder.
     ];
     $violations = [];
 

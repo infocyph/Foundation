@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Messaging;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration;
+
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Omnibus\Consumer\Consumer;
 use Infocyph\Omnibus\Event\ListenerMap;
@@ -13,6 +15,7 @@ use Infocyph\Omnibus\Integration\DBLayer\AfterCommitDispatcher;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerFailureStore;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerTransport;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerWorkflowStore;
+use Infocyph\Omnibus\Integration\Runwire\RunwireBinding;
 use Infocyph\Omnibus\MessageBus;
 use Infocyph\Omnibus\Routing\Route;
 use Infocyph\Omnibus\Routing\RouteMap;
@@ -20,11 +23,24 @@ use Infocyph\Omnibus\Scheduling\MessageFactoryMap;
 use Infocyph\Omnibus\Serialization\EnvelopeSerializer;
 use Infocyph\Omnibus\Serialization\JsonEnvelopeSerializer;
 use Infocyph\Omnibus\Transport\InMemoryTransport;
+use Infocyph\Omnibus\Transport\Sender;
 use Infocyph\Omnibus\Transport\SyncTransport;
 use Infocyph\Omnibus\Transport\TransportRegistry;
+use Psr\Container\ContainerInterface;
 
+/**
+ * Generated runtime messaging capability factory entrypoint.
+ *
+ * @api
+ */
 final class MessagingGraphFactory
 {
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \LogicException
+     */
     public static function afterCommit(
         OmnibusDurableFactory $factory,
         MessageBus $bus,
@@ -32,11 +48,19 @@ final class MessagingGraphFactory
         return $factory->afterCommit($bus);
     }
 
+    /**
+     * @throws \LogicException
+     */
     public static function consumer(ConsumerFactory $factory): Consumer
     {
         return $factory->make();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public static function durableFailureStore(
         OmnibusDurableFactory $factory,
         EnvelopeSerializer $serializer,
@@ -44,11 +68,19 @@ final class MessagingGraphFactory
         return $factory->failureStore($serializer);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function durableSerializer(OmnibusDurableFactory $factory): JsonEnvelopeSerializer
     {
         return $factory->serializer();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public static function durableTransport(
         OmnibusDurableFactory $factory,
         EnvelopeSerializer $serializer,
@@ -56,6 +88,11 @@ final class MessagingGraphFactory
         return $factory->transport($serializer);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public static function durableWorkflowStore(
         OmnibusDurableFactory $factory,
         EnvelopeSerializer $serializer,
@@ -63,6 +100,9 @@ final class MessagingGraphFactory
         return $factory->workflowStore($serializer);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function handlerInvoker(
         MessagingRuntimeResolver $resolver,
         HandlerMap $handlers,
@@ -112,17 +152,36 @@ final class MessagingGraphFactory
         return new RouteMap($routes, self::route($default));
     }
 
+    public static function runwireBinding(): RunwireBinding
+    {
+        $binding = new RunwireBinding();
+        $binding->setRunwireContextProvider(RunwireIntegration::current(...));
+
+        return $binding;
+    }
+
     public static function transports(
-        SyncTransport $sync,
-        InMemoryTransport $memory,
-        ?DBLayerTransport $database = null,
+        ContainerInterface $services,
+        bool $durableEnabled,
     ): TransportRegistry {
-        $transports = [
-            'sync' => $sync,
-            'memory' => $memory,
+        $definitions = [
+            'sync' => SyncTransport::class,
+            'memory' => InMemoryTransport::class,
         ];
-        if ($database instanceof DBLayerTransport) {
-            $transports['database'] = $database;
+        if ($durableEnabled) {
+            $definitions['database'] = DBLayerTransport::class;
+        }
+
+        $transports = [];
+        foreach ($definitions as $name => $id) {
+            $transports[$name] = static function () use ($services, $id): Sender {
+                $transport = $services->get($id);
+                if (!$transport instanceof Sender) {
+                    throw new \LogicException(sprintf('Messaging transport binding "%s" is invalid.', $id));
+                }
+
+                return $transport;
+            };
         }
 
         return new TransportRegistry($transports);
