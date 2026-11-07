@@ -44,7 +44,7 @@ final readonly class OAuthAuthorizationController
         }
 
         return match ($request->post('decision')) {
-            'approve' => $this->oauth->authorizationApproved($authorization, $this->principals->require()),
+            'approve' => $this->authorizationApprove($authorization),
             'deny' => $this->oauth->authorizationDenied($authorization, $this->principals->require()),
             default => $this->consent(
                 $request,
@@ -52,6 +52,34 @@ final readonly class OAuthAuthorizationController
                 'Choose whether to approve or deny this request.',
             ),
         };
+    }
+
+    private function authorizationApprove(AuthorizationRequest $request): Response
+    {
+        $principal = $this->principals->require();
+        if ($request->openId()) {
+            try {
+                $requirement = $this->oauth->openIdInteraction($request, $principal);
+            } catch (OAuthProtocolException $exception) {
+                return $this->oauth->authorizationFailure($request, $exception);
+            }
+
+            if ($requirement === OpenIdInteractionRequirement::SUBJECT_AUTHENTICATION) {
+                return $this->oauth->authorizationFailure(
+                    $request,
+                    new OAuthProtocolException('login_required', 'OpenID authorization requires reauthentication.', 400, true),
+                );
+            }
+
+            if ($requirement === OpenIdInteractionRequirement::ACCOUNT_SELECTION) {
+                return $this->oauth->authorizationFailure(
+                    $request,
+                    new OAuthProtocolException('account_selection_required', 'OpenID authorization requires account selection.', 400, true),
+                );
+            }
+        }
+
+        return $this->oauth->authorizationApproved($request, $principal);
     }
 
     /**

@@ -13,6 +13,9 @@ use Infocyph\Epicrypt\Token\Jwt\Support\JwtToken;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptClockAdapter;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\Oidc\FoundationOpenIdClaimsProvider;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\Oidc\FoundationOpenIdSubjectProvider;
+use Infocyph\Foundation\Auth\OAuth\Contract\JwkSetProviderInterface;
+use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
+use Infocyph\Foundation\Auth\OAuth\OAuthManager;
 use Infocyph\Foundation\Auth\OAuth\Metadata\AuthorizationServerMetadata;
 use Infocyph\Foundation\Auth\OAuth\Metadata\OpenIdMetadataProvider;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
@@ -114,6 +117,71 @@ it('completes OIDC authorization code issuance with Epicrypt ID token validation
     }
 });
 
+
+it('requires verified OIDC auth time rather than fabricating issuance-time authentication', function (): void {
+    $now = 1_700_000_000;
+    $fixture = new OAuth21FlowFixture(now: $now, openId: true);
+
+    try {
+        $client = $fixture->clients->register(
+            OAuthClientType::Public,
+            [OAuthGrantType::AuthorizationCode],
+            ['https://oidc-client.example.test/callback'],
+            ['openid', 'profile'],
+            ['https://issuer.example.test/oidc/userinfo'],
+        )->client;
+        $request = $fixture->requests->validate([
+            'client_id' => $client->clientId,
+            'redirect_uri' => 'https://oidc-client.example.test/callback',
+            'response_type' => 'code',
+            'code_challenge' => OAuth21FlowFixture::pkceChallenge(str_repeat('a', 64)),
+            'code_challenge_method' => 'S256',
+            'scope' => 'openid profile',
+            'audience' => 'https://issuer.example.test/oidc/userinfo',
+            'nonce' => 'nonce-auth-time-123',
+            'prompt' => 'none',
+            'max_age' => '60',
+        ]);
+        $jwks = new class implements JwkSetProviderInterface {
+            public function jwks(): array
+            {
+                return ['keys' => []];
+            }
+        };
+        $manager = new OAuthManager(
+            $fixture->requests,
+            $fixture->consents,
+            $fixture->codes,
+            $fixture->tokens,
+            $fixture->revocation,
+            $fixture->introspection,
+            new AuthorizationServerMetadata(new ConfigRepository(['auth' => ['oauth' => ['issuer' => 'https://issuer.example.test']]])),
+            $jwks,
+            $fixture->clients,
+            openIdInteractions: new OpenIdInteractionPolicy(new EpicryptClockAdapter($fixture->clock)),
+            clock: $fixture->clock,
+        );
+
+        foreach ([[], ['auth_time' => 0], ['auth_time' => 'unknown'], ['auth_time' => $now + 60], ['auth_time' => $now - 7200]] as $metadata) {
+            $principal = new Principal('account-1', accountId: 'account-1', metadata: $metadata);
+            try {
+                $manager->openIdInteraction($request, $principal);
+                throw new LogicException('OIDC accepted missing or stale authentication proof.');
+            } catch (OAuthProtocolException $exception) {
+                expect($exception->error)->toBe('login_required');
+            }
+            expect(fn() => $fixture->codes->issue($request, $principal))
+                ->toThrow(OAuthProtocolException::class);
+        }
+
+        $fresh = new Principal('account-1', accountId: 'account-1', metadata: ['auth_time' => $now - 30]);
+        $fixture->consents->grant($fresh, $request);
+        expect($manager->openIdInteraction($request, $fresh))->toBe(OpenIdInteractionRequirement::READY);
+        expect($fixture->codes->issue($request, $fresh)->code)->not->toBe('');
+    } finally {
+        $fixture->close();
+    }
+});
 
 it('projects OIDC prompt interaction and provider metadata through the Epicrypt boundary', function (): void {
     $now = 1_700_000_000;

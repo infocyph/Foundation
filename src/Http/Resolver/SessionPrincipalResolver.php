@@ -65,6 +65,7 @@ final class SessionPrincipalResolver extends AbstractPrincipalResolver
             'auth_via' => 'session',
             'device_id' => $session->deviceId,
             'session_id' => $session->id,
+            'auth_time' => $session->recentAuthAt,
         ]);
         if ($principal === null) {
             return null;

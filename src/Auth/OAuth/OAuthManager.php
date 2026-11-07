@@ -388,11 +388,11 @@ final readonly class OAuthManager
         $accountId = $principal?->accountId();
         $metadata = $principal?->metadata() ?? [];
         $authenticationTime = $metadata['auth_time'] ?? null;
-        if (!is_int($authenticationTime) || $authenticationTime < 1) {
-            $authenticationTime = is_string($accountId) && $accountId !== ''
-                ? ($this->clock?->now() ?? time())
-                : null;
+        $now = $this->clock?->now() ?? time();
+        if (!is_int($authenticationTime) || $authenticationTime < 1 || $authenticationTime > $now) {
+            $authenticationTime = null;
         }
+        $authenticated = is_string($accountId) && $accountId !== '' && $authenticationTime !== null;
         $authenticationContext = $metadata['acr'] ?? null;
         $authenticationContext = is_string($authenticationContext) && $authenticationContext !== ''
             ? $authenticationContext
@@ -403,10 +403,10 @@ final readonly class OAuthManager
             : [];
 
         return new OpenIdInteractionState(
-            subject: is_string($accountId) && $accountId !== '' ? $accountId : null,
+            subject: $authenticated ? $accountId : null,
             authenticationTime: $authenticationTime,
-            authenticationContext: $authenticationContext,
-            authenticationMethods: $authenticationMethods,
+            authenticationContext: $authenticated ? $authenticationContext : null,
+            authenticationMethods: $authenticated ? $authenticationMethods : [],
             consentRequired: $principal === null || !$this->hasConsent($principal, $request),
         );
     }

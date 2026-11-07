@@ -38,6 +38,13 @@ Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review comple
 - **Correction:** Collapse cleanup callbacks into standard short arrow callbacks and extract the nullable acquired-lock release into one small private helper, reducing run complexity without changing required exception precedence. Explicitly document the throwable propagation from cache mutation, preserving `CleanupGuard` semantics and lock state invariants.
 - **Acceptance:** R07 remains unchecked pending successful official exact-head QA and strict analyzers. Formal **84/95**, `composer.lock` still gitignored, PR draft and unmerged.
 
+## Foundation 4 Batch 124 — require actual OIDC authentication proof on GET, POST and code issuance
+
+- **R03/R04:** The original OIDC interaction forged fresh `auth_time` for principals missing actual session login evidence; direct code issuance likewise substituted the issuance clock. HTTP POST `decision=approve` skipped the GET interaction policy. These were independently reproduced and are P1 release blockers.
+- **Fix:** Propagate authoritative `AuthSession::recentAuthAt` through the session principal. Unknown, zero, invalid or future OIDC auth time is unauthenticated in Epicrypt, and direct OIDC code issue rejects unverified time. POST approval now evaluates the same Epicrypt interaction policy as GET before consent mutation or code issuance and refuses required login/account selection and `prompt=none` failures.
+- **Regression:** Native OpenID fixed-clock regression covers missing, invalid, future, expired and valid fresh authentication; existing authorization HTTP and ID-token tests must remain green. More real-route CSRF/reauth/ACR tests remain required before accepting R04.
+- **Acceptance:** Keep A08 R03 and R04 unchecked until full exact-head official quality and real HTTP regressions pass. Formal **84/95**, no merge or tag.
+
 ## Foundation 4 Batch 123h — eliminate incompatible empty-constructor formatting from runtime-control fix
 
 - Batch 123g `7c7e421` [Security & Standards 42361727475](https://github.com/infocyph/Foundation/actions/runs/42361727475) passed PHPStan/Psalm and the functional test lanes, but Pint continued to fail on `RuntimeControl.php` (`braces_position`, `single_line_empty_body`). [Native hosts 42361726972](https://github.com/infocyph/Foundation/actions/runs/42361726972) passed.
