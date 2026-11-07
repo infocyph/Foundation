@@ -1,0 +1,29 @@
+# Foundation 4.0 release qualification handoff
+
+This is the operator handoff for [Foundation PR #20](https://github.com/infocyph/Foundation/pull/20), branch `feature/foundation-3`. It does **not** authorize merging, tagging or publishing the package, and it is not a substitute for the canonical acceptance tracker in [foundation-4-library-upgrade-plan.md](foundation-4-library-upgrade-plan.md).
+
+## Source, package and retained-state evidence
+
+- Original Foundation 3 source: `fc9b3258646ac744e61fd02e18d9b98e5afff2e8`. Its Composer manifest is authentic; **no original `composer.lock` was tracked** at that SHA or recovered from historical workflow artifacts. The selected old package graph is a later *reconstruction, not the historical original*.
+- Published old/new native owner cutover: DBLayer 5.1 → 6.1.4, CacheLayer 3.4 → 4.0.2 and Omnibus 2.6 → 3.0.3. Each source and resolved graph is executed in its own PHP process, never by swapping Composer autoloaders in a live application.
+- The existing Security & Standards `cross-major-auth-rehearsal` job creates real original auth, session, refresh, MFA and raw passkey state; Omnibus durable queued/dead-letter state; and Redis replay-state cache. It records a quiesced SQLite file plus native Redis DUMP snapshot, migrates and reads through the current owners, executes an original-source rollback and restores the original two-store checkpoint before rolling forward. Passkey hash migration is the explicit persisted-format change; the original opaque identifier is preserved. Native three-engine authentication and Omnibus SQL tests are covered separately.
+- The version-specific release compilers publish and boot actual web, CLI, worker and scheduler containers using distinct dependency fingerprints. Activation cycles original → candidate → original → candidate. The generated manifest SHA-256 for each generation remains stable.
+- This library-level rehearsal covers the **selected SQLite/Redis CI profile**. Application operators still need a production-equivalent backup/restore drill for their exact database, Redis/cluster, queue/outbox transport, external object storage, encryption keys and in-flight workers. Do not conflate this requirement with a Foundation source compatibility shim.
+
+## Verified CI evidence trail
+
+The release plan owns formal checkbox dispositions. The following CI evidence qualifies progressively narrower portions of the same cutover: [Batch 111 Security & Standards](https://github.com/infocyph/Foundation/actions/runs/42345124843) plus [native hosts](https://github.com/infocyph/Foundation/actions/runs/42345124482) for rebuilt four-runtime deployment artifacts; [Batch 112 Security & Standards](https://github.com/infocyph/Foundation/actions/runs/42345666821) plus [native hosts](https://github.com/infocyph/Foundation/actions/runs/42345666501) for old/new Redis replay-state compatibility and snapshot recovery; and [Batch 114 Security & Standards](https://github.com/infocyph/Foundation/actions/runs/42346698851) plus [native hosts](https://github.com/infocyph/Foundation/actions/runs/42346698439) for the repaired reference-integrity fixture and fully coordinated SQL+Redis/Omnibus recovery. Check the **completed success** state and exact SHA of the final two links before treating that last qualification as accepted.
+
+## Outstanding non-waivable release evidence
+
+**P1 historical lock provenance.** Exact pre-upgrade lock-based attribution is impossible to assert while the original Composer lock is missing. Record an explicit maintainer disposition for that evidence gap; do not forge a lock, silently rebrand a reconstructed lock as original or check the criterion merely because current-source CI is green.
+
+**P6 source-only paired hosts.** The existing [native host certification procedure](foundation-4-host-benchmark-certification.md) uses `.github/workflows/foundation4-host-certification.yml` with `workflow_dispatch`. Select the immutable Foundation 4 source-compatible baseline `c220759fcbd6654fead843599712a5b79685f02d`, `comparison_mode=source-only` and `host_runner=ubuntu-24.04-arm`. The candidate is the workflow's checked-out exact PR head. Verify that the baseline accepts that exact selected dependency graph and benchmark contract before interpreting a result. Save the baseline, candidate and identical Composer lock SHA-256; do not run under a mutable ref.
+
+**P6 independent-lock dependency upgrade.** Select a genuinely valid **Foundation 4** immutable baseline with a distinct, independently resolved Composer lock, and record the exact reviewed per-package version, source-ref and dist-ref delta in a committed `upgrade_allowlist_path` JSON file using the documented `Foundation4HostUpgradeEvidence` format. Do not manufacture a difference by altering only a lock hash or substitute a Foundation 3 source that cannot execute the current Foundation 4 benchmark. Dispatch `comparison_mode=dependency-upgrade` separately.
+
+Each P6 comparison must produce **two complete independent 12-case primary/confirmation batches** (FPM/Runwire × one/four workers × concurrency 1/10/50), five valid trials of at least 120 seconds each after warmup, the required soak/recovery checks, at most **2%** median successful-RPM regression and at most **2.5%** coefficient of variation. A noisy run is *inconclusive*, not a pass. No mixing attempts, no workflow skips, no lower thresholds, and no release certification from ordinary PR host smoke.
+
+## Final decision rule
+
+Only after every still-open tracker item has authentic evidence and an authorized historical-provenance disposition: freeze the final source SHA, rerun exact-head official PHP 8.4/8.5 stable/lowest quality checks, strict Psalm/PHPStan, native specialists, production consumers and host qualification; link artifact IDs and results in the PR. Keep the PR unmerged and untagged for manual review. Infbyte consumer deployment is a separate downstream task.
