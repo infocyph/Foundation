@@ -222,6 +222,7 @@ jobs:
             $path = "historical/composer.json";
             $manifest = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
             $manifest["require"]["infocyph/dblayer"] = $manifest["require-dev"]["infocyph/dblayer"];
+            $manifest["require"]["infocyph/omnibus"] = $manifest["require-dev"]["infocyph/omnibus"];
             unset($manifest["require-dev"]);
             file_put_contents($path, json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
           '
@@ -232,46 +233,52 @@ jobs:
           cp composer.lock "$output/current-candidate.lock"
           composer show --working-dir=historical --locked infocyph/dblayer > "$output/historical-dblayer.txt"
           composer show --locked infocyph/dblayer > "$output/candidate-dblayer.txt"
+          composer show --working-dir=historical --locked infocyph/omnibus > "$output/historical-omnibus.txt"
+          composer show --locked infocyph/omnibus > "$output/candidate-omnibus.txt"
           sha256sum "$output/"*.lock > "$output/lock-sha256.txt"
-      - name: Verify old-source state, current migration, old-source rollback and restored roll-forward
+      - name: Restore one consistent SQL and Redis checkpoint across source, dependency and artifact cutovers
         shell: bash
         run: |
           set -euo pipefail
           output="$GITHUB_WORKSPACE/build/cross-major-rehearsal"
+          project="$RUNNER_TEMP/foundation3-to-4-release-artifacts"
           database="$output/retained.sqlite"
           digest="$output/retained.sha256"
-          fixture=tests/Fixtures/foundation3_dependency_cutover_probe.php
-          php "$fixture" seed "$database" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$digest" | tee "$output/old-seed.json"
+          auth=tests/Fixtures/foundation3_dependency_cutover_probe.php
+          queue=tests/Fixtures/foundation3_to_4_queue_probe.php
+          cache=tests/Fixtures/foundation3_to_4_cache_probe.php
+          artifacts=tests/Fixtures/foundation3_to_4_release_artifact_probe.php
+          old="$GITHUB_WORKSPACE/historical/vendor/autoload.php"
+          current="$GITHUB_WORKSPACE/vendor/autoload.php"
+
+          # All side effects remain quiesced and isolated to this single job.
+          php "$artifacts" old-build "$project" "$old" "$output"
+          php "$auth" seed "$database" "$old" "$digest" | tee "$output/old-seed.json"
+          php "$queue" old-seed "$database" "$old" "$output"
+          php "$cache" old-seed "$project" "$old" "$output"
           cp "$database" "$output/old-snapshot.sqlite"
           sha256sum "$output/old-snapshot.sqlite" > "$output/original-snapshot.sha256"
-          php "$fixture" upgrade "$database" "$GITHUB_WORKSPACE/vendor/autoload.php" "$digest" | tee "$output/first-upgrade.json"
-          php "$fixture" legacy-read "$database" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$digest" | tee "$output/old-source-after-upgrade.json"
+
+          php "$artifacts" new-build "$project" "$current" "$output"
+          php "$auth" upgrade "$database" "$current" "$digest" | tee "$output/first-upgrade.json"
+          php "$queue" new-probe "$database" "$current" "$output"
+          php "$cache" new-read "$project" "$current" "$output"
+
+          php "$artifacts" old-rollback "$project" "$old" "$output"
+          php "$auth" legacy-read "$database" "$old" "$digest" | tee "$output/old-source-after-upgrade.json"
+          php "$queue" old-rollback "$database" "$old" "$output"
+
+          # Restore both durable stores from the same old-source checkpoint.
           cp "$output/old-snapshot.sqlite" "$database"
           test "$(sha256sum "$database" | cut -d' ' -f1)" = "$(sha256sum "$output/old-snapshot.sqlite" | cut -d' ' -f1)"
-          php "$fixture" legacy-read "$database" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$digest" | tee "$output/old-source-restored.json"
-          php "$fixture" upgrade "$database" "$GITHUB_WORKSPACE/vendor/autoload.php" "$digest" | tee "$output/second-upgrade.json"
-      - name: Build and boot independent Foundation 3/4 web, CLI, worker and scheduler release generations
-        shell: bash
-        run: |
-          set -euo pipefail
-          output="$GITHUB_WORKSPACE/build/cross-major-rehearsal"
-          project="$RUNNER_TEMP/foundation3-to-4-release-artifacts"
-          fixture=tests/Fixtures/foundation3_to_4_release_artifact_probe.php
-          php "$fixture" old-build "$project" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$output"
-          php "$fixture" new-build "$project" "$GITHUB_WORKSPACE/vendor/autoload.php" "$output"
-          php "$fixture" old-rollback "$project" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$output"
-          php "$fixture" new-rollforward "$project" "$GITHUB_WORKSPACE/vendor/autoload.php" "$output"
-      - name: Rehearse native CacheLayer 3 to 4 Redis replay-state retention and isolated restore
-        shell: bash
-        run: |
-          set -euo pipefail
-          output="$GITHUB_WORKSPACE/build/cross-major-rehearsal"
-          project="$RUNNER_TEMP/foundation3-to-4-release-artifacts"
-          fixture=tests/Fixtures/foundation3_to_4_cache_probe.php
-          php "$fixture" old-seed "$project" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$output"
-          php "$fixture" new-read "$project" "$GITHUB_WORKSPACE/vendor/autoload.php" "$output"
-          php "$fixture" old-restore "$project" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$output"
-          php "$fixture" new-rollforward "$project" "$GITHUB_WORKSPACE/vendor/autoload.php" "$output"
+          php "$cache" old-restore "$project" "$old" "$output"
+          php "$auth" legacy-read "$database" "$old" "$digest" | tee "$output/old-source-restored.json"
+          php "$queue" old-restored "$database" "$old" "$output"
+
+          php "$artifacts" new-rollforward "$project" "$current" "$output"
+          php "$auth" upgrade "$database" "$current" "$digest" | tee "$output/second-upgrade.json"
+          php "$queue" new-rollforward "$database" "$current" "$output"
+          php "$cache" new-rollforward "$project" "$current" "$output"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
