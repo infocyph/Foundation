@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 100b — PHP 8.5 deprecated cURL cleanup correction (exact-head QA pending)
+
+- **Observed official QA:** [Security & Standards 42334771976](https://github.com/infocyph/Foundation/actions/runs/42334771976) passed real SMTP/Mailpit, production consumers, strict Psalm/PHPStan, all Pest tests, Pint, Redis Cluster and PHP 8.4 lanes, but PHP 8.5 stable/lowest PHPCS specifically rejected deprecated `curl_close()` in the newly added test-only Mailpit inspector. This was not a network or application runtime failure.
+- **Correction:** Keep the `CurlHandle` scoped and rely on native PHP 8.5 object lifetime cleanup. Remove only the deprecated call; do not suppress the PHPCS finding, change production transport behavior or alter PHPForge. Re-run exact-head official QA/native hosts before accepting TalkingBytes.
+- **Formal tracker:** 84/90 remains accepted; no claims of P3 completion while new network tests or static style checks are red. One corrective QA commit, still draft and unmerged.
+
 ## Foundation 4 Batch 100 — native SMTP into real Mailpit service (exact-head QA pending)
 
 - Add a dedicated real `axllent/mailpit:v1.33.0` Docker service job to the existing `security-standards.yml` workflow, not a new/custom Psalm worker or a separate workflow. Pin PHP 8.5 and an actual Composer-selected TalkingBytes installation; send a real SMTP email through the configured Foundation `EmailProfiles` driver on port 1025, then independently confirm Mailpit stored the unique message through its HTTP API on 8025. An API-only message injection or fake email transport is not success evidence. The job is also required by the existing tag-release dependency graph.

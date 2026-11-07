@@ -59,7 +59,7 @@ for ($attempt = 0; $attempt < 30; ++$attempt) {
     ]);
     $body = curl_exec($curl);
     $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-    curl_close($curl);
+    // CurlHandle closes automatically when the scoped object is released.
     if (is_string($body) && $status === 200) {
         $page = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
         $messages = is_array($page) ? ($page['messages'] ?? []) : [];
