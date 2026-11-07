@@ -172,7 +172,7 @@ jobs:
 
   prepare-paired-host:
     if: >-
-      github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'edited' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.body, '<!-- foundation4:certify-source-only -->') && !contains(github.event.changes.body.from || '', '<!-- foundation4:certify-source-only -->'))
+      github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'edited' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.body, 'foundation4:certify-source-only'))
     runs-on: ubuntu-24.04
     outputs:
       candidate: ${{ steps.identity.outputs.candidate }}

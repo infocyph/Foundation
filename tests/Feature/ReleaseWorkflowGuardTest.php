@@ -12,7 +12,7 @@ it('permits full source-only host certification only after an explicit same-repo
         ->toContain(
             'github.event.pull_request.head.repo.full_name == github.repository',
             'foundation4:certify-source-only',
-            'github.event.changes.body.from',
+            'github.event.action == \'edited\'',
         )
         ->and($workflow['jobs']['paired-host']['needs'])->toBe('prepare-paired-host')
         ->and($workflow['jobs']['paired-host']['runs-on'])->toContain('ubuntu-24.04-arm');

@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 109a — correct workflow parser rejection before running certification
+
+- **Observed workflow configuration failure:** [Security & Standards 42343356812](https://github.com/infocyph/Foundation/actions/runs/42343356812) on `2ef9c022` failed before scheduling any jobs. No PHPForge/test results or performance measurements exist for that head. The new PR-only paired-host conditional contained an overly intricate one-shot expression involving the previous PR description.
+- **Correction:** Use a shorter, explicit job-level comparison: dispatch event, or same-repository PR `edited` event with `foundation4:certify-source-only` in its body. Preserve immutable Foundation 4 baseline, real candidate head SHA, shared Composer lock, all 24 paired-host jobs, runner/core isolation and original thresholds. Update the workflow-guard regression and instructions. Avoid further PR description edits once the costly run starts because normal workflow concurrency would cancel it; no custom CI or alternate benchmark runner is introduced.
+- **Evidence boundary:** This is a workflow syntax correction, not performance certification. Both official CI workflows must be validated on the new exact head before opt-in. P1 original historical lock, both P4 full upgrade/state rollback and both P6 comparisons remain unchecked. **85/90**, draft/unmerged; no tag/release.
+
 ## Foundation 4 Batch 109 — launch full source-only paired-host certification through same-repo PR opt-in
 
 - **Prior evidence:** Batch 108 original Foundation 3 → current DBLayer native retained auth/session/refresh/MFA/passkey migration and older-source rollback was already reported passing in [official Security & Standards 42343048923](https://github.com/infocyph/Foundation/actions/runs/42343048923). Complete exact-head four-lane QA/native host verdicts must independently finish; do not accept either broad P4 gate from this limited SQLite/selected graph slice.

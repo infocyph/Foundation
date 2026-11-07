@@ -41,9 +41,9 @@ The dedicated-host procedure below remains available for controlled reproduction
 and deployment-specific capacity validation. Routine PR smoke and local Docker
 results remain diagnostic.
 
-## One-shot source-only certification from this PR
+## Explicit source-only certification from this PR
 
-The existing `foundation4-host-certification.yml` workflow remains manually dispatchable for both comparison modes. When the GitHub connection cannot dispatch actions, maintainers can opt into a **single source-only full matrix** on a same-repository pull request by adding the exact HTML comment `<!-- foundation4:certify-source-only -->` to the pull-request description. The `pull_request: edited` event must introduce the marker; subsequent description updates or ordinary code pushes do not re-trigger the costly matrix. Fork PRs cannot activate this path. The commit under review is frozen from the pull-request head SHA.
+The existing `foundation4-host-certification.yml` workflow remains manually dispatchable for both comparison modes. When the GitHub connection cannot dispatch actions, maintainers can opt into a **source-only full matrix** on a same-repository pull request by adding the exact HTML comment `<!-- foundation4:certify-source-only -->` to the pull-request description. Only a `pull_request: edited` event with the marker in the current PR body activates this path; ordinary code pushes do not. **Do not edit the PR description while the full run is active**, since another edited event could start a new run and cancel it via workflow concurrency. Fork PRs cannot activate this path. The commit under review is frozen from the pull-request head SHA.
 
 This opt-in uses the immutable Foundation 4 source-only baseline `c220759fcbd6654fead843599712a5b79685f02d`, the same resolved candidate Composer lock on both revisions, and the existing full 24-case paired measurements plus two comparison jobs. It uses `ubuntu-24.04-arm` where no explicit manual runner selection is supplied. Both primary and confirmation must pass their existing response, variance, sustained-duration and throughput gates; a workflow launch, successful preparation or PR smoke does **not** count as certification. The independent-lock dependency-upgrade mode retains its reviewed allowlist and explicit workflow-dispatch requirements.
 
