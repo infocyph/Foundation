@@ -38,6 +38,12 @@ Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review comple
 - **Correction:** Collapse cleanup callbacks into standard short arrow callbacks and extract the nullable acquired-lock release into one small private helper, reducing run complexity without changing required exception precedence. Explicitly document the throwable propagation from cache mutation, preserving `CleanupGuard` semantics and lock state invariants.
 - **Acceptance:** R07 remains unchecked pending successful official exact-head QA and strict analyzers. Formal **84/95**, `composer.lock` still gitignored, PR draft and unmerged.
 
+## Foundation 4 Batch 133 — prove borrowed Runwire context restoration on a real lazy download read failure
+
+- **Prior Batch 132:** Changes `OidcConsentInteractionBoundaryTest` from a direct controller+CSRF call to real `Foundation::web()->handle()` dispatch using native Webrick `Registrar`, the same production `OAuthAuthorizationController` and `CsrfMiddleware`. Await complete exact-head official QA before treating this as accepted OIDC consent evidence.
+- **A09/R05 remaining evidence:** Existing tests already prove host cancellation after preparation and between chunks, concurrent Fiber isolation, synchronous no-context streaming and refusal to revive a completed borrowed owner. Add a deterministic **mid-stream I/O failure** by truncating the same local-backed nonlocal-storage source after the response producer opens it. Require `DownloadException` at actual iterator advancement, and verify `CacheRunwire::current()` restores the outside binding even on error, without completing the original host request. Preserve the FileBody/HEAD/range/offload paths.
+- **Acceptance:** Keep all nine consolidated findings unchecked until this regression and full exact-head PHPForge/native-host CI pass; do not change P6 budgets, `composer.lock` policy, PR draft/unmerged status, tag or release.
+
 ## Foundation 4 Batch 132 — exercise OIDC consent approval through the real Webrick route dispatcher
 
 - **Exact prior evidence:** Batch 131a `64ac7fa8` passed [Security & Standards 42367241311](https://github.com/infocyph/Foundation/actions/runs/42367241311) and [native HTTP host smoke 42367240920](https://github.com/infocyph/Foundation/actions/runs/42367240920). It cleared the route-metadata, completed-Runwire-owner and command-history fixture findings. No R01–R07 checklist item has yet been accepted based only on a passing build.

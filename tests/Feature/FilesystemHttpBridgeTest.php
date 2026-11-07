@@ -271,6 +271,52 @@ it('isolates lazy streamed downloads across Fibers and rejects an abandoned comp
     }
 });
 
+it('restores the original borrowed Runwire context after a lazy stream read failure', function (): void {
+    [$app, $root] = foundationFilesystemApp();
+    $app->boot();
+    $storage = $app->make(StorageRegistry::class);
+    $responses = $app->make(FilesystemResponseFactory::class);
+    $disk = $storage->disk('uploads');
+    $directory = 'tests/lazy-read-error-' . bin2hex(random_bytes(6));
+    $path = $directory . '/transfer.bin';
+    $disk->write($path, str_repeat('read-failure-payload-', 20_000));
+
+    $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
+    \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::bind($runtime);
+    $outer = \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::current();
+    $request = \Infocyph\Runwire\RequestContext::create($runtime);
+    try {
+        $response = \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
+            $request,
+            null,
+            static fn() => $responses->download(
+                Request::fake(headers: ['Host' => 'localhost'], uri: 'http://localhost/transfer'),
+                $storage->path($path, 'uploads'),
+                disk: 'uploads',
+            ),
+            $runtime,
+        );
+        $producer = $response->getProducer();
+        expect($producer)->not->toBeNull();
+        $chunks = $producer();
+        expect($chunks->current())->toBeString()->not->toBe('');
+
+        // The response producer has opened the source. Shorten that same
+        // physical file after its first chunk to force actual read-time EOF.
+        $local = $storage->localPath($path, 'uploads');
+        expect(file_put_contents($local, ''))->toBe(0);
+        expect(fn() => iterator_to_array($chunks, false))
+            ->toThrow(\Infocyph\Pathwise\Exceptions\DownloadException::class, 'ended before');
+        expect(\Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::current())->toBe($outer);
+        unset($chunks);
+    } finally {
+        $request->complete();
+        \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::release($runtime);
+        $disk->deleteDirectory($directory);
+        foundationFilesystemRemoveDirectory($root);
+    }
+});
+
 it('handles normal and chunked upload requests through Pathwise UploadSource', function (): void {
     [$app, $basePath] = foundationFilesystemApp();
     $app->boot();
