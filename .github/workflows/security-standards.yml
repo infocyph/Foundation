@@ -15,7 +15,7 @@ concurrency:
 jobs:
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    needs: [phpforge, production-consumer, release-evidence, runtime-hosts, talkingbytes-mailpit, talkingbytes-grpc, historical-dependency-provenance]
+    needs: [phpforge, production-consumer, release-evidence, runtime-hosts, talkingbytes-mailpit, talkingbytes-grpc, historical-dependency-provenance, cross-major-auth-rehearsal]
     uses: infocyph/phpforge/.github/workflows/release.yml@7214b16487277181c177343d4e4163a9b5843f24
     permissions:
       contents: write
@@ -181,6 +181,76 @@ jobs:
           name: foundation3-reconstructed-dependency-provenance-${{ github.sha }}
           path: build/historical-dependency-provenance/
           if-no-files-found: error
+          retention-days: 30
+
+  cross-major-auth-rehearsal:
+    name: Original Foundation 3 to 4 native DBLayer retained-state cutover
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          ref: fc9b3258646ac744e61fd02e18d9b98e5afff2e8
+          path: historical
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "curl, mbstring, intl, sodium, pcntl, posix, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached, fileinfo"
+          coverage: none
+      - name: Resolve actual original-source selected legacy DBLayer and current native graphs
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$GITHUB_WORKSPACE/build/cross-major-rehearsal"
+          mkdir -p "$output"
+          test "$(git -C historical rev-parse HEAD)" = fc9b3258646ac744e61fd02e18d9b98e5afff2e8
+          git -C historical rev-parse HEAD > "$output/historical-source.sha"
+          git rev-parse HEAD > "$output/candidate-source.sha"
+          cp historical/composer.json "$output/original-historical-composer.json"
+          # The original Foundation 3 composer.lock was never tracked. Resolve
+          # its real published DBLayer 5 feature, explicitly marked reconstructed.
+          php -r '
+            $path = "historical/composer.json";
+            $manifest = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+            $manifest["require"]["infocyph/dblayer"] = $manifest["require-dev"]["infocyph/dblayer"];
+            unset($manifest["require-dev"]);
+            file_put_contents($path, json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+          '
+          cp historical/composer.json "$output/selected-historical-composer.json"
+          composer update --working-dir=historical --no-dev --no-interaction --no-progress --prefer-dist --prefer-stable
+          composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+          cp historical/composer.lock "$output/reconstructed-not-original.lock"
+          cp composer.lock "$output/current-candidate.lock"
+          composer show --working-dir=historical --locked infocyph/dblayer > "$output/historical-dblayer.txt"
+          composer show --locked infocyph/dblayer > "$output/candidate-dblayer.txt"
+          sha256sum "$output/"*.lock > "$output/lock-sha256.txt"
+      - name: Verify old-source state, current migration, old-source rollback and restored roll-forward
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$GITHUB_WORKSPACE/build/cross-major-rehearsal"
+          database="$output/retained.sqlite"
+          digest="$output/retained.sha256"
+          fixture=tests/Fixtures/foundation3_dependency_cutover_probe.php
+          php "$fixture" seed "$database" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$digest" | tee "$output/old-seed.json"
+          cp "$database" "$output/old-snapshot.sqlite"
+          sha256sum "$output/old-snapshot.sqlite" > "$output/original-snapshot.sha256"
+          php "$fixture" upgrade "$database" "$GITHUB_WORKSPACE/vendor/autoload.php" "$digest" | tee "$output/first-upgrade.json"
+          php "$fixture" legacy-read "$database" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$digest" | tee "$output/old-source-after-upgrade.json"
+          cp "$output/old-snapshot.sqlite" "$database"
+          test "$(sha256sum "$database" | cut -d' ' -f1)" = "$(sha256sum "$output/old-snapshot.sqlite" | cut -d' ' -f1)"
+          php "$fixture" legacy-read "$database" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$digest" | tee "$output/old-source-restored.json"
+          php "$fixture" upgrade "$database" "$GITHUB_WORKSPACE/vendor/autoload.php" "$digest" | tee "$output/second-upgrade.json"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation3-to-4-native-auth-rehearsal-${{ github.sha }}
+          path: build/cross-major-rehearsal/
+          if-no-files-found: warn
           retention-days: 30
 
   redis-cluster:
