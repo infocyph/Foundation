@@ -175,36 +175,7 @@ final readonly class RuntimeControl
     private function mutate(callable $mutation): void
     {
         if ($this->driver() === 'cache') {
-            $lock = $this->application->make(CacheLayerFactory::class)->lock();
-            $handle = $lock->acquire(
-                FoundationCacheKey::fingerprint(
-                    'runtime-lock',
-                    'runtime-control',
-                    $this->logicalCacheKey(),
-                ),
-                5.0,
-                15.0,
-            );
-            if ($handle === null) {
-                throw new \RuntimeException('Unable to acquire the runtime-control update lock.');
-            }
-
-            $primaryFailure = null;
-            try {
-                $this->write($mutation($this->read()));
-            } catch (\Throwable $exception) {
-                $primaryFailure = $exception;
-
-                throw $exception;
-            } finally {
-                try {
-                    $lock->release($handle);
-                } catch (\Throwable $cleanupFailure) {
-                    if ($primaryFailure === null) {
-                        throw $cleanupFailure;
-                    }
-                }
-            }
+            $this->mutateCache($mutation);
 
             return;
         }
@@ -228,6 +199,44 @@ final readonly class RuntimeControl
         } finally {
             flock($stream, LOCK_UN);
             fclose($stream);
+        }
+    }
+
+    /**
+     * @param callable(array<string,mixed>):array<string,mixed> $mutation
+     * @throws \Throwable
+     */
+    private function mutateCache(callable $mutation): void
+    {
+        $lock = $this->application->make(CacheLayerFactory::class)->lock();
+        $handle = $lock->acquire(
+            FoundationCacheKey::fingerprint(
+                'runtime-lock',
+                'runtime-control',
+                $this->logicalCacheKey(),
+            ),
+            5.0,
+            15.0,
+        );
+        if ($handle === null) {
+            throw new \RuntimeException('Unable to acquire the runtime-control update lock.');
+        }
+
+        $primaryFailure = null;
+        try {
+            $this->write($mutation($this->read()));
+        } catch (\Throwable $exception) {
+            $primaryFailure = $exception;
+
+            throw $exception;
+        } finally {
+            try {
+                $lock->release($handle);
+            } catch (\Throwable $cleanupFailure) {
+                if ($primaryFailure === null) {
+                    throw $cleanupFailure;
+                }
+            }
         }
     }
 

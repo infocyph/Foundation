@@ -38,6 +38,12 @@ Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review comple
 - **Correction:** Collapse cleanup callbacks into standard short arrow callbacks and extract the nullable acquired-lock release into one small private helper, reducing run complexity without changing required exception precedence. Explicitly document the throwable propagation from cache mutation, preserving `CleanupGuard` semantics and lock state invariants.
 - **Acceptance:** R07 remains unchecked pending successful official exact-head QA and strict analyzers. Formal **84/95**, `composer.lock` still gitignored, PR draft and unmerged.
 
+## Foundation 4 Batch 123g — reduce runtime-control lock complexity after failed CI
+
+- **Latest CI:** Batch 123f `f2a2e928` [Security & Standards 42360821253](https://github.com/infocyph/Foundation/actions/runs/42360821253) failed only strict PHPForge quality (PHPStan complexity 13 for `RuntimeControl::mutate()` and Pint formatting on that source), while [native HTTP hosts 42360820955](https://github.com/infocyph/Foundation/actions/runs/42360820955) succeeded. Psalm and functional tests passed.
+- **Resolution:** Extract the existing cache-driver lock acquisition, mutation and primary-exception-aware lock cleanup into a small private method. Keep original uncached/file behavior unchanged, use the same `Throwable` behavior and no analyzer suppressions. Require full official exact-head QA before accepting R07.
+- **Review remains:** **84/95** accepted; all consolidated R01–R07 and two P6 certification gates remain tracked honestly. No merger or release.
+
 ## Foundation 4 Batch 123 — preserve primary command failures through history and lock cleanup
 
 - **R07:** `CommandExecutionCoordinator::run()` previously let a lock release error replace the primary command exception; failed-history recording can also throw while reporting an earlier failure. `RuntimeControl::mutate()` had the same unguarded lock cleanup order. Reuse existing `Runtime\\CleanupGuard` instead of adding an exception framework.
