@@ -71,7 +71,27 @@ it('rejects noisy evidence instead of silently waiving the throughput budget', f
     $result = Foundation4HostComparison::compare(foundationHostFixture(), $candidate);
 
     expect($result['passed'])->toBeFalse()
-        ->and($result['cases'][0]['status'])->toBe('inconclusive_variance');
+        ->and($result['cases'][0]['status'])->toBe('inconclusive_variance')
+        ->and($result['cases'][0]['baseline_cv_percent'])->toBe(0.0)
+        ->and($result['cases'][0]['candidate_cv_percent'])->toBeGreaterThan(2.5)
+        ->and($result['cases'][0]['max_cv_percent'])->toBeGreaterThan(2.5);
+});
+
+it('attributes baseline-only measurement noise without reclassifying it as a passing RPM gain', function (): void {
+    $baseline = foundationHostFixture();
+    $baseline['hosts']['runwire'][5]['runs'][0]['rpm'] = 500.0;
+    $baseline['hosts']['runwire'][5]['runs'][0]['duration_seconds'] = 240.0;
+    $candidate = foundationHostFixture(1200.0, true);
+
+    $result = Foundation4HostComparison::compare($baseline, $candidate);
+    $noisy = array_find($result['cases'], static fn(array $case): bool => $case['scenario'] === 'runwire-w4-c50');
+
+    expect($result['passed'])->toBeFalse()
+        ->and($noisy)->toBeArray()
+        ->and($noisy['status'])->toBe('inconclusive_variance')
+        ->and($noisy['baseline_cv_percent'])->toBeGreaterThan(2.5)
+        ->and($noisy['candidate_cv_percent'])->toBe(0.0)
+        ->and($noisy['delta_percent'])->toBeGreaterThan(0.0);
 });
 
 it('rejects mismatched host identities and runtime dependencies', function (): void {

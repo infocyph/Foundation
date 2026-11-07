@@ -96,7 +96,9 @@ final class Foundation4HostComparison
             $baselineMedian = self::median($before['rpms']);
             $candidateMedian = self::median($after['rpms']);
             $deltaPercent = (($candidateMedian / $baselineMedian) - 1.0) * 100.0;
-            $variation = max(self::coefficientOfVariation($before['rpms']), self::coefficientOfVariation($after['rpms']));
+            $baselineVariation = self::coefficientOfVariation($before['rpms']);
+            $candidateVariation = self::coefficientOfVariation($after['rpms']);
+            $variation = max($baselineVariation, $candidateVariation);
             $stable = $variation <= self::MAX_VARIATION_PERCENT;
             $withinBudget = $deltaPercent >= -self::REGRESSION_BUDGET_PERCENT - 1e-10;
             $casePassed = $stable && $withinBudget;
@@ -107,6 +109,8 @@ final class Foundation4HostComparison
                 'baseline_median_successful_rpm' => round($baselineMedian, 2),
                 'candidate_median_successful_rpm' => round($candidateMedian, 2),
                 'delta_percent' => round($deltaPercent, 3),
+                'baseline_cv_percent' => round($baselineVariation, 3),
+                'candidate_cv_percent' => round($candidateVariation, 3),
                 'max_cv_percent' => round($variation, 3),
                 'status' => !$stable ? 'inconclusive_variance' : ($withinBudget ? 'pass' : 'regression'),
             ];
