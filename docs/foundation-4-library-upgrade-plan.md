@@ -2,6 +2,13 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 95 — OTP recovery CAS, tombstones and committed cancellation (exact-head QA pending)
+
+- **Prior source certified:** Batch 94 at `fea07fe6` passed [Security & Standards 42328686753](https://github.com/infocyph/Foundation/actions/runs/42328686753) and [native hosts 42328686167](https://github.com/infocyph/Foundation/actions/runs/42328686167). Formal tracker stays **81/90 accepted, 9 open** while new code is qualified.
+- **Atomic Foundation recovery store:** New `OtpRecoveryCodeAtomicityTest` uses an actual `OtpRecoveryCodeStore` backed by the application `InMemoryMfaFactorStore` to force competing compare-and-swap consumers to interleave. The losing reader must retry and fail without consuming a second digest, while the winning consumer remains committed. Assert account binding isolation, exhausted nonempty tombstones, invalidation of old digests after replacement, and late host cancellation cannot retroactively negate a committed recovery consumption.
+- **Selected native OTP flow:** Verify single-use and cross-account isolation through real Foundation `AuthServices::mfa()` with current OTP code generation, consumption, exhaustion and regeneration. This supplements existing HOTP/OCRA/TOTP, negative canonical Base32, WebAuthn and three-engine DB CAS coverage, rather than replacing it.
+- **Acceptance boundary:** The P3 atomic single-use criterion remains open pending exact-head PHPForge/static/functional/production/benchmarks and native-host verification, plus any reported follow-on fixes. Other OTP/WebAuthn ceremony and DBLayer/TalkingBytes/P1/P4/P6 release gates remain independently open. One source+test+plan commit; no merge/tag/release.
+
 ## Foundation 4 Batch 94 — evidence-only P3 Pathwise and Epicrypt acceptance (exact-head QA required)
 
 - **Source qualification:** At `2bec01aa`, [Security & Standards 42328085345](https://github.com/infocyph/Foundation/actions/runs/42328085345) and [native HTTP hosts 42328085011](https://github.com/infocyph/Foundation/actions/runs/42328085011) must both finish fully green before this acceptance commit is published. Their exact source includes Batches 90, 92 and 93, and no performance threshold, analyzer policy, optional dependency or feature-gating change.
