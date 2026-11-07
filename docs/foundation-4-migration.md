@@ -17,6 +17,16 @@ operation requires them. Custom direct construction must pass that container;
 no legacy constructor overload is retained. Keep execution-scoped services in
 their active scope. Unused integrations remain cold through scope cleanup.
 
+Passwordless login links now require atomic single-use redemption through
+`AuthServices::passwordless()`. Direct `PasswordlessManager` construction adds
+the auth TTL store and matching `auth.passwordless_ttl` constructor arguments.
+Use shared persistent atomic auth state across PHP/FPM requests or workers;
+process-local state cannot carry a link across processes. Previously issued
+stateless links have no redemption marker and must be reissued. See the
+[authentication contract](authentication.md) for expiry, replay and cache-loss
+behavior. Low-level token adapters still verify cryptography; they do not grant
+login redemption independently of the manager.
+
 Published DBLayer 6.1.4 and Omnibus 3.0.3 provide the native deferred cache,
 transport and failure-store contracts. Their Composer floors, feature catalogs,
 worker diagnostics and package tables are aligned. Foundation requires these

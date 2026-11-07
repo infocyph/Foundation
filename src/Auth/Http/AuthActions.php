@@ -175,6 +175,8 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \UnexpectedValueException
@@ -329,6 +331,8 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \UnexpectedValueException

@@ -106,7 +106,8 @@ final readonly class AuthorizationCodeManager
         }
         if ($request->openId()
             && $request->openIdMaximumAuthenticationAge !== null
-            && ($now - $authenticationTime) > $request->openIdMaximumAuthenticationAge
+            && ($request->openIdMaximumAuthenticationAge === 0
+                || ($now - $authenticationTime) > $request->openIdMaximumAuthenticationAge)
         ) {
             throw new OAuthProtocolException(
                 'login_required',

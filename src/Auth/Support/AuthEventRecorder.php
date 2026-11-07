@@ -76,7 +76,7 @@ final class AuthEventRecorder
                 && (
                     preg_match('/(?:^|_)(?:password|passwd|passphrase|secret|token|authorization|credential|signature|otp|pin|seed|bearer|jwt|assertion|cookie|recovery_codes?)(?:s)?(?:_|$)/', $name) === 1
                     || preg_match('/password|passwd|passphrase|secret|token|authorization|credential|signature|seed|bearer|jwt|assertion|cookie|recoverycodes?|apikey|privatekey|authenticatordata|attestationobject/', $folded) === 1
-                    || preg_match('/otp|codeverifier|pin(?:$|code|hash|value|secret|digits|number|credential|reset)/', $folded) === 1
+                    || preg_match('/otp|pin|codeverifier/', $folded) === 1
                     || $folded === 'code'
                 );
 

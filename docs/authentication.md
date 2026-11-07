@@ -142,12 +142,39 @@ Never serialize those trusted-domain issuance results in unauthenticated HTTP
 handlers. The action helpers do not themselves authenticate the caller; bind
 account ownership and rate limits at the application route.
 
+Passwordless login links are single-use. `PasswordlessManager::issue()` records
+an expiring, domain-separated SHA3-256 token fingerprint before notifying the recipient; neither
+the raw token nor its claims are stored in the redemption marker. `verify()`
+first verifies the native token's signature, purpose and expiry, then atomically
+pulls that marker. Only the winning redemption succeeds. Replayed tokens,
+missing/evicted markers and tokens issued directly by the stateless token
+adapter return `INVALID`; expired tokens retain the native `EXPIRED` result.
+Invalid input does not consume another valid link, and storage errors propagate
+without reporting successful issuance or redemption.
+
+Use `AuthServices::passwordless()` for issuance and redemption. Direct
+`PasswordlessManager` construction now requires the auth `TtlStoreInterface`
+and matching `auth.passwordless_ttl` in addition to the token service and
+notifier. Custom TTL stores must implement atomic `pull()` at their advertised
+visibility. The default array store is process-local; PHP/FPM requests and
+multiple workers need a shared persistent auth cache with native atomic
+consumption. With `auth.drivers.cache=cache`, retain the existing shared-state
+topology and `cache.default_counter` configuration requirements. Cache loss
+invalidates outstanding links, so request a replacement. Links issued before
+this change have no redemption marker and must also be reissued. These
+contracts apply with or without a live Runwire context.
+
 Audit metadata is descriptive, not an identity source. Auth managers do not promote
 free-form request context to canonical audit session or device fields. Verified
 record-owned token devices remain authoritative; unbound token-family revocation
 cannot ascribe an account from `context.account_id`. Pass verified session and
 device IDs explicitly when recording an auth audit event; caller-provided
 `metadata.session_id` and `metadata.device_id` must not become canonical IDs.
+
+Credential-family matching is conservative across casing, separators and
+compound metadata names, including PIN/OTP and PKCE code verifiers. The explicit
+safe identifier fields `token_id`, `token_type`, `credential_id` and
+`authorization_id` remain descriptive identifiers rather than credentials.
 
 ## Authorization
 

@@ -7,6 +7,16 @@ This audit concerns **library-major runtime/API compatibility**; it does not
 require altering application data formats, key-rotation policies or deliberate
 public configuration.
 
+Current maintenance status (2026-11-07): the
+[canonical implementation tracker](foundation-4-library-upgrade-plan.md#current-implementation-and-maintenance-status)
+records 93/95 completed implementation items, with only the two P6 release
+certifications unchecked. R01–R07 repairs and passwordless single-use hardening
+are implemented locally; final release verification remains open. Development
+toolchain M02/M03 are explicitly upstream blocked in the
+[dependency record](foundation-4-dependency-qualification.md#current-maintenance-disposition).
+The source/CI statements below remain historical evidence, not certification of
+these uncommitted maintenance changes.
+
 ## Removed major-version compatibility
 
 - The [API replacement map](foundation-4-api-map.md) and
@@ -118,4 +128,4 @@ Distinguish these **supported current capabilities** from major-version compatib
 - `EmailProfiles` intentionally supports transport fallback lists, while the OTP MobileOTP import and passkey legacy credential metadata are application/persisted-data contracts. Do not remove them to satisfy an API-version checklist.
 - The all-production-source `LegacyRuntimePathBoundaryTest` rejects removed InterMix compile/use APIs, old Foundation route/cache managers and redundant specialist forwarding factories. Current published API and real selected-operation tests guard the replacement behavior.
 
-This closes only the **P1 current native integration compatibility** checkbox. It does **not** prove historical dependency identity, actual artifact migration, retained data rollback or sustained matched-host throughput; those checklist items remain independently open.
+This historical checkpoint closed only the **P1 current native integration compatibility** checkbox. Subsequent batches completed the selected artifact/state-recovery implementation and accepted the documented historical-lock policy exception, as recorded in the canonical plan. Final exact-revision verification and both sustained matched-host certifications remain open; this earlier compatibility inspection does not certify them.

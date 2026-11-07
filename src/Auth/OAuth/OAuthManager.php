@@ -390,7 +390,11 @@ final readonly class OAuthManager
         $metadata = $principal?->metadata() ?? [];
         $authenticationTime = $metadata['auth_time'] ?? null;
         $now = $this->clock?->now() ?? time();
-        if (!is_int($authenticationTime) || $authenticationTime < 1 || $authenticationTime > $now) {
+        // A reusable session timestamp cannot prove authentication performed
+        // for this authorization interaction, even in the same clock second.
+        if ($request->openIdMaximumAuthenticationAge === 0
+            || !is_int($authenticationTime) || $authenticationTime < 1 || $authenticationTime > $now
+        ) {
             $authenticationTime = null;
         }
         $authenticated = is_string($accountId) && $accountId !== '' && $authenticationTime !== null;

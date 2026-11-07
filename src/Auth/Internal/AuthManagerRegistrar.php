@@ -109,6 +109,7 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
 
             $this->recipe(PasswordlessManager::class, PasswordlessManager::class, [
                 $this->ref(PasswordlessTokenServiceInterface::class), $this->ref(AuthNotifierInterface::class),
+                $this->ref(TtlStoreInterface::class), $this->intConfig('auth.passwordless_ttl', 900),
             ], LifetimeEnum::Scoped);
         }
         $this->recipe(RememberMeManager::class, RememberMeManager::class, [

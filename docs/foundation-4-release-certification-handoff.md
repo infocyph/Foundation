@@ -2,6 +2,19 @@
 
 This is the operator handoff for [Foundation PR #20](https://github.com/infocyph/Foundation/pull/20), branch `feature/foundation-3`. It does **not** authorize merging, tagging or publishing the package, and it is not a substitute for the canonical acceptance tracker in [foundation-4-library-upgrade-plan.md](foundation-4-library-upgrade-plan.md).
 
+## Current maintenance handoff
+
+2026-11-07: implementation is **93/95 complete, P0 25/25**. The two unchecked
+criteria are the P6 certifications. R01–R07 repairs and passwordless single-use
+hardening are implemented locally; the bounded-duplication review is complete.
+M02/M03 remain explicitly upstream-blocked development-tool dependencies;
+see the [dependency disposition](foundation-4-dependency-qualification.md#current-maintenance-disposition).
+No final archive/consumer, service-backed or hosted qualification was performed
+for this maintenance task, per the maintainer's exclusion of release
+verification. Previous green runs and ZIPs do not certify the final working
+tree. Freeze and qualify the eventual final revision through this handoff;
+no new CI, performance, merge or publication success is implied.
+
 ## Source, package and retained-state evidence
 
 - Original Foundation 3 source: `fc9b3258646ac744e61fd02e18d9b98e5afff2e8`. Its Composer manifest is authentic; **no original `composer.lock` was tracked** at that SHA or recovered from historical workflow artifacts. The selected old package graph is a later *reconstruction, not the historical original*.
@@ -19,8 +32,6 @@ The release plan owns formal checkbox dispositions. The following CI evidence qu
 At this checkpoint, `.github/workflows/foundation4-host-certification.yml` exists only on `feature/foundation-3`; the default `main` branch has only `phase0-baselines.yml` and `security-standards.yml`. GitHub's `workflow_dispatch` event **requires the workflow file to be present on the default branch**. Consequently the normal GitHub Actions **Run workflow** control is not available for this paired-host workflow while its entire definition exists only on the unmerged feature branch. The connected GitHub integration also offers no action to dispatch a workflow run. Earlier PR-body-trigger experiments failed workflow validation and were reverted.
 
 To run P6 without merging PR #20, first obtain normal maintainer review for a **separate workflow-only default-branch bootstrap**, or implement a carefully audited, explicitly gated PR-event certification path in this existing official workflow. Neither has been approved or executed as part of Batch 116. Do not bypass normal branch protection, edit `main` implicitly, insert fake benchmark reports or claim PR smoke satisfies the 24-case matrix. Once an authorized dispatch path exists, execute both documented comparison modes against immutable exact candidate/baseline SHAs and capture the independent lock artifacts and final paired verdicts. A bootstrap itself is not P6 acceptance.
-
-## Remaining performance release evidence
 
 ## Outstanding non-waivable release evidence
 

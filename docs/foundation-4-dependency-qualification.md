@@ -9,6 +9,32 @@ in the second column. The original baseline `composer.lock` is **not tracked**
 invented. Full source/dependency-upgrade paired comparisons are still required
 under P1/P6.
 
+## Current maintenance disposition
+
+Rechecked on 2026-11-07 for the uncommitted maintenance tree. Live
+`composer outdated --format=json`, `composer audit --locked --format=json`,
+the two `composer prohibits` checks and a full `composer update --dry-run
+--no-install --no-scripts --no-plugins` agree: there are no compatible updates
+to apply and no advisory records. The dry-run does not modify the installation
+or lock. The current direct package baseline is unchanged.
+The local graph has **171 packages**, with lock SHA-256
+`7ea5c4a62971c7c4455ecfb237e261c7798f30cb015c98e5a74935090d9b3f34`.
+This is current local evidence, not a new hosted artifact or publication.
+
+| Tracker | Remaining dependency | Verified owner/constraint | Disposition |
+| --- | --- | --- | --- |
+| M02 | Abandoned `doctrine/annotations` 2.0.2 | PHPForge requires [PHPBench 1.7.0](https://packagist.org/packages/phpbench/phpbench), which requires `doctrine/annotations ^2.0`; it is still PHPBench's latest stable release | Upstream blocked, development-only. Composer audit still reports abandonment and exits 1. No supported replacement/removal exists within Foundation's graph. |
+| M03 | PHPUnit 13.4.5 versus latest 13.4.6 | [Pest 5.3.5](https://packagist.org/packages/pestphp/pest) explicitly conflicts with PHPUnit `>13.4.5` | Upstream blocked; no incompatible override or fake compatibility declaration. |
+| M03 | JsonMapper 5.0.1 versus latest 6.0.0 | Installed Psalm 7.0.5 requires `netresearch/jsonmapper ^5.0`; `danog/advanced-json-rpc` 3.2.3 requires `^5` | Upstream blocked; native tool owners must release compatible updates first. |
+
+These are visible external maintenance items, not resolved defects or waived
+latest-version requirements. Foundation runtime changes cannot truthfully
+remove the upstream constraints. No production dependency, Composer constraint,
+workflow pin or vendor file was altered; `composer.lock` remains gitignored.
+Final exact-revision dependency/consumer qualification is release verification
+and is outside this maintenance task. Historical immutable records below retain
+their original source SHA, package counts and hashes.
+
 ## Resolved candidate graph
 
 The [official green source `98e07629`](https://github.com/infocyph/Foundation/actions/runs/42172043870)
@@ -76,9 +102,14 @@ and `composer audit --locked --abandoned=report`. The resulting three JSON files
 uploaded alongside the immutable lock digest and dependency inventory.
 No `--ignore-platform-reqs`, `--no-audit` or unchecked partial acceptance.
 
-## Remaining release evidence
+## Historical release-evidence requirements
 
-The original 3.x lock was not committed. A reproducible reviewed
+The original 3.x lock was not committed. Its absence is now a maintainer-approved
+policy exception, recorded in the [current handoff](foundation-4-release-certification-handoff.md);
+the lock remains gitignored and reconstructed resolution is never labeled
+original historical evidence. The earlier requirement below remains useful for
+paired-run identity, not as a request to recover an unavailable original lock.
+A reproducible reviewed
 baseline lock must be captured separately and paired with the original
 3.x source and comparison tooling. This candidate snapshot cannot
 substitute for that historical baseline. In P6 dependency-upgrade mode,

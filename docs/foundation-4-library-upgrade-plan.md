@@ -1,6 +1,28 @@
 # Foundation 4: latest-library integration and full-library audit plan
 
-Date: 2026-11-07 (Asia/Dhaka). Status: **seven consolidated source defects (R01–R07) remediated and verified; nine review acceptance criteria qualified, with only two P6 sustained-host certifications still open**.
+Date: 2026-11-07 (Asia/Dhaka). Status: **Foundation implementation complete and trackers synchronized; upstream development-tool blockers recorded; release verification remains open and is excluded from this task**.
+
+## Current implementation and maintenance status
+
+The [consolidated review](foundation-4-consolidated-review.md#current-maintenance-and-tracker-synchronization) owns the current findings and verification evidence. Earlier batch entries below are historical snapshots; their old counts, unresolved findings and package/CI claims do not describe the current working tree.
+
+- **Implementation checklist: 93/95 complete; P0 25/25.** The three repaired R01/R04 criteria are checked for completed source work and local regression evidence. Only the two P6 release certifications remain unchecked. Final exact-revision hosted QA, service-backed checks, production-consumer/archive qualification and host certification remain separate release verification; no new hosted result or release readiness is claimed.
+- **R01–R07 source findings:** repairs are retained. Compound PIN redaction and same-second/prior-consent zero-age OIDC reuse are covered by the expanded in-memory, SQLite and real GET/valid-CSRF POST regressions. R01/R04 repair evidence remains under `/tmp/foundation-fix-residuals/`.
+- **I01 / M01 implemented:** passwordless login links now require one successful atomic redemption. Both token drivers persist an expiring hashed marker before notification and verify cryptography before native TTL consumption. The public manager, immutable graph recipe, TTL contract, authentication/migration docs and release notes agree. Existing stateless links must be reissued; shared persistent atomic auth state is required across processes. Replay, expiry, missing state, storage failure and independent-process contention regressions are tracked in `PasswordlessSingleUseTest`.
+- **I02 / M04 review complete:** the unchanged PHPForge duplicate gate passes. The original 131-group observation is historical. Inspected current key-resolution/validation clones retain distinct defaults, key purposes, diagnostics and audit/validation ownership; timed-token common mechanics already live in the two native representation-specific abstract services. Retain this bounded duplication rather than introduce another generic protocol owner. No detector budget or suppression changes, and no claim that all token-similar code was removed.
+- **M02/M03 upstream blockers verified:** live Composer resolution finds no compatible updates. PHPBench 1.7.0 still requires abandoned `doctrine/annotations` 2.0.2; Pest 5.3.5 conflicts with PHPUnit above 13.4.5; Psalm 7.0.5 and RPC 3.2.3 require JsonMapper 5 while 6 is latest. These development-only upstream items remain externally blocked, not fixed or waived. See the [dependency disposition](foundation-4-dependency-qualification.md#current-maintenance-disposition).
+- **Final local checks:** required PHPForge process and all static/quality/architecture gates pass, including PHPStan and Psalm. Focused regressions: **44 passed / 5,575 assertions**. Final full local suite: **990 passed, 25 unavailable-service failures / 36,937 assertions**, with the same 25 failed identities as the previous baseline. Strict Composer validation and local documentation links pass. Evidence: `/tmp/foundation-maintenance/qa-final.log`, `focused-final.log` and `validation-summary.json`.
+- **Scope:** release verification is intentionally not executed by this maintenance task. Source changes remain uncommitted; no commit, push, merge, tag, publication, vendor modification, constraint override or lockfile-policy change.
+
+## Historical independent recheck — Batch 134
+
+The [consolidated review](foundation-4-consolidated-review.md#historical-independent-recheck-of-batch-134--two-residual-findings) records the pre-repair disposition at `bc05ac4ce535d898acb5a77a85556bfa18977511`. Its residual source failures are repaired in the working tree as recorded above; final hosted acceptance remains pending.
+
+- **Historical formal acceptance: 90/95; P0 22/25.** Reopen the A04 credential-classification/regression criteria and the A08 OIDC approval criterion. R02, R03, R05, R06 and R07 are independently confirmed repaired. The two P6 sustained comparisons remain open.
+- **Residual R01:** The original 388-key matrix passes, but uppercase `PIN_INPUT`, `PIN_DATA`, `PIN_ENTRY`, `ACCOUNT_PIN_CONFIRMATION` and mixed-case PIN-input variants retain secrets while their lowercase counterparts redact. Public-recorder and actual DBLayer/SQLite persistence probes reproduce it. Qualify complete case/compound behavior rather than adding another short suffix list.
+- **Residual R04:** With prior consent and authoritative `auth_time` equal to the current clock second, `prompt=none&max_age=0` returns native `READY` and issues codes on GET/POST. Adding the case to the real Webrick/valid-CSRF test fails. Correct zero-age forced-reauthentication semantics in the native Epicrypt owner and Foundation integration/issuance boundary, then requalify same-second/prior-consent behavior without changing timestamp provenance or restoring old-library support.
+- **Verification:** Nine focused feature files pass **55 tests / 2,751 assertions**; original identity, lazy-stream cancellation, private-first-write and cleanup probes now show the corrected behavior. Exact-head [Security & Standards 42369045695](https://github.com/infocyph/Foundation/actions/runs/42369045695) and [native hosts 42369045437](https://github.com/infocyph/Foundation/actions/runs/42369045437) are successful, including the four stable/lowest lanes, strict analyses, production consumers, services and host smoke. Paired P6 jobs are skipped; the new boundary probes are not covered by these green runs.
+- **Scope:** Documentation-only independent recheck. Working evidence is under `/tmp/foundation-check-bc05ac4c/`. No source/dependency fix, threshold waiver, merge, tag or publication.
 
 ## Foundation 4 Batch 123f — retain exception precedence with a direct cache-lock release
 
@@ -166,7 +188,7 @@ Date: 2026-11-07 (Asia/Dhaka). Status: **seven consolidated source defects (R01�
 - **Matrix regression:** Add a shared table-driven synthetic fixture spanning 24 credential families, arbitrary casing, acronym, underscore/hyphen, concatenation, common prefix and compound variants. Use the same matrix in four-purpose in-memory and native SQLite/DBLayer audit tests, verify every sensitive value is replaced with `[REDACTED]` and its sentinel bytes are absent from JSON, while explicit request/token/credential/authorization ID exceptions remain intact.
 - **Acceptance boundary:** Keep the three A04 checkboxes unchecked until R01 and R02 + their full official CI and identity provenance regressions are green; R03–R07, P3 streaming and both P6 certifications also remain open. Current **84/95**. No merge/tag/release.
 
-## Current consolidated review — 2026-11-07
+## Historical original consolidated review — 2026-11-07
 
 The [Foundation 4 consolidated review](foundation-4-consolidated-review.md) is the current combined disposition of the original audit, independent review and implementation through `57d309a6dfc3e02078331a1118d563ed46f7c1d9`. Read that report for all findings together, their reproductions, required repairs/regressions, prior-finding dispositions, maintenance decisions and verification limits. Earlier batch/status/count statements below are historical checkpoints, not current acceptance.
 
@@ -1146,7 +1168,7 @@ The requirements for this work are:
 
 Follow the installed PHPForge [engineering principles](../vendor/infocyph/phpforge/resources/engineering-principles.md) and [agent workflow](../vendor/infocyph/phpforge/resources/AGENTS.md). Preserve correctness, security, lifecycle ownership and the existing performance budgets. Do not edit `vendor/`.
 
-## Evidence collected for this plan
+## Historical evidence collected for the original plan
 
 The inspected Foundation source is `cbaaa59ff9b60d0cf9cb13ba4a784fe859178409`; the worktree was clean before planning. Existing Foundation 4 architecture, generated-runtime implementation, module catalogs, integration tests, migration documentation and host workflows were inspected. The existing Graphify graph was used for navigation; source is authoritative.
 
@@ -1167,38 +1189,40 @@ Result: zero installs/removals, one update (`infocyph/runwire 2.1.2 -> 3.0`), an
 
 ## Target dependency matrix
 
-"Latest" here means latest published stable release advertised by Composer at inspection, with the existing development-only PHPForge `dev-main` exception. Re-query immediately before implementation and update this matrix if publication changes. Local sibling working branches are reference material, not substitutes for published packages.
+Synchronized on 2026-11-07 with the actual Composer manifest/lock and live published metadata. "Latest" means the latest published stable direct release, with the existing development-only PHPForge `dev-main` exception. All listed direct floors are implemented. Upstream-blocked development transitives M02/M03 remain explicit in the [dependency disposition](foundation-4-dependency-qualification.md#current-maintenance-disposition); the direct table does not claim those transitives are at their absolute latest release.
 
 Caret ranges below deliberately admit future compatible releases; their lower bounds exclude every older release than this new baseline. An unresolved latest-version incompatibility is a blocker to fix, not permission to downgrade.
 
-| Package | Current declaration | Locally resolved | Verified latest | Planned declaration |
+| Package | Implemented declaration | Locally resolved | Verified latest direct | Disposition |
 | --- | --- | --- | --- | --- |
 | **Core `require`** | | | | |
-| `infocyph/arraykit` | `^5.3.1` | 5.3.2 | 5.3.2 | `^5.3.2` |
-| `infocyph/cachelayer` | `^4.0.1` | 4.0.2 | 4.0.2 | `^4.0.2` |
-| `infocyph/intermix` | `^11.2` | 11.2.1 | 11.2.1 | `^11.2.1` |
-| `infocyph/runwire` | `^2.1.2` | 2.1.2 | 3.0 | `^3.0` |
-| `infocyph/uid` | `^6.0` | 6.0.1 | 6.0.1 | `^6.0.1` |
-| `infocyph/webrick` | `^6.0.3` | 6.0.4 | 6.0.4 | `^6.0.4` |
-| `psr/log` | `^3.0.2` | 3.0.2 | 3.0.2 | retain `^3.0.2` |
+| `infocyph/arraykit` | `^5.3.2` | 5.3.2 | 5.3.2 | Implemented; retain current floor |
+| `infocyph/cachelayer` | `^4.0.2` | 4.0.2 | 4.0.2 | Implemented; retain current floor |
+| `infocyph/intermix` | `^11.2.1` | 11.2.1 | 11.2.1 | Implemented; retain current floor |
+| `infocyph/runwire` | `^3.0` | 3.0 | 3.0 | Implemented; retain current floor |
+| `infocyph/uid` | `^6.0.1` | 6.0.1 | 6.0.1 | Implemented; retain current floor |
+| `infocyph/webrick` | `^6.0.4` | 6.0.4 | 6.0.4 | Implemented; retain current floor |
+| `psr/log` | `^3.0.2` | 3.0.2 | 3.0.2 | Implemented; retain current floor |
 | **Optional specialists tested through `require-dev`** | | | | |
-| `infocyph/dblayer` | `^6.1.2` | 6.1.4 | 6.1.4 | `^6.1.4` |
-| `infocyph/epicrypt` | `^3.2` | 3.3 | 3.3 | `^3.3` |
-| `infocyph/omnibus` | `^3.0.2` | 3.0.3 | 3.0.3 | `^3.0.3` |
-| `infocyph/otp` | `^7.0` | 7.0.1 | 7.0.1 | `^7.0.1` |
-| `infocyph/pathwise` | `^4.2` | 4.2.1 | 4.2.1 | `^4.2.1` |
-| `infocyph/reqshield` | `^3.3` | 3.3.1 | 3.3.1 | `^3.3.1` |
-| `infocyph/talkingbytes` | `^2.3` | 2.3.1 | 2.3.1 | `^2.3.1` |
-| `web-auth/webauthn-lib` | `^5.3.9` | 5.3.12 | 5.3.12 | `^5.3.12` |
+| `infocyph/dblayer` | `^6.1.4` | 6.1.4 | 6.1.4 | Implemented; retain current floor |
+| `infocyph/epicrypt` | `^3.3` | 3.3 | 3.3 | Implemented; retain current floor |
+| `infocyph/omnibus` | `^3.0.3` | 3.0.3 | 3.0.3 | Implemented; retain current floor |
+| `infocyph/otp` | `^7.0.1` | 7.0.1 | 7.0.1 | Implemented; retain current floor |
+| `infocyph/pathwise` | `^4.2.1` | 4.2.1 | 4.2.1 | Implemented; retain current floor |
+| `infocyph/reqshield` | `^3.3.1` | 3.3.1 | 3.3.1 | Implemented; retain current floor |
+| `infocyph/talkingbytes` | `^2.3.1` | 2.3.1 | 2.3.1 | Implemented; retain current floor |
+| `web-auth/webauthn-lib` | `^5.3.12` | 5.3.12 | 5.3.12 | Implemented; retain current floor |
 | **Development tooling** | | | | |
-| `opis/closure` | `^4.5` | 4.5.0 | 4.5.0 | retain `^4.5` |
-| `infocyph/phpforge` | `dev-main@dev` | `7214b16` | Composer reports `7214b16` | refresh `dev-main@dev`; record exact resolved SHA |
+| `opis/closure` | `^4.5` | 4.5.0 | 4.5.0 | Implemented; retain current floor |
+| `infocyph/phpforge` | `dev-main@dev` | dev-main a6232b6 | dev-main a6232b6 | Implemented; retain current floor |
 
 Keep PHP `^8.4`, Composer runtime API `^2.0` and development `ext-sodium` unless actual platform evidence requires a change. Runwire requires 64-bit PHP. Extension availability controls supported selected features; it must not impose a managed-server requirement on ordinary PHP hosting.
 
 Inspect transitive updates with a complete `composer update --with-all-dependencies`, audit and platform check. Preserve existing PHP/deprecation compatibility conflicts unless verified evidence permits their removal. Epicrypt 3.3 requires phpseclib 4.0.3 and PSR HTTP Factory 1.1; Pathwise requires the existing Flysystem Local/MIME compatibility floors. Update selected optional adapter/SDK dependencies to their latest compatible published releases when exercising those features; do not install every suggested Flysystem, cloud, broker or gRPC package by default.
 
 ## Required work packages
+
+Checkboxes below record current implementation completion. Original finding descriptions and reproductions are preserved for traceability; they are not additional open defects. Final release verification and explicitly blocked upstream dependencies are identified separately above.
 
 ### P0. Full-library audit and confirmed remediation
 
@@ -1249,11 +1273,11 @@ Evidence: `RoutePresetRegistrar::stack()` selects configured/built-in names and 
 
 Original audit evidence: `AuthActions::context()` returned a nonempty nested context verbatim; `AuthEventRecorder` recorded metadata verbatim, and `DBLayerAuditEventStore` JSON-encoded it without redaction. The existing JSON logger's redaction did not cover this independent audit store. Batch 118 fixes the subsequently reported uppercase password/API-key cases. Current consolidated findings **R01/R02** show remaining compound OTP/PIN/PKCE classification and audit-identity provenance gaps.
 
-Original reproduction: lowercase `context.password` retained a sentinel; the first independent review also reproduced uppercase password/API-key retention. Both are now covered. **Current reproduction:** nested `MFA_OTP`/`ACCOUNT_PIN` retain sentinel values through the public recorder and DBLayer/SQLite while lowercase controls redact; a 388-key credential matrix exposes additional compound spellings. Denied authorization/delegation and failed login still promote caller context IDs into canonical audit fields. See R01/R02 for complete inputs, outcomes and required regressions.
+Original reproduction: lowercase `context.password` retained a sentinel; the first independent review also reproduced uppercase password/API-key retention. Both are now covered. **Batch 119 reproduction (now repaired):** nested `MFA_OTP`/`ACCOUNT_PIN` retained sentinel values through the public recorder and DBLayer/SQLite; the original 388-key matrix and denied-authorization/delegation/failed-login provenance cases now pass. **Residual at `bc05ac4c` (now repaired locally):** `PIN_INPUT`/`PIN_DATA` and further compound PIN spellings persisted despite lowercase controls redacting. See R01/R02 for complete inputs, outcomes and required regressions.
 
-- [x] Complete credential classification at `AuthEventRecorder::record()` for supported password/passphrase, token, API/private-key, OTP/PIN, PKCE code-verifier, seed/recovery and compound credential spellings, casing and separators. `AuthEventRecorder` now folds the input key before sensitive matching but preserves specifically approved token/credential/authorization identifier exceptions. The original R01 uppercase/mixed-case reproductions and new 24-family matrix remain in the regression suite. [Batch 133 `5ee7b5ae`: Security & Standards [42368558762](https://github.com/infocyph/Foundation/actions/runs/42368558762) and native HTTP hosts [42368558572](https://github.com/infocyph/Foundation/actions/runs/42368558572), both exact-head success].
+- [x] Complete credential classification across supported compound credential names and casing while preserving approved identifiers. **Implemented and locally verified:** folded PIN-family matching no longer limits protection to a suffix list; independent public/SQLite PIN probes and the 388-key matrix pass. **Implementation complete; release verification open:** final exact-revision hosted QA/consumer/host qualification for the repaired source.
 - [x] Keep trusted actor/session/device/correlation identities separate from descriptive metadata throughout the audited sinks. `AuditingAuthorizer`, `DelegationManager` and failed-login `Authenticator` no longer promote arbitrary context values into canonical audit columns; successful login and other trusted record owners retain explicit authenticated identities. Denial/delegation/login and positive trusted-column cases are verified in native SQLite/DBLayer and domain regressions. [Batch 133 `5ee7b5ae`: Security & Standards [42368558762](https://github.com/infocyph/Foundation/actions/runs/42368558762) and native HTTP hosts [42368558572](https://github.com/infocyph/Foundation/actions/runs/42368558572), both exact-head success].
-- [x] Extend and pass in-memory plus native DBLayer/SQLite audit regressions across login/reset/MFA/passkey, the shared 24-family sensitive-key matrix, nested aliases and explicit safe identifiers. Persist the matrix as bounded rows respecting DBLayer's 1024-byte parameter policy, assert `[REDACTED]` and no original secret sentinels in any serialized JSON, and verify canonical identity columns reject forged context IDs while retaining trusted explicit IDs. [Batch 133 `5ee7b5ae`: Security & Standards [42368558762](https://github.com/infocyph/Foundation/actions/runs/42368558762) and native HTTP hosts [42368558572](https://github.com/infocyph/Foundation/actions/runs/42368558572), both exact-head success].
+- [x] Qualify the shared in-memory and DBLayer/SQLite credential matrix across login/reset/MFA/passkey, safe identifiers and compound key casing. **Implemented and locally verified:** the 297-key fixture includes five PIN prefixes, six suffixes and six casing/separator forms; original sentinel values do not persist. The expanded audit and real-route feature files pass 22 tests/5,353 assertions. **Implementation complete; release verification open:** final exact-revision hosted qualification.
 
 #### A05. Supervise process stdin without blocking deadlines
 
@@ -1276,8 +1300,8 @@ Reproduction: run a local PHP child that waits 600 ms before reading stdin; prov
 
 The consolidated review records two independent P1 reproductions. Missing `auth_time` is replaced with the current clock in interaction evaluation and code issuance (R03); a consent POST issues a code for an accurately stale principal even though GET returns `login_required` (R04).
 
-- [x] Resolve R03 with native `SessionPrincipalResolver` projecting stored `AuthSession::recentAuthAt` and rotation preserving that authentication time. `OAuthManager` treats missing/invalid/future authentication evidence as unverified; native Epicrypt OIDC interaction and code issuance refuse fabricated freshness. Tests cover missing/future/stale/fresh, `max_age=0` and positive ages, session rotation, direct issuance and ID-token `auth_time` integrity. [Batch 133 `5ee7b5ae`: Security & Standards [42368558762](https://github.com/infocyph/Foundation/actions/runs/42368558762) and native HTTP hosts [42368558572](https://github.com/infocyph/Foundation/actions/runs/42368558572), both exact-head success].
-- [x] Resolve R04 by checking native Epicrypt OIDC interaction requirements before consent mutation or authorization-code issuance, independently on GET and POST. The real Webrick route dispatcher now invokes the native `OAuthAuthorizationController` and `CsrfMiddleware` with valid/invalid browser CSRF: stale/missing login evidence, prompt=login/select_account/none, unsatisfied ACR and max-age-zero cases deny without consent/code; fresh valid consent issues a code. Foundation's production OAuth route mapping and middleware order are separately verified in `OAuth21FoundationHttpIntegrationTest`. [Batch 133 `5ee7b5ae`: Security & Standards [42368558762](https://github.com/infocyph/Foundation/actions/runs/42368558762) and native HTTP hosts [42368558572](https://github.com/infocyph/Foundation/actions/runs/42368558572), both exact-head success].
+- [x] Resolve R03 with native `SessionPrincipalResolver` projecting stored `AuthSession::recentAuthAt` and rotation preserving that authentication time. `OAuthManager` treats missing/invalid/future authentication evidence as unverified; native Epicrypt OIDC interaction and code issuance refuse fabricated freshness. Tests cover missing/future/stale/fresh authentication evidence, session rotation, direct issuance and ID-token `auth_time` integrity. Timestamp provenance itself is accepted. The distinct same-second/prior-consent zero-age interaction repair is locally verified under R04 and awaits final hosted qualification. [Batch 133 `5ee7b5ae`: Security & Standards [42368558762](https://github.com/infocyph/Foundation/actions/runs/42368558762) and native HTTP hosts [42368558572](https://github.com/infocyph/Foundation/actions/runs/42368558572), both exact-head success].
+- [x] Qualify zero-age OIDC forced reauthentication with same-second authoritative timestamps and prior consent on native interaction, GET, valid-CSRF POST and direct issuance. **Implemented and locally verified:** reusable timestamps are not accepted as evidence for the current interaction; Epicrypt owns the native requirement/error decision, and direct issuance rejects zero-age reuse. Regressions verify no code-state writes, preserved prior consent and successful ordinary positive-age approval. No vendor or dependency/API-version fallback changes. **Implementation complete; release verification open:** final exact-revision hosted qualification.
 
 #### A09. Supervise lazy download I/O with the original borrowed context
 
@@ -1301,10 +1325,10 @@ R07: command coordinator lock release can replace a primary `LogicException` wit
 
 | ID | Observation | Proposed follow-up |
 | --- | --- | --- |
-| I01 | `PasswordlessManager::verify()` accepts the same issued token twice; both simple and Epicrypt adapters perform timed-token verification without a manager-owned consumption record. | Define the public redemption policy. If these are one-time login links, add atomic single-use redemption with explicit expiry/replay tests. Treat this as security hardening pending that policy, not a claimed violation of an already documented one-time contract. |
-| I02 | PHPProbe reports 131 clone groups / 4,952 duplicated lines (6.64%); the configured 10% error budget passes. Some validation/key-resolution logic is repeated across native adapters. | Review actual semantic clones and centralize cohesive duplicate logic when touched, preserving distinct native owners/contracts. Do not infer that all token-similar groups should be merged or alter the detector budget. |
+| I01 / M01 | **Implemented:** one-time passwordless redemption for both token drivers, using the existing atomic TTL authority and hashed issuance markers. | Replay/expiry/missing-state/failure/process-contention regressions and public constructor/migration documentation are complete. Release verification is tracked separately. |
+| I02 / M04 | **Review complete:** the original 131-group count is historical; current unchanged duplicate gate passes. Actual signing-key, validation and timed-token owners were inspected. | Retain bounded representation/purpose-specific duplication and the existing shared timed-token mechanics. No indiscriminate owner merge, budget change or suppression is justified; this is a maintenance disposition, not a claim of zero duplication. |
 
-#### Audit validation record and remaining gates
+#### Historical original-audit validation record and remaining gates
 
 | Check | Current baseline result |
 | --- | --- |
@@ -1514,7 +1538,7 @@ The work is complete when P0's confirmed blockers are resolved, every supported 
 
 Published version lookup uses [Composer's package metadata](https://repo.packagist.org/packages.json) and per-package `https://repo.packagist.org/p2/<vendor>/<package>.json` endpoints. Runwire migration sources are the published [3.0 migration guide](https://github.com/infocyph/Runwire/blob/054737bc6a8d4025a8d05fabb8ad390f66ee47ae/docs/migration-3.0.rst) and [compatibility audit](https://github.com/infocyph/Runwire/blob/054737bc6a8d4025a8d05fabb8ad390f66ee47ae/docs/compatibility-audit-3.0.rst). Epicrypt changes are documented in its [3.3 release notes](https://github.com/infocyph/Epicrypt/blob/65cf0e619d22ece5a2e52cfaa3988120cf170ff6/docs/release-notes-3.3.0.rst).
 
-The following source refs identify the inspected package snapshots. Except for Runwire 3, they are already present in the local lock. The stable Infocyph package refs also match the corresponding local sibling release tags; Runwire 3's ref was queried directly from published metadata and matches its local tag. PHPForge is a development revision. Reconfirm all refs against refreshed published metadata at implementation time.
+The following source refs preserve the original planning snapshots. At that audit Runwire 3 was the direct update still to apply; it is now installed under the implemented matrix above. The stable Infocyph package refs matched the corresponding sibling release tags and published metadata; PHPForge is a development revision. Final frozen dependency identity must still be captured during release verification.
 
 | Package release | Source reference |
 | --- | --- |

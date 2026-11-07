@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Infocyph\Epicrypt\Auth\Oidc\OpenIdInteractionPolicy;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptClockAdapter;
 use Infocyph\Foundation\Auth\OAuth\Contract\JwkSetProviderInterface;
+use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthAuthorizationController;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpHandler;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpInput;
@@ -94,6 +95,11 @@ it('rechecks OIDC interaction on a valid-CSRF approval POST before issuing a cod
             [$controller, 'authorization'],
             ['name' => 'test.oidc.approval', 'middleware' => [$csrf]],
         );
+        $web->make(Registrar::class)->get(
+            '/oauth/authorize',
+            [$controller, 'authorization'],
+            ['name' => 'test.oidc.authorization', 'middleware' => [$csrf]],
+        );
 
         $client = $fixture->clients->register(
             OAuthClientType::Public,
@@ -144,6 +150,26 @@ it('rechecks OIDC interaction on a valid-CSRF approval POST before issuing a cod
                 ->and($response->getHeaderLine('Location'))->toContain('error=')
                 ->not->toContain('code=');
             expect($fixture->consents->hasConsent($principal, $fixture->requests->validate($params)))->toBeFalse();
+        }
+
+        $sameSecond = new Principal('account-1', accountId: 'account-1', metadata: ['auth_time' => $now]);
+        foreach (['none', 'consent'] as $prompt) {
+            $zeroParams = $base + ['prompt' => $prompt, 'max_age' => '0'];
+            $zeroRequest = $fixture->requests->validate($zeroParams);
+            $consent = $fixture->consents->grant($sameSecond, $zeroRequest);
+
+            $rejected = $submit($zeroParams, $sameSecond);
+            expect($rejected->getHeaderLine('Location'))->toContain('error=login_required')->not->toContain('code=');
+            $uri = 'https://issuer.example.test/oauth/authorize?' . http_build_query($zeroParams, '', '&', PHP_QUERY_RFC3986);
+            $get = $web->handle(Request::fake(
+                query: $zeroParams,
+                headers: ['Host' => 'issuer.example.test'],
+                uri: $uri,
+            )->withAttribute(BrowserSession::REQUEST_ATTRIBUTE, $browser));
+            expect($get->getHeaderLine('Location'))->toContain('error=login_required')->not->toContain('code=')
+                ->and($fixture->consents->grant($sameSecond, $zeroRequest))->toEqual($consent);
+            expect(fn() => $fixture->codes->issue($zeroRequest, $sameSecond))->toThrow(OAuthProtocolException::class);
+            expect($fixture->factory->connection()->table($fixture->tables->oauthAuthorizationCodeStates())->count())->toBe(0);
         }
 
         $successParams = $base + ['prompt' => 'consent', 'max_age' => '60'];

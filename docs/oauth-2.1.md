@@ -420,6 +420,19 @@ validation. Foundation currently exposes the `public` subject type only.
 Applications still own their login/account-selection UX; enabling OIDC does not
 create a generic social-login/provider abstraction.
 
+`max_age=0` requires authentication for the current authorization interaction.
+The built-in consent controller cannot satisfy that requirement with a reusable
+session timestamp, even when it equals the current clock second or consent was
+previously granted. Foundation supplies unauthenticated interaction evidence to
+Epicrypt so its native policy requires reauthentication (or `login_required` for
+a silent request). The controller returns `login_required` when it cannot
+perform that interaction. The direct code-issuance API accepts reusable
+principal metadata rather than interaction-specific authentication proof, so it
+also rejects zero-age requests. Applications own the interactive authentication
+flow; the built-in consent controller does not perform it. Positive maximum
+ages continue to use the stored authentication timestamp, which session rotation
+preserves.
+
 DPoP is supported on the OAuth token/resource path through Epicrypt. A valid
 token-endpoint proof binds the resulting access token to the proof key; resource
 validation checks the method/URI/access-token hash, key binding and authoritative

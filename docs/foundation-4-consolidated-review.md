@@ -1,16 +1,78 @@
 # Foundation 4 consolidated review
 
-Date: 2026-11-07 (Asia/Dhaka). Reviewed source: `57d309a6dfc3e02078331a1118d563ed46f7c1d9` (Batch 119).
+Date: 2026-11-07 (Asia/Dhaka). Current uncommitted repairs are based on `bc05ac4ce535d898acb5a77a85556bfa18977511` (Batch 134). Original review source: `57d309a6dfc3e02078331a1118d563ed46f7c1d9` (Batch 119).
 
-This is the current combined review of the original upgrade audit, the first independent A04 review, and the implementation through Batch 119. It replaces their historical status statements as the current findings list; their evidence remains in the [upgrade plan](foundation-4-library-upgrade-plan.md). No runtime code or dependency constraints were changed during this review.
+This combines the upgrade audit, independent reviews and implementation checks. The implementation record below owns current working-tree status; earlier rechecks and qualification statements are historical evidence. The [upgrade plan](foundation-4-library-upgrade-plan.md) owns formal acceptance.
 
-## Post-remediation qualification — 2026-11-07, Batch 134
+## Current maintenance and tracker synchronization
+
+The Foundation source findings R01–R07 are repaired locally. The additional passwordless hardening M01/I01 is now implemented, and the duplication review M04/I02 is complete. The canonical plan records **93/95 implementation items complete, P0 25/25**; only its two P6 certifications are unchecked. This count records completed implementation, not final hosted certification. Release verification is intentionally excluded from the current maintenance task, including provisioning and qualifying the missing service matrix, final archive/consumer qualification and sustained hosts.
+
+- **Passwordless:** both simple-purpose and Epicrypt signed-payload drivers use expiring hashed issuance markers and native atomic TTL consumption. Issuance persists before notification, cryptographic rejection cannot consume valid state, missing/consumed state cannot authorize a login, and storage failures propagate. Public manager/HTTP action composition and four independent SQLite-backed processes prove one winning redemption. Native-clock expiry, token isolation and unregistered-token rejection are repository regressions. Shared state and constructor changes, reissuing old links and cache-loss behavior are documented.
+- **Duplication:** current configured PHPForge gate passes without budget changes. Source-only review snapshot before final canonical-key reuse: 115 groups / 3,600 duplicated lines / 4.9% across 669 files. Review of the key-ring/file-reader and validator groups found distinct algorithm defaults, key purposes, diagnostics, audit and domain-validation owners; the existing abstract timed-token services already share representation-specific mechanics. M04 closes as an explicit bounded-duplication decision, not as a blanket removal or an unresolved defect.
+- **Dependencies:** live Composer dry-run reports nothing to modify; no advisory records. M02/M03 remain upstream-blocked development-only maintenance, with exact constraints and owner links in the [dependency disposition](foundation-4-dependency-qualification.md#current-maintenance-disposition). They are not silently marked fixed, latest or waived.
+- **Git and verification:** this working tree includes the previous R01/R04 repairs and new passwordless changes; no commit, push, merge, tag or publication. Previous archive/consumer and hosted evidence below predates the passwordless change and does not certify this final tree. Local maintenance validation is recorded below; it does not substitute for release verification.
+
+### Local maintenance validation
+
+| Check | Final result |
+| --- | --- |
+| Focused authentication, architecture, PIN audit, OIDC route and generated-secret regressions | **44 passed / 5,575 assertions**, including eight passwordless cases for the two token drivers. Each four-process redemption race has one winner. |
+| Required PHPForge process flow | Exit 0; no rule, budget, skip or suppression changes. |
+| Final `composer ic:tests` | Exit 2: **990 passed, 25 failed / 36,937 assertions**. The 25 failed test identities exactly match the previous unavailable MySQL/PostgreSQL, Redis/Valkey/Memcached and shared-lock prerequisites. No new functional failure remains. |
+| Static, architecture and quality gates | Skip scanner, Composer normalization, syntax, references, duplicate/comment policy, Pint, PHPCS, Deptrac, PHPStan, Psalm and Rector all pass. Four newly propagated exception annotations were corrected before this final run. |
+| Composer and documentation | `composer validate --strict` passes; live dry-run changes no packages; no advisory records; abandoned dependency remains reported. Local documentation targets/anchors and `git diff --check` pass. |
+| Release verification | Excluded by the maintainer: no new hosted CI, final ZIP/consumer qualification, missing-service provisioning or P6 certification. Older results remain historical. |
+
+Evidence: `/tmp/foundation-maintenance/` plus `/tmp/foundation-maintenance-outdated.json` and `/tmp/foundation-maintenance-audit.json`. Earlier review sections preserve historical reproductions and counts; use this section and the canonical plan for current dispositions.
+
+## Residual fixes and local verification
+
+At the earlier R01/R04 repair checkpoint, both residual defects were repaired in the working tree based on `bc05ac4c`; the failing inputs became repository regressions. The checks in this section predate the passwordless maintenance change above. No vendor, dependency constraint or lockfile-policy changes were needed.
+
+- **R01:** Folded PIN-family matching no longer uses a suffix exception list. It follows the same conservative credential-family policy as OTP and the longer secret terms, while retaining the explicit safe identifier exceptions. The shared in-memory/SQLite fixture now covers **297 sensitive keys**, including five PIN prefixes, six suffixes and lower/upper/kebab/CamelCase/PascalCase/arbitrary-case variants. Independent `PIN_INPUT`/`PIN_DATA`/`PIN_ENTRY`/`ACCOUNT_PIN_CONFIRMATION`/mixed-case probes retain no sentinels; the SQLite probe reports `persisted_sentinel=false`. The original independent 388-key matrix also passes.
+- **R04:** Foundation's authentication-evidence policy refuses reusable session timestamps for `max_age=0`, even within the current clock second. Epicrypt receives unauthenticated interaction evidence and retains ownership of the native reauthentication/error decision. The direct issuance guard rejects the same zero-age reuse. GET, valid-CSRF POST, silent/interactive consent, existing consent, same-second timestamps, no code-state writes and unchanged prior consent are covered; ordinary positive-age consent still succeeds. The built-in controller and direct issuance API do not accept interaction-specific reauthentication proof, so they fail closed for zero-age requests instead of fabricating it. Host applications own their interactive authentication flow. Standalone Epicrypt's elapsed-age comparison is unchanged; this repairs the Foundation boundary with its current supported API, not an old-version fallback or a patched vendor copy.
+
+The expanded tests failed before the runtime changes (three failing test cases) and pass afterward: **22 tests / 5,353 assertions** across the two audit feature files and the real Webrick OIDC consent-route file. The independent OIDC probe now returns `login_required`, no GET/POST authorization codes, and blocked direct issuance for the same-second/prior-consent case.
+
+| Check at the earlier R01/R04 checkpoint | Result |
+| --- | --- |
+| PHPForge process flow | Pass with the loopback access required by Rector. Initial sandbox-only loopback refusal was retried; no tool configuration was relaxed. |
+| `composer ic:tests:details` and final `composer ic:tests` | Each exits 2 solely for the same **25 unavailable service prerequisites**; **982 tests pass, 36,863 assertions**. Required MySQL/PostgreSQL, Redis/Valkey/Memcached and shared-lock settings/backends are unavailable here. |
+| Quality gates | Skip scanner, Composer normalization, syntax, references, duplicate/comment policy, Pint, PHPCS, Deptrac, PHPStan, Psalm and Rector all pass. `composer validate --strict` passes. |
+| Actual ZIP | 716 files; all 710 tracked runtime/resource/CLI files present and byte-identical to that repair checkpoint; zero untracked or excluded development/generated/environment payloads. SHA-256 `aa6f76ec0898580c563aabd3c6af6b3b0d5c586ac658e90ea9243f0ad8c694b0`. |
+| ZIP-installed production consumers | Core: 12 packages; full optional: 57 packages; zero development packages/tooling. Platform checks, CLI lists, core/12 selected-feature matrices and the full compiled web/CLI/worker/scheduler example pass. The packed PIN probe also retains no credential values. |
+
+**Historical qualification at this checkpoint:** source changes were uncommitted and had no new exact-revision hosted CI result. Formal acceptance was held at **90/95** pending hosted qualification. The synchronized tracker above now distinguishes completed implementation from still-open release verification; neither P6 certification is accepted. There is no currently reproduced residual R01/R04 source failure in the checks above. No merge, tag, publication or threshold waiver was performed.
+
+Working evidence is under `/tmp/foundation-fix-residuals/`: before/after regression logs, process logs, detailed/final QA logs, the independently verified OIDC probe, inspected ZIP and isolated consumers. The native-library and no-context execution contracts remain unchanged outside the repaired authentication policy and credential classification.
+
+## Historical independent recheck of Batch 134 — two residual findings
+
+**Disposition at that recheck: 90/95 accepted.** R01 and R04 required further repair; R02, R03, R05, R06 and R07 were independently confirmed repaired. Both P6 certifications remained open. The A04 credential-classification/regression and A08 approval-interaction criteria were reopened. Their subsequent implementation and local verification are recorded above.
+
+All nine focused feature files pass locally: **55 tests, 2,751 assertions**. The original independent **388-key credential matrix now passes completely**. Original probes now show no forged canonical audit IDs, zero streamed bytes after host cancellation, mode `0600` at the first environment-secret write, and the original command exception propagated despite release failure. The timestamp-provenance/session-rotation and valid-CSRF route regressions also pass. These repairs are retained.
+
+| Residual finding | Independent current reproduction | Required correction |
+| --- | --- | --- |
+| **R01 / P2: compound PIN casing still bypasses redaction** | Lowercase `pin_input`, `pin_data`, `pin_entry` and `account_pin_confirmation` redact. `PIN_INPUT`, `PIN_DATA`, `PIN_ENTRY`, `ACCOUNT_PIN_CONFIRMATION` and `mFaPiNInPuT` retain supplied sentinel values. The actual DBLayer/SQLite path persists the uppercase sentinels. `AuthEventRecorder` still mangles uppercase segmented keys, and its folded PIN branch recognizes only a finite suffix list. | Preserve case-insensitive treatment of PIN words inside supported compound keys, rather than adding more suffix exceptions. Extend both in-memory and persisted matrices across the same key's lower/upper/CamelCase/arbitrary-case forms and multiple prefix/suffix combinations, retaining safe identifier/noncredential controls. The fixed original matrix is necessary evidence but not complete policy coverage. |
+| **R04 / P1: zero-age OIDC request silently reuses same-second authentication** | Give a principal authoritative `auth_time` equal to the fixture clock, and grant prior consent. With `prompt=none&max_age=0`, native interaction returns `READY`; GET and POST issue codes. The existing real-Webrick/valid-CSRF test also fails when this case is added with prior consent: its callback contains `code=`, not an error. The committed zero-age case uses a timestamp 30 seconds old and no prior consent, so it misses the boundary. | Handle zero age as forced reauthentication, including the prior-consent and equal-clock-second case. Qualify native interaction, real GET/valid-CSRF POST, consent nonmutation and applicable direct issuance. The installed Epicrypt `OpenIdInteractionPolicy` uses elapsed age `> maximumAuthenticationAge` with no zero special case; correct the native owner and integrate its supported fix/version without editing vendor or adding an older-library fallback. Foundation's issuance guard also needs consistent zero-age policy/proof handling. |
+
+For R04, [OpenID Connect Core §3.1.2.1](https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest) explicitly makes `max_age=0` equivalent to `prompt=login`. This reproduction concerns reuse of pre-existing authentication/consent; it does not dispute R03's repaired timestamp provenance or claim an unauthenticated code exchange.
+
+Exact reviewed-source hosted workflows are green: [Security & Standards 42369045695](https://github.com/infocyph/Foundation/actions/runs/42369045695) and [native hosts 42369045437](https://github.com/infocyph/Foundation/actions/runs/42369045437). Their inspected jobs include all four stable/lowest PHP 8.4/8.5 QA and production-consumer lanes, both strict analyses, native services, retained-state cutover and supported host smoke. Paired prepare/run/compare jobs are skipped, so P6 remains unqualified. The new failing probes were run independently after those successful workflows; green CI does not cover them yet.
+
+Current working evidence: `/tmp/foundation-check-bc05ac4c/regressions.log`, `pin-field-probe.php`, `persisted-pin-field-probe.php`, `oidc-zero-age-probe.php`, `OidcZeroAgeBoundaryTest.php` and `zero-age-route.log`. The PIN probe returns only retained key names/booleans; the OIDC probe reports decisions and code-presence booleans. Only documentation is changed by this recheck; no source fix, merge, tag or publication is performed.
+
+## Historical post-remediation qualification — Batch 134, superseded by independent recheck
 
 The table and adversarial reproductions below are the **historical Batch 119 review snapshot**, not current unresolved product behavior. All seven confirmed defects R01–R07 and their nine formally tracked security/runtime acceptance requirements have been remediated and verified in the actual source with full official QA on Batches 131a–133. R04 is exercised through the real Webrick route dispatcher, native OIDC controller and CSRF middleware (with the production route mapping validated separately); R05 is exercised through real lazy stream iteration, cancellation/Fiber/abandoned ownership and a mid-stream filesystem read error. A04 includes persisted DBLayer credential/identity evidence, and R06/R07 retain their permission-at-first-write and cleanup-failure tests.
 
-**Current disposition: 93/95 accepted, two P6 sustained-host performance criteria still open.** Final host/quality evidence: [Batch 133 Security & Standards](https://github.com/infocyph/Foundation/actions/runs/42368558762) and [native host smoke](https://github.com/infocyph/Foundation/actions/runs/42368558572). The required two P6 paired-host primary/confirmation matrices were **not executed** by these standard runs. `composer.lock` remains gitignored; PR #20 remains draft and unmerged.
+**Batch 134 disposition before independent recheck: 93/95 accepted, two P6 sustained-host performance criteria still open.** Host/quality evidence: [Batch 133 Security & Standards](https://github.com/infocyph/Foundation/actions/runs/42368558762) and [native host smoke](https://github.com/infocyph/Foundation/actions/runs/42368558572). The required two P6 paired-host primary/confirmation matrices were **not executed** by these standard runs. `composer.lock` remains gitignored; PR #20 remains draft and unmerged.
 
-**Disposition: seven confirmed source findings remain open, plus the two existing P6 certifications.** The original `PASSWORD`/`API_KEY` reproduction is fixed, but A04 is only partially remediated. The revised plan has **84/95 criteria accepted**: three reopened A04 criteria, the reopened P3 Pathwise streaming criterion, five new remediation criteria, and the two P6 criteria are open. The extra regression/streaming criteria do not represent additional independently counted defects. Prior 88/90 and 86/90 counts are historical checkpoints.
+## Historical Batch 119 review snapshot
+
+**At Batch 119, seven confirmed source findings remained open, plus the two existing P6 certifications.** The original `PASSWORD`/`API_KEY` reproduction was fixed, but A04 was only partially remediated. The revised plan had **84/95 criteria accepted**: three reopened A04 criteria, the reopened P3 Pathwise streaming criterion, five new remediation criteria, and the two P6 criteria were open. The extra regression/streaming criteria did not represent additional independently counted defects. Earlier 88/90 and 86/90 counts are historical checkpoints.
 
 ## Review coverage
 
@@ -27,6 +89,8 @@ The current inventory contains 669 source PHP files across 31 top-level source a
 | Build and deployment | Config and executable-artifact trust, module Composer/config lifecycle, generated web/CLI/worker/scheduler releases, retained-state evidence, archive contents, isolated production consumers, workflow gates and documentation claims. |
 
 ## Confirmed findings
+
+Historical reproductions from the original audit follow. R01–R07 are repaired; see the current status above rather than treating these preserved examples as open defects.
 
 P1 means a security boundary needs correction before release. P2 findings are required security/correctness repairs under the stated conditions. These are repository findings, not assigned CVEs.
 
@@ -121,13 +185,13 @@ The supervised path unconditionally releases its lock in `finally`; failed-histo
 | A01: notification recipient and HTTP token disclosure | Existing repairs and regressions retained. The current full suite includes recipient/purpose, issuance-response and stored-address race coverage; no new reproduction found during this review. Application routes still own authentication, account ownership and rate limits. |
 | A02: executable artifact verification/use mismatch | Captured-byte/private-copy evaluation retained in current trusted owners. Current artifact tamper/replacement and source-free release tests pass. |
 | A03: unknown route preset drops middleware | Unknown/malformed presets fail closed; explicit empty custom groups remain intentional. Current development/compiled-route tests pass. |
-| A04: audit security | **Partially fixed; reopen all three criteria.** Original uppercase password/API-key cases pass, but R01 and R02 remain. |
-| A05: process stdin supervision | Nonblocking bounded stdin/output pump and deadline/cancellation coverage retained; current process tests pass. R07 concerns a different owner, the command coordinator. |
-| A06: native cancellation/admission expectations | Published native-owner exception/admission contracts retained; current Runwire integration tests pass. R05 is the uncovered lazy download path. |
+| A04: audit security | R01/R02 repairs and the compound/casing persisted regressions are complete locally; final release qualification remains separate. |
+| A05: process stdin supervision | Nonblocking bounded stdin/output pump and deadline/cancellation coverage retained; current process tests pass. R07 repaired the separate command-coordinator cleanup owner. |
+| A06: native cancellation/admission expectations | Published native-owner exception/admission contracts retained; current Runwire integration tests pass. R05 subsequently repaired lazy download ownership/cancellation. |
 | A07: ineffective architecture classification | Project Deptrac topology and forbidden-edge regressions retained; current architecture gate passes. |
-| Runwire 3 / latest specialist integration | Current direct package versions are not outdated; ordinary PHP and supplied-context integration coverage exists. R05 remains a concrete integration gap. |
+| Runwire 3 / latest specialist integration | Current direct package versions are not outdated; ordinary PHP and supplied-context integration coverage exists. R05 integration repair is retained and locally covered. |
 | Historical Foundation 3 lock provenance | Maintainer-approved policy exception retained: lock remains gitignored; reconstructed historical locks are not originals. No new lock policy change. |
-| P4 retained-state recovery | Exact-current-head hosted cross-major job passed for its documented selected SQLite/Redis profile; application-specific production restore remains operator-owned. |
+| P4 retained-state recovery | Previously qualified hosted cross-major job passed for its documented selected SQLite/Redis profile; application-specific production restore remains operator-owned. |
 
 ## Maintenance and policy decisions
 
@@ -135,14 +199,15 @@ These are tracked separately from the seven confirmed defects.
 
 | ID | Observation | Required disposition |
 | --- | --- | --- |
-| M01 / existing I01 | Passwordless verification still accepts the same issued token twice before expiry. Public-manager probe returns `first_verified=true`, `second_verified=true`. | Decide/document reusable timed-token versus one-time redemption semantics. If magic links are one-time, add atomic redemption and expiry/concurrency regressions. Retain the original policy distinction rather than inventing an already promised single-use contract. |
-| M02 | `doctrine/annotations` 2.0.2 is abandoned; PHPBench 1.7.0 requires it. Composer audit exits 1 for abandonment with **no advisory records**. | Track PHPForge/PHPBench upstream removal; do not edit vendor or add an unrelated runtime replacement. |
-| M03 | Two development transitives have newer published versions: PHPUnit 13.4.6 versus 13.4.5; JsonMapper 6.0.0 versus 5.0.1. | Pest 5.3.5 explicitly conflicts with PHPUnit `>13.4.5`; Psalm 7.0.5 and `danog/advanced-json-rpc` require JsonMapper `^5`. Resolve through their owning toolchain/upstream releases. No incompatible override or old-library compatibility fallback was added. Do not claim every transitive package is at its absolute newest version. |
-| M04 / existing I02 | Duplicate detector passes the unchanged configured budget. | Review cohesive semantic duplication when touched; do not merge unrelated native owners or relax detector budgets. The original 131-clone figure belongs to the original audit, not this run's summary. |
+| M01 / existing I01 | **Implemented:** passwordless links now require a manager-issued, expiring hashed marker and atomic one-time redemption for both native token representations. | Regression coverage includes replay, isolation, native expiry, unregistered state, storage failure, separate applications and four independent competing processes. Constructor, shared-state and reissue requirements are documented. Final release qualification is separate. |
+| M02 | **Upstream blocked:** latest PHPBench 1.7.0 still requires abandoned `doctrine/annotations` 2.0.2. Live audit has no advisory records and exits 1 for abandonment. | PHPForge/PHPBench own removal; no supported compatible Foundation update exists. Retain the visible development-only finding and exact dependency chain in the dependency record; no vendor edit or fake package replacement. |
+| M03 | **Upstream blocked:** live resolution cannot install latest PHPUnit 13.4.6 or JsonMapper 6.0.0 under the current upstream tool contracts. | Pest 5.3.5 conflicts with PHPUnit `>13.4.5`; Psalm 7.0.5 and RPC 3.2.3 require JsonMapper `^5`. Composer dry-run changes nothing. No incompatible override or claim that every transitive is absolutely latest. |
+| M04 / existing I02 | **Review complete:** configured duplicate detector passes unchanged; source-only review snapshot before final canonical-key reuse reports 115 groups / 3,600 lines / 4.9%. | Retain bounded native-purpose/representation-specific key/validation duplication and existing abstract timed-token sharing. Review identified no additional correctness defect requiring extraction; no budget or suppression change. |
 
-## Verification and release evidence
 
-| Check | Current result |
+## Historical original-review verification and release evidence
+
+| Check | Result at the original review |
 | --- | --- |
 | PHPForge doctor/config resolution | Healthy; intended bundled tools plus project Deptrac, PHP 8.4/8.5 CI matrix, current QA workflow pin. |
 | `composer validate --strict` | Pass. |
@@ -162,7 +227,9 @@ These are tracked separately from the seven confirmed defects.
 
 The existing P6 contract remains unchanged: separate shared-lock source and independent-lock dependency comparisons; primary/confirmation FPM/Runwire × one/four-worker × concurrency 1/10/50 batches; five >=120-second trials after warm-up; required soak/recovery; <=2% median successful-RPM regression and <=2.5% CV.
 
-## Consolidated completion order
+## Historical remediation order
+
+Source repairs and local maintenance dispositions are complete as recorded above. This preserved sequence is the original audit work order; release verification and the explicitly blocked upstream toolchain items remain separate.
 
 1. Repair R03/R04 together at the OIDC authentication-evidence and approval boundaries; add real HTTP and ID-token regressions.
 2. Repair R01/R02 together across every audit sink and supported credential family; retain trusted IDs and safe descriptive context.

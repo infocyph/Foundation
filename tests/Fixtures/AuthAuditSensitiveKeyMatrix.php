@@ -35,6 +35,21 @@ final class AuthAuditSensitiveKeyMatrix
             $keys[$key] = 'SENSITIVE-SENTINEL-' . count($keys);
         }
 
+        foreach (['', 'account_', 'mfa_', 'new_', 'current_'] as $prefix) {
+            foreach (['input', 'data', 'entry', 'confirmation', 'response', 'challenge'] as $suffix) {
+                $name = $prefix . 'pin_' . $suffix;
+                $camel = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $name))));
+                $mixed = '';
+                foreach (str_split(str_replace('_', '', $name)) as $index => $character) {
+                    $mixed .= $index % 2 === 0 ? strtolower($character) : strtoupper($character);
+                }
+
+                foreach ([$name, strtoupper($name), str_replace('_', '-', $name), $camel, ucfirst($camel), $mixed] as $key) {
+                    $keys[$key] = 'SENSITIVE-SENTINEL-' . count($keys);
+                }
+            }
+        }
+
         return $keys;
     }
 
