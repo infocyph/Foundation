@@ -10,7 +10,6 @@ use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
-use Infocyph\Foundation\Auth\Support\ContextValue;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
 /**
@@ -77,8 +76,6 @@ final readonly class DelegationManager
             $principalId,
             metadata: $metadata,
             severity: AuthEventSeverity::NOTICE,
-            sessionId: ContextValue::stringOrNull($metadata, 'session_id'),
-            deviceId: ContextValue::stringOrNull($metadata, 'device_id'),
         );
     }
 }

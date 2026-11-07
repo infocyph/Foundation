@@ -2,6 +2,13 @@
 
 Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review complete; seven source findings and P6 certification gates open**.
 
+## Foundation 4 Batch 121 — prevent provenance promotion at authorization, delegation and failed login audit sinks
+
+- **R02 review:** `AuditingAuthorizer::can()`, `DelegationManager::recordAudit()` and `Authenticator::failure()` explicitly assign free-form caller context `session_id`/`device_id` to canonical audit fields, contradicting the accepted security boundary. The two managers and failed-login branch lack evidence that these IDs come from an authoritative session/record.
+- **Repair:** Stop promoting those values. Preserve metadata through the existing recorder sanitizer and continue passing real trusted record/session identities explicitly in already-qualified successful login, token and device flows. Do not infer session ownership from an arbitrary principal metadata bag.
+- **Regression:** Exercise public actual authorizer deny, delegated grant/revoke and invalid login with forged session/device IDs and assert only descriptive metadata retains them; verify DBLayer/SQLite persisted canonical columns are null for these paths. Separately prove explicit trusted session/device IDs persist when intentionally supplied by a trusted caller. Keep the default negative behavior stable for all other flows.
+- **Acceptance:** Keep R02 and A04 audit checkbox unchecked until the completed official cross-major QA/native host response is green. Batch 120's R01 matrix and no-inflight-generation rule remain intact. Formal **84/95** pending evidence; no merge, tag or performance waiver.
+
 ## Foundation 4 Batch 120a — respect DBLayer parameter safety in credential-matrix persistence test
 
 - **Official exact-head finding:** [Security & Standards 42355500457](https://github.com/infocyph/Foundation/actions/runs/42355500457) Batch 120 added a complete synthetic audit credential matrix; the DBLayer/SQLite test sent its entire matrix as one `metadata` bound parameter of 3,512 bytes, violating the published DBLayer limit of **1,024 bytes**. PHPForge Pest failed in the new test on 8.4/8.5; PHPCS/Pint/static checks and the in-memory matrix passed. Do not change production DBLayer security limits to accommodate tests.

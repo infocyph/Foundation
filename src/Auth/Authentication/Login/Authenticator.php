@@ -133,7 +133,6 @@ final readonly class Authenticator implements AuthenticatorInterface
             $account?->id(),
             metadata: ['code' => $code] + $context,
             severity: AuthEventSeverity::WARNING,
-            deviceId: ContextValue::stringOrNull($context, 'device_id'),
         );
 
         return new LoginResult($status, code: $code, context: $context);

@@ -76,6 +76,106 @@ it('persists no sensitive matrix key across nested login reset MFA and passkey r
     }
 });
 
+it('does not persist caller session or device metadata as canonical authorization and delegation IDs', function (): void {
+    $database = sys_get_temp_dir() . '/foundation-audit-identity-' . bin2hex(random_bytes(8)) . '.sqlite';
+    $fixture = new AuthContentionFixture(['driver' => 'sqlite', 'database' => $database]);
+    $connection = $fixture->factory->connection();
+
+    try {
+        new MigrationRunner(
+            $connection,
+            [new AuthSchema($fixture->tables)],
+            table: 'foundation_audit_identity_migrations',
+        )->run();
+
+        $store = new DBLayerAuditEventStore(new RuntimeStateContainer([
+            DBLayerFactory::class => $fixture->factory,
+        ]), $fixture->tables);
+        $ids = new UidAuthIdGenerator(new ConfigRepository());
+        $clock = new SystemClock();
+
+        $inner = new class implements \Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface {
+            public function authorize(
+                \Infocyph\Foundation\Auth\Principal\PrincipalInterface $principal,
+                string $ability,
+                mixed $resource = null,
+                array $context = [],
+            ): void {
+                unset($principal, $ability, $resource, $context);
+                throw new LogicException('The tested path is can().');
+            }
+
+            public function can(
+                \Infocyph\Foundation\Auth\Principal\PrincipalInterface $principal,
+                string $ability,
+                mixed $resource = null,
+                array $context = [],
+            ): \Infocyph\Foundation\Auth\Authorization\Decision\AuthorizationDecision {
+                unset($principal, $ability, $resource, $context);
+                return \Infocyph\Foundation\Auth\Authorization\Decision\AuthorizationDecision::deny();
+            }
+        };
+        $principal = new \Infocyph\Foundation\Auth\Principal\Principal('account-1', accountId: 'account-1');
+        $authorizer = new \Infocyph\Foundation\Auth\Authorization\Gate\AuditingAuthorizer($inner, $store, $ids, $clock);
+        $untrusted = ['session_id' => 'forged-session', 'device_id' => 'forged-device'];
+        expect($authorizer->can($principal, 'read', context: $untrusted)->allowed)->toBeFalse();
+
+        $grants = new class implements \Infocyph\Foundation\Auth\Authorization\Grant\GrantStoreInterface {
+            public function grantsForPrincipal(string $principalId): array
+            {
+                unset($principalId);
+                return [];
+            }
+
+            public function revoke(string $grantId): void
+            {
+                unset($grantId);
+            }
+
+            public function save(\Infocyph\Foundation\Auth\Authorization\Grant\AccessGrant $grant): void
+            {
+                unset($grant);
+            }
+        };
+        $delegation = new \Infocyph\Foundation\Auth\Authorization\Grant\DelegationManager($grants, $store, $ids, $clock);
+        $grant = $delegation->grant('account-1', 'read', metadata: $untrusted);
+        expect($grant->grant)->not->toBeNull();
+        $delegation->revoke($grant->grant?->id ?? '', 'account-1', $untrusted);
+
+        $rows = $connection->select('SELECT type, session_id, device_id, metadata FROM ' . $fixture->tables->auditEvents());
+        expect($rows)->toHaveCount(3);
+        foreach ($rows as $row) {
+            expect($row['session_id'])->toBeNull()
+                ->and($row['device_id'])->toBeNull();
+            $metadata = json_decode((string) $row['metadata'], true, flags: JSON_THROW_ON_ERROR);
+            expect($metadata['session_id'])->toBe('forged-session')
+                ->and($metadata['device_id'])->toBe('forged-device');
+        }
+
+        AuthEventRecorder::record(
+            $store,
+            $ids,
+            $clock,
+            AuthEventType::SESSION_CREATED,
+            'account-1',
+            metadata: $untrusted,
+            sessionId: 'trusted-session',
+            deviceId: 'trusted-device',
+        );
+        $trusted = $connection->select('SELECT session_id, device_id FROM ' . $fixture->tables->auditEvents() . ' WHERE type = ?', [AuthEventType::SESSION_CREATED->value]);
+        expect($trusted)->toHaveCount(1)
+            ->and($trusted[0]['session_id'])->toBe('trusted-session')
+            ->and($trusted[0]['device_id'])->toBe('trusted-device');
+    } finally {
+        $connection->disconnect();
+        foreach ([$database, $database . '-wal', $database . '-shm'] as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+    }
+});
+
 it('redacts arbitrary uppercase and mixed-case secrets for all auth-purpose audit rows in DBLayer', function (): void {
     $database = sys_get_temp_dir() . '/foundation-audit-' . bin2hex(random_bytes(8)) . '.sqlite';
     $fixture = new AuthContentionFixture(['driver' => 'sqlite', 'database' => $database]);

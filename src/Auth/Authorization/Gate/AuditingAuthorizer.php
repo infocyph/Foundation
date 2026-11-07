@@ -13,7 +13,6 @@ use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Exception\AuthorizationException;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
-use Infocyph\Foundation\Auth\Support\ContextValue;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
 final readonly class AuditingAuthorizer implements AuthorizerInterface
@@ -56,8 +55,6 @@ final readonly class AuditingAuthorizer implements AuthorizerInterface
                 actorId: $principal->id(),
                 metadata: ['ability' => $ability, 'code' => $decision->code, 'reason' => $decision->reason] + $context,
                 severity: AuthEventSeverity::WARNING,
-                sessionId: ContextValue::stringOrNull($context, 'session_id'),
-                deviceId: ContextValue::stringOrNull($context, 'device_id'),
             );
         }
 

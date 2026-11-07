@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\Authentication\Session\AuthSession;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenRecord;
 use Infocyph\Foundation\Auth\AuthServices;
+use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\Authorization\Decision\AuthorizationDecision;
 use Infocyph\Foundation\Auth\Authorization\Gate\PermissionAuthorizer;
 use Infocyph\Foundation\Auth\Authorization\Grant\GrantResolver;
@@ -232,6 +233,55 @@ it('composes permissions roles grants gates and denial auditing', function (): v
     $audit = $app->make(AuditEventStoreInterface::class);
     expect($audit)->toBeInstanceOf(InMemoryAuditEventStore::class)
         ->and($audit->events())->not->toBeEmpty();
+});
+
+it('refuses forged audit identity in denied authorization delegation and unsuccessful login', function (): void {
+    $app = foundationAuthApplication();
+    $services = $app->make(AuthServices::class);
+    $account = $services->accounts()->create('provenance@example.test')->account;
+    expect($account)->not->toBeNull();
+    if (!$account instanceof Account) {
+        throw new LogicException('Expected a stored account.');
+    }
+
+    $principal = new Principal($account->id(), accountId: $account->id(), metadata: [
+        'session_id' => 'principal-supplied-session',
+        'device_id' => 'principal-supplied-device',
+    ]);
+    $context = ['session_id' => 'injected-session', 'device_id' => 'injected-device'];
+
+    expect($services->authorizer()->can($principal, 'invoice.not-allowed', context: $context)->allowed)->toBeFalse();
+    $grant = $services->delegation()->grant($principal->id(), 'invoice.read', metadata: $context);
+    expect($grant->grant)->not->toBeNull();
+    if ($grant->grant === null) {
+        throw new LogicException('Expected a stored delegation grant.');
+    }
+    $services->delegation()->revoke($grant->grant->id, $principal->id(), $context);
+    expect($app->make(AuthActions::class)->login([
+        'identifier' => 'missing-provenance@example.test',
+        'password' => 'invalid',
+        'context' => $context,
+    ])->failed())->toBeTrue();
+
+    $audit = $app->make(AuditEventStoreInterface::class);
+    expect($audit)->toBeInstanceOf(InMemoryAuditEventStore::class);
+    $types = [
+        AuthEventType::AUTHORIZATION_DENIED,
+        AuthEventType::DELEGATED_ACCESS_GRANTED,
+        AuthEventType::DELEGATED_ACCESS_REVOKED,
+        AuthEventType::LOGIN_FAILURE,
+    ];
+    $events = array_values(array_filter(
+        $audit->events(),
+        static fn($event): bool => in_array($event->type, $types, true),
+    ));
+    expect($events)->toHaveCount(4);
+    foreach ($events as $event) {
+        expect($event->sessionId)->toBeNull()
+            ->and($event->deviceId)->toBeNull()
+            ->and($event->metadata['session_id'])->toBe('injected-session')
+            ->and($event->metadata['device_id'])->toBe('injected-device');
+    }
 });
 
 it('composes MFA passkeys devices impersonation and step-up state', function (): void {
