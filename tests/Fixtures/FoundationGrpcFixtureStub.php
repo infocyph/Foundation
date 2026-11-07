@@ -9,13 +9,16 @@ use ReflectionMethod;
 
 final readonly class FoundationGrpcFixtureStub
 {
-    private \Grpc\BaseStub $inner;
+    private object $inner;
 
     public function __construct(int $port)
     {
-        $this->inner = new \Grpc\BaseStub(
+        // These classes exist only in the explicitly selected ext-grpc CI lane.
+        $baseStub = 'Grpc\\BaseStub';
+        $channelCredentials = 'Grpc\\ChannelCredentials';
+        $this->inner = new $baseStub(
             '127.0.0.1:' . $port,
-            ['credentials' => \Grpc\ChannelCredentials::createInsecure()],
+            ['credentials' => $channelCredentials::createInsecure()],
         );
     }
 

@@ -15,7 +15,7 @@ use Infocyph\TalkingBytes\Grpc\Sender\GrpcResponse;
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
-if (!extension_loaded('grpc') || !class_exists(\Grpc\BaseStub::class)) {
+if (!extension_loaded('grpc') || !class_exists('Grpc\\BaseStub')) {
     throw new RuntimeException('Native gRPC extension and generated-stub package are required.');
 }
 

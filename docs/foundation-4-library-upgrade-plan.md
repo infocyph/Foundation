@@ -2,6 +2,11 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 101d — optional ext-grpc selected-lane reference policy (exact-head QA pending)
+
+- [Batch 101c QA 42336119202](https://github.com/infocyph/Foundation/actions/runs/42336119202) passed the real native gRPC job and all Pest tests, static Psalm/PHPStan, Pint and PHPCS, but PHPForge's all-source PHPProbe reference-integrity scanner correctly flagged four compile-time `Grpc\BaseStub`/`Grpc\ChannelCredentials` references in the **optional-only** gRPC test fixtures when ext-grpc/generated-stub packages are absent from normal PHP 8.4/8.5 QA lanes.
+- Preserve optional feature composition: resolve those two classes by exact selected-native class names only at execution within the dedicated ext-grpc service job, and type the private test fixture owner as `object`. No unconditional ext-grpc or grpc/grpc package in Foundation's production/development requirements, no scanner suppression, no custom Psalm jobs, no simulated success. P3 TalkingBytes stays unchecked (84/90) until the full required matrix passes.
+
 ## Foundation 4 Batch 101c — restore native gRPC response decode contract (exact-head QA pending)
 
 - [Native gRPC job 128292840711](https://github.com/infocyph/Foundation/actions/runs/42335944590/job/128292840711) showed precise failure `Call to undefined method FoundationGrpcFixtureMessage::mergeFromString()`. The real HTTP/2 endpoint and PHP ext-grpc integration were reached; the positive assertion correctly rejected a fixture not implementing the generated message decode contract.
