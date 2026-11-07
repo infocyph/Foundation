@@ -14,7 +14,7 @@ use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Tests\Fixtures\AuthContentionFixture;
 use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
-it('redacts mixed-case nested MFA and bearer credentials before DBLayer persistence', function (): void {
+it('redacts arbitrary uppercase and mixed-case secrets for all auth-purpose audit rows in DBLayer', function (): void {
     $database = sys_get_temp_dir() . '/foundation-audit-' . bin2hex(random_bytes(8)) . '.sqlite';
     $fixture = new AuthContentionFixture(['driver' => 'sqlite', 'database' => $database]);
     $connection = $fixture->factory->connection();
@@ -29,42 +29,66 @@ it('redacts mixed-case nested MFA and bearer credentials before DBLayer persiste
         $store = new DBLayerAuditEventStore(new RuntimeStateContainer([
             DBLayerFactory::class => $fixture->factory,
         ]), $fixture->tables);
-        AuthEventRecorder::record(
-            $store,
-            new UidAuthIdGenerator(new ConfigRepository()),
-            new SystemClock(),
-            AuthEventType::LOGIN_SUCCESS,
-            'account-1',
-            metadata: [
-                'request_id' => 'safe-request',
-                'authorization_id' => 'safe-authorization',
-                'TokenId' => 'opaque-identifier',
-                'context' => [
-                    'AccountPassword' => 'secret-password',
-                    'recoveryCodes' => ['secret-recovery-1', 'secret-recovery-2'],
-                    'mfaSeed' => 'secret-mfa-seed',
-                    'clientAssertion' => 'secret-client-assertion',
-                    'apiKey' => 'secret-api-key',
-                    'BearerToken' => 'secret-bearer',
-                    'nested' => ['privateKey' => 'secret-key', 'device' => 'browser'],
-                ],
-            ],
-        );
-
-        $raw = $connection->table($fixture->tables->auditEvents())->value('metadata');
-        expect($raw)->toBeString();
-        $metadata = json_decode((string) $raw, true, flags: JSON_THROW_ON_ERROR);
-        expect($metadata['request_id'])->toBe('safe-request')
-            ->and($metadata['authorization_id'])->toBe('safe-authorization')
-            ->and($metadata['TokenId'])->toBe('opaque-identifier')
-            ->and($metadata['context']['nested']['device'])->toBe('browser')
-            ->and($metadata['context']['recoveryCodes'])->toBe('[REDACTED]');
-
         foreach ([
-            'secret-password', 'secret-recovery-1', 'secret-recovery-2', 'secret-mfa-seed',
-            'secret-client-assertion', 'secret-api-key', 'secret-bearer', 'secret-key',
-        ] as $secret) {
-            expect((string) $raw)->not->toContain($secret);
+            AuthEventType::LOGIN_SUCCESS,
+            AuthEventType::PASSWORD_RESET_REQUESTED,
+            AuthEventType::MFA_CHALLENGED,
+            AuthEventType::PASSKEY_USED,
+        ] as $type) {
+            AuthEventRecorder::record(
+                $store,
+                new UidAuthIdGenerator(new ConfigRepository()),
+                new SystemClock(),
+                $type,
+                'account-1',
+                metadata: [
+                    'request_id' => 'safe-request',
+                    'authorization_id' => 'safe-authorization',
+                    'TokenId' => 'opaque-identifier',
+                    'TOKEN_ID' => 'opaque-uppercase-identifier',
+                    'context' => [
+                        'AccountPassword' => 'secret-password',
+                        'PASSWORD' => 'uppercase-password-sentinel',
+                        'pAsSwOrD' => 'mixed-password-sentinel',
+                        'TOKEN' => 'uppercase-token-sentinel',
+                        'API_KEY' => 'uppercase-api-key-sentinel',
+                        'AUTHORIZATION' => 'uppercase-authorization-sentinel',
+                        'PRIVATE_KEY' => 'uppercase-private-key-sentinel',
+                        'recoveryCodes' => ['secret-recovery-1', 'secret-recovery-2'],
+                        'mfaSeed' => 'secret-mfa-seed',
+                        'clientAssertion' => 'secret-client-assertion',
+                        'apiKey' => 'secret-api-key',
+                        'BearerToken' => 'secret-bearer',
+                        'nested' => ['privateKey' => 'secret-key', 'device' => 'browser'],
+                    ],
+                ],
+            );
+        }
+
+        $rows = $connection->select('SELECT metadata FROM ' . $fixture->tables->auditEvents());
+        expect($rows)->toHaveCount(4);
+        foreach ($rows as $row) {
+            $raw = $row['metadata'] ?? null;
+            expect($raw)->toBeString();
+            $metadata = json_decode((string) $raw, true, flags: JSON_THROW_ON_ERROR);
+            expect($metadata['request_id'])->toBe('safe-request')
+                ->and($metadata['authorization_id'])->toBe('safe-authorization')
+                ->and($metadata['TokenId'])->toBe('opaque-identifier')
+                ->and($metadata['TOKEN_ID'])->toBe('opaque-uppercase-identifier')
+                ->and($metadata['context']['nested']['device'])->toBe('browser')
+                ->and($metadata['context']['recoveryCodes'])->toBe('[REDACTED]');
+            foreach (['PASSWORD', 'pAsSwOrD', 'TOKEN', 'API_KEY', 'AUTHORIZATION', 'PRIVATE_KEY'] as $key) {
+                expect($metadata['context'][$key])->toBe('[REDACTED]');
+            }
+
+            foreach ([
+                'secret-password', 'secret-recovery-1', 'secret-recovery-2', 'secret-mfa-seed',
+                'secret-client-assertion', 'secret-api-key', 'secret-bearer', 'secret-key',
+                'uppercase-password-sentinel', 'mixed-password-sentinel', 'uppercase-token-sentinel',
+                'uppercase-api-key-sentinel', 'uppercase-authorization-sentinel', 'uppercase-private-key-sentinel',
+            ] as $secret) {
+                expect((string) $raw)->not->toContain($secret);
+            }
         }
     } finally {
         $connection->disconnect();

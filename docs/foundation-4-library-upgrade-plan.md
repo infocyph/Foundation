@@ -2,6 +2,13 @@
 
 Date: 2026-11-07 (Asia/Dhaka). Status: **independent review found an A04 regression; release gates open**.
 
+## Foundation 4 Batch 118 — repair independently reproduced audit credential-case bypass (CI pending)
+
+- **Source of truth:** The independent verification recorded on `d9272ebd` reopened A04 after public `AuthEventRecorder::record()` + SQLite `DBLayerAuditEventStore` probes demonstrated that `PASSWORD`, `pAsSwOrD`, `TOKEN`, `API_KEY`, `AUTHORIZATION` and `PRIVATE_KEY` were retained. Keep that independent finding intact as historical evidence; its 86/90 count remains the accepted pre-fix checkpoint.
+- **Code correction:** Canonicalize audit metadata key casing and separator differences to lowercase alphanumeric **before** sensitivity matching. Match full security words even through arbitrary case changes, while preserving explicit trusted identifier exceptions (token ID/type, credential ID and authorization ID). Keep recursive array sanitization, object/resource redaction and fail-closed depth limit; do not move filtering into `AuthActions` or rely on unrelated logging sinks.
+- **Regression expansion:** Add in-memory and native DBLayer/SQLite evidence across login, password reset, MFA and passkey audit types; cover uppercase/acronym/mixed case and nested arrays, assert the original sentinel bytes are absent from stored JSON, and retain safe request, authorization and token/credential identifiers. Retain strict PHPForge, Psalm/PHPStan, and all 8/4 supported-host and consumer gates.
+- **Acceptance:** Two A04 criteria stay unchecked until the new exact-head official Security & Standards and native HTTP host jobs succeed. Current formal **86/90**, with **A04×2 + P6×2** open. Preserve `composer.lock` gitignore policy and existing P6 thresholds; PR #20 remains draft and unmerged, no tags/releases.
+
 ## Independent verification — 2026-11-07
 
 - **Reviewed revision:** `9a1655591e25a0ef906c66c425b5f6d5d8a06c1a`. Both exact-revision hosted workflows completed successfully: [Security & Standards 42348838818](https://github.com/infocyph/Foundation/actions/runs/42348838818) and [native host smoke 42348838635](https://github.com/infocyph/Foundation/actions/runs/42348838635). Their jobs include PHP 8.4/8.5 stable/lowest, strict analysis, four production consumers, real selected services and retained-state recovery. The three paired-host prepare/run/compare jobs were **skipped**, so these runs do not close P6.

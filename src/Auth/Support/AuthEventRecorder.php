@@ -65,13 +65,19 @@ final class AuthEventRecorder
 
         $safe = [];
         foreach ($metadata as $key => $value) {
+            // Preserve word boundaries for ordinary keys while folding all
+            // separators and arbitrary casing for sensitive-key matching.
             $name = is_string($key)
                 ? strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', str_replace('-', '_', $key)) ?? $key)
                 : '';
-            $sensitive = $name !== ''
-                && !in_array($name, ['token_id', 'token_type', 'credential_id', 'authorization_id'], true)
-                && preg_match('/(?:^|_)(?:password|passwd|passphrase|secret|token|authorization|credential|signature|otp|pin|seed|bearer|jwt|assertion|cookie|recovery_codes?)(?:s)?(?:_|$)/', $name) === 1;
-            $sensitive = $sensitive || in_array($name, ['code', 'code_verifier', 'api_key', 'private_key', 'private_key_path', 'authenticator_data', 'attestation_object'], true);
+            $folded = preg_replace('/[^a-z0-9]/', '', $name) ?? $name;
+            $sensitive = $folded !== ''
+                && !in_array($folded, ['tokenid', 'tokentype', 'credentialid', 'authorizationid'], true)
+                && (
+                    preg_match('/(?:^|_)(?:password|passwd|passphrase|secret|token|authorization|credential|signature|otp|pin|seed|bearer|jwt|assertion|cookie|recovery_codes?)(?:s)?(?:_|$)/', $name) === 1
+                    || preg_match('/password|passwd|passphrase|secret|token|authorization|credential|signature|seed|bearer|jwt|assertion|cookie|recoverycodes?|apikey|privatekey|authenticatordata|attestationobject/', $folded) === 1
+                    || in_array($folded, ['otp', 'pin', 'code', 'codeverifier'], true)
+                );
 
             $safe[$key] = match (true) {
                 $value === null => null,

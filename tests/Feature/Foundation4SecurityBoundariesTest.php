@@ -238,33 +238,74 @@ it('binds every security notification purpose to a trusted recipient despite nes
     $mailer->assertable()->assertSentCount($issued);
 });
 
-it('redacts nested credentials at the shared authentication audit recorder boundary', function (): void {
+it('redacts arbitrarily cased nested credentials for login, reset, MFA and passkey audit events', function (): void {
     $audit = new InMemoryAuditEventStore();
-    AuthEventRecorder::record(
-        $audit,
-        new UidAuthIdGenerator(new ConfigRepository()),
-        new SystemClock(),
-        AuthEventType::LOGIN_SUCCESS,
-        'victim',
-        metadata: [
-            'request_id' => 'safe-request',
-            'outcome' => 'success',
-            'context' => [
-                'password' => 'password-sentinel',
-                'nested' => ['AccessToken' => 'access-sentinel', 'client-secret' => 'secret-sentinel'],
-                'safe' => ['device' => 'browser'],
-            ],
-            'Authorization' => 'Bearer bearer-sentinel',
-        ],
-    );
+    $ids = new UidAuthIdGenerator(new ConfigRepository());
+    $clock = new SystemClock();
 
-    $metadata = $audit->events()[0]->metadata;
-    expect($metadata['request_id'])->toBe('safe-request')
-        ->and($metadata['context']['safe'])->toBe(['device' => 'browser'])
-        ->and($metadata['context']['password'])->toBe('[REDACTED]');
-    $encoded = json_encode($metadata, JSON_THROW_ON_ERROR);
-    foreach (['password-sentinel', 'access-sentinel', 'secret-sentinel', 'bearer-sentinel'] as $secret) {
-        expect($encoded)->not->toContain($secret);
+    foreach ([
+        AuthEventType::LOGIN_SUCCESS,
+        AuthEventType::PASSWORD_RESET_REQUESTED,
+        AuthEventType::MFA_CHALLENGED,
+        AuthEventType::PASSKEY_USED,
+    ] as $type) {
+        AuthEventRecorder::record(
+            $audit,
+            $ids,
+            $clock,
+            $type,
+            'victim',
+            metadata: [
+                'request_id' => 'safe-request',
+                'authorization_id' => 'safe-authorization',
+                'TokenId' => 'safe-token-id',
+                'TOKEN_ID' => 'safe-uppercase-token-id',
+                'CREDENTIAL_ID' => 'safe-credential-id',
+                'context' => [
+                    'PASSWORD' => 'uppercase-password-sentinel',
+                    'pAsSwOrD' => 'mixed-password-sentinel',
+                    'TOKEN' => 'uppercase-token-sentinel',
+                    'API_KEY' => 'uppercase-api-key-sentinel',
+                    'AUTHORIZATION' => 'uppercase-authorization-sentinel',
+                    'PRIVATE_KEY' => 'uppercase-private-key-sentinel',
+                    'mFaSeEd' => 'mixed-mfa-seed-sentinel',
+                    'nested' => [
+                        'AccessToken' => 'access-token-sentinel',
+                        'client-secret' => 'client-secret-sentinel',
+                        'pRiVaTeKeY' => 'mixed-private-key-sentinel',
+                        'device' => 'browser',
+                    ],
+                ],
+            ],
+        );
+    }
+
+    expect($audit->events())->toHaveCount(4);
+    foreach ($audit->events() as $event) {
+        $metadata = $event->metadata;
+        expect($metadata['request_id'])->toBe('safe-request')
+            ->and($metadata['authorization_id'])->toBe('safe-authorization')
+            ->and($metadata['TokenId'])->toBe('safe-token-id')
+            ->and($metadata['TOKEN_ID'])->toBe('safe-uppercase-token-id')
+            ->and($metadata['CREDENTIAL_ID'])->toBe('safe-credential-id')
+            ->and($metadata['context']['nested']['device'])->toBe('browser');
+
+        $context = $metadata['context'];
+        foreach (['PASSWORD', 'pAsSwOrD', 'TOKEN', 'API_KEY', 'AUTHORIZATION', 'PRIVATE_KEY', 'mFaSeEd'] as $key) {
+            expect($context[$key])->toBe('[REDACTED]');
+        }
+        foreach (['AccessToken', 'client-secret', 'pRiVaTeKeY'] as $key) {
+            expect($context['nested'][$key])->toBe('[REDACTED]');
+        }
+
+        $encoded = json_encode($metadata, JSON_THROW_ON_ERROR);
+        foreach ([
+            'uppercase-password-sentinel', 'mixed-password-sentinel', 'uppercase-token-sentinel',
+            'uppercase-api-key-sentinel', 'uppercase-authorization-sentinel', 'uppercase-private-key-sentinel',
+            'mixed-mfa-seed-sentinel', 'access-token-sentinel', 'client-secret-sentinel', 'mixed-private-key-sentinel',
+        ] as $secret) {
+            expect($encoded)->not->toContain($secret);
+        }
     }
 });
 
