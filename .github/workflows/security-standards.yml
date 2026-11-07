@@ -15,7 +15,7 @@ concurrency:
 jobs:
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    needs: [phpforge, production-consumer, release-evidence, runtime-hosts]
+    needs: [phpforge, production-consumer, release-evidence, runtime-hosts, talkingbytes-mailpit]
     uses: infocyph/phpforge/.github/workflows/release.yml@7214b16487277181c177343d4e4163a9b5843f24
     permissions:
       contents: write
@@ -41,6 +41,31 @@ jobs:
       benchmark_composer_script: "benchmark:release"
       benchmark_result_file: "build/cachelayer-33-utilization.json"
 
+
+  talkingbytes-mailpit:
+    name: Native SMTP / Mailpit - Foundation / TalkingBytes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      mailpit:
+        image: axllent/mailpit:v1.33.0
+        ports:
+          - 1025:1025
+          - 8025:8025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.5"
+          tools: composer:v2
+          extensions: "curl, mbstring, intl, sodium, pdo, pdo_sqlite, redis, fileinfo"
+          coverage: none
+      - name: Install selected published native dependencies
+        run: composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+      - name: Verify real SMTP DATA was accepted and captured by Mailpit
+        run: php tests/Fixtures/talkingbytes_mailpit_probe.php
 
   redis-cluster:
     name: Native Redis Cluster - Foundation / CacheLayer

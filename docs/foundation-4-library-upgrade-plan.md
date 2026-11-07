@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 100 — native SMTP into real Mailpit service (exact-head QA pending)
+
+- Add a dedicated real `axllent/mailpit:v1.33.0` Docker service job to the existing `security-standards.yml` workflow, not a new/custom Psalm worker or a separate workflow. Pin PHP 8.5 and an actual Composer-selected TalkingBytes installation; send a real SMTP email through the configured Foundation `EmailProfiles` driver on port 1025, then independently confirm Mailpit stored the unique message through its HTTP API on 8025. An API-only message injection or fake email transport is not success evidence. The job is also required by the existing tag-release dependency graph.
+- Keep all existing PHPForge strict QA and 4-version test lanes, native hosts and Redis Cluster. Mailpit capability remains opt-in for actual applications; no production SMTP fallback or hard-coded host is introduced.
+- Combined with Batch 99's real loopback retries/redirects/multipart/pools and existing spool/mailbox, webhook replay and native gRPC worker source tests, this progresses the TalkingBytes P3 matrix. Formal tracker **84/90** stays unchanged until the complete network matrix and exact-head CI are verified. PR draft/unmerged, no tag.
+
 ## Foundation 4 Batch 99 — real TalkingBytes loopback HTTP transport (exact-head QA pending)
 
 - **Real network traffic:** New loopback TCP fixture plus Foundation-configured `CommunicationProfiles::http()` regression for native TalkingBytes CurlTransport. Exercise a retryable HTTP 503 followed by success with exactly two real attempts, 302 redirect policy and final body, disk-backed multipart file/field/filename with source lifetime, typed 500 failure, and a genuine 2-request CurlMulti pool with preserved result keys. No simulated successful transport, remote public dependency or alternate production HTTP client.
