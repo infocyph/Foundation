@@ -2,6 +2,12 @@
 
 Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review complete; seven source findings and P6 certification gates open**.
 
+## Foundation 4 Batch 123a — pass strict PHPForge format, Psalm and complexity gates
+
+- **Official CI evidence:** Batch 123 `01bacd57` [Security & Standards run 42357471183](https://github.com/infocyph/Foundation/actions/runs/42357471183) failed Pint on two closure-brace layouts, PHPStan complexity `CommandExecutionCoordinator::run()` 13 versus maximum 12, and Psalm on a rethrown `Throwable` in `RuntimeControl::mutate()`. All functional Pest tests and native HTTP hosts passed; do not weaken QA rules.
+- **Correction:** Collapse cleanup callbacks into standard short arrow callbacks and extract the nullable acquired-lock release into one small private helper, reducing run complexity without changing required exception precedence. Explicitly document the throwable propagation from cache mutation, preserving `CleanupGuard` semantics and lock state invariants.
+- **Acceptance:** R07 remains unchecked pending successful official exact-head QA and strict analyzers. Formal **84/95**, `composer.lock` still gitignored, PR draft and unmerged.
+
 ## Foundation 4 Batch 123 — preserve primary command failures through history and lock cleanup
 
 - **R07:** `CommandExecutionCoordinator::run()` previously let a lock release error replace the primary command exception; failed-history recording can also throw while reporting an earlier failure. `RuntimeControl::mutate()` had the same unguarded lock cleanup order. Reuse existing `Runtime\\CleanupGuard` instead of adding an exception framework.

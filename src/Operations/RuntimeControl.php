@@ -31,6 +31,7 @@ final readonly class RuntimeControl
      * @throws \RuntimeException
      * @throws \LogicException
      * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
      */
     public function signal(string $scope, ?string $name = null): string
     {
@@ -166,6 +167,7 @@ final readonly class RuntimeControl
 
     /**
      * @param callable(array<string,mixed>):array<string,mixed> $mutation
+     * @throws \Throwable
      * @throws \RuntimeException
      * @throws \InvalidArgumentException
      * @throws \LogicException
@@ -196,9 +198,7 @@ final readonly class RuntimeControl
 
                 throw $exception;
             } finally {
-                CleanupGuard::run($primaryFailure, static function () use ($lock, $handle): void {
-                    $lock->release($handle);
-                });
+                CleanupGuard::run($primaryFailure, static fn () => $lock->release($handle));
             }
 
             return;

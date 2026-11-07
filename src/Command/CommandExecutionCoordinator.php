@@ -14,8 +14,8 @@ use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessResult;
 use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Process\ProcessTerminationReason;
-use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Runtime\CleanupGuard;
+use Infocyph\Foundation\Runtime\ExecutionId;
 
 final class CommandExecutionCoordinator
 {
@@ -99,19 +99,23 @@ final class CommandExecutionCoordinator
             return $result->exitCode;
         } catch (\Throwable $exception) {
             $primaryFailure = $exception;
-            CleanupGuard::run($exception, function () use ($history, $executionId, $name, $exception): void {
-                $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
+            CleanupGuard::run(
+                $exception,
+                fn () => $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
                     'exception' => $exception::class,
-                ]);
-            });
+                ]),
+            );
 
             throw $exception;
         } finally {
-            CleanupGuard::run($primaryFailure, static function () use ($lock, $handle): void {
-                if ($lock !== null && $handle !== null) {
-                    $lock->release($handle);
-                }
-            });
+            CleanupGuard::run($primaryFailure, static fn () => self::releaseLock($lock, $handle));
+        }
+    }
+
+    private static function releaseLock(?LockProviderInterface $lock, ?LockHandle $handle): void
+    {
+        if ($lock !== null && $handle !== null) {
+            $lock->release($handle);
         }
     }
 
@@ -259,11 +263,12 @@ final class CommandExecutionCoordinator
 
             return $exitCode;
         } catch (\Throwable $exception) {
-            CleanupGuard::run($exception, function () use ($history, $executionId, $name, $exception): void {
-                $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
+            CleanupGuard::run(
+                $exception,
+                fn () => $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
                     'exception' => $exception::class,
-                ]);
-            });
+                ]),
+            );
 
             throw $exception;
         }
