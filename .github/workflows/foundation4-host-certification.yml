@@ -35,6 +35,7 @@ on:
           - ubuntu-24.04-arm
   pull_request:
     branches: [main, master]
+    types: [opened, reopened, synchronize, labeled]
     paths:
       - .github/workflows/foundation4-host-certification.yml
       - composer.json
@@ -61,11 +62,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: foundation4-host-${{ github.event.pull_request.number || github.ref }}
+  group: foundation4-host-${{ github.event.pull_request.number || github.ref }}-${{ github.event.action == 'labeled' && github.event.label.name || 'routine' }}
   cancel-in-progress: true
 
 jobs:
   hosted-serving:
+    if: github.event.action != 'labeled'
     name: Runwire ${{ matrix.extension }} serving - PHP ${{ matrix.php }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -103,6 +105,7 @@ jobs:
             tests/Feature/WebReleaseRuntimeTest.php
 
   native-host:
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
@@ -170,16 +173,19 @@ jobs:
           retention-days: 30
 
   prepare-paired-host:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'foundation4-certify-source' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     outputs:
       candidate: ${{ steps.identity.outputs.candidate }}
+      baseline: ${{ steps.identity.outputs.baseline }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/checkout@v7
         if: inputs.comparison_mode == 'dependency-upgrade'
         with:
-          ref: ${{ inputs.baseline_ref }}
+          ref: ${{ needs.prepare-paired-host.outputs.baseline }}
           path: baseline-source
       - uses: shivammathur/setup-php@v2
         with:
@@ -190,12 +196,13 @@ jobs:
       - name: Freeze candidate and reviewed dependency identities
         id: identity
         env:
-          BASELINE_REF: ${{ inputs.baseline_ref }}
+          BASELINE_REF: ${{ inputs.baseline_ref || 'c220759fcbd6654fead843599712a5b79685f02d' }}
           COMPARISON_MODE: ${{ inputs.comparison_mode || 'source-only' }}
           UPGRADE_ALLOWLIST: ${{ inputs.upgrade_allowlist_path }}
         run: |
           [[ "$BASELINE_REF" =~ ^[a-f0-9]{40}$ ]] || { echo "An immutable baseline SHA is required." >&2; exit 1; }
           printf 'candidate=%s\n' "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          printf 'baseline=%s\n' "$BASELINE_REF" >> "$GITHUB_OUTPUT"
           composer update --no-interaction --no-progress --prefer-dist --prefer-stable
           cp composer.lock candidate.lock
           if [[ "$COMPARISON_MODE" == dependency-upgrade ]]; then
@@ -227,9 +234,9 @@ jobs:
           if-no-files-found: error
 
   paired-host:
-    if: github.event_name == 'workflow_dispatch'
+    if: needs.prepare-paired-host.result == 'success'
     needs: prepare-paired-host
-    runs-on: ${{ inputs.host_runner || 'ubuntu-24.04' }}
+    runs-on: ${{ inputs.host_runner || 'ubuntu-24.04-arm' }}
     timeout-minutes: 50
     strategy:
       fail-fast: false
@@ -319,7 +326,7 @@ jobs:
       - name: Run baseline and candidate on this same physical runner
         timeout-minutes: 38
         env:
-          BASELINE_SHA: ${{ inputs.baseline_ref }}
+          BASELINE_SHA: ${{ needs.prepare-paired-host.outputs.baseline }}
           CANDIDATE_SHA: ${{ needs.prepare-paired-host.outputs.candidate }}
           MEASUREMENT_BATCH: ${{ matrix.batch }}
         run: |
@@ -373,7 +380,7 @@ jobs:
           retention-days: 30
 
   compare-paired-host:
-    if: github.event_name == 'workflow_dispatch' && !cancelled() && needs.prepare-paired-host.result == 'success'
+    if: !cancelled() && needs.prepare-paired-host.result == 'success'
     needs: [prepare-paired-host, paired-host]
     runs-on: ubuntu-24.04
     strategy:

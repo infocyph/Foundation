@@ -1,6 +1,6 @@
 # Foundation 4 consolidated review
 
-Date: 2026-11-07 (Asia/Dhaka). Current uncommitted repairs are based on `bc05ac4ce535d898acb5a77a85556bfa18977511` (Batch 134). Original review source: `57d309a6dfc3e02078331a1118d563ed46f7c1d9` (Batch 119).
+Date: 2026-11-07 (Asia/Dhaka). The maintenance repairs are committed as `d30abb10b11ab61d080e064cd34e213a838ec0f7`, based on Batch 134 `bc05ac4ce535d898acb5a77a85556bfa18977511`. Original review source: `57d309a6dfc3e02078331a1118d563ed46f7c1d9` (Batch 119).
 
 This combines the upgrade audit, independent reviews and implementation checks. The implementation record below owns current working-tree status; earlier rechecks and qualification statements are historical evidence. The [upgrade plan](foundation-4-library-upgrade-plan.md) owns formal acceptance.
 
@@ -11,7 +11,7 @@ The Foundation source findings R01–R07 are repaired locally. The additional pa
 - **Passwordless:** both simple-purpose and Epicrypt signed-payload drivers use expiring hashed issuance markers and native atomic TTL consumption. Issuance persists before notification, cryptographic rejection cannot consume valid state, missing/consumed state cannot authorize a login, and storage failures propagate. Public manager/HTTP action composition and four independent SQLite-backed processes prove one winning redemption. Native-clock expiry, token isolation and unregistered-token rejection are repository regressions. Shared state and constructor changes, reissuing old links and cache-loss behavior are documented.
 - **Duplication:** current configured PHPForge gate passes without budget changes. Source-only review snapshot before final canonical-key reuse: 115 groups / 3,600 duplicated lines / 4.9% across 669 files. Review of the key-ring/file-reader and validator groups found distinct algorithm defaults, key purposes, diagnostics, audit and domain-validation owners; the existing abstract timed-token services already share representation-specific mechanics. M04 closes as an explicit bounded-duplication decision, not as a blanket removal or an unresolved defect.
 - **Dependencies:** live Composer dry-run reports nothing to modify; no advisory records. M02/M03 remain upstream-blocked development-only maintenance, with exact constraints and owner links in the [dependency disposition](foundation-4-dependency-qualification.md#current-maintenance-disposition). They are not silently marked fixed, latest or waived.
-- **Git and verification:** this working tree includes the previous R01/R04 repairs and new passwordless changes; no commit, push, merge, tag or publication. Previous archive/consumer and hosted evidence below predates the passwordless change and does not certify this final tree. Local maintenance validation is recorded below; it does not substitute for release verification.
+- **Git and verification:** R01/R04/passwordless repairs are included in committed `d30abb10`; [Security & Standards 42377166328](https://github.com/infocyph/Foundation/actions/runs/42377166328) and [native hosts 42377166008](https://github.com/infocyph/Foundation/actions/runs/42377166008) both succeeded on that exact head, including selected services and production consumers. The subsequent Batch 135 certification-entry workflow has its own new-head checks; **neither P6 sustained-host mode is certified**. PR remains draft, open and unmerged; no tag or publication.
 
 ### Local maintenance validation
 
@@ -22,7 +22,7 @@ The Foundation source findings R01–R07 are repaired locally. The additional pa
 | Final `composer ic:tests` | Exit 2: **990 passed, 25 failed / 36,937 assertions**. The 25 failed test identities exactly match the previous unavailable MySQL/PostgreSQL, Redis/Valkey/Memcached and shared-lock prerequisites. No new functional failure remains. |
 | Static, architecture and quality gates | Skip scanner, Composer normalization, syntax, references, duplicate/comment policy, Pint, PHPCS, Deptrac, PHPStan, Psalm and Rector all pass. Four newly propagated exception annotations were corrected before this final run. |
 | Composer and documentation | `composer validate --strict` passes; live dry-run changes no packages; no advisory records; abandoned dependency remains reported. Local documentation targets/anchors and `git diff --check` pass. |
-| Release verification | Excluded by the maintainer: no new hosted CI, final ZIP/consumer qualification, missing-service provisioning or P6 certification. Older results remain historical. |
+| Release verification | Exact `d30abb10` hosted PHPForge, specialist and consumer CI passed, but the full P6 source-only and independent-lock paired-host certifications remain unexecuted and non-waivable. |
 
 Evidence: `/tmp/foundation-maintenance/` plus `/tmp/foundation-maintenance-outdated.json` and `/tmp/foundation-maintenance-audit.json`. Earlier review sections preserve historical reproductions and counts; use this section and the canonical plan for current dispositions.
 

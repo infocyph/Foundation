@@ -4,16 +4,16 @@ This is the operator handoff for [Foundation PR #20](https://github.com/infocyph
 
 ## Current maintenance handoff
 
-2026-11-07: implementation is **93/95 complete, P0 25/25**. The two unchecked
+2026-11-07: implementation is **93/95 complete, P0 25/25**. Maintenance changes were committed as `d30abb10`; exact-head [Security & Standards 42377166328](https://github.com/infocyph/Foundation/actions/runs/42377166328) and [native hosts 42377166008](https://github.com/infocyph/Foundation/actions/runs/42377166008) both succeeded (paired P6 jobs skipped). The two unchecked
 criteria are the P6 certifications. R01–R07 repairs and passwordless single-use
 hardening are implemented locally; the bounded-duplication review is complete.
 M02/M03 remain explicitly upstream-blocked development-tool dependencies;
 see the [dependency disposition](foundation-4-dependency-qualification.md#current-maintenance-disposition).
-No final archive/consumer, service-backed or hosted qualification was performed
-for this maintenance task, per the maintainer's exclusion of release
-verification. Previous green runs and ZIPs do not certify the final working
-tree. Freeze and qualify the eventual final revision through this handoff;
-no new CI, performance, merge or publication success is implied.
+The prior local-only maintenance verification was subsequently followed by
+successful exact-`d30abb10` hosted CI, production consumers and selected service
+integrations. Newer workflow/documentation commits require their own exact-head
+checks. Neither sustained-host P6 comparison was run; no merge, tag or publication
+is implied. Freeze and qualify the eventual final revision through this handoff.
 
 ## Source, package and retained-state evidence
 
@@ -27,11 +27,11 @@ no new CI, performance, merge or publication success is implied.
 
 The release plan owns formal checkbox dispositions. The following CI evidence qualifies progressively narrower portions of the same cutover: [Batch 111 Security & Standards](https://github.com/infocyph/Foundation/actions/runs/42345124843) plus [native hosts](https://github.com/infocyph/Foundation/actions/runs/42345124482) for rebuilt four-runtime deployment artifacts; [Batch 112 Security & Standards](https://github.com/infocyph/Foundation/actions/runs/42345666821) plus [native hosts](https://github.com/infocyph/Foundation/actions/runs/42345666501) for old/new Redis replay-state compatibility and snapshot recovery; and [Batch 114 Security & Standards](https://github.com/infocyph/Foundation/actions/runs/42346698851) plus [native hosts](https://github.com/infocyph/Foundation/actions/runs/42346698439) for the repaired reference-integrity fixture and fully coordinated SQL+Redis/Omnibus recovery. Check the **completed success** state and exact SHA of the final two links before treating that last qualification as accepted.
 
-## GitHub Actions dispatch availability before PR merge
+## GitHub Actions certification without merging PR #20
 
-At this checkpoint, `.github/workflows/foundation4-host-certification.yml` exists only on `feature/foundation-3`; the default `main` branch has only `phase0-baselines.yml` and `security-standards.yml`. GitHub's `workflow_dispatch` event **requires the workflow file to be present on the default branch**. Consequently the normal GitHub Actions **Run workflow** control is not available for this paired-host workflow while its entire definition exists only on the unmerged feature branch. The connected GitHub integration also offers no action to dispatch a workflow run. Earlier PR-body-trigger experiments failed workflow validation and were reverted.
+`.github/workflows/foundation4-host-certification.yml` is absent from `main`, so GitHub's ordinary `workflow_dispatch` control is unavailable until the workflow is installed on default. Batch 135 adds a **strict, opt-in PR-label route**: an authorized maintainer applies `foundation4-certify-source` to this same-repository PR after the exact-head workflow QA is green. The `pull_request:labeled` event then selects the immutable Foundation 4 source baseline `c220759fcbd6654fead843599712a5b79685f02d`, checks out the actual PR head (not GitHub's synthetic merge commit), and launches the existing source-only full primary/confirmation paired-host workflow using `ubuntu-24.04-arm`. The ordinary host smoke is skipped for that labeled event. The label is an execution trigger, **not evidence of passing certification**.
 
-To run P6 without merging PR #20, first obtain normal maintainer review for a **separate workflow-only default-branch bootstrap**, or implement a carefully audited, explicitly gated PR-event certification path in this existing official workflow. Neither has been approved or executed as part of Batch 116. Do not bypass normal branch protection, edit `main` implicitly, insert fake benchmark reports or claim PR smoke satisfies the 24-case matrix. Once an authorized dispatch path exists, execute both documented comparison modes against immutable exact candidate/baseline SHAs and capture the independent lock artifacts and final paired verdicts. A bootstrap itself is not P6 acceptance.
+The independent-lock dependency-upgrade certification requires its own genuinely valid Foundation 4 baseline and reviewed exact package/ref allowlist; it remains open. Do not relabel source-only lock identities as an upgrade, use a Foundation 3 source with an incompatible Runwire 2 graph, reduce the duration/matrix or merge PR #20 just to start measurements.
 
 ## Outstanding non-waivable release evidence
 

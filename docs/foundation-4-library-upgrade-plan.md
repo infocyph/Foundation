@@ -1,6 +1,6 @@
 # Foundation 4: latest-library integration and full-library audit plan
 
-Date: 2026-11-07 (Asia/Dhaka). Status: **Foundation implementation complete and trackers synchronized; upstream development-tool blockers recorded; release verification remains open and is excluded from this task**.
+Date: 2026-11-07 (Asia/Dhaka). Status: **93/95 implementation criteria checked; exact-head hosted QA passed at `d30abb10`; both P6 sustained certifications remain open. PR-only release qualification is being enabled without merging.**
 
 ## Current implementation and maintenance status
 
@@ -12,7 +12,13 @@ The [consolidated review](foundation-4-consolidated-review.md#current-maintenanc
 - **I02 / M04 review complete:** the unchanged PHPForge duplicate gate passes. The original 131-group observation is historical. Inspected current key-resolution/validation clones retain distinct defaults, key purposes, diagnostics and audit/validation ownership; timed-token common mechanics already live in the two native representation-specific abstract services. Retain this bounded duplication rather than introduce another generic protocol owner. No detector budget or suppression changes, and no claim that all token-similar code was removed.
 - **M02/M03 upstream blockers verified:** live Composer resolution finds no compatible updates. PHPBench 1.7.0 still requires abandoned `doctrine/annotations` 2.0.2; Pest 5.3.5 conflicts with PHPUnit above 13.4.5; Psalm 7.0.5 and RPC 3.2.3 require JsonMapper 5 while 6 is latest. These development-only upstream items remain externally blocked, not fixed or waived. See the [dependency disposition](foundation-4-dependency-qualification.md#current-maintenance-disposition).
 - **Final local checks:** required PHPForge process and all static/quality/architecture gates pass, including PHPStan and Psalm. Focused regressions: **44 passed / 5,575 assertions**. Final full local suite: **990 passed, 25 unavailable-service failures / 36,937 assertions**, with the same 25 failed identities as the previous baseline. Strict Composer validation and local documentation links pass. Evidence: `/tmp/foundation-maintenance/qa-final.log`, `focused-final.log` and `validation-summary.json`.
-- **Scope:** release verification is intentionally not executed by this maintenance task. Source changes remain uncommitted; no commit, push, merge, tag, publication, vendor modification, constraint override or lockfile-policy change.
+- **Source checkpoint:** maintenance changes are committed at `d30abb10b11ab61d080e064cd34e213a838ec0f7`. Exact-head [Security & Standards 42377166328](https://github.com/infocyph/Foundation/actions/runs/42377166328) and [native hosts 42377166008](https://github.com/infocyph/Foundation/actions/runs/42377166008) both passed, including PHPForge stable/lowest, static analysis, consumers and selected service integrations. The paired-host jobs were skipped; green host smoke is **not P6 certification**. No merge, tag, publication or lockfile-policy change.
+
+## Batch 135 — PR-only sustained-host certification entry point
+
+- Allow a maintainer-controlled `foundation4-certify-source` PR label to invoke the existing source-only P6 matrix on the **exact PR head** without merging a workflow to default `main`. The opt-in path accepts only a same-repository PR and preserves the existing immutable Foundation 4 baseline, identical resolved-lock requirement, 24 primary/confirmation case jobs, five sustained trials, recovery/soak, 2% RPM and 2.5% CV criteria. Keep routine PR smoke separate and unchanged in coverage.
+- `workflow_dispatch` remains available once the workflow exists on default, but unavailable on this unmerged branch. A source-only label-based run cannot itself certify the separately required **independent-lock dependency-upgrade** mode. Do not check either P6 item until completed comparison artifacts establish the full verdict.
+- This batch changes the official workflow and documentation only; its new exact-head QA and label-triggered sustained-run results must be reviewed separately before accepting either P6 item. The 93/95 tracker stays unchanged.
 
 ## Historical independent recheck — Batch 134
 
