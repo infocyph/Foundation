@@ -4,6 +4,12 @@ Date: 2026-11-07 (Asia/Dhaka). Reviewed source: `57d309a6dfc3e02078331a1118d563e
 
 This is the current combined review of the original upgrade audit, the first independent A04 review, and the implementation through Batch 119. It replaces their historical status statements as the current findings list; their evidence remains in the [upgrade plan](foundation-4-library-upgrade-plan.md). No runtime code or dependency constraints were changed during this review.
 
+## Post-remediation qualification — 2026-11-07, Batch 134
+
+The table and adversarial reproductions below are the **historical Batch 119 review snapshot**, not current unresolved product behavior. All seven confirmed defects R01–R07 and their nine formally tracked security/runtime acceptance requirements have been remediated and verified in the actual source with full official QA on Batches 131a–133. R04 is exercised through the real Webrick route dispatcher, native OIDC controller and CSRF middleware (with the production route mapping validated separately); R05 is exercised through real lazy stream iteration, cancellation/Fiber/abandoned ownership and a mid-stream filesystem read error. A04 includes persisted DBLayer credential/identity evidence, and R06/R07 retain their permission-at-first-write and cleanup-failure tests.
+
+**Current disposition: 93/95 accepted, two P6 sustained-host performance criteria still open.** Final host/quality evidence: [Batch 133 Security & Standards](https://github.com/infocyph/Foundation/actions/runs/42368558762) and [native host smoke](https://github.com/infocyph/Foundation/actions/runs/42368558572). The required two P6 paired-host primary/confirmation matrices were **not executed** by these standard runs. `composer.lock` remains gitignored; PR #20 remains draft and unmerged.
+
 **Disposition: seven confirmed source findings remain open, plus the two existing P6 certifications.** The original `PASSWORD`/`API_KEY` reproduction is fixed, but A04 is only partially remediated. The revised plan has **84/95 criteria accepted**: three reopened A04 criteria, the reopened P3 Pathwise streaming criterion, five new remediation criteria, and the two P6 criteria are open. The extra regression/streaming criteria do not represent additional independently counted defects. Prior 88/90 and 86/90 counts are historical checkpoints.
 
 ## Review coverage
