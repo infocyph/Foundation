@@ -62,9 +62,7 @@ final class CommandExecutionCoordinator
 
         try {
             if ($policy->overlap !== OverlapMode::Allow) {
-                if ($policy->overlap === OverlapMode::Wait) {
-                    $this->record($history, $executionId, $name, CommandStatus::Waiting);
-                }
+                $this->recordWaitIfNeeded($policy, $history, $executionId, $name);
                 $lock = $this->lockProvider();
                 $handle = $lock->acquire(
                     $policy->mutex ?? $name,
@@ -109,6 +107,17 @@ final class CommandExecutionCoordinator
             throw $exception;
         } finally {
             CleanupGuard::run($primaryFailure, static fn() => self::releaseLock($lock, $handle));
+        }
+    }
+
+    private function recordWaitIfNeeded(
+        CommandExecutionPolicy $policy,
+        ExecutionHistory $history,
+        ExecutionId $executionId,
+        string $name,
+    ): void {
+        if ($policy->overlap === OverlapMode::Wait) {
+            $this->record($history, $executionId, $name, CommandStatus::Waiting);
         }
     }
 

@@ -38,6 +38,12 @@ Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review comple
 - **Correction:** Collapse cleanup callbacks into standard short arrow callbacks and extract the nullable acquired-lock release into one small private helper, reducing run complexity without changing required exception precedence. Explicitly document the throwable propagation from cache mutation, preserving `CleanupGuard` semantics and lock state invariants.
 - **Acceptance:** R07 remains unchecked pending successful official exact-head QA and strict analyzers. Formal **84/95**, `composer.lock` still gitignored, PR draft and unmerged.
 
+## Foundation 4 Batch 126 — restore exact-head quality for OIDC/streaming review patches
+
+- **Observed source HEAD `5b402731`:** Security & Standards [42363177585](https://github.com/infocyph/Foundation/actions/runs/42363177585) failed: Psalm `OAuthManager::approve()` lacks its new `OAuthProtocolException` throws contract, PHPForge Pint rejected the streaming factory's static method order/brace style, and QA failed on formatter policy; native HTTP hosts [42363177111](https://github.com/infocyph/Foundation/actions/runs/42363177111) passed. Keep all formal review checkboxes unchecked while quality is red.
+- **Narrow remediation:** Add accurate throws annotation for real OIDC code rejection; move the static lazy stream binder to the configured static class-member location without changing iterator/cancellation semantics; reduce coordinator cognitive complexity by extracting the waiting-status branch without changing execution flow. Strict vendor PHPForge rules remain enabled. No custom Psalm workers, no threshold changes, no merge.
+- **Acceptance:** Re-run all official stable/lowest 8.4/8.5 QA, Psalm/PHPStan, integrated native owners and HTTP host smoke. Formal **84/95**, nine review items plus two P6 certifications remain open until verified.
+
 ## Foundation 4 Batch 125 — retain original borrowed Runwire owner during lazy response emission
 
 - **R05:** Pathwise's initial download preparation already checks the borrowed request, but the Webrick response generator is advanced later outside that binding; cancellation after preparation or between chunks previously read onward. This is a native HTTP streaming lifecycle defect, not a reason to change Pathwise's adapter or own the host event loop.

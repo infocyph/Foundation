@@ -59,6 +59,7 @@ final readonly class OAuthManager
 
     /**
      * @throws \LogicException
+     * @throws OAuthProtocolException
      */
     public function approve(AuthorizationRequest $request, PrincipalInterface $principal): OAuthAuthorizationCodeIssue
     {
