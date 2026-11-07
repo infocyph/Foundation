@@ -10,7 +10,6 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Cache\FoundationCacheKey;
-use Infocyph\Foundation\Runtime\CleanupGuard;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\UID\Id;
 
@@ -86,9 +85,24 @@ final readonly class RuntimeControl
             : '';
     }
 
-    private static function releaseCacheLock(LockProviderInterface $lock, LockHandle $handle): void
-    {
-        $lock->release($handle);
+    /**
+     * Release a cache lock exactly once. A primary mutation failure remains
+     * authoritative; a release failure is reported after successful work.
+     *
+     * @throws \Throwable
+     */
+    private static function releaseCacheLock(
+        LockProviderInterface $lock,
+        LockHandle $handle,
+        ?\Throwable $primaryFailure,
+    ): void {
+        try {
+            $lock->release($handle);
+        } catch (\Throwable $exception) {
+            if ($primaryFailure === null) {
+                throw $exception;
+            }
+        }
     }
 
     /**
@@ -205,7 +219,7 @@ final readonly class RuntimeControl
 
                 throw $exception;
             } finally {
-                CleanupGuard::run($primaryFailure, static fn() => self::releaseCacheLock($lock, $handle));
+                self::releaseCacheLock($lock, $handle, $primaryFailure);
             }
 
             return;

@@ -2,6 +2,12 @@
 
 Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review complete; seven source findings and P6 certification gates open**.
 
+## Foundation 4 Batch 123e — eliminate closure-dependent runtime-lock formatting
+
+- **Persistent exact-head issue:** [Security & Standards 42359754595](https://github.com/infocyph/Foundation/actions/runs/42359754595) on `28480659` passed static analysis and Pest but Pint still flagged `src/Operations/RuntimeControl.php` (`braces_position`/`single_line_empty_body`) after repeated closure-reformatting attempts. One formatting failure still blocks the complete QA workflow.
+- **Narrow solution:** Avoid any inline release closure in this owner and use a typed small `releaseCacheLock()` method. Release exactly once, preserve the original mutation exception if release also fails, and propagate the release exception if mutation succeeded. Keep `CleanupGuard` in command owner, which passed formatter/QA. No suppressed errors, relaxed Pint policy, lock semantics or workflow changes.
+- **Acceptance:** R07 remains unchecked until the full exact-head CI is green. Formal **84/95**, draft/unmerged, no release or P6 waiver.
+
 ## Foundation 4 Batch 123d — isolate final RuntimeControl PER formatter finding
 
 - **Exact-head QA:** [Security & Standards 42359277097](https://github.com/infocyph/Foundation/actions/runs/42359277097) at `90c5097b` passed the PHPStan complexity and Psalm throw-contract checks; all functional Pest suites and other quality policies passed, but Pint still flags one `RuntimeControl` closure/empty-body layout.
