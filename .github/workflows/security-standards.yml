@@ -186,6 +186,11 @@ jobs:
   cross-major-auth-rehearsal:
     name: Original Foundation 3 to 4 native DBLayer retained-state cutover
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:8.10-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 30
     timeout-minutes: 25
     permissions:
       contents: read
@@ -255,6 +260,17 @@ jobs:
           php "$fixture" old-build "$project" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$output"
           php "$fixture" new-build "$project" "$GITHUB_WORKSPACE/vendor/autoload.php" "$output"
           php "$fixture" old-rollback "$project" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$output"
+          php "$fixture" new-rollforward "$project" "$GITHUB_WORKSPACE/vendor/autoload.php" "$output"
+      - name: Rehearse native CacheLayer 3 to 4 Redis replay-state retention and isolated restore
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$GITHUB_WORKSPACE/build/cross-major-rehearsal"
+          project="$RUNNER_TEMP/foundation3-to-4-release-artifacts"
+          fixture=tests/Fixtures/foundation3_to_4_cache_probe.php
+          php "$fixture" old-seed "$project" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$output"
+          php "$fixture" new-read "$project" "$GITHUB_WORKSPACE/vendor/autoload.php" "$output"
+          php "$fixture" old-restore "$project" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$output"
           php "$fixture" new-rollforward "$project" "$GITHUB_WORKSPACE/vendor/autoload.php" "$output"
       - uses: actions/upload-artifact@v7
         if: always()

@@ -24,6 +24,12 @@ The official cross-major CI job also runs `foundation3_to_4_release_artifact_pro
 
 This verifies artifact integrity and old/new source and package-graph switching on the selected published packages; it does not replace a production-equivalent multi-service snapshot or certify that existing 3.x runtime binaries can execute under 4.x code. The original 3.x Composer lock remains absent; the original source is real, while its dependency set is a separately recorded reconstruction. Release acceptance only follows a passing exact-head official job and remaining full P4 state qualifications.
 
+## Native Redis cache replay-state cutover
+
+The selected cross-major CI job now uses a dedicated disposable Redis 8 service and version-specific native CacheLayer factories. It persists legacy session/replay-denial cache state under the original Foundation 3/CacheLayer 3 graph, checks current Foundation 4/CacheLayer 4 can read that state, snapshots the actual server-side Redis entries using `DUMP` and millisecond TTL, mutates candidate state, restores the old cache snapshot using `RESTORE`, and checks both old-source rollback and new-source roll-forward read the same original replay-denial value. Binary Redis snapshots, service counts and version-specific source references are retained as artifacts. The isolated cache store is never a shared production Redis database.
+
+The Redis check qualifies this selected cache namespace and serialization path. A whole-application restore still requires matching PostgreSQL/MySQL/SQLite data, Omnibus durable queue receipts and failure records, key material, transactional outbox state and any application-owned storage at the **same consistent recovery point**. Those broader P4 criteria are not accepted merely because Redis replay values and SQLite auth records individually survive.
+
 ## Original-source retained-state cutover evidence
 
 The `cross-major-auth-rehearsal` CI job checks out immutable Foundation 3 source `fc9b3258646ac744e61fd02e18d9b98e5afff2e8` independently from the release candidate. It resolves the original source with selected published DBLayer 5 and the new source with DBLayer 6. Both locks, their package identities and the old manifest are retained as CI artifacts. **The resolved legacy lock is a reconstructed 2026 graph, not an authentic originally tracked lock**, which is unavailable.
