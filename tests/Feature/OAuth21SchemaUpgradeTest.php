@@ -107,9 +107,9 @@ it('upgrades an installed Foundation 2.0 auth schema to current revisions withou
             $oauth->id(),
             $passkey->id(),
             $passkeyRecord->id(),
-            $passkeyIdentityHash->id(),
             $oauthEpicrypt->id(),
             $oauthProtocol->id(),
+            $passkeyIdentityHash->id(),
         ]);
         $after = $installer->readiness();
 

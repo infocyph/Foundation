@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 106f — honor native migration chronological ordering
+
+- **Exact-head QA finding:** Batch 106e [Security & Standards 42340231347](https://github.com/infocyph/Foundation/actions/runs/42340231347) passed strict Psalm/PHPStan but reported one remaining migration-ledger assertion failure. DBLayer's native `MigrationRunner` executes registered migration IDs in chronological order: the 20261107 credential-hash backfill follows the two existing 20260907 OAuth upgrades, regardless of their construction order in the installer's configuration. The test incorrectly put the new ID before the existing OAuth migrations.
+- **Correction:** Update only the expected order in `OAuth21SchemaUpgradeTest`. The migration engine and production ordering are already correct; do not shuffle or change migrations merely to satisfy an incorrect fixture. Re-run exact-head official QA/native-host verification without disabling any analyzer or service test.
+- **Acceptance boundary:** Real historic passkey hash backfill now successfully completed on SQLite/MySQL/PostgreSQL in the previous affected matrix. Still no bit-for-bit original resolved Composer lock and no full reviewed dependency-upgrade rollback or matched-host P6 certification. **85/90**, draft/unmerged.
+
 ## Foundation 4 Batch 106e — retain explicit Psalm throw contract for passkey corruption
 
 - **Exact-head analysis finding:** [Security & Standards 42340048713](https://github.com/infocyph/Foundation/actions/runs/42340048713) on Batch 106d reported three strict `MissingThrowsDocblock` errors in `AuthPasskeyIdentityHashSchema::backfillRow()` after refactoring. These are intentional fail-closed exceptions for a malformed stored credential, a mismatched persisted SHA3-256 digest, and a concurrent change detected by the guarded update.
