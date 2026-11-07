@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 92 — selected native remote JOSE cancellation versus stale-key fallback (exact-head QA pending)
+
+- **Native selected resolver:** Add a Foundation borrowed-host integration test for Epicrypt 3.3 `RemoteJwks` with an explicitly supplied `RemoteJoseHostResolverInterface`. The fixture first exposes a genuine stale-cache candidate; host resolution either throws native cancellation directly or returns an allowed IP after cancelling its borrowed request. Both branches must fail with `CancelledException` without returning stale keys or calling an HTTP transport. No Foundation-owned remote discovery, alternate resolver engine or local-key configuration change is added.
+- **Boundary:** This qualifies the only selected/custom remote JOSE mode, rather than treating current Foundation local-key configuration as an implicit remote feature. Actual native Epicrypt `RemoteJwks::load(context: ...)` and Runwire-owned request cancellation are used; test-only PSR mocks cannot provide false transport success. P3 remote JOSE checkbox stays open until official full source/host CI verifies this regression.
+- **Progress:** P1 current API compatibility criterion accepted in Batch 91 (79/90) independently of original baseline provenance. Remaining P3/P4/P6 and original resolved-lock release criteria retain their thresholds. PR draft/unmerged, no tag/release.
+
 ## Foundation 4 Batch 91 — accept current native API/compatibility ownership audit (source qualification)
 
 - **Source/API inspection:** Review published-native direct operations in current Runwire/InterMix, DBLayer/CacheLayer, Webrick, Pathwise, ReqShield, Omnibus, OTP/WebAuthn, Epicrypt and TalkingBytes integration owners, their actual selected-feature package floors and the production all-source legacy-symbol inventory. Record conditional capability checks separately from excluded-version runtime fallbacks. Read the documented persisted Omnibus codec, passkey metadata and MobileOTP import exceptions before removal decisions.
