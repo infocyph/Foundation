@@ -101,14 +101,14 @@ final class CommandExecutionCoordinator
             $primaryFailure = $exception;
             CleanupGuard::run(
                 $exception,
-                fn () => $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
+                fn() => $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
                     'exception' => $exception::class,
                 ]),
             );
 
             throw $exception;
         } finally {
-            CleanupGuard::run($primaryFailure, static fn () => self::releaseLock($lock, $handle));
+            CleanupGuard::run($primaryFailure, static fn() => self::releaseLock($lock, $handle));
         }
     }
 
@@ -265,7 +265,7 @@ final class CommandExecutionCoordinator
         } catch (\Throwable $exception) {
             CleanupGuard::run(
                 $exception,
-                fn () => $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
+                fn() => $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
                     'exception' => $exception::class,
                 ]),
             );

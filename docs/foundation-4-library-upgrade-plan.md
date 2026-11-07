@@ -2,6 +2,12 @@
 
 Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review complete; seven source findings and P6 certification gates open**.
 
+## Foundation 4 Batch 123c — conform cleanup arrow-function declarations to PER/Pint
+
+- **Strict CI finding:** Batch 123b `f3f14281` [Security & Standards 42358813794](https://github.com/infocyph/Foundation/actions/runs/42358813794) passed the strict analyzers after explicit system-command exception contracts but still failed the four functional QA lanes solely on Pint `function_declaration`/`braces_position` for the revised cleanup callbacks in `CommandExecutionCoordinator` and `RuntimeControl`. Pest, PHPCS and reference integrity passed.
+- **Correction:** Apply the actual repository/PHPForge PER arrow-function declaration style `fn()` in those two owners without changing exception ordering, the shared `CleanupGuard`, public command tests, or release policy. Verify on new exact-head CI before checking R07.
+- **Formal 84/95**, no P6 thresholds changed, PR draft/unmerged.
+
 ## Foundation 4 Batch 123b — preserve system-command Throwable contracts
 
 - **Exact-head strict-analysis finding:** [Security & Standards 42358422341](https://github.com/infocyph/Foundation/actions/runs/42358422341) on `1ccfa758` now passes the original PHPStan complexity rule; Psalm found three missing `@throws \\Throwable` annotations where `OperationsSystemCommand::{runtimeReload,scheduleInterrupt,workerRestart}()` call the release-safe `RuntimeControl::signal()`.

@@ -198,7 +198,7 @@ final readonly class RuntimeControl
 
                 throw $exception;
             } finally {
-                CleanupGuard::run($primaryFailure, static fn () => $lock->release($handle));
+                CleanupGuard::run($primaryFailure, static fn() => $lock->release($handle));
             }
 
             return;
