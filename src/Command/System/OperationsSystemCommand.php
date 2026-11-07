@@ -402,6 +402,7 @@ final class OperationsSystemCommand extends SystemCommand
      * @throws \RuntimeException
      * @throws \LogicException
      * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
      */
     private function runtimeReload(): int
     {
@@ -415,6 +416,7 @@ final class OperationsSystemCommand extends SystemCommand
      * @throws \RuntimeException
      * @throws \LogicException
      * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
      */
     private function scheduleInterrupt(): int
     {
@@ -428,6 +430,7 @@ final class OperationsSystemCommand extends SystemCommand
      * @throws \RuntimeException
      * @throws \LogicException
      * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
      */
     private function workerRestart(): int
     {

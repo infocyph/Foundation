@@ -2,6 +2,12 @@
 
 Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review complete; seven source findings and P6 certification gates open**.
 
+## Foundation 4 Batch 123b — preserve system-command Throwable contracts
+
+- **Exact-head strict-analysis finding:** [Security & Standards 42358422341](https://github.com/infocyph/Foundation/actions/runs/42358422341) on `1ccfa758` now passes the original PHPStan complexity rule; Psalm found three missing `@throws \\Throwable` annotations where `OperationsSystemCommand::{runtimeReload,scheduleInterrupt,workerRestart}()` call the release-safe `RuntimeControl::signal()`.
+- **Narrow correction:** Declare exception propagation honestly in only the three directly affected callers, keeping native `CleanupGuard` ordering and no exception suppression or behavioral change.
+- **Acceptance:** R07 remains open until all official QA and strict analysis pass this exact revision. Formal **84/95**, no gitignored-lock changes or P6 waivers.
+
 ## Foundation 4 Batch 123a — pass strict PHPForge format, Psalm and complexity gates
 
 - **Official CI evidence:** Batch 123 `01bacd57` [Security & Standards run 42357471183](https://github.com/infocyph/Foundation/actions/runs/42357471183) failed Pint on two closure-brace layouts, PHPStan complexity `CommandExecutionCoordinator::run()` 13 versus maximum 12, and Psalm on a rethrown `Throwable` in `RuntimeControl::mutate()`. All functional Pest tests and native HTTP hosts passed; do not weaken QA rules.
