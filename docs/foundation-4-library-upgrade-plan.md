@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 109b — restore verified dispatch-only performance workflow
+
+- **Exact-head validation blocker:** [Security & Standards 42343567329](https://github.com/infocyph/Foundation/actions/runs/42343567329) on `43319696` again failed at workflow validation before scheduling any jobs. An abbreviated PR-edit trigger still breaks the existing reusable workflow invocation on this branch; no host matrix, QA or analyzer results can be asserted for Batches 109/109a.
+- **Corrective action:** Restore the exact, previously verified `.github/workflows/foundation4-host-certification.yml`, `ReleaseWorkflowGuardTest.php` and host certification guide from fully tested Batch 108 `642414fe`. Do not introduce custom workflow alternatives or alter the existing strict dispatch-only 24-job paired host matrix. Retain Batch 108's real Foundation 3/4 old/new source and native DBLayer authentication state rollback test and historical provenance disclosure. Re-run ordinary Security & Standards + native HTTP hosts on new exact head.
+- **Remaining P6 blocker:** The connected GitHub integration cannot invoke the existing `workflow_dispatch` action to run full matched-host certification. This operational restriction is **not** a reason to check either P6 criterion or lower test/runtime/variance thresholds. P1 historical original lock and both broad P4 full-release rollback criteria also remain unaccepted. Formal **85/90**. PR draft/unmerged; no tag/release.
+
 ## Foundation 4 Batch 109a — correct workflow parser rejection before running certification
 
 - **Observed workflow configuration failure:** [Security & Standards 42343356812](https://github.com/infocyph/Foundation/actions/runs/42343356812) on `2ef9c022` failed before scheduling any jobs. No PHPForge/test results or performance measurements exist for that head. The new PR-only paired-host conditional contained an overly intricate one-shot expression involving the previous PR description.
