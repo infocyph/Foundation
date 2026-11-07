@@ -16,7 +16,7 @@ The [consolidated review](foundation-4-consolidated-review.md#current-maintenanc
 
 ## Batch 135 — PR-only sustained-host certification entry point
 
-- Allow a maintainer-controlled `foundation4-certify-source` PR label to invoke the existing source-only P6 matrix on the **exact PR head** without merging a workflow to default `main`. The opt-in path accepts only a same-repository PR and preserves the existing immutable Foundation 4 baseline, identical resolved-lock requirement, 24 primary/confirmation case jobs, five sustained trials, recovery/soak, 2% RPM and 2.5% CV criteria. Keep routine PR smoke separate and unchanged in coverage.
+- Allow a maintainer-controlled `foundation4-certify-source` PR label to invoke the existing source-only P6 matrix through the regular Security & Standards reusable workflow call on the **exact PR head** without merging a workflow to default `main`. The opt-in path accepts only a same-repository PR and preserves the existing immutable Foundation 4 baseline, identical resolved-lock requirement, 24 primary/confirmation case jobs, five sustained trials, recovery/soak, 2% RPM and 2.5% CV criteria. Keep routine PR smoke separate and unchanged in coverage.
 - `workflow_dispatch` remains available once the workflow exists on default, but unavailable on this unmerged branch. A source-only label-based run cannot itself certify the separately required **independent-lock dependency-upgrade** mode. Do not check either P6 item until completed comparison artifacts establish the full verdict.
 - This batch changes the official workflow and documentation only; its new exact-head QA and label-triggered sustained-run results must be reviewed separately before accepting either P6 item. The 93/95 tracker stays unchanged.
 

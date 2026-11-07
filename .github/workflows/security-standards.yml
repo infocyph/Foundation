@@ -21,6 +21,13 @@ jobs:
       contents: write
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+  source-certification:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'foundation4-certify-source')
+    uses: ./.github/workflows/foundation4-host-certification.yml
+    permissions:
+      contents: read
+    with:
+      certify_source: true
   runtime-hosts:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     uses: ./.github/workflows/foundation4-host-certification.yml

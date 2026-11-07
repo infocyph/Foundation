@@ -5,7 +5,7 @@ This procedure certifies **Foundation 4 only**. It is not a legacy-version compa
 
 ## Paired GitHub qualification
 
-Use GitHub Actions for the paired comparison and Docker for local diagnostics. Before PR merge, an authorized maintainer can apply the `foundation4-certify-source` label to the same-repository PR to run **only the source-only** full paired matrix against the immutable Foundation 4 baseline; it uses the exact PR head and ARM runner. The independent-lock upgrade mode still requires separate attested inputs and qualification. Labeling is an execution request, not a passing verdict.
+Use GitHub Actions for the paired comparison and Docker for local diagnostics. Before PR merge, an authorized maintainer can apply the `foundation4-certify-source` label to the same-repository PR; the next PR head update runs **only the source-only** full paired matrix via Security & Standards' reusable workflow call against the immutable Foundation 4 baseline. It uses the exact PR head and ARM runner. The independent-lock upgrade mode still requires separate attested inputs and qualification. Labeling is an execution request, not a passing verdict.
 The [manual workflow](../.github/workflows/foundation4-host-certification.yml) supports a full `authenticated-read`
 PostgreSQL/Redis profile, distinct immutable baseline/candidate sources, one
 resolved dependency lock and benchmark revision, and the same runner for each
