@@ -203,6 +203,74 @@ it('honors original Runwire cancellation during nonlocal lazy response advanceme
     }
 });
 
+it('isolates lazy streamed downloads across Fibers and rejects an abandoned completed owner', function (): void {
+    [$app, $root] = foundationFilesystemApp();
+    $app->boot();
+    $storage = $app->make(StorageRegistry::class);
+    $responses = $app->make(FilesystemResponseFactory::class);
+    $disk = $storage->disk('uploads');
+    $directory = 'tests/lazy-fibers-' . bin2hex(random_bytes(6));
+    $file = $directory . '/transfer.bin';
+    $disk->write($file, str_repeat('isolated-stream-', 10_000));
+
+    $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
+    \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::bind($runtime);
+    $initialBinding = \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::current();
+    $first = \Infocyph\Runwire\RequestContext::create($runtime);
+    $second = \Infocyph\Runwire\RequestContext::create($runtime);
+    $abandoned = \Infocyph\Runwire\RequestContext::create($runtime);
+    try {
+        $responseFor = static fn($owner) => \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
+            $owner,
+            null,
+            static fn() => $responses->download(
+                Request::fake(headers: ['Host' => 'localhost'], uri: 'http://localhost/transfer'),
+                $storage->path($file, 'uploads'),
+                disk: 'uploads',
+            ),
+            $runtime,
+        );
+        $one = $responseFor($first)->getProducer();
+        $two = $responseFor($second)->getProducer();
+        expect($one)->not->toBeNull()
+            ->and($two)->not->toBeNull();
+
+        $firstStream = $one();
+        $secondStream = $two();
+        $fiberOne = new Fiber(static function () use ($firstStream): void {
+            expect($firstStream->current())->toBeString()->not->toBe('');
+            Fiber::suspend();
+            $firstStream->next();
+        });
+        $fiberTwo = new Fiber(static function () use ($secondStream): void {
+            expect($secondStream->current())->toBeString()->not->toBe('');
+            Fiber::suspend();
+            $secondStream->next();
+            expect($secondStream->current())->toBeString()->not->toBe('');
+        });
+
+        $fiberOne->start();
+        $fiberTwo->start();
+        $first->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
+        expect(fn() => $fiberOne->resume())->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
+        $fiberTwo->resume();
+        expect($fiberTwo->isTerminated())->toBeTrue()
+            ->and(\Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::current())->toBe($initialBinding);
+
+        $dead = $responseFor($abandoned)->getProducer();
+        expect($dead)->not->toBeNull();
+        $abandoned->complete();
+        expect(fn() => $dead()->current())->toThrow(\Throwable::class);
+        unset($firstStream, $secondStream, $dead);
+    } finally {
+        $first->complete();
+        $second->complete();
+        \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::release($runtime);
+        $disk->deleteDirectory($directory);
+        foundationFilesystemRemoveDirectory($root);
+    }
+});
+
 it('handles normal and chunked upload requests through Pathwise UploadSource', function (): void {
     [$app, $basePath] = foundationFilesystemApp();
     $app->boot();

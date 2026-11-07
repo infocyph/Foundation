@@ -77,3 +77,43 @@ it('keeps primary command error ahead of lock release and reports otherwise unma
         rmdir($root);
     }
 });
+
+it('preserves the original inline command failure when secondary history persistence fails', function (): void {
+    $root = sys_get_temp_dir() . '/foundation-command-history-' . bin2hex(random_bytes(8));
+    mkdir($root, 0700, true);
+    $path = $root . '/history.jsonl';
+    $app = Foundation::cli([
+        'app' => ['base_path' => $root],
+        '_config_cache' => false,
+        'operations' => ['history' => ['enabled' => true, 'path' => $path]],
+    ]);
+    $descriptor = new CommandDescriptor(new CommandDefinition('test:history'));
+    $coordinator = new CommandExecutionCoordinator($app);
+    $io = new NoopCommandIO();
+
+    try {
+        expect(fn() => $coordinator->run(
+            $descriptor,
+            ['infbyte'],
+            static function () use ($path): int {
+                // Pending and Running history entries were written successfully.
+                // Make only the failure-recording destination invalid.
+                if (!unlink($path) || !mkdir($path, 0700)) {
+                    throw new RuntimeException('Could not create the failing history fixture.');
+                }
+
+                throw new LogicException('authoritative-command-failure');
+            },
+            $io,
+        ))->toThrow(LogicException::class, 'authoritative-command-failure');
+        expect(is_dir($path))->toBeTrue();
+    } finally {
+        if (is_dir($path)) {
+            rmdir($path);
+        }
+        if (is_file($path . '.lock')) {
+            unlink($path . '.lock');
+        }
+        rmdir($root);
+    }
+});

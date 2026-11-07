@@ -9,6 +9,11 @@ use Infocyph\Foundation\Auth\Authentication\Session\SessionManager;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\SessionStoreInterface;
 use Infocyph\Foundation\Auth\Exception\SessionException;
+use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
+use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
+use Infocyph\Foundation\Auth\Adapter\Uid\UidAuthIdGenerator;
+use Infocyph\Foundation\Http\Resolver\SessionPrincipalResolver;
+use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
 use Infocyph\Foundation\Auth\Support\InMemorySessionStore;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
@@ -107,4 +112,60 @@ it('preserves the original persisted session when replacement insertion fails', 
         ->toThrow(\Infocyph\DBLayer\Exceptions\TransactionException::class)
         ->and($store->find('original'))->toEqual($original)
         ->and($store->find('occupied'))->toEqual($occupied);
+});
+
+it('preserves OIDC authentication evidence through rotation and native session principal resolution', function (): void {
+    $now = 1_700_000_000;
+    $fixture = new OAuth21FlowFixture(now: $now);
+    $store = new InMemorySessionStore();
+    $authenticatedAt = $now - 3_600;
+    $stored = new AuthSession(
+        'verified-session',
+        'account-1',
+        'device-1',
+        $now - 5_000,
+        $now - 5_000,
+        $now + 5_000,
+        recentAuthAt: $authenticatedAt,
+    );
+    $store->create($stored);
+    $config = new ConfigRepository();
+    $services = new RuntimeStateContainer([
+        SessionStoreInterface::class => $store,
+        AccountProviderInterface::class => $fixture->accounts,
+        ClockInterface::class => $fixture->clock,
+    ]);
+    $resolver = new SessionPrincipalResolver($config, $services);
+    $manager = new SessionManager($store, new UidAuthIdGenerator($config), clock: $fixture->clock);
+
+    try {
+        $original = $resolver->resolve(\Infocyph\Webrick\Request\Request::fake(
+            headers: ['Host' => 'issuer.example.test', 'X-Session-Id' => $stored->id],
+            uri: 'https://issuer.example.test/profile',
+        ));
+        expect($original?->metadata()['auth_time'] ?? null)->toBe($authenticatedAt);
+
+        $rotated = $manager->rotate($stored->id);
+        expect($rotated->recentAuthAt)->toBe($authenticatedAt)
+            ->and($rotated->createdAt)->toBe($now)
+            ->and($store->find($stored->id))->toBeNull();
+        $current = $resolver->resolve(\Infocyph\Webrick\Request\Request::fake(
+            headers: ['Host' => 'issuer.example.test', 'X-Session-Id' => $rotated->id],
+            uri: 'https://issuer.example.test/profile',
+        ));
+        expect($current?->metadata()['auth_time'] ?? null)->toBe($authenticatedAt)
+            ->and($current?->metadata()['auth_via'] ?? null)->toBe('session')
+            ->and($current?->metadata()['session_id'] ?? null)->toBe($rotated->id);
+
+        $store->create(new AuthSession('unknown-auth', 'account-1', null, $now - 100, $now - 100, $now + 5_000));
+        $unknown = $manager->rotate('unknown-auth');
+        expect($unknown->recentAuthAt)->toBeNull();
+        $unverified = $resolver->resolve(\Infocyph\Webrick\Request\Request::fake(
+            headers: ['Host' => 'issuer.example.test', 'X-Session-Id' => $unknown->id],
+            uri: 'https://issuer.example.test/profile',
+        ));
+        expect($unverified?->metadata()['auth_time'] ?? null)->toBeNull();
+    } finally {
+        $fixture->close();
+    }
 });
