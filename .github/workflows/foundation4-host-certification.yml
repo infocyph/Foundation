@@ -34,6 +34,7 @@ on:
           - ubuntu-24.04
           - ubuntu-24.04-arm
   pull_request:
+    types: [opened, synchronize, reopened, edited]
     branches: [main, master]
     paths:
       - .github/workflows/foundation4-host-certification.yml
@@ -170,16 +171,19 @@ jobs:
           retention-days: 30
 
   prepare-paired-host:
-    if: github.event_name == 'workflow_dispatch'
+    if: >-
+      github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'edited' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.body, '<!-- foundation4:certify-source-only -->') && !contains(github.event.changes.body.from || '', '<!-- foundation4:certify-source-only -->'))
     runs-on: ubuntu-24.04
     outputs:
       candidate: ${{ steps.identity.outputs.candidate }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/checkout@v7
         if: inputs.comparison_mode == 'dependency-upgrade'
         with:
-          ref: ${{ inputs.baseline_ref }}
+          ref: ${{ inputs.baseline_ref || 'c220759fcbd6654fead843599712a5b79685f02d' }}
           path: baseline-source
       - uses: shivammathur/setup-php@v2
         with:
@@ -190,7 +194,7 @@ jobs:
       - name: Freeze candidate and reviewed dependency identities
         id: identity
         env:
-          BASELINE_REF: ${{ inputs.baseline_ref }}
+          BASELINE_REF: ${{ inputs.baseline_ref || 'c220759fcbd6654fead843599712a5b79685f02d' }}
           COMPARISON_MODE: ${{ inputs.comparison_mode || 'source-only' }}
           UPGRADE_ALLOWLIST: ${{ inputs.upgrade_allowlist_path }}
         run: |
@@ -227,9 +231,9 @@ jobs:
           if-no-files-found: error
 
   paired-host:
-    if: github.event_name == 'workflow_dispatch'
+    if: needs.prepare-paired-host.result == 'success'
     needs: prepare-paired-host
-    runs-on: ${{ inputs.host_runner || 'ubuntu-24.04' }}
+    runs-on: ${{ inputs.host_runner || 'ubuntu-24.04-arm' }}
     timeout-minutes: 50
     strategy:
       fail-fast: false
@@ -272,7 +276,7 @@ jobs:
           path: candidate
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.baseline_ref }}
+          ref: ${{ inputs.baseline_ref || 'c220759fcbd6654fead843599712a5b79685f02d' }}
           path: baseline
       - uses: shivammathur/setup-php@v2
         with:
@@ -319,7 +323,7 @@ jobs:
       - name: Run baseline and candidate on this same physical runner
         timeout-minutes: 38
         env:
-          BASELINE_SHA: ${{ inputs.baseline_ref }}
+          BASELINE_SHA: ${{ inputs.baseline_ref || 'c220759fcbd6654fead843599712a5b79685f02d' }}
           CANDIDATE_SHA: ${{ needs.prepare-paired-host.outputs.candidate }}
           MEASUREMENT_BATCH: ${{ matrix.batch }}
         run: |
@@ -373,7 +377,7 @@ jobs:
           retention-days: 30
 
   compare-paired-host:
-    if: github.event_name == 'workflow_dispatch' && !cancelled() && needs.prepare-paired-host.result == 'success'
+    if: !cancelled() && needs.prepare-paired-host.result == 'success'
     needs: [prepare-paired-host, paired-host]
     runs-on: ubuntu-24.04
     strategy:

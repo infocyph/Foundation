@@ -4,6 +4,20 @@ declare(strict_types=1);
 
 use Symfony\Component\Yaml\Yaml;
 
+it('permits full source-only host certification only after an explicit same-repository PR opt-in', function (): void {
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/foundation4-host-certification.yml');
+
+    expect($workflow['on']['pull_request']['types'])->toContain('edited')
+        ->and($workflow['jobs']['prepare-paired-host']['if'])
+        ->toContain(
+            'github.event.pull_request.head.repo.full_name == github.repository',
+            'foundation4:certify-source-only',
+            'github.event.changes.body.from',
+        )
+        ->and($workflow['jobs']['paired-host']['needs'])->toBe('prepare-paired-host')
+        ->and($workflow['jobs']['paired-host']['runs-on'])->toContain('ubuntu-24.04-arm');
+});
+
 it('requires tagged Foundation releases to pass quality and production consumers', function (): void {
     $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
     $jobs = $workflow['jobs'];
