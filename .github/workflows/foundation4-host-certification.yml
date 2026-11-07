@@ -185,7 +185,7 @@ jobs:
       - uses: actions/checkout@v7
         if: inputs.comparison_mode == 'dependency-upgrade'
         with:
-          ref: ${{ needs.prepare-paired-host.outputs.baseline }}
+          ref: ${{ inputs.baseline_ref }}
           path: baseline-source
       - uses: shivammathur/setup-php@v2
         with:
