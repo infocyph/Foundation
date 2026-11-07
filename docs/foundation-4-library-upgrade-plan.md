@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 106e — retain explicit Psalm throw contract for passkey corruption
+
+- **Exact-head analysis finding:** [Security & Standards 42340048713](https://github.com/infocyph/Foundation/actions/runs/42340048713) on Batch 106d reported three strict `MissingThrowsDocblock` errors in `AuthPasskeyIdentityHashSchema::backfillRow()` after refactoring. These are intentional fail-closed exceptions for a malformed stored credential, a mismatched persisted SHA3-256 digest, and a concurrent change detected by the guarded update.
+- **Fix:** Declare a conventional `@throws RuntimeException` alongside the existing row parameter type in that private method. Do not catch, swallow, suppress or convert these integrity exceptions, and do not change PHPForge's rules. Verify current exact-head Psalm and functional matrix again.
+- **Acceptance:** Existing original passkey/rollback issues and paired-host requirements remain release blockers. Formal **85/90**; no merge, tag or release.
+
 ## Foundation 4 Batch 106d — fix retained passkey migration's multi-engine and migration-ledger contracts
 
 - **Source of failure:** Before correction, the latest affected GitHub QA fixture reproduced the original Foundation 3 `credential_id VARCHAR(1024) UNIQUE` in all backends. MySQL UTF8MB4 rejects that legacy index because its maximum 3072-byte key permits at most 768 UTF8MB4 characters; the error was from the test's historical schema creation, not from a leaked credential hash. This is genuine information about original Foundation 3 MySQL deployment portability; do not claim the 1024-character index was installable in this environment.

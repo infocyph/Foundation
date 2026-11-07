@@ -66,7 +66,10 @@ final readonly class AuthPasskeyIdentityHashSchema implements Migration
         $context->checkpoint();
     }
 
-    /** @param array<string, mixed> $row */
+    /**
+     * @param array<string, mixed> $row
+     * @throws RuntimeException
+     */
     private static function backfillRow(
         SchemaManager $schema,
         MigrationContext $context,
