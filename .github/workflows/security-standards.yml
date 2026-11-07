@@ -15,7 +15,7 @@ concurrency:
 jobs:
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    needs: [phpforge, production-consumer, release-evidence, runtime-hosts, talkingbytes-mailpit, talkingbytes-grpc]
+    needs: [phpforge, production-consumer, release-evidence, runtime-hosts, talkingbytes-mailpit, talkingbytes-grpc, historical-dependency-provenance]
     uses: infocyph/phpforge/.github/workflows/release.yml@7214b16487277181c177343d4e4163a9b5843f24
     permissions:
       contents: write
@@ -91,6 +91,97 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/foundation-grpc-venv"
           "$RUNNER_TEMP/foundation-grpc-venv/bin/python" -m pip install --disable-pip-version-check "grpcio==1.76.0"
           GRPC_PYTHON_BINARY="$RUNNER_TEMP/foundation-grpc-venv/bin/python" php tests/Fixtures/talkingbytes_grpc_probe.php
+
+  historical-dependency-provenance:
+    name: Historical Foundation 3 dependency reconstruction (truthful provenance)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          ref: fc9b3258646ac744e61fd02e18d9b98e5afff2e8
+          path: historical
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "curl, mbstring, intl, sodium, pdo, pdo_sqlite, fileinfo"
+          coverage: none
+      - name: Preserve source truth, published-package resolution and historic advisory evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$GITHUB_WORKSPACE/build/historical-dependency-provenance"
+          mkdir -p "$output"
+          test "$(git -C historical rev-parse HEAD)" = fc9b3258646ac744e61fd02e18d9b98e5afff2e8
+          git -C historical rev-parse HEAD > "$output/source.sha"
+          cp historical/composer.json "$output/original-composer.json"
+          composer --version > "$output/composer-version.txt"
+          php -v > "$output/php-version.txt"
+
+          if git -C historical cat-file -e HEAD:composer.lock 2>/dev/null; then
+            git -C historical show HEAD:composer.lock > "$output/original-composer.lock"
+            printf 'tracked_original=present\n' > "$output/provenance.env"
+          else
+            printf 'tracked_original=absent\n' > "$output/provenance.env"
+            printf 'Original Foundation 3 composer.lock was not tracked at this immutable source SHA.\n' > "$output/original-lock-unavailable.txt"
+          fi
+
+          # A 2026 re-resolution is a reconstructed graph, NEVER the historical lock.
+          set +e
+          composer update --working-dir=historical --no-interaction --no-progress --prefer-dist --prefer-stable > "$output/full-resolution.log" 2>&1
+          full_status=$?
+          set -e
+          printf 'full_dev_resolution_exit=%s\n' "$full_status" >> "$output/provenance.env"
+          if [[ "$full_status" != 0 ]]; then
+            rm -f historical/composer.lock
+            # Full dev can be unresolvable years later (notably dev-main).
+            # Make the production-only projection explicit and preserve both manifests.
+            php -r '
+              $manifest = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
+              unset($manifest["require-dev"]);
+              file_put_contents($argv[1], json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+            ' historical/composer.json
+            cp historical/composer.json "$output/reconstructed-production-only-composer.json"
+            composer update --working-dir=historical --no-dev --no-interaction --no-progress --prefer-dist --prefer-stable > "$output/production-resolution.log" 2>&1
+            printf 'resolver_scope=production_only\n' >> "$output/provenance.env"
+          else
+            printf 'resolver_scope=full_dev\n' >> "$output/provenance.env"
+          fi
+
+          test -f historical/composer.lock
+          cp historical/composer.lock "$output/reconstructed-2026-composer.lock"
+          sha256sum "$output/original-composer.json" "$output/reconstructed-2026-composer.lock" > "$output/sha256.txt"
+          php -r '
+            $lock = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
+            $packages = [];
+            foreach (array_merge($lock["packages"] ?? [], $lock["packages-dev"] ?? []) as $package) {
+                $packages[$package["name"]] = [
+                    "version" => $package["version"] ?? null,
+                    "source_ref" => $package["source"]["reference"] ?? null,
+                    "dist_ref" => $package["dist"]["reference"] ?? null,
+                ];
+            }
+            ksort($packages, SORT_STRING);
+            echo json_encode(["provenance" => "reconstructed_not_original", "packages" => $packages], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), "\n";
+          ' "$output/reconstructed-2026-composer.lock" > "$output/reconstructed-exact-refs.json"
+
+          set +e
+          composer audit --working-dir=historical --locked --abandoned=report --format=json > "$output/historical-advisories.json" 2> "$output/audit-stderr.txt"
+          audit_status=$?
+          set -e
+          printf 'historical_audit_exit=%s\n' "$audit_status" >> "$output/provenance.env"
+          printf 'Historical audit findings are evidence, not a waiver of candidate release security checks.\n' > "$output/audit-policy.txt"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation3-reconstructed-dependency-provenance-${{ github.sha }}
+          path: build/historical-dependency-provenance/
+          if-no-files-found: error
+          retention-days: 30
 
   redis-cluster:
     name: Native Redis Cluster - Foundation / CacheLayer

@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 104 — reconstruct historic dependency provenance without inventing a lost lock
+
+- **Original identity:** The immutable Foundation 3 source `fc9b3258646ac744e61fd02e18d9b98e5afff2e8` contains its original `composer.json` but no tracked `composer.lock`. Prior official main Action artifacts inspected contain no original lock either. Do not claim one existed, forge a lock or silently relabel a later resolution as historical.
+- **Dedicated existing-workflow evidence job:** Checkout exactly that immutable source under a separate directory and record source SHA, original manifest, Composer/PHP platform, old direct+transitive published package versions/source/dist refs, original-lock presence, historical advisory report and SHA-256 digests. First attempt a complete 2026 recreation including original dev graph; if the moving `dev-main@dev` dependency prevents it, record the actual failed resolver log/status and reconstruct a production-only graph explicitly named `reconstructed_not_original`, preserving the original gap. Attach both to a first-party Actions artifact and require this provenance job in tagged-release gates.
+- **Acceptance boundary:** P1 historical original resolved-lock requirement stays **unchecked** until release provenance is evaluated; the historical graph can be *reconstructed* now but cannot be described as the exact original or used for bit-for-bit old-versus-new performance attribution. The selected Foundation 4 candidate full-dev lock remains separately captured by release-evidence. P4 full upgrade/rollback and P6 sustained paired-host remain open. Formal **85/90** pending new CI, draft/unmerged, no tag.
+
 ## Foundation 4 Batch 103 — atomic two-generation rollback with retained auth records (exact-head QA pending)
 
 - **Foundation 4 artifact rehearsal:** Create a real persistent DBLayer SQLite auth schema (account, hashed password, session and refresh-family state), then compile two distinct immutable Foundation generation directories against the selected published Composer graph. Confirm all four generated web/CLI/worker/scheduler containers in both revisions, correct actual `FoundationReleaseManifest::dependencyFingerprint()`, source-free trusted web request and all three non-web native boots, and a fail-closed mismatch when the other release's manifest SHA is supplied.
