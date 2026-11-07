@@ -110,17 +110,6 @@ final class CommandExecutionCoordinator
         }
     }
 
-    private function recordWaitIfNeeded(
-        CommandExecutionPolicy $policy,
-        ExecutionHistory $history,
-        ExecutionId $executionId,
-        string $name,
-    ): void {
-        if ($policy->overlap === OverlapMode::Wait) {
-            $this->record($history, $executionId, $name, CommandStatus::Waiting);
-        }
-    }
-
     private static function releaseLock(?LockProviderInterface $lock, ?LockHandle $handle): void
     {
         if ($lock !== null && $handle !== null) {
@@ -246,6 +235,20 @@ final class CommandExecutionCoordinator
             exitCode: $exitCode,
             metadata: $metadata + ['runtime' => $this->application->runtimeMode()->value],
         );
+    }
+
+    /**
+     * @throws \RuntimeException
+     */
+    private function recordWaitIfNeeded(
+        CommandExecutionPolicy $policy,
+        ExecutionHistory $history,
+        ExecutionId $executionId,
+        string $name,
+    ): void {
+        if ($policy->overlap === OverlapMode::Wait) {
+            $this->record($history, $executionId, $name, CommandStatus::Waiting);
+        }
     }
 
     /**

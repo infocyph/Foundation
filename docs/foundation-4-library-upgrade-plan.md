@@ -38,6 +38,12 @@ Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review comple
 - **Correction:** Collapse cleanup callbacks into standard short arrow callbacks and extract the nullable acquired-lock release into one small private helper, reducing run complexity without changing required exception precedence. Explicitly document the throwable propagation from cache mutation, preserving `CleanupGuard` semantics and lock state invariants.
 - **Acceptance:** R07 remains unchecked pending successful official exact-head QA and strict analyzers. Formal **84/95**, `composer.lock` still gitignored, PR draft and unmerged.
 
+## Foundation 4 Batch 127 — close remaining quality findings without behavior changes
+
+- **Exact-head Batch 126 [42364777681](https://github.com/infocyph/Foundation/actions/runs/42364777681):** Strict QA still reports `CommandExecutionCoordinator` method-order formatting; Psalm identifies missing declared `OAuthProtocolException` in `OAuthHttpHandler::authorizationApproved()` and missing `RuntimeException` from the coordinator's newly extracted wait recorder. Filesystem factory formatter issues from Batch 125 are no longer reported; full native-host smoke is independent.
+- **Narrow correction:** Put the private wait-recording helper in alphabetical method order following `record()`; accurately annotate the exceptions at their public/helper contracts. Keep the security behavior, the original exceptions, the running quality rules and all unaccepted review boxes unchanged.
+- **Acceptance:** Full exact-head Security & Standards and native HTTP host workflows must both pass before accepting any review criterion. Formal **84/95** pending; PR draft/unmerged, no tag/release.
+
 ## Foundation 4 Batch 126 — restore exact-head quality for OIDC/streaming review patches
 
 - **Observed source HEAD `5b402731`:** Security & Standards [42363177585](https://github.com/infocyph/Foundation/actions/runs/42363177585) failed: Psalm `OAuthManager::approve()` lacks its new `OAuthProtocolException` throws contract, PHPForge Pint rejected the streaming factory's static method order/brace style, and QA failed on formatter policy; native HTTP hosts [42363177111](https://github.com/infocyph/Foundation/actions/runs/42363177111) passed. Keep all formal review checkboxes unchecked while quality is red.

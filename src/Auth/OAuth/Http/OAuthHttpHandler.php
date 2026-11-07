@@ -69,6 +69,7 @@ final readonly class OAuthHttpHandler
 
     /**
      * @throws \LogicException
+     * @throws OAuthProtocolException
      */
     public function authorizationApproved(AuthorizationRequest $request, PrincipalInterface $principal): Response
     {
