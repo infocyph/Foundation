@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Operations;
 
+use Infocyph\CacheLayer\Cache\Lock\LockHandle;
+use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Cache\CacheManager;
@@ -82,6 +84,11 @@ final readonly class RuntimeControl
         return is_array($entry) && is_string($entry['token'] ?? null)
             ? $entry['token']
             : '';
+    }
+
+    private static function releaseCacheLock(LockProviderInterface $lock, LockHandle $handle): void
+    {
+        $lock->release($handle);
     }
 
     /**
@@ -198,7 +205,7 @@ final readonly class RuntimeControl
 
                 throw $exception;
             } finally {
-                CleanupGuard::run($primaryFailure, static fn() => $lock->release($handle));
+                CleanupGuard::run($primaryFailure, static fn() => self::releaseCacheLock($lock, $handle));
             }
 
             return;

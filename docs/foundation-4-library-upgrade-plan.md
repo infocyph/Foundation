@@ -2,6 +2,12 @@
 
 Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review complete; seven source findings and P6 certification gates open**.
 
+## Foundation 4 Batch 123d — isolate final RuntimeControl PER formatter finding
+
+- **Exact-head QA:** [Security & Standards 42359277097](https://github.com/infocyph/Foundation/actions/runs/42359277097) at `90c5097b` passed the PHPStan complexity and Psalm throw-contract checks; all functional Pest suites and other quality policies passed, but Pint still flags one `RuntimeControl` closure/empty-body layout.
+- **Correction:** Reuse the same proven `static fn() => self::releaseLock(...)` pattern as the now-clean `CommandExecutionCoordinator`, with a small typed private static helper for the acquired cache lock. No behavioral change, added state or exception mask. R07 awaits a fully green exact-head official run.
+- **Tracker:** **84/95**, `composer.lock` gitignored, draft/unmerged, no release/tag.
+
 ## Foundation 4 Batch 123c — conform cleanup arrow-function declarations to PER/Pint
 
 - **Strict CI finding:** Batch 123b `f3f14281` [Security & Standards 42358813794](https://github.com/infocyph/Foundation/actions/runs/42358813794) passed the strict analyzers after explicit system-command exception contracts but still failed the four functional QA lanes solely on Pint `function_declaration`/`braces_position` for the revised cleanup callbacks in `CommandExecutionCoordinator` and `RuntimeControl`. Pest, PHPCS and reference integrity passed.
