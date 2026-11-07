@@ -2,6 +2,11 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 101b — diagnose native gRPC real-wire failure without faking positive result
+
+- [Native gRPC job 128292178045](https://github.com/infocyph/Foundation/actions/runs/42335751029/job/128292178045) installed PHP ext-grpc, Composer grpc/grpc 1.85.0 and Python grpcio 1.76.0, but failed its strict positive unary assertion. The fail-closed assertion was correct; transport/debug details were not emitted.
+- Add bounded test-only diagnostic on unsuccessful native response (status, type, gRPC details, local test payload), while preserving real network call and strict positive/negative test. No production code or static QA relaxation. P3 TalkingBytes remains unchecked (84/90) until actual root cause is resolved and all CI green.
+
 ## Foundation 4 Batch 101 — selected native gRPC over real HTTP/2 (exact-head QA pending)
 
 - **Native wire evidence:** Add a separate PHP 8.4 `ext-grpc` selected-feature job to the **existing** Security & Standards workflow. The job installs the optional generated PHP gRPC client package in its isolated CI environment, starts a pinned Python grpcio HTTP/2 loopback service and calls it through a caller-owned native `NativeGrpcInvoker` selected by Foundation `CommunicationProfiles::grpcNative()`. Check typed round-trip payload and genuine gRPC UNIMPLEMENTED status mapping; no fake `GrpcResponse` or alternate production client. Pin `grpcio==1.76.0` and keep PHP extension verification fail-closed.

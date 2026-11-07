@@ -123,6 +123,7 @@ try {
             return new NativeGrpcResult(
                 statusCode: (int) ($status->code ?? 13),
                 message: $reply,
+                metadata: ['fixture_status_details' => (string) ($status->details ?? '')],
             );
         }
     };
@@ -149,7 +150,19 @@ try {
         || !$accepted->response->message instanceof FoundationGrpcFixtureMessage
         || $accepted->response->message->payload !== 'echo:foundation-native'
     ) {
-        throw new RuntimeException('Real Foundation-selected native gRPC unary roundtrip failed.');
+        $response = $accepted->response;
+        $message = $response instanceof GrpcResponse ? $response->message : null;
+        $diagnostic = json_encode([
+            'successful' => $accepted->successful,
+            'status' => $accepted->statusCode,
+            'error' => $accepted->error,
+            'response_class' => get_debug_type($response),
+            'message_class' => get_debug_type($message),
+            'response_status' => $response instanceof GrpcResponse ? $response->status->name : null,
+            'response_metadata' => $response instanceof GrpcResponse ? $response->metadata : [],
+            'fixture_payload' => $message instanceof FoundationGrpcFixtureMessage ? $message->payload : null,
+        ], JSON_THROW_ON_ERROR);
+        throw new RuntimeException('Real Foundation-selected native gRPC unary roundtrip failed: ' . $diagnostic);
     }
     if ($rejected->successful || $rejected->statusCode === 0) {
         throw new RuntimeException('Native gRPC UNIMPLEMENTED status was incorrectly reported as success.');
