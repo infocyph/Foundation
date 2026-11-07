@@ -79,6 +79,7 @@ final readonly class AuthorizationCodeManager
 
     /**
      * @throws \LogicException
+     * @throws OAuthProtocolException
      */
     public function issue(AuthorizationRequest $request, PrincipalInterface $principal): OAuthAuthorizationCodeIssue
     {

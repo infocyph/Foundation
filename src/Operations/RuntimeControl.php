@@ -228,6 +228,7 @@ final readonly class RuntimeControl
         }
 
         $primaryFailure = null;
+
         try {
             $this->write($mutation($this->read()));
         } catch (\Throwable $exception) {

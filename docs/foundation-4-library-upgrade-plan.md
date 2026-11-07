@@ -38,6 +38,12 @@ Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review comple
 - **Correction:** Collapse cleanup callbacks into standard short arrow callbacks and extract the nullable acquired-lock release into one small private helper, reducing run complexity without changing required exception precedence. Explicitly document the throwable propagation from cache mutation, preserving `CleanupGuard` semantics and lock state invariants.
 - **Acceptance:** R07 remains unchecked pending successful official exact-head QA and strict analyzers. Formal **84/95**, `composer.lock` still gitignored, PR draft and unmerged.
 
+## Foundation 4 Batch 124a — restore strict OIDC exception contracts and runtime formatting
+
+- Batch 124 exact HEAD `d4ec6321` [Security & Standards 42362474708](https://github.com/infocyph/Foundation/actions/runs/42362474708) returned strict Psalm exception-contract findings in OIDC code issue/HTTP POST approval and one unrelated Pint `blank_line_before_statement` in the extracted runtime-control cache method.
+- Declare the actual OIDC protocol and authentication/container exceptions for the new owner methods, and separate the cache helper's state assignment from `try` as the official PER/Pint rule requires. Do not suppress Psalm, change authentication behavior, or widen scope.
+- Require full current-head PHP 8.4/8.5 QA, production-consumer and native hosts before accepting new review items. **84/95** remains accurate. P6 performance deliberately deferred by maintainer.
+
 ## Foundation 4 Batch 124 — require actual OIDC authentication proof on GET, POST and code issuance
 
 - **R03/R04:** The original OIDC interaction forged fresh `auth_time` for principals missing actual session login evidence; direct code issuance likewise substituted the issuance clock. HTTP POST `decision=approve` skipped the GET interaction policy. These were independently reproduced and are P1 release blockers.

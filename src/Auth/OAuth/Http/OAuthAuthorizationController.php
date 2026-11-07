@@ -27,6 +27,7 @@ final readonly class OAuthAuthorizationController
     ) {}
 
     /**
+     * @throws \Infocyph\Foundation\Auth\Exception\AuthenticationException
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
@@ -54,6 +55,12 @@ final readonly class OAuthAuthorizationController
         };
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\Exception\AuthenticationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function authorizationApprove(AuthorizationRequest $request): Response
     {
         $principal = $this->principals->require();
