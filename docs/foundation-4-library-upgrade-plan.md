@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 97 — native WebAuthn registration + first signed assertion (exact-head QA pending)
+
+- **Native end-to-end ceremony:** Extend the already selected Foundation OTP/WebAuthn 5.3.12 integration with a test authenticator's actual P-256/COSE public key and WebAuthn CBOR `fmt=none` attested-credential data. Begin a real account-bound registration through `AuthServices::passkeys()`, submit matching browser clientData/RP hash/user-verification flags, persist the native serialized `CredentialRecord` using the application CAS store, and reject a repeated registration finish. Then issue a fresh authentication challenge and sign the browser assertion with the same authenticator private key, requiring one revision-advancing successful verification and a rejected replay with no extra CAS mutation.
+- **Boundary:** Do not mock positive attestation or bypass the published OTP `Passkey::finishRegistration()` / `finishAuthentication()` validators. Keep WebAuthn parsing, COSE/CBOR and cryptographic verification in the specialist package; the binary encoding exists only inside a deterministic test fixture. Existing wrong RP/origin signed negatives, opaque credential identity, strict canonical Base32, AOTP/Grid/OCRA/TOTP, and recovery-code contention coverage remain active.
+- **Acceptance:** This is a P3 full passkey registration qualification candidate, not acceptance until strict Psalm/PHPStan, all functional lanes and native hosts pass exact head. P4 retained-state rollback, P6 sustained paired hosts, and original P1 resolved lock are independent release gates. PR draft/unmerged.
+
 ## Foundation 4 Batch 96 — selected SQL retained auth snapshot restore (exact-head QA pending)
 
 - **Data across engines:** Add independent-connection logical retained auth snapshot/restore regression to the existing real SQLite, MySQL and PostgreSQL integration suite. Create persisted account/session/refresh/passkey records using the selected native DBLayer and Foundation stores, capture original rows, mutate the account and remove dependent records transactionally from another native connection, restore those same rows inside a fresh transaction, and verify exact state and first-party adapter reads using a third connection. No synthetic database provider, untracked schema, or claim of full binary backups.

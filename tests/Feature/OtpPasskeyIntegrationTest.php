@@ -222,3 +222,130 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
             ->and($store->findByCredentialId($credentialId)?->revision)->toBe(1);
     });
 });
+
+it('registers an actual none-attested WebAuthn credential and signs its first assertion through Foundation', function (): void {
+    $app = Foundation::web(foundationOtpPasskeyConfig())->boot();
+
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $services = $app->make(\Infocyph\Foundation\Auth\AuthServices::class);
+        $account = $services->accounts()->create('native-passkey-registration@example.test')->account;
+        if (!$account instanceof \Infocyph\Foundation\Auth\Account\AccountInterface) {
+            throw new RuntimeException('Passkey account creation failed.');
+        }
+
+        $key = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
+        if ($key === false) {
+            throw new RuntimeException('Unable to generate the test authenticator key.');
+        }
+        $details = openssl_pkey_get_details($key);
+        if (!is_array($details) || !isset($details['ec']['x'], $details['ec']['y'])) {
+            throw new RuntimeException('Authenticator EC coordinates are unavailable.');
+        }
+
+        // Actual COSE EC2/P-256 public key with user presence, verification,
+        // and attested-credential-data flags. No production CBOR engine is added.
+        $coseKey = "\xa5\x01\x02\x03\x26\x20\x01\x21\x58\x20"
+            . foundationCoseP256Coordinate($details['ec']['x'])
+            . "\x22\x58\x20" . foundationCoseP256Coordinate($details['ec']['y']);
+        $credentialIdBytes = random_bytes(32);
+        $credentialId = \Infocyph\OTP\Support\Base64Url::encode($credentialIdBytes);
+        $registration = $services->passkeys()->startRegistration($account->id())->challenge;
+        if (!$registration instanceof \Infocyph\Foundation\Auth\Passkey\PasskeyChallenge) {
+            throw new RuntimeException('Native WebAuthn registration ceremony was not issued.');
+        }
+
+        $attestedData = hash('sha256', 'foundation.test', true)
+            . "\x45" . pack('N', 0)
+            . str_repeat("\0", 16)
+            . pack('n', strlen($credentialIdBytes))
+            . $credentialIdBytes
+            . $coseKey;
+        if (strlen($attestedData) > 255) {
+            throw new RuntimeException('Unexpected attested-data size.');
+        }
+        $attestation = "\xa3\x63fmt\x64none\x67attStmt\xa0\x68authData\x58"
+            . chr(strlen($attestedData))
+            . $attestedData;
+        $clientData = json_encode([
+            'type' => 'webauthn.create',
+            'challenge' => $registration->challenge,
+            'origin' => 'https://foundation.test',
+            'crossOrigin' => false,
+        ], JSON_THROW_ON_ERROR);
+        $browserCredential = json_encode([
+            'id' => $credentialId,
+            'rawId' => $credentialId,
+            'type' => 'public-key',
+            'response' => [
+                'clientDataJSON' => \Infocyph\OTP\Support\Base64Url::encode($clientData),
+                'attestationObject' => \Infocyph\OTP\Support\Base64Url::encode($attestation),
+                'transports' => ['internal'],
+            ],
+        ], JSON_THROW_ON_ERROR);
+        $registrationResult = new \Infocyph\Foundation\Auth\Passkey\PasskeyRegistrationResult(
+            challengeId: $registration->id,
+            accountId: $account->id(),
+            credentialId: $credentialId,
+            publicKey: '',
+            transports: ['internal'],
+            metadata: ['credential_json' => $browserCredential],
+        );
+        $registered = $services->passkeys()->finishRegistration($registrationResult);
+        $store = $app->make(\Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface::class);
+        $saved = $store->findByCredentialId($credentialId);
+
+        expect($registered->successful())->toBeTrue()
+            ->and($saved)->not->toBeNull()
+            ->and($saved?->accountId)->toBe($account->id())
+            ->and($saved?->credentialId)->toBe($credentialId)
+            ->and($saved?->credentialRecordJson)->toBeString()->not->toBeEmpty()
+            ->and($saved?->revision)->toBe(0);
+        expect(fn() => $services->passkeys()->finishRegistration($registrationResult))
+            ->toThrow(RuntimeException::class);
+
+        $authentication = $services->passkeys()->startAuthentication($account->id())->challenge;
+        if (!$authentication instanceof \Infocyph\Foundation\Auth\Passkey\PasskeyChallenge) {
+            throw new RuntimeException('Native WebAuthn assertion ceremony was not issued.');
+        }
+        $assertionClientData = json_encode([
+            'type' => 'webauthn.get',
+            'challenge' => $authentication->challenge,
+            'origin' => 'https://foundation.test',
+        ], JSON_THROW_ON_ERROR);
+        $authenticatorData = hash('sha256', 'foundation.test', true) . "\x05" . pack('N', 1);
+        $signature = '';
+        if (!openssl_sign(
+            $authenticatorData . hash('sha256', $assertionClientData, true),
+            $signature,
+            $key,
+            OPENSSL_ALGO_SHA256,
+        )) {
+            throw new RuntimeException('Unable to sign native WebAuthn assertion.');
+        }
+        $assertion = json_encode([
+            'id' => $credentialId,
+            'rawId' => $credentialId,
+            'type' => 'public-key',
+            'response' => [
+                'authenticatorData' => \Infocyph\OTP\Support\Base64Url::encode($authenticatorData),
+                'clientDataJSON' => \Infocyph\OTP\Support\Base64Url::encode($assertionClientData),
+                'signature' => \Infocyph\OTP\Support\Base64Url::encode($signature),
+                'userHandle' => \Infocyph\OTP\Support\Base64Url::encode(
+                    hash('sha3-256', "foundation:passkey:user:v1\0" . $account->id(), true),
+                ),
+            ],
+        ], JSON_THROW_ON_ERROR);
+        $result = new \Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationResult(
+            challengeId: $authentication->id,
+            credentialId: $credentialId,
+            clientData: '',
+            authenticatorData: '',
+            signature: '',
+            metadata: ['credential_json' => $assertion],
+        );
+        expect($services->passkeys()->finishAuthentication($result)->successful())->toBeTrue()
+            ->and($store->findByCredentialId($credentialId)?->revision)->toBe(1)
+            ->and($services->passkeys()->finishAuthentication($result)->successful())->toBeFalse()
+            ->and($store->findByCredentialId($credentialId)?->revision)->toBe(1);
+    });
+});
