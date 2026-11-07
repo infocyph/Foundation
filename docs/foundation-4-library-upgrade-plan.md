@@ -2,6 +2,13 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 106d — fix retained passkey migration's multi-engine and migration-ledger contracts
+
+- **Source of failure:** Before correction, the latest affected GitHub QA fixture reproduced the original Foundation 3 `credential_id VARCHAR(1024) UNIQUE` in all backends. MySQL UTF8MB4 rejects that legacy index because its maximum 3072-byte key permits at most 768 UTF8MB4 characters; the error was from the test's historical schema creation, not from a leaked credential hash. This is genuine information about original Foundation 3 MySQL deployment portability; do not claim the 1024-character index was installable in this environment.
+- **Accurate compatibility fixture:** Keep the exact 1024-character legacy unique column for SQLite and PostgreSQL; for MySQL, use a realistic deployed VARCHAR(768) unique raw credential column, with two independent historical IDs and native Foundation 4 hash backfill. Retain the explicit documented difference from the original schema.
+- **Other QA corrections:** `OAuth21SchemaUpgradeTest` now expects the newly registered passkey hash migration in the normal native DBLayer migration ledger. Order migration methods down/id/up according to the project's Pint rules; use explicit `unset($schema)` in the non-destructive down callback so PHPCS knows the preserved interface parameter is intentionally unused. No quality suppressions or SQL error bypass.
+- **Formal acceptance remains 85/90; release gate P4 stays open** until source/dependency graph, actual retained migration, current schema equivalence and rollback are all certified. Both exact-head official workflows must pass with unchanged PHPForge and performance policies. No merge/tag/release.
+
 ## Foundation 4 Batch 106c — reduce native passkey migration complexity without suppressions
 
 - **Observed QA:** Exact-head [Security & Standards 42339625681](https://github.com/infocyph/Foundation/actions/runs/42339625681) failed PHPStan strict analysis PHP 8.4 and 8.5 because `AuthPasskeyIdentityHashSchema::up()` measured cognitive complexity 19 (required maximum 12). All database-migration requirements remain intact; do not adjust PHPForge quality thresholds or ignore files.

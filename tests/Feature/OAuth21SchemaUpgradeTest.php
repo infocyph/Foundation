@@ -11,6 +11,7 @@ use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthEpicryptProtocolSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthEpicryptRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
+use Infocyph\Foundation\Database\AuthSchema\AuthPasskeyIdentityHashSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRecordSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
@@ -37,6 +38,7 @@ it('upgrades an installed Foundation 2.0 auth schema to current revisions withou
     $mfa = new AuthMfaRevisionSchema($tables);
     $passkey = new AuthPasskeyRevisionSchema($tables);
     $passkeyRecord = new AuthPasskeyRecordSchema($tables);
+    $passkeyIdentityHash = new AuthPasskeyIdentityHashSchema($tables);
     $oauth = new AuthOAuthRevisionSchema($tables);
     $oauthEpicrypt = new AuthOAuthEpicryptRevisionSchema($tables);
     $oauthProtocol = new AuthOAuthEpicryptProtocolSchema($tables);
@@ -105,6 +107,7 @@ it('upgrades an installed Foundation 2.0 auth schema to current revisions withou
             $oauth->id(),
             $passkey->id(),
             $passkeyRecord->id(),
+            $passkeyIdentityHash->id(),
             $oauthEpicrypt->id(),
             $oauthProtocol->id(),
         ]);

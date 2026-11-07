@@ -23,6 +23,15 @@ final readonly class AuthPasskeyIdentityHashSchema implements Migration
     public function __construct(private AuthTables $tables) {}
 
     #[\Override]
+    public function down(SchemaManager $schema, MigrationContext $context): void
+    {
+        // Preserve the original raw credential ID and its digest across an
+        // older-source rollback. Full schema reset still drops the table.
+        unset($schema);
+        $context->checkpoint();
+    }
+
+    #[\Override]
     public function id(): string
     {
         return '20261107000000_foundation_auth_passkey_identity_hash';
@@ -91,12 +100,4 @@ final readonly class AuthPasskeyIdentityHashSchema implements Migration
         }
     }
 
-    #[\Override]
-    public function down(SchemaManager $schema, MigrationContext $context): void
-    {
-        // The prior application can read the untouched raw credential IDs.
-        // Removing an already backfilled hash is unnecessary and destructive.
-        // A full AuthSchema teardown still removes the table as before.
-        $context->checkpoint();
-    }
 }

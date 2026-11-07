@@ -425,13 +425,16 @@ it('backfills actual legacy passkey identities before Foundation 4 hash lookups 
         $created = true;
         new MigrationRunner($database, [new AuthSchema($tables)])->run();
 
-        // Replace only the modern passkey table with the exact Foundation 3
-        // column contract: a raw opaque ID unique key and no digest column.
+        // Preserve Foundation 3's raw unique credential identity. MySQL's
+        // UTF8MB4 3072-byte index budget cannot represent its full historic
+        // VARCHAR(1024) unique index, so exercise a realistic 768-character
+        // deployed column there; SQLite/PostgreSQL use the exact old length.
+        $rawColumnLength = $driver === 'mysql' ? 768 : 1024;
         $schema->dropIfExists($tables->passkeyCredentials());
-        $schema->create($tables->passkeyCredentials(), static function (\Infocyph\DBLayer\Schema\Blueprint $table): void {
+        $schema->create($tables->passkeyCredentials(), static function (\Infocyph\DBLayer\Schema\Blueprint $table) use ($rawColumnLength): void {
             $table->string('id', 64)->primary();
             $table->string('account_id', 64)->index();
-            $table->string('credential_id', 1024)->unique();
+            $table->string('credential_id', $rawColumnLength)->unique();
             $table->text('credential_record')->nullable();
             $table->text('public_key');
             $table->bigInteger('sign_count');
