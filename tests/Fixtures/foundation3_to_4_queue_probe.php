@@ -9,7 +9,9 @@ use Infocyph\Foundation\Messaging\MessagingDatabaseSchema;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerFailureStore;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerTransport;
 use Infocyph\Omnibus\MessageBus;
-use Infocyph\Omnibus\Serialization\MessageCodec;
+use Infocyph\Foundation\Tests\Fixtures\FoundationReleaseCarryoverHandler;
+use Infocyph\Foundation\Tests\Fixtures\FoundationReleaseCarryoverMessage;
+use Infocyph\Foundation\Tests\Fixtures\FoundationReleaseCarryoverMessageCodec;
 
 if ($argc !== 5) {
     throw new InvalidArgumentException('Expected queue phase, shared database, versioned autoloader and evidence path.');
@@ -21,53 +23,9 @@ if (!in_array($phase, ['old-seed', 'new-probe', 'old-rollback', 'old-restored', 
 }
 
 require $autoload;
-
-final readonly class FoundationReleaseCarryoverMessage
-{
-    public function __construct(public string $value) {}
-}
-
-final readonly class FoundationReleaseCarryoverMessageCodec implements MessageCodec
-{
-    public function alias(): string
-    {
-        return 'foundation.omnibus26.durable-message.v1';
-    }
-
-    public function decode(array $payload): object
-    {
-        $value = $payload['value'] ?? null;
-        if (!is_string($value)) {
-            throw new UnexpectedValueException('Durable carryover value is invalid.');
-        }
-
-        return new FoundationReleaseCarryoverMessage($value);
-    }
-
-    public function encode(object $message): array
-    {
-        if (!$message instanceof FoundationReleaseCarryoverMessage) {
-            throw new InvalidArgumentException('Unexpected carryover message type.');
-        }
-
-        return ['value' => $message->value];
-    }
-
-    public function type(): string
-    {
-        return FoundationReleaseCarryoverMessage::class;
-    }
-}
-
-final class FoundationReleaseCarryoverHandler
-{
-    public function __invoke(FoundationReleaseCarryoverMessage $message): void
-    {
-        if ($message->value === 'dead-letter') {
-            throw new RuntimeException('Expected durable carryover failure.');
-        }
-    }
-}
+require_once __DIR__ . '/FoundationReleaseCarryoverMessage.php';
+require_once __DIR__ . '/FoundationReleaseCarryoverMessageCodec.php';
+require_once __DIR__ . '/FoundationReleaseCarryoverHandler.php';
 
 $queue = 'release-carryover';
 $app = Foundation::worker([
