@@ -55,6 +55,9 @@ final readonly class OAuthAuthorizationController
         };
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function approveWithProtocolError(
         AuthorizationRequest $request,
         \Infocyph\Foundation\Auth\Principal\PrincipalInterface $principal,

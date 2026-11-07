@@ -38,6 +38,11 @@ Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review comple
 - **Correction:** Collapse cleanup callbacks into standard short arrow callbacks and extract the nullable acquired-lock release into one small private helper, reducing run complexity without changing required exception precedence. Explicitly document the throwable propagation from cache mutation, preserving `CleanupGuard` semantics and lock state invariants.
 - **Acceptance:** R07 remains unchecked pending successful official exact-head QA and strict analyzers. Formal **84/95**, `composer.lock` still gitignored, PR draft and unmerged.
 
+## Foundation 4 Batch 129 — declare the OIDC response helper's remaining checked exception
+
+- **Observed Batch 128 [42365512342](https://github.com/infocyph/Foundation/actions/runs/42365512342):** Psalm's only remaining reported error is the newly extracted `OAuthAuthorizationController::approveWithProtocolError()` missing the preexisting `LogicException` contract raised by both approved response generation and validated OAuth failure formatting. Other previous errors are resolved. Annotate the accurate exception without suppressions or behavior changes.
+- **Acceptance:** Official QA and host exact-head success required before accepting review findings; formal **84/95** unchanged, P6 also remains open. PR draft/unmerged.
+
 ## Foundation 4 Batch 128 — return a protocol error when late OIDC approval is denied
 
 - **Exact-head Batch 127 [Security & Standards 42365275742](https://github.com/infocyph/Foundation/actions/runs/42365275742):** Psalm now reports only the unhandled `OAuthProtocolException` from `OAuthAuthorizationController::authorizationApprove()` through `OAuthHttpHandler::authorizationApproved()`; the prior OIDC handler and command throws are qualified. Do not weaken Psalm's checked error propagation.
