@@ -18,6 +18,12 @@ The selected-owner integration evidence is covered separately by `AuthDomainInte
 
 Real customer recovery procedures remain an operator responsibility. Foundation 4 release certification requires an independently verified Foundation 3 → 4 migration and recovery path. A full multi-service application backup, operational key restoration and recovery drill remain deployment-specific responsibilities.
 
+## Separate source/dependency graph artifact rebuild and rollback
+
+The official cross-major CI job also runs `foundation3_to_4_release_artifact_probe.php` in independent PHP processes with each source revision's published Composer graph. The version-specific native `FoundationReleaseCompiler` builds the web, CLI, worker and scheduler artifacts into distinct immutable generations under one release root. The probe boots every runtime using the source that built it, switches the active generation from Foundation 3 to Foundation 4 and back, then reactivates Foundation 4. It checks all four generated containers, web matcher artifacts, runtime modes, release-manifest SHA-256 and the installed dependency fingerprint on each switch. It **fails** if the two resolved dependency fingerprints are identical or if switching changes the stored generation identity.
+
+This verifies artifact integrity and old/new source and package-graph switching on the selected published packages; it does not replace a production-equivalent multi-service snapshot or certify that existing 3.x runtime binaries can execute under 4.x code. The original 3.x Composer lock remains absent; the original source is real, while its dependency set is a separately recorded reconstruction. Release acceptance only follows a passing exact-head official job and remaining full P4 state qualifications.
+
 ## Original-source retained-state cutover evidence
 
 The `cross-major-auth-rehearsal` CI job checks out immutable Foundation 3 source `fc9b3258646ac744e61fd02e18d9b98e5afff2e8` independently from the release candidate. It resolves the original source with selected published DBLayer 5 and the new source with DBLayer 6. Both locks, their package identities and the old manifest are retained as CI artifacts. **The resolved legacy lock is a reconstructed 2026 graph, not an authentic originally tracked lock**, which is unavailable.

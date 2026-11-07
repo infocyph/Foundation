@@ -245,6 +245,17 @@ jobs:
           test "$(sha256sum "$database" | cut -d' ' -f1)" = "$(sha256sum "$output/old-snapshot.sqlite" | cut -d' ' -f1)"
           php "$fixture" legacy-read "$database" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$digest" | tee "$output/old-source-restored.json"
           php "$fixture" upgrade "$database" "$GITHUB_WORKSPACE/vendor/autoload.php" "$digest" | tee "$output/second-upgrade.json"
+      - name: Build and boot independent Foundation 3/4 web, CLI, worker and scheduler release generations
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$GITHUB_WORKSPACE/build/cross-major-rehearsal"
+          project="$RUNNER_TEMP/foundation3-to-4-release-artifacts"
+          fixture=tests/Fixtures/foundation3_to_4_release_artifact_probe.php
+          php "$fixture" old-build "$project" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$output"
+          php "$fixture" new-build "$project" "$GITHUB_WORKSPACE/vendor/autoload.php" "$output"
+          php "$fixture" old-rollback "$project" "$GITHUB_WORKSPACE/historical/vendor/autoload.php" "$output"
+          php "$fixture" new-rollforward "$project" "$GITHUB_WORKSPACE/vendor/autoload.php" "$output"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
