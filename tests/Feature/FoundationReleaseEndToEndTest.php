@@ -427,6 +427,125 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
     }
 });
 
+it('rehearses a trusted four-mode generated-release rollback without losing retained authentication data', function (): void {
+    $project = foundationPhase8ReleaseProject();
+    $releaseRoot = $project . '/storage/releases';
+    $config = foundationPhase8ReleaseConfig($project);
+    $config['database']['connections']['primary'] = [
+        'driver' => 'sqlite',
+        'database' => $project . '/storage/retained-auth.sqlite',
+    ];
+    $connection = new \Infocyph\DBLayer\Connection\Connection(
+        \Infocyph\DBLayer\Connection\ConnectionConfig::fromArray($config['database']['connections']['primary']),
+    );
+    $tables = new \Infocyph\Foundation\Database\AuthSchema\AuthTables();
+    $now = time();
+
+    try {
+        (new \Infocyph\DBLayer\Migration\MigrationRunner(
+            $connection,
+            [new \Infocyph\Foundation\Database\AuthSchema\AuthSchema($tables)],
+        ))->run();
+
+        $passwordHash = password_hash('retained-release-password', PASSWORD_BCRYPT);
+        $connection->table($tables->accounts())->insert([
+            'id' => 'retained-owner',
+            'identifier' => 'retained@example.test',
+            'status' => 'active',
+            'password_hash' => $passwordHash,
+            'metadata' => '{"release":"before"}',
+        ]);
+        $connection->table($tables->sessions())->insert([
+            'id' => 'retained-session',
+            'account_id' => 'retained-owner',
+            'device_id' => null,
+            'created_at' => $now,
+            'last_seen_at' => $now,
+            'expires_at' => $now + 3600,
+            'recent_auth_at' => $now,
+            'metadata' => '{"bound":"retained-owner"}',
+        ]);
+        $connection->table($tables->refreshTokens())->insert([
+            'id' => 'retained-refresh',
+            'account_id' => 'retained-owner',
+            'client_id' => 'release-consumer',
+            'device_id' => null,
+            'token_hash' => hash('sha3-256', 'retained-release-token'),
+            'family_id' => 'retained-family',
+            'issued_at' => $now,
+            'expires_at' => $now + 3600,
+            'rotated_at' => null,
+            'revoked_at' => null,
+            'metadata' => null,
+        ]);
+
+        $compiler = new FoundationReleaseCompiler();
+        $capabilities = ['web' => [], 'cli' => [], 'worker' => [], 'scheduler' => []];
+        $previous = $compiler->buildAndActivate(
+            $config, $releaseRoot, capabilities: $capabilities, generation: 'retained-before',
+        );
+        $candidate = $compiler->buildAndActivate(
+            $config, $releaseRoot, capabilities: $capabilities, generation: 'retained-candidate',
+        );
+        $active = new ActiveGeneration();
+        $expectedFingerprint = \Infocyph\Foundation\Release\FoundationReleaseManifest::dependencyFingerprint();
+
+        foreach ([
+            ['retained-candidate', $candidate, $previous],
+            ['retained-before', $previous, $candidate],
+            ['retained-candidate', $candidate, $previous],
+        ] as [$generationName, $selected, $rejected]) {
+            $active->activate($releaseRoot, $generationName);
+            expect($active->current($releaseRoot)['generation'])->toBe($generationName)
+                ->and($selected['release']['dependency_fingerprint'])->toBe($expectedFingerprint)
+                ->and($selected['manifest_sha256'])->toMatch('/^[a-f0-9]{64}$/D');
+
+            foreach (['web', 'cli', 'worker', 'scheduler'] as $mode) {
+                $container = $releaseRoot . '/generations/' . $generationName . '/' . $mode . '/container.php';
+                expect(is_file($container))->toBeTrue()
+                    ->and(is_link($container))->toBeTrue();
+            }
+
+            $loader = new FoundationReleaseRuntime();
+            foundationResetWebrickProductionRegistries();
+            $web = $loader->webPrevalidated(
+                $config, $releaseRoot, (string) $selected['manifest_sha256'],
+            );
+            $response = $web->kernel->handle(Request::fake(
+                headers: ['Host' => 'phase8.test'],
+                uri: 'https://phase8.test/phase8',
+            ));
+            expect($response->getStatusCode())->toBe(200)
+                ->and((string) $response->getBody())->toBe('{"generation":"phase8-e2e"}');
+
+            foreach ([RuntimeMode::Cli, RuntimeMode::Worker, RuntimeMode::Scheduler] as $mode) {
+                $runtime = $loader->nonWebPrevalidated(
+                    $config, $mode, $releaseRoot, (string) $selected['manifest_sha256'],
+                );
+                expect($runtime->application->runtimeMode())->toBe($mode);
+            }
+
+            expect(fn() => $loader->trustedActiveManifest(
+                $releaseRoot,
+                (string) $rejected['manifest_sha256'],
+            ))->toThrow(RuntimeException::class);
+
+            $stored = $connection->select(
+                'SELECT password_hash FROM ' . $tables->accounts() . ' WHERE id = ?',
+                ['retained-owner'],
+            );
+            expect($stored)->toHaveCount(1)
+                ->and(password_verify('retained-release-password', $stored[0]['password_hash']))->toBeTrue()
+                ->and((int) $connection->table($tables->sessions())->count())->toBe(1)
+                ->and((int) $connection->table($tables->refreshTokens())->count())->toBe(1);
+        }
+    } finally {
+        $connection->disconnect();
+        foundationResetWebrickProductionRegistries();
+        foundationPhase8ReleaseRemove($project);
+    }
+});
+
 it('publishes and boots every production matcher from its native Webrick cache', function (): void {
     $cases = [
         'fused' => [

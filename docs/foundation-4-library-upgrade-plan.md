@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 103 — atomic two-generation rollback with retained auth records (exact-head QA pending)
+
+- **Foundation 4 artifact rehearsal:** Create a real persistent DBLayer SQLite auth schema (account, hashed password, session and refresh-family state), then compile two distinct immutable Foundation generation directories against the selected published Composer graph. Confirm all four generated web/CLI/worker/scheduler containers in both revisions, correct actual `FoundationReleaseManifest::dependencyFingerprint()`, source-free trusted web request and all three non-web native boots, and a fail-closed mismatch when the other release's manifest SHA is supplied.
+- **Actual rollback path:** Atomically switch the live `ActiveGeneration` candidate → prior → candidate and revalidate generated artifacts and retained auth records after every switch. Use native Foundation compiler, runtime, DBLayer/migrations, no fabricated release manifests or compatibility adapter. The persisted data must survive both direction switches unmodified, and a mismatched generation trust SHA cannot boot.
+- **Limit of evidence:** Both generated revisions here use the same resolved source/dependency identity. This verifies immutable deployment-generation rollback mechanics and retained data, **not** a historical Foundation 3 lock or actual altered-Composer-package migration. The two P4 checkboxes remain open until independently resolved prior/current dependency graphs and actual rollback are certified; P6 full matched-host still requires dispatch. Formal **85/90** unchanged. One test+plan batch commit, PR draft/unmerged.
+
 ## Foundation 4 Batch 102 — accept full TalkingBytes P3 real-network matrix (exact-head QA qualified)
 
 - **Trust and exact-head evidence:** [Security & Standards 42336604974](https://github.com/infocyph/Foundation/actions/runs/42336604974) and [native hosts 42336604498](https://github.com/infocyph/Foundation/actions/runs/42336604498) are complete and successful at `28278805`, certifying the complete source of Batches 99–101d with real HTTP CurlTransport, native SMTP/Mailpit and native gRPC over HTTP/2. Strict PHPProbe optional-symbol scan, Psalm/PHPStan, four Pest QA lanes, PHPCS, Pint, production-consumer installs and benchmark lanes passed without quality suppressions. The integration-only gRPC dependency is installed just in its selected job.
