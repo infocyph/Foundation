@@ -7,6 +7,7 @@ their domain behavior.
 - [Architecture and lifecycle](architecture.md)
 - [Foundation 4 release notes](foundation-4.0-release-notes.md)
 - [Foundation 4 library upgrade and audit plan](foundation-4-library-upgrade-plan.md)
+- [Foundation 4 consolidated review and remaining findings](foundation-4-consolidated-review.md)
 - [Foundation 4 resolved dependency graph and platform evidence](foundation-4-dependency-qualification.md)
 - [Foundation 4 compatibility and documentation audit](foundation-4-compatibility-audit.md)
 - [Foundation 4 setup and runtime guide](foundation-4-migration.md)
