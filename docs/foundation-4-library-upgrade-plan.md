@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 110 — strict PHPForge CLI fixture policy after authentic cutover
+
+- **Exact-head QA fault:** [Security & Standards 42343683358](https://github.com/infocyph/Foundation/actions/runs/42343683358) on `0f75e20c` reached full PHPForge functional quality; the PHP 8.5 prefer-lowest lane identified one `PHPForge.PHP.ForbiddenFunctions.Found` error: diagnostic `echo()` at line 155 of new original-source cutover probe. This is an output-contract/style violation in a test fixture, not the live DBLayer migration, which passed its independent original F3→F4 job. Another PHP 8.5 prefer-stable lane failed before tests on Docker registry Valkey 9.1-alpine **HTTP 502**, separate infrastructure fault.
+- **Correction:** Replace only the forbidden direct output in the CLI probe with `fwrite(STDOUT, ... . PHP_EOL)`; retain exact JSON digest payload, native old/new Composer graphs, original-source rollback checks and existing strict PHPForge checks. No broad refactor, quality suppression or skipped tests.
+- **Acceptance:** Run new exact-head full official PHP 8.4/8.5 stable/lowest QA, static analyzers, real cross-major migration job, consumers, benchmarks, native hosts. No release checkbox is accepted from a fixture-style fix. Canonical **85/90**, P1/P4/P6 open, draft/unmerged, no tag or release.
+
 ## Foundation 4 Batch 109b — restore verified dispatch-only performance workflow
 
 - **Exact-head validation blocker:** [Security & Standards 42343567329](https://github.com/infocyph/Foundation/actions/runs/42343567329) on `43319696` again failed at workflow validation before scheduling any jobs. An abbreviated PR-edit trigger still breaks the existing reusable workflow invocation on this branch; no host matrix, QA or analyzer results can be asserted for Batches 109/109a.

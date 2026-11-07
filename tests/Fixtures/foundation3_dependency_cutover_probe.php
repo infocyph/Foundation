@@ -152,7 +152,7 @@ try {
         }
     }
 
-    echo json_encode(['stage' => $stage, 'php' => PHP_VERSION, 'state_sha256' => $digest], JSON_THROW_ON_ERROR), "\n";
+    fwrite(STDOUT, json_encode(['stage' => $stage, 'php' => PHP_VERSION, 'state_sha256' => $digest], JSON_THROW_ON_ERROR) . PHP_EOL);
 } finally {
     $connection->disconnect();
 }
