@@ -2,6 +2,12 @@
 
 Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review complete; seven source findings and P6 certification gates open**.
 
+## Foundation 4 Batch 123f — retain exception precedence with a direct cache-lock release
+
+- **Official Batch 123e:** [Security & Standards 42360340086](https://github.com/infocyph/Foundation/actions/runs/42360340086) still reports one Pint `RuntimeControl` braces-position/single-line-body change, despite the callable being moved into a private method. All Pest and static-analyzer lanes completed without source errors.
+- **Correction:** Use direct cache-lock release inside the existing `finally` and catch only its failure. If mutation already failed, retain and rethrow the original primary exception; if mutation succeeded, propagate release failure. No closure, helper, PHPForge config relaxation or change to command's use of `CleanupGuard`. This is the smallest explicit equivalent lifecycle operation and keeps exactly-once release.
+- **Acceptance:** Do not mark R07 accepted until exact-head full QA/native hosts pass; formal **84/95**, PR draft/unmerged.
+
 ## Foundation 4 Batch 123e — eliminate closure-dependent runtime-lock formatting
 
 - **Persistent exact-head issue:** [Security & Standards 42359754595](https://github.com/infocyph/Foundation/actions/runs/42359754595) on `28480659` passed static analysis and Pest but Pint still flagged `src/Operations/RuntimeControl.php` (`braces_position`/`single_line_empty_body`) after repeated closure-reformatting attempts. One formatting failure still blocks the complete QA workflow.

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Operations;
 
-use Infocyph\CacheLayer\Cache\Lock\LockHandle;
-use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Cache\CacheManager;
@@ -83,26 +81,6 @@ final readonly class RuntimeControl
         return is_array($entry) && is_string($entry['token'] ?? null)
             ? $entry['token']
             : '';
-    }
-
-    /**
-     * Release a cache lock exactly once. A primary mutation failure remains
-     * authoritative; a release failure is reported after successful work.
-     *
-     * @throws \Throwable
-     */
-    private static function releaseCacheLock(
-        LockProviderInterface $lock,
-        LockHandle $handle,
-        ?\Throwable $primaryFailure,
-    ): void {
-        try {
-            $lock->release($handle);
-        } catch (\Throwable $exception) {
-            if ($primaryFailure === null) {
-                throw $exception;
-            }
-        }
     }
 
     /**
@@ -219,7 +197,13 @@ final readonly class RuntimeControl
 
                 throw $exception;
             } finally {
-                self::releaseCacheLock($lock, $handle, $primaryFailure);
+                try {
+                    $lock->release($handle);
+                } catch (\Throwable $cleanupFailure) {
+                    if ($primaryFailure === null) {
+                        throw $cleanupFailure;
+                    }
+                }
             }
 
             return;
