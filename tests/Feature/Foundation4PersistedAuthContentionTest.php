@@ -405,3 +405,99 @@ it('restores retained auth records through independent SQLite/MySQL/PostgreSQL c
         rmdir($directory);
     }
 })->with(['sqlite', 'mysql', 'pgsql']);
+
+
+it('backfills actual legacy passkey identities before Foundation 4 hash lookups on selected SQL engines', function (string $driver): void {
+    $directory = sys_get_temp_dir() . '/foundation-legacy-passkey-' . bin2hex(random_bytes(6));
+    if (!mkdir($directory, 0700)) {
+        throw new RuntimeException('Unable to allocate the isolated legacy passkey fixture.');
+    }
+
+    $config = persistedAuthConnection($driver, $directory);
+    $fixture = new AuthContentionFixture($config);
+    $database = $fixture->factory->connection();
+    $schema = new SchemaManager($database);
+    $tables = $fixture->tables;
+    $created = false;
+
+    try {
+        expect($schema->hasTable($tables->accounts()))->toBeFalse();
+        $created = true;
+        new MigrationRunner($database, [new AuthSchema($tables)])->run();
+
+        // Replace only the modern passkey table with the exact Foundation 3
+        // column contract: a raw opaque ID unique key and no digest column.
+        $schema->dropIfExists($tables->passkeyCredentials());
+        $schema->create($tables->passkeyCredentials(), static function (\Infocyph\DBLayer\Schema\Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('account_id', 64)->index();
+            $table->string('credential_id', 1024)->unique();
+            $table->text('credential_record')->nullable();
+            $table->text('public_key');
+            $table->bigInteger('sign_count');
+            $table->json('transports')->nullable();
+            $table->bigInteger('created_at');
+            $table->bigInteger('last_used_at')->nullable();
+            $table->bigInteger('revoked_at')->nullable();
+            $table->json('metadata')->nullable();
+            $table->bigInteger('revision')->default(0);
+        });
+
+        $now = time();
+        $rawIds = ['legacy-one-' . bin2hex(random_bytes(12)), 'legacy-two-' . bin2hex(random_bytes(12))];
+        foreach ($rawIds as $offset => $raw) {
+            $database->table($tables->passkeyCredentials())->insert([
+                'id' => 'legacy-passkey-' . $offset,
+                'account_id' => 'legacy-owner',
+                'credential_id' => $raw,
+                'credential_record' => null,
+                'public_key' => 'opaque-legacy-public-key',
+                'sign_count' => $offset,
+                'transports' => '["internal"]',
+                'created_at' => $now,
+                'last_used_at' => null,
+                'revoked_at' => null,
+                'metadata' => null,
+                'revision' => 0,
+            ]);
+        }
+        expect($schema->hasColumn($tables->passkeyCredentials(), 'credential_id_hash'))->toBeFalse();
+
+        $installer = new \Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller(
+            $fixture->factory,
+            new AuthSchema($tables),
+            new \Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema($tables),
+            new \Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRevisionSchema($tables),
+            new \Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRecordSchema($tables),
+            $tables,
+        );
+        $installer->install();
+        expect($installer->installed())->toBeTrue()
+            ->and($schema->hasColumn($tables->passkeyCredentials(), 'credential_id_hash'))->toBeTrue();
+
+        foreach ($rawIds as $offset => $raw) {
+            $record = $fixture->store('passkey')->findByCredentialId($raw);
+            expect($record?->id)->toBe('legacy-passkey-' . $offset)
+                ->and($record?->credentialId)->toBe($raw)
+                ->and($database->table($tables->passkeyCredentials())->where('id', '=', 'legacy-passkey-' . $offset)->value('credential_id_hash'))
+                ->toBe(hash('sha3-256', $raw));
+        }
+
+        // Re-running the installer cannot rewrite or lose historical keys.
+        $installer->install();
+        expect($fixture->store('passkey')->findByCredentialId($rawIds[0])?->id)->toBe('legacy-passkey-0')
+            ->and($fixture->store('passkey')->findByCredentialId($rawIds[1])?->id)->toBe('legacy-passkey-1');
+    } finally {
+        if ($created) {
+            foreach (array_reverse($tables->all()) as $table) {
+                $schema->dropIfExists($table);
+            }
+            $schema->dropIfExists('migrations');
+        }
+        $database->disconnect();
+        foreach (new FilesystemIterator($directory) as $file) {
+            unlink($file->getPathname());
+        }
+        rmdir($directory);
+    }
+})->with(['sqlite', 'mysql', 'pgsql']);

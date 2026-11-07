@@ -114,6 +114,7 @@ final readonly class AuthSchemaInstaller
             $this->mfaRevisionSchema,
             $this->passkeyRevisionSchema,
             $this->passkeyRecordSchema,
+            new AuthPasskeyIdentityHashSchema($this->tables),
             ...($this->oauthEnabled ? [
                 $this->oauthSchema(),
                 new AuthOAuthEpicryptRevisionSchema($this->tables),
