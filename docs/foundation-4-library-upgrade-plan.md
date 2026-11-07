@@ -2,6 +2,13 @@
 
 Date: 2026-11-07 (Asia/Dhaka). Status: **consolidated full-library review complete; seven source findings and P6 certification gates open**.
 
+## Foundation 4 Batch 123 — preserve primary command failures through history and lock cleanup
+
+- **R07:** `CommandExecutionCoordinator::run()` previously let a lock release error replace the primary command exception; failed-history recording can also throw while reporting an earlier failure. `RuntimeControl::mutate()` had the same unguarded lock cleanup order. Reuse existing `Runtime\\CleanupGuard` instead of adding an exception framework.
+- **Fix:** Track original command/runtime-control exception. Attempt failed-history recording and lock release without replacing the primary, but propagate cleanup failure if work otherwise succeeds. Release acquired locks exactly once, without releasing a failed overlap acquisition. Keep inline exceptions authoritative when history storage is unavailable.
+- **Regression:** Public coordinator tests with actual fake `LockProviderInterface` verify primary `LogicException` survives a failing release, successful work surfaces release failure, and overlap rejection never releases a nonexistent lock. Retain existing CleanupGuard and supervised process suite.
+- **Acceptance:** R07 remains unchecked until exact-head official QA. Formal **84/95**, PR draft/unmerged; no tag, release or performance waiver.
+
 ## Foundation 4 Batch 122 — protect environment secret staging at first write
 
 - **R06:** A private final `.env` is insufficient if its exclusively created temporary sibling receives plaintext under the process umask `0022` before `chmod 0600`. Original review demonstrates an actual writable `0644` stage at the first write, not a successful external-user exploit.

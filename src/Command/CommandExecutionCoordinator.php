@@ -15,6 +15,7 @@ use Infocyph\Foundation\Process\ProcessResult;
 use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Process\ProcessTerminationReason;
 use Infocyph\Foundation\Runtime\ExecutionId;
+use Infocyph\Foundation\Runtime\CleanupGuard;
 
 final class CommandExecutionCoordinator
 {
@@ -57,6 +58,7 @@ final class CommandExecutionCoordinator
 
         $lock = null;
         $handle = null;
+        $primaryFailure = null;
 
         try {
             if ($policy->overlap !== OverlapMode::Allow) {
@@ -96,13 +98,20 @@ final class CommandExecutionCoordinator
 
             return $result->exitCode;
         } catch (\Throwable $exception) {
-            $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
-                'exception' => $exception::class,
-            ]);
+            $primaryFailure = $exception;
+            CleanupGuard::run($exception, function () use ($history, $executionId, $name, $exception): void {
+                $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
+                    'exception' => $exception::class,
+                ]);
+            });
 
             throw $exception;
         } finally {
-            $lock?->release($handle);
+            CleanupGuard::run($primaryFailure, static function () use ($lock, $handle): void {
+                if ($lock !== null && $handle !== null) {
+                    $lock->release($handle);
+                }
+            });
         }
     }
 
@@ -250,9 +259,11 @@ final class CommandExecutionCoordinator
 
             return $exitCode;
         } catch (\Throwable $exception) {
-            $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
-                'exception' => $exception::class,
-            ]);
+            CleanupGuard::run($exception, function () use ($history, $executionId, $name, $exception): void {
+                $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
+                    'exception' => $exception::class,
+                ]);
+            });
 
             throw $exception;
         }

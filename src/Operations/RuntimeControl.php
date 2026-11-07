@@ -8,6 +8,7 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Cache\FoundationCacheKey;
+use Infocyph\Foundation\Runtime\CleanupGuard;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\UID\Id;
 
@@ -187,10 +188,17 @@ final readonly class RuntimeControl
                 throw new \RuntimeException('Unable to acquire the runtime-control update lock.');
             }
 
+            $primaryFailure = null;
             try {
                 $this->write($mutation($this->read()));
+            } catch (\Throwable $exception) {
+                $primaryFailure = $exception;
+
+                throw $exception;
             } finally {
-                $lock->release($handle);
+                CleanupGuard::run($primaryFailure, static function () use ($lock, $handle): void {
+                    $lock->release($handle);
+                });
             }
 
             return;
