@@ -2,6 +2,12 @@
 
 Date: 2026-11-06 (Asia/Dhaka). Status: **implementation in progress; release gates open**.
 
+## Foundation 4 Batch 93 — Pathwise HTTP storage-root containment and consistent aliases (exact-head QA pending)
+
+- **Containment:** Through a real Foundation/Webrick upload request against the configured Pathwise storage disk, reject an untrusted parent-directory escape before source movement, assert that the original temporary file remains intact, then reuse the same request for a valid contained upload and verify exact published bytes. The native `StorageContext::normalizeLocation()` owns traversal rejection; Foundation adds no alternate path engine.
+- **Chunk aliases:** Require the two supported alias spellings to agree without rejecting equivalent canonical decimal values. Follow verified malformed/contradictory alias rejection and native session ownership coverage from Batches 89/90.
+- **P3 acceptance candidate:** The existing current untrusted profile, malware rejection, staged-content cleanup, chunk reconstruction/ownership, Webrick streaming, cancelled-host before-side-effect and post-scan cancellation plus this containment case collectively address Pathwise's open upload criterion. Do not mark it complete until official PHPForge/native-host exact-head QA passes. Formal count remains **79/90 accepted, 11 open** from Batch 91 P1 API audit, separate dependency-origin, retained-state and sustained-host criteria unchanged.
+
 ## Foundation 4 Batch 92 — selected native remote JOSE cancellation versus stale-key fallback (exact-head QA pending)
 
 - **Native selected resolver:** Add a Foundation borrowed-host integration test for Epicrypt 3.3 `RemoteJwks` with an explicitly supplied `RemoteJoseHostResolverInterface`. The fixture first exposes a genuine stale-cache candidate; host resolution either throws native cancellation directly or returns an allowed IP after cancelling its borrowed request. Both branches must fail with `CancelledException` without returning stale keys or calling an HTTP transport. No Foundation-owned remote discovery, alternate resolver engine or local-key configuration change is added.

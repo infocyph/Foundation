@@ -176,7 +176,7 @@ it('handles normal and chunked upload requests through Pathwise UploadSource', f
             ->and($storedDisk->read($storedLocation))->toBe('single upload body');
 
         $first = Request::fake(
-            post: ['uploadId' => 'bridge-upload', 'chunkIndex' => 0, 'totalChunks' => 2, 'originalFilename' => 'chunked.txt'],
+            post: ['uploadId' => 'bridge-upload', 'chunk_index' => '0', 'chunkIndex' => 0, 'totalChunks' => 2, 'originalFilename' => 'chunked.txt'],
             headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload/chunk',
         )->withUploadedFiles(['file' => [
             'tmp_name' => $chunkOne, 'size' => filesize($chunkOne) ?: 0, 'error' => UPLOAD_ERR_OK,
@@ -283,6 +283,47 @@ it('handles normal and chunked upload requests through Pathwise UploadSource', f
             $disk->deleteDirectory($directory);
         }
         foundationFilesystemRemoveDirectory($basePath);
+    }
+});
+
+it('blocks HTTP upload directory traversal before moving the source and permits a contained retry', function (): void {
+    [$app, $root] = foundationFilesystemApp();
+    $app->boot();
+    $uploads = $app->make(FilesystemUploadRequestHandler::class);
+    $storage = $app->make(StorageRegistry::class);
+    $disk = $storage->disk('uploads');
+    $source = tempnam(sys_get_temp_dir(), 'foundation-contained-upload-');
+    if ($source === false) {
+        throw new RuntimeException('Unable to allocate contained upload fixture.');
+    }
+    file_put_contents($source, 'contained-body');
+
+    try {
+        $request = Request::fake(headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload')
+            ->withUploadedFiles(['file' => [
+                'tmp_name' => $source,
+                'size' => filesize($source) ?: 0,
+                'error' => UPLOAD_ERR_OK,
+                'name' => 'safe.txt',
+                'type' => 'text/plain',
+            ]]);
+
+        expect(fn() => $uploads->processUploadRequest($request, directory: '../outside', disk: 'uploads'))
+            ->toThrow(InvalidArgumentException::class, 'traversal');
+        expect(is_file($source))->toBeTrue();
+
+        $stored = $uploads->processUploadRequest($request, directory: 'tests/contained', disk: 'uploads');
+        [$storedDisk, $location] = $storage->context()->resolve($stored, 'uploads');
+        expect($stored)->toStartWith('uploads://tests/contained/upload_')
+            ->and($storedDisk->read($location))->toBe('contained-body');
+    } finally {
+        if (is_file($source)) {
+            unlink($source);
+        }
+        if ($disk->directoryExists('tests/contained')) {
+            $disk->deleteDirectory('tests/contained');
+        }
+        foundationFilesystemRemoveDirectory($root);
     }
 });
 
