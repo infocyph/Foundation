@@ -410,6 +410,7 @@ final readonly class ModuleStateResolver
      * @phpstan-param ModuleDefinition $definition
      * @param array{known:bool,requirements:array<string,string>,error:?string} $ownership
      * @phpstan-return ModuleState
+     * @throws \InvalidArgumentException
      */
     private function state(
         string $name,

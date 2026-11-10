@@ -27,6 +27,7 @@ abstract class FormRequest
     /**
      * @throws \LogicException
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     final public function __invoke(Request $request): ValidationResult
     {
@@ -39,6 +40,7 @@ abstract class FormRequest
     /**
      * @throws \LogicException
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     final public function validate(Request $request): ValidationResult
     {

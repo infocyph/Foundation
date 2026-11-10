@@ -43,6 +43,7 @@ final readonly class FoundationBuildContext
      *
      * @param array<int|string, mixed>|null $capabilities
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     public static function fromConfig(
         ConfigRepository $config,

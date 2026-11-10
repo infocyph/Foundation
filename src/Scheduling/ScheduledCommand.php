@@ -43,6 +43,7 @@ final class ScheduledCommand
     /**
      * @param array<string, mixed> $data
      * @throws \InvalidArgumentException
+     * @throws \UnexpectedValueException
      */
     public static function fromManifest(array $data): self
     {

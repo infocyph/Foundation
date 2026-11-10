@@ -19,6 +19,7 @@ final class PathServiceProvider extends ServiceProvider
 {
     /**
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
      */
     #[\Override]
     public function boot(Application $app): void

@@ -218,6 +218,7 @@ final class CommandExecutionCoordinator
     /**
      * @param array<string, scalar|null> $metadata
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function record(
         ExecutionHistory $history,

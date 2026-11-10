@@ -28,7 +28,10 @@ final readonly class AuthorizationRequestValidator
         private ConfigRepository $config,
     ) {}
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function evaluate(array $parameters): AuthorizationProtocolResult
     {
         return $this->protocolResult($parameters);

@@ -2,6 +2,11 @@
 
 Date: 2026-11-10 (Asia/Dhaka). Status: **93/95 implementation criteria checked; Runwire 3.0.1 minimum selected in Batch 136 (exact-head QA pending); both P6 sustained certifications remain open.**
 
+## Batch 152c — production exception contracts, second group (verification pending)
+
+- Add **11 exact checked exception annotations across 10 production files** for configuration, module state, command history, scheduling, OIDC and selected validation Runwire cancellation. This includes the delegating FormRequest invoke entrypoint so the exception contract remains accurate for callers. No method bodies, runtime behavior, analyzer settings or public signatures changed.
+- Batches 152a–c are incremental work towards the 100-file dual-analyzer target, not final acceptance. Run strict PHP 8.4/8.5 Psalm/PHPStan, functional QA, Pint, and relevant host/consumer checks on the new exact head; do not record a verified reduction without that evidence. Production taint and remaining PHPStan findings are still open. Keep P6 at **93/95**, PR draft/unmerged and `composer.lock` ignored.
+
 ## Batch 152b — production exception contracts, first group (verification pending)
 
 - Source-only correction of **21 direct exception declarations across 8 production files**, covering native Runwire cancellation, typed module planner and storage-link failures, DI access and migration errors. No method-body, public signature, lifetime, dependency, performance gate, or analyzer configuration change. Precise @throws are placed at their actual entrypoints rather than catching or swallowing errors.

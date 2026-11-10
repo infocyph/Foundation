@@ -25,6 +25,7 @@ final readonly class ReadinessReport
      * @return array{schema_version:int,ready:bool,checks:array<string,array{ready:bool,detail:string}>}
      * @throws \UnexpectedValueException
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
      */
     public function generate(): array
     {

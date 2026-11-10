@@ -128,6 +128,7 @@ final class ApplicationSystemCommand extends SystemCommand
 
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
      */
     private function commandCache(): int
     {
