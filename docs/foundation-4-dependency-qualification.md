@@ -11,7 +11,9 @@ under P1/P6.
 
 ## Current maintenance disposition
 
-Rechecked on 2026-11-07 for the uncommitted maintenance tree. Live
+2026-11-10 published-runtime refresh: Foundation now requires `infocyph/runwire:^3.0.1`, matching [Runwire's published 3.0.1 tag](https://github.com/infocyph/Runwire/releases/tag/3.0.1) at `be84df6bc599798f4407df1ef5beb23afd5ceb3e`. The prior 3.0 resolved-graph row below is an **immutable historical CI snapshot**, not the new requirement or a fresh install claim. Exact-head CI must resolve the upgraded graph, record the actually installed package version/source ref, run the regular PHPForge + native host suite and re-evaluate all dependency/production-consumer checks. No new lock hash, advisory verdict, or certification pass is asserted by this manifest edit.
+
+The prior 2026-11-07 maintenance snapshot was rechecked against the then-current maintenance tree. Live
 `composer outdated --format=json`, `composer audit --locked --format=json`,
 the two `composer prohibits` checks and a full `composer update --dry-run
 --no-install --no-scripts --no-plugins` agree: there are no compatible updates
@@ -29,7 +31,7 @@ This is current local evidence, not a new hosted artifact or publication.
 
 These are visible external maintenance items, not resolved defects or waived
 latest-version requirements. Foundation runtime changes cannot truthfully
-remove the upstream constraints. No production dependency, Composer constraint,
+remove the upstream constraints. At that historical snapshot, no production dependency, Composer constraint,
 workflow pin or vendor file was altered; `composer.lock` remains gitignored.
 Final exact-revision dependency/consumer qualification is release verification
 and is outside this maintenance task. Historical immutable records below retain

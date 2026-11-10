@@ -4,6 +4,8 @@ This is the operator handoff for [Foundation PR #20](https://github.com/infocyph
 
 ## Current maintenance handoff
 
+2026-11-10 Runwire integration refresh (Batch 136): the published [Runwire 3.0.1](https://github.com/infocyph/Runwire/releases/tag/3.0.1) is now Foundation's minimum required Runwire release (`^3.0.1`), rather than merely an allowed upgrade under `^3.0`. CI must resolve and verify that exact supported release line through the unchanged PHP 8.4/8.5 stable/lowest, native host, lifecycle and production-consumer gates. The earlier selected Runwire 3.0 lock/ref remains historical evidence, not a valid claim about the new candidate. Both P6 host certifications remain open; the source-only [2026-11-07 opt-in run](https://github.com/infocyph/Foundation/actions/runs/42381306196) completed its matrix but failed both matched-host comparison verdicts under the original 2% RPM / 2.5% CV rules. Preserve failure evidence and do not waive it or mark P6 complete. All fresh CI and paired-host results must be tied to the final head SHA.
+
 2026-11-07: implementation is **93/95 complete, P0 25/25**. Maintenance changes were committed as `d30abb10`; exact-head [Security & Standards 42377166328](https://github.com/infocyph/Foundation/actions/runs/42377166328) and [native hosts 42377166008](https://github.com/infocyph/Foundation/actions/runs/42377166008) both succeeded (paired P6 jobs skipped). The two unchecked
 criteria are the P6 certifications. R01–R07 repairs and passwordless single-use
 hardening are implemented locally; the bounded-duplication review is complete.
