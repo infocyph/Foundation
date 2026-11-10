@@ -8,6 +8,7 @@ use Infocyph\Foundation\Worker\WorkerTopology;
 
 final class FoundationWorkerTopologyTrustProvider implements WorkerProvider
 {
+    #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
         unset($runtime);

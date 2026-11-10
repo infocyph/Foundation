@@ -129,6 +129,7 @@ it('validates database-backed ReqShield 3.3 rules through the native DBLayer 6.1
 
             // The same DB-backed exists rule must reject host cancellation before query admission.
             $form = new class($validators) extends FormRequest {
+                #[\Override]
                 protected function rules(Request $request): array
                 {
                     unset($request);

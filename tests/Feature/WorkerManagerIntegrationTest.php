@@ -12,6 +12,7 @@ final class FoundationMaintenanceWorker implements WorkerProvider
 {
     public static int $runs = 0;
 
+    #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
         $runtime->heartbeat();

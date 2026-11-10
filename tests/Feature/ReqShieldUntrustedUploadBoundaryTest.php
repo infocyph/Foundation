@@ -50,6 +50,7 @@ it('rejects unsafe uploaded file paths rather than inspecting forged MIME source
 it('preserves host cancellation while validating a Foundation FormRequest', function (): void {
     $factory = Foundation::web()->boot()->make(ValidatorFactory::class);
     $form = new class($factory) extends FormRequest {
+        #[\Override]
         protected function rules(Request $request): array
         {
             unset($request);

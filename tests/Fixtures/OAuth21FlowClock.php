@@ -19,6 +19,7 @@ final class OAuth21FlowClock implements ClockInterface
         $this->now += $seconds;
     }
 
+    #[\Override]
     public function now(): int
     {
         return $this->now;
