@@ -38,6 +38,11 @@ final class OAuthBearerTokenPrincipalResolver extends AbstractPrincipalResolver
         return 'oauth_bearer';
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     #[\Override]
     public function resolve(Request $request): ?PrincipalInterface
     {

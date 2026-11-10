@@ -34,6 +34,7 @@ final readonly class DatabaseMigrationManager
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function runner(?string $connection = null): MigrationRunner
     {
@@ -55,6 +56,7 @@ final readonly class DatabaseMigrationManager
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function seed(?string $connection = null, bool $transactional = true): int
     {

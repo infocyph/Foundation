@@ -55,6 +55,7 @@ final readonly class EmailProfiles
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public function imapMailbox(string $profile = 'default'): Mailbox
     {
@@ -70,6 +71,7 @@ final readonly class EmailProfiles
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public function pop3Mailbox(string $profile = 'default'): Pop3Mailbox
     {
@@ -85,6 +87,7 @@ final readonly class EmailProfiles
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public function sender(?string $profile = null): Emailer
     {
@@ -117,6 +120,7 @@ final readonly class EmailProfiles
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public function spoolReceiver(string $profile = 'default'): SpoolEmailReceiver
     {

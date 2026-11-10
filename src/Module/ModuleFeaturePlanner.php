@@ -96,6 +96,7 @@ final readonly class ModuleFeaturePlanner
      * @phpstan-param Context $context
      * @param array{require:array<string,string>,remove:list<string>,activate:array<string,bool>,publish:list<string>,schemas:list<string>} $effects
      * @param list<string> $blockers
+     * @throws \InvalidArgumentException
      */
     private function applyRequested(
         string $operation,
@@ -132,6 +133,7 @@ final readonly class ModuleFeaturePlanner
     /**
      * @phpstan-param Context $context
      * @param list<string> $blockers
+     * @throws \InvalidArgumentException
      */
     private function checkDependents(string $id, array $context, array &$blockers): void
     {
@@ -293,6 +295,7 @@ final readonly class ModuleFeaturePlanner
      * @param list<string> $requested
      * @phpstan-param Context $context
      * @return list<string>
+     * @throws \InvalidArgumentException
      */
     private function requirements(array $requested, array $context): array
     {

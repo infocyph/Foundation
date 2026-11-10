@@ -26,6 +26,7 @@ final readonly class StorageLinkManager
     /**
      * @return list<array{link:string,target:string,created:bool}>
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function create(): array
     {
@@ -48,6 +49,7 @@ final readonly class StorageLinkManager
     /**
      * @return list<array{link:string,target:string,removed:bool}>
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function remove(): array
     {
@@ -80,6 +82,7 @@ final readonly class StorageLinkManager
     /**
      * @return list<array{link:string,target:string,exists:bool,linked:bool,matches:bool,broken:bool}>
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function status(): array
     {

@@ -87,6 +87,7 @@ final readonly class CommunicationProfiles
 
     /**
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public function http(?string $profile = null): HttpClient
     {
@@ -193,6 +194,7 @@ final readonly class CommunicationProfiles
 
     /**
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     private function grpcFactory(): GrpcClientFactory
     {

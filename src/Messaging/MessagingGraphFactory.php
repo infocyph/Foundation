@@ -70,6 +70,7 @@ final class MessagingGraphFactory
 
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
      */
     public static function durableSerializer(OmnibusDurableFactory $factory): JsonEnvelopeSerializer
     {
@@ -115,11 +116,17 @@ final class MessagingGraphFactory
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function handlerMap(MessagingRuntimeResolver $resolver, mixed $configured): HandlerMap
     {
         return new HandlerMap($resolver->handlers($configured));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function listenerMap(MessagingRuntimeResolver $resolver, mixed $configured): ListenerMap
     {
         return new ListenerMap($resolver->listeners($configured));

@@ -2,6 +2,11 @@
 
 Date: 2026-11-10 (Asia/Dhaka). Status: **93/95 implementation criteria checked; Runwire 3.0.1 minimum selected in Batch 136 (exact-head QA pending); both P6 sustained certifications remain open.**
 
+## Batch 152b — production exception contracts, first group (verification pending)
+
+- Source-only correction of **21 direct exception declarations across 8 production files**, covering native Runwire cancellation, typed module planner and storage-link failures, DI access and migration errors. No method-body, public signature, lifetime, dependency, performance gate, or analyzer configuration change. Precise @throws are placed at their actual entrypoints rather than catching or swallowing errors.
+- This is an incremental portion of the 100-file dual-analyzer remediation target. Fresh official strict PHP 8.4/8.5 Psalm/PHPStan and functional/Pint/benchmark QA are required; the 1,324 pre-batch Psalm count is not a verified post-change count. Both P6 certifications remain open and checklist is **93/95**. Keep the PR draft/unmerged, no tag/release and no suppressions.
+
 ## Batch 152a — type-contract remediation (in progress)
 
 - The latest completed strict PR-merge PHP 8.4/8.5 analysis at [42848533326](https://github.com/infocyph/Foundation/actions/runs/42848533326) reported **1,324 Psalm errors** on each PHP version, down from 1,807 before Batch 151; PHPStan remains failed with 1,000+ displayed diagnostics. The workflow checked out synthetic merge `e36048137` containing source head `1428a929`. These are verified **pre-152a** counts, not post-change results.

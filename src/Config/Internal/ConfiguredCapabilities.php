@@ -17,7 +17,10 @@ final readonly class ConfiguredCapabilities
     /** @var array<string,bool>|null */
     private ?array $featureSelections;
 
-    /** @throws \UnexpectedValueException */
+    /**
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     */
     public function __construct(private ConfigRepository $config)
     {
         $this->featureSelections = ModuleFeatureCapabilityPolicy::fromConfig($config);
