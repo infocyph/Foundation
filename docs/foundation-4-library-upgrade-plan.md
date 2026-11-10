@@ -14,6 +14,11 @@ The [consolidated review](foundation-4-consolidated-review.md#current-maintenanc
 - **Final local checks:** required PHPForge process and all static/quality/architecture gates pass, including PHPStan and Psalm. Focused regressions: **44 passed / 5,575 assertions**. Final full local suite: **990 passed, 25 unavailable-service failures / 36,937 assertions**, with the same 25 failed identities as the previous baseline. Strict Composer validation and local documentation links pass. Evidence: `/tmp/foundation-maintenance/qa-final.log`, `focused-final.log` and `validation-summary.json`.
 - **Source checkpoint:** maintenance changes are committed at `d30abb10b11ab61d080e064cd34e213a838ec0f7`. Exact-head [Security & Standards 42377166328](https://github.com/infocyph/Foundation/actions/runs/42377166328) and [native hosts 42377166008](https://github.com/infocyph/Foundation/actions/runs/42377166008) both passed, including PHPForge stable/lowest, static analysis, consumers and selected service integrations. The paired-host jobs were skipped; green host smoke is **not P6 certification**. No merge, tag, publication or lockfile-policy change.
 
+## Batch 141 — fourth native override-contract remediation batch
+
+- Add **42** verified native PHP 8.4 `#[\\Override]` attributes in **12** previously unedited tests/benchmarks files, preserving existing implementations. Accumulated exact-declaration edits: **458/523** Psalm `MissingOverrideAttribute` findings across **48** unique files (counts sourced from the original failed analyzer log; fresh QA confirmation is required).
+- Do not suppress analyzer findings or weaken the QA matrix; static Psalm/PHPStan backlog beyond these declarations is separate. P6 still 2 mandatory unchecked certifications, implementation tracker **93/95**; PR draft/unmerged, no tag, `composer.lock` ignored.
+
 ## Batch 140 — third native override-contract remediation batch
 
 - Correct **64** exact Psalm-reported `MissingOverrideAttribute` declarations in **12** additional test/fixture/benchmark files using native PHP 8.4 `#[\\Override]`. Method bodies and signatures remain unchanged; the corrected-declaration count reaches **416/523** across **36** files before fresh CI analysis. No analyzer configuration changes, skips or lower quality thresholds.

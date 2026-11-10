@@ -10,11 +10,13 @@ use UnexpectedValueException;
 
 final readonly class FoundationReleaseCarryoverMessageCodec implements MessageCodec
 {
+    #[\Override]
     public function alias(): string
     {
         return 'foundation.omnibus26.durable-message.v1';
     }
 
+    #[\Override]
     public function decode(array $payload): object
     {
         $value = $payload['value'] ?? null;
@@ -25,6 +27,7 @@ final readonly class FoundationReleaseCarryoverMessageCodec implements MessageCo
         return new FoundationReleaseCarryoverMessage($value);
     }
 
+    #[\Override]
     public function encode(object $message): array
     {
         if (!$message instanceof FoundationReleaseCarryoverMessage) {
@@ -34,6 +37,7 @@ final readonly class FoundationReleaseCarryoverMessageCodec implements MessageCo
         return ['value' => $message->value];
     }
 
+    #[\Override]
     public function type(): string
     {
         return FoundationReleaseCarryoverMessage::class;

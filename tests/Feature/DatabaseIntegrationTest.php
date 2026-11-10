@@ -29,17 +29,20 @@ use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
 final class FoundationExampleMigration implements Migration
 {
+    #[\Override]
     public function down(SchemaManager $schema, MigrationContext $context): void
     {
         $context->checkpoint();
         $schema->dropIfExists('foundation_examples');
     }
 
+    #[\Override]
     public function id(): string
     {
         return '20260730000000_create_foundation_examples';
     }
 
+    #[\Override]
     public function up(SchemaManager $schema, MigrationContext $context): void
     {
         $context->checkpoint();
@@ -52,6 +55,7 @@ final class FoundationExampleMigration implements Migration
 
 final class FoundationExampleSeeder implements Seeder
 {
+    #[\Override]
     public function run(Connection $connection, SeedContext $context): void
     {
         expect($context->connection())->toBe($connection);

@@ -72,14 +72,17 @@ it('regrants revoked consent and rolls back partial client registration atomical
 
         $clock = new readonly class($now) implements ClockInterface {
             public function __construct(private int $now) {}
+            #[\Override]
             public function now(): int { return $this->now; }
         };
         $authorizer = new class implements AuthorizerInterface {
+            #[\Override]
             public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void
             {
                 unset($principal, $ability, $resource, $context);
             }
 
+            #[\Override]
             public function can(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): AuthorizationDecision
             {
                 unset($principal, $ability, $resource, $context);

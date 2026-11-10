@@ -19,11 +19,13 @@ final class FoundationCliScopeFreeCommand implements CommandHandlerInterface
 
     public function __construct(private readonly Application $application) {}
 
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command->name('cli:scope-free')->description('Prove plain CLI commands remain scope-free.');
     }
 
+    #[\Override]
     public function run(CommandContext $context): int
     {
         unset($context);
@@ -49,6 +51,7 @@ final class FoundationCliScopedCommand implements CommandHandlerInterface
 
     public function __construct(private readonly Application $application) {}
 
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command
@@ -57,6 +60,7 @@ final class FoundationCliScopedCommand implements CommandHandlerInterface
             ->scope();
     }
 
+    #[\Override]
     public function run(CommandContext $context): int
     {
         $resolvedContext = $this->application->make(CommandContext::class);

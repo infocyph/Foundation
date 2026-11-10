@@ -15,6 +15,7 @@ final class FoundationB4FirstProvider extends ServiceProvider
     /** @var list<string> */
     public static array $order = [];
 
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($builder, $context);
@@ -24,6 +25,7 @@ final class FoundationB4FirstProvider extends ServiceProvider
 
 final class FoundationB4SecondProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($builder, $context);
@@ -35,6 +37,7 @@ final class FoundationB4LateProvider extends ServiceProvider
 {
     public function __construct(private readonly ServiceRegistry $registry) {}
 
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($builder, $context);

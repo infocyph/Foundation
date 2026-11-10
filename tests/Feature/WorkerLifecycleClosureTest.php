@@ -31,6 +31,7 @@ final class FoundationWorkerLifecycleScopedProbe
 
 final class FoundationWorkerLifecycleServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
@@ -53,6 +54,7 @@ final class FoundationWorkerLifecycleScopeProvider implements WorkerProvider
 
     public function __construct(private readonly Application $application) {}
 
+    #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
         for ($iteration = 0; $iteration < 2; $iteration++) {
@@ -80,6 +82,7 @@ final class FoundationWorkerLifecycleRestartProvider implements WorkerProvider
 
     public function __construct(private readonly Application $application) {}
 
+    #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
         self::$registryCount = count(
@@ -99,6 +102,7 @@ final class FoundationWorkerLifecycleSingletonProvider implements WorkerProvider
 {
     public static int $runs = 0;
 
+    #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
         unset($runtime);

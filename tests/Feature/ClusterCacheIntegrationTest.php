@@ -127,6 +127,7 @@ it('adapts CacheLayer atomic counters to auth lockout counters', function (): vo
         public string $lastKey = '';
         public int $lastBy = 0;
 
+        #[\Override]
         public function decrement(string $key, int $by = 1, ?int $ttlSeconds = null): AtomicCounterValue
         {
             $this->lastKey = $key;
@@ -135,18 +136,21 @@ it('adapts CacheLayer atomic counters to auth lockout counters', function (): vo
             return new AtomicCounterValue(0, false);
         }
 
+        #[\Override]
         public function delete(string $key): bool
         {
             $this->lastKey = $key;
             return true;
         }
 
+        #[\Override]
         public function get(string $key): ?int
         {
             $this->lastKey = $key;
             return null;
         }
 
+        #[\Override]
         public function increment(string $key, int $by = 1, ?int $ttlSeconds = null): AtomicCounterValue
         {
             $this->lastKey = $key;

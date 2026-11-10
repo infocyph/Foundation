@@ -36,6 +36,7 @@ function foundationDbLayerRuntimeFactory(array $database): array
     $container = new class ($state) implements ContainerInterface {
         public function __construct(private RuntimeExecutionState $state) {}
 
+        #[\Override]
         public function get(string $id): mixed
         {
             if ($id === RuntimeExecutionState::class) {
@@ -45,6 +46,7 @@ function foundationDbLayerRuntimeFactory(array $database): array
             throw new RuntimeException(sprintf('Unknown test service "%s".', $id));
         }
 
+        #[\Override]
         public function has(string $id): bool
         {
             return $id === RuntimeExecutionState::class;
@@ -189,6 +191,7 @@ it('rejects stale MFA and passkey credential replacements through DBLayer single
     $runner->run();
 
     $clock = new readonly class implements ClockInterface {
+        #[\Override]
         public function now(): int
         {
             return 1_700_000_000;

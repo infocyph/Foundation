@@ -29,6 +29,7 @@ it('keeps primary command error ahead of lock release and reports otherwise unma
         public bool $grant = true;
         public bool $failRelease = true;
 
+        #[\Override]
         public function acquire(string $key, float $waitSeconds, float $leaseSeconds = 30.0): ?LockHandle
         {
             unset($waitSeconds);
@@ -36,6 +37,7 @@ it('keeps primary command error ahead of lock release and reports otherwise unma
             return $this->grant ? new LockHandle($key, 'test-lock', leaseSeconds: $leaseSeconds) : null;
         }
 
+        #[\Override]
         public function refresh(?LockHandle $handle, float $leaseSeconds): bool
         {
             unset($handle, $leaseSeconds);
@@ -43,6 +45,7 @@ it('keeps primary command error ahead of lock release and reports otherwise unma
             return true;
         }
 
+        #[\Override]
         public function release(?LockHandle $handle): void
         {
             expect($handle)->not->toBeNull();

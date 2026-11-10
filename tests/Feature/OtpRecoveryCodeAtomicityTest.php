@@ -22,6 +22,7 @@ it('preserves recovery-code tombstones and winner-only CAS across competing cons
 
         public function __construct(private InMemoryMfaFactorStore $factors) {}
 
+        #[\Override]
         public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool
         {
             if ($expected !== null && $this->beforeUpdate !== null) {
@@ -33,16 +34,19 @@ it('preserves recovery-code tombstones and winner-only CAS across competing cons
             return $this->factors->compareAndSwap($expected, $updated);
         }
 
+        #[\Override]
         public function findForAccount(string $accountId): array
         {
             return $this->factors->findForAccount($accountId);
         }
 
+        #[\Override]
         public function remove(string $factorId): void
         {
             $this->factors->remove($factorId);
         }
 
+        #[\Override]
         public function save(MfaFactor $factor): void
         {
             $this->factors->save($factor);
