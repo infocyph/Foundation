@@ -39,6 +39,7 @@ final class FoundationCliRuntimeIO implements CommandIO
 
     public function __construct(private readonly bool $machine = false) {}
 
+    #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
         unset($question, $choices, $default);
@@ -46,6 +47,7 @@ final class FoundationCliRuntimeIO implements CommandIO
         throw new LogicException('Choice input is not expected in CLI runtime tests.');
     }
 
+    #[\Override]
     public function confirm(string $question, bool $default = false): bool
     {
         unset($question, $default);
@@ -53,36 +55,43 @@ final class FoundationCliRuntimeIO implements CommandIO
         return false;
     }
 
+    #[\Override]
     public function error(string $message): void
     {
         $this->errors[] = $message;
     }
 
+    #[\Override]
     public function info(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function interactive(): bool
     {
         return false;
     }
 
+    #[\Override]
     public function json(mixed $value): void
     {
         $this->payloads[] = $value;
     }
 
+    #[\Override]
     public function machineReadable(): bool
     {
         return $this->machine;
     }
 
+    #[\Override]
     public function note(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function password(string $question): string
     {
         unset($question);
@@ -90,11 +99,13 @@ final class FoundationCliRuntimeIO implements CommandIO
         throw new LogicException('Password input is not expected in CLI runtime tests.');
     }
 
+    #[\Override]
     public function quiet(): bool
     {
         return false;
     }
 
+    #[\Override]
     public function read(string $question, ?string $default = null): string
     {
         unset($question, $default);
@@ -102,26 +113,31 @@ final class FoundationCliRuntimeIO implements CommandIO
         throw new LogicException('Text input is not expected in CLI runtime tests.');
     }
 
+    #[\Override]
     public function success(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function table(array $headers, array $rows): void
     {
         $this->payloads[] = ['headers' => $headers, 'rows' => $rows];
     }
 
+    #[\Override]
     public function warning(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function write(string $message): void
     {
         $this->writes[] = $message;
     }
 
+    #[\Override]
     public function writeln(string $message = ''): void
     {
         $this->lines[] = $message;
@@ -137,6 +153,7 @@ final readonly class FoundationCliProbeCommand implements CommandHandlerInterfac
 {
     public function __construct(private Application $application) {}
 
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command
@@ -150,6 +167,7 @@ final readonly class FoundationCliProbeCommand implements CommandHandlerInterfac
             ->option('tag', 'Repeatable tag.', short: 't', acceptsValue: true, multiple: true);
     }
 
+    #[\Override]
     public function run(CommandContext $context): int
     {
         $input = $context->input();
@@ -177,11 +195,13 @@ final readonly class FoundationCliProbeCommand implements CommandHandlerInterfac
 
 final class FoundationCliExitCommand implements CommandHandlerInterface
 {
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command->name('cli:exit')->description('Return a deliberate non-zero exit code.')->group('Testing');
     }
 
+    #[\Override]
     public function run(CommandContext $context): int
     {
         unset($context);
@@ -192,11 +212,13 @@ final class FoundationCliExitCommand implements CommandHandlerInterface
 
 final class FoundationCliThrowCommand implements CommandHandlerInterface
 {
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command->name('cli:throw')->description('Throw a deliberate command failure.')->group('Testing');
     }
 
+    #[\Override]
     public function run(CommandContext $context): int
     {
         unset($context);
@@ -209,6 +231,7 @@ final readonly class FoundationCliOverlapCommand implements CommandHandlerInterf
 {
     public function __construct(private Application $application) {}
 
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command
@@ -222,6 +245,7 @@ final readonly class FoundationCliOverlapCommand implements CommandHandlerInterf
             ));
     }
 
+    #[\Override]
     public function run(CommandContext $context): int
     {
         unset($context);
@@ -233,11 +257,13 @@ final readonly class FoundationCliOverlapCommand implements CommandHandlerInterf
 
 final class FoundationCliHiddenCommand implements CommandHandlerInterface
 {
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command->name('cli:hidden')->description('Hidden command.')->group('Testing')->hidden();
     }
 
+    #[\Override]
     public function run(CommandContext $context): int
     {
         unset($context);
@@ -428,6 +454,7 @@ it('skips overlapping commands under a shared file lock and records cancellation
 
 final class FoundationServeUnbootedProvider extends ServiceProvider
 {
+    #[\Override]
     public function boot(Application $app): void
     {
         unset($app);
@@ -435,6 +462,7 @@ final class FoundationServeUnbootedProvider extends ServiceProvider
         throw new LogicException('Serve supervisor booted application services before its worker.');
     }
 
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($builder, $context);

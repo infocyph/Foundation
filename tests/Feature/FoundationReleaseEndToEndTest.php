@@ -53,11 +53,13 @@ final readonly class FoundationPhase8ReleaseCliCommand implements CommandHandler
 {
     public function __construct(private FoundationPhase8ReleaseProbe $probe) {}
 
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command->name('phase8:cli')->runtime(RuntimeMode::Cli);
     }
 
+    #[\Override]
     public function run(CommandContext $context): int
     {
         $context->io()->info($this->probe->runtime->value);
@@ -70,11 +72,13 @@ final readonly class FoundationPhase8ReleaseSchedulerCommand implements CommandH
 {
     public function __construct(private FoundationPhase8ReleaseProbe $probe) {}
 
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command->name('phase8:scheduler')->runtime(RuntimeMode::Scheduler);
     }
 
+    #[\Override]
     public function run(CommandContext $context): int
     {
         $context->io()->info($this->probe->runtime->value);
@@ -89,6 +93,7 @@ final class FoundationPhase8ReleaseWorkerProvider implements WorkerProvider
 
     public function __construct(private readonly FoundationPhase8ReleaseProbe $probe) {}
 
+    #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
         self::$observedRuntime = $this->probe->runtime;
@@ -106,6 +111,7 @@ final class FoundationPhase8ReleaseIO implements CommandIO
     /** @var list<string> */
     public array $lines = [];
 
+    #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
         unset($question, $choices, $default);
@@ -113,6 +119,7 @@ final class FoundationPhase8ReleaseIO implements CommandIO
         throw new LogicException('Choice input is not expected in release runtime tests.');
     }
 
+    #[\Override]
     public function confirm(string $question, bool $default = false): bool
     {
         unset($question, $default);
@@ -120,36 +127,43 @@ final class FoundationPhase8ReleaseIO implements CommandIO
         return false;
     }
 
+    #[\Override]
     public function error(string $message): void
     {
         $this->errors[] = $message;
     }
 
+    #[\Override]
     public function info(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function interactive(): bool
     {
         return false;
     }
 
+    #[\Override]
     public function json(mixed $value): void
     {
         $this->lines[] = json_encode($value, JSON_THROW_ON_ERROR);
     }
 
+    #[\Override]
     public function machineReadable(): bool
     {
         return false;
     }
 
+    #[\Override]
     public function note(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function password(string $question): string
     {
         unset($question);
@@ -157,11 +171,13 @@ final class FoundationPhase8ReleaseIO implements CommandIO
         throw new LogicException('Password input is not expected in release runtime tests.');
     }
 
+    #[\Override]
     public function quiet(): bool
     {
         return false;
     }
 
+    #[\Override]
     public function read(string $question, ?string $default = null): string
     {
         unset($question, $default);
@@ -169,26 +185,31 @@ final class FoundationPhase8ReleaseIO implements CommandIO
         throw new LogicException('Text input is not expected in release runtime tests.');
     }
 
+    #[\Override]
     public function success(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function table(array $headers, array $rows): void
     {
         unset($headers, $rows);
     }
 
+    #[\Override]
     public function warning(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function write(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function writeln(string $message = ''): void
     {
         $this->lines[] = $message;
@@ -197,6 +218,7 @@ final class FoundationPhase8ReleaseIO implements CommandIO
 
 final class FoundationPhase8ReleaseProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
