@@ -160,17 +160,24 @@ it('rejects disabled accounts disabled clients and revoked authorizations', func
             ->toBe($registration->client->clientId);
 
         $disabledAccounts = new class implements AccountProviderInterface {
+            #[\Override]
             public function findById(string $id): ?AccountInterface
             {
                 return $id === 'account-1' ? new class implements AccountInterface {
+                    #[\Override]
                     public function id(): string { return 'account-1'; }
+                    #[\Override]
                     public function identifier(): string { return 'disabled@example.test'; }
+                    #[\Override]
                     public function metadata(): array { return []; }
+                    #[\Override]
                     public function passwordHash(): ?string { return null; }
+                    #[\Override]
                     public function status(): AccountStatus { return AccountStatus::DISABLED; }
                 } : null;
             }
 
+            #[\Override]
             public function findByIdentifier(string $identifier): ?AccountInterface
             {
                 unset($identifier);

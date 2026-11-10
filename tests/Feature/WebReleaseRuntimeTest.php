@@ -17,6 +17,7 @@ final class FoundationReleaseCompositionCounter extends ServiceProvider
 {
     public static int $contributions = 0;
 
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($builder, $context);
@@ -26,6 +27,7 @@ final class FoundationReleaseCompositionCounter extends ServiceProvider
 
 final class FoundationReleaseSourceHookProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
@@ -79,6 +81,7 @@ final class FoundationUnusedBackendProvider extends ServiceProvider
         throw new LogicException('Unused database factory was activated.');
     }
 
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if (($context->config['test']['allow_database'] ?? false) !== true) {
@@ -122,6 +125,7 @@ final class FoundationColdMessageHandler
 
 final class FoundationColdGrpcHandler implements \Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundHandlerInterface
 {
+    #[\Override]
     public function handle(\Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundRequest $request): \Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse
     {
         return \Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse::ok($request->message);
@@ -130,12 +134,14 @@ final class FoundationColdGrpcHandler implements \Infocyph\TalkingBytes\Grpc\Rec
 
 final class FoundationColdNotification implements \Infocyph\Foundation\Notifications\Notification, \Infocyph\Foundation\Notifications\NotificationRecipient
 {
+    #[\Override]
     public function channels(\Infocyph\Foundation\Notifications\NotificationRecipient $recipient): array
     {
         unset($recipient);
         return ['custom' => 'hello'];
     }
 
+    #[\Override]
     public function routeNotificationFor(string $channel, \Infocyph\Foundation\Notifications\Notification $notification): mixed
     {
         unset($channel, $notification);
@@ -145,6 +151,7 @@ final class FoundationColdNotification implements \Infocyph\Foundation\Notificat
 
 final class FoundationColdNotificationChannel implements \Infocyph\Foundation\Notifications\NotificationChannel
 {
+    #[\Override]
     public function send(\Infocyph\Foundation\Notifications\NotificationRecipient $recipient, \Infocyph\Foundation\Notifications\Notification $notification, mixed $payload): mixed
     {
         unset($recipient, $notification, $payload);
@@ -1062,6 +1069,7 @@ final class FoundationRunwireDeferredWriter implements \Infocyph\Runwire\Http\Re
         $callback?->__invoke($this);
     }
 
+    #[\Override]
     public function end(string $finalChunk = ''): \Infocyph\Runwire\Network\WriteResult
     {
         $this->body .= $finalChunk;
@@ -1075,16 +1083,19 @@ final class FoundationRunwireDeferredWriter implements \Infocyph\Runwire\Http\Re
         );
     }
 
+    #[\Override]
     public function isEnded(): bool
     {
         return $this->ended;
     }
 
+    #[\Override]
     public function isStarted(): bool
     {
         return $this->started;
     }
 
+    #[\Override]
     public function onDrain(callable $callback): self
     {
         $this->drainCallback = Closure::fromCallable($callback);
@@ -1092,6 +1103,7 @@ final class FoundationRunwireDeferredWriter implements \Infocyph\Runwire\Http\Re
         return $this;
     }
 
+    #[\Override]
     public function onTerminal(callable $callback): self
     {
         $this->terminalCallback = Closure::fromCallable($callback);
@@ -1099,6 +1111,7 @@ final class FoundationRunwireDeferredWriter implements \Infocyph\Runwire\Http\Re
         return $this;
     }
 
+    #[\Override]
     public function start(
         int $status = 200,
         ?\Infocyph\Runwire\Http\Headers $headers = null,
@@ -1113,6 +1126,7 @@ final class FoundationRunwireDeferredWriter implements \Infocyph\Runwire\Http\Re
         );
     }
 
+    #[\Override]
     public function write(string $chunk): \Infocyph\Runwire\Network\WriteResult
     {
         $this->body .= $chunk;

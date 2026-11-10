@@ -24,6 +24,7 @@ final class RunwireCollectingWriter implements ResponseWriterInterface
 
     private ?Closure $terminal = null;
 
+    #[\Override]
     public function end(string $finalChunk = ''): WriteResult
     {
         $this->body .= $finalChunk;
@@ -34,16 +35,19 @@ final class RunwireCollectingWriter implements ResponseWriterInterface
         return new WriteResult(WriteState::ACCEPTED, 0);
     }
 
+    #[\Override]
     public function isEnded(): bool
     {
         return $this->ended;
     }
 
+    #[\Override]
     public function isStarted(): bool
     {
         return $this->started;
     }
 
+    #[\Override]
     public function onDrain(callable $callback): self
     {
         unset($callback);
@@ -51,6 +55,7 @@ final class RunwireCollectingWriter implements ResponseWriterInterface
         return $this;
     }
 
+    #[\Override]
     public function onTerminal(callable $callback): self
     {
         $this->terminal = Closure::fromCallable($callback);
@@ -61,6 +66,7 @@ final class RunwireCollectingWriter implements ResponseWriterInterface
         return $this;
     }
 
+    #[\Override]
     public function start(int $status = 200, ?Headers $headers = null): WriteResult
     {
         unset($headers);
@@ -70,6 +76,7 @@ final class RunwireCollectingWriter implements ResponseWriterInterface
         return new WriteResult(WriteState::ACCEPTED, 0);
     }
 
+    #[\Override]
     public function write(string $chunk): WriteResult
     {
         $this->body .= $chunk;

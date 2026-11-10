@@ -55,6 +55,7 @@ final class FoundationResolutionProbe extends ServiceProvider
     /** @var array<string, true> */
     private array $resolved = [];
 
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
@@ -94,6 +95,7 @@ interface FoundationTestGateway
 
 final readonly class LocalFoundationGateway implements FoundationTestGateway
 {
+    #[\Override]
     public function name(): string
     {
         return 'local';
@@ -102,6 +104,7 @@ final readonly class LocalFoundationGateway implements FoundationTestGateway
 
 final readonly class ProductionFoundationGateway implements FoundationTestGateway
 {
+    #[\Override]
     public function name(): string
     {
         return 'production';
@@ -126,6 +129,7 @@ final class FoundationScopedProbe
 
 it('applies InterMix environment bindings from the application environment', function (): void {
     $provider = new class extends ServiceProvider {
+        #[\Override]
         public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
             unset($context);
@@ -146,6 +150,7 @@ it('applies InterMix environment bindings from the application environment', fun
 
 it('scopes request-lifetime services through the HTTP kernel', function (): void {
     $provider = new class extends ServiceProvider {
+        #[\Override]
         public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
             unset($context);
@@ -387,7 +392,9 @@ it('isolates current principals between concurrent fibers and restores failed re
             new ConfigRepository(['auth' => ['http' => ['principal_resolvers' => ['test']]]]),
             ['test' => new readonly class($resolved) implements PrincipalResolverInterface {
                 public function __construct(private Principal $principal) {}
+                #[\Override]
                 public function name(): string { return 'test'; }
+                #[\Override]
                 public function resolve(Request $request): Principal
                 {
                     unset($request);

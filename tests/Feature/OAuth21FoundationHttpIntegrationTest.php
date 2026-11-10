@@ -42,6 +42,7 @@ it('keeps the Foundation-owned OAuth HTTP surface absent while disabled', functi
     $observer = new class extends ServiceProvider {
         public bool $resolved = false;
 
+        #[\Override]
         public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
             unset($context);
@@ -335,6 +336,7 @@ it('performs one native OAuth protocol validation per HTTP authorization request
     $clients = new OAuthClientManager(
         $clientStore,
         new class implements PasswordHasherInterface {
+            #[\Override]
             public function hash(string $plainPassword, array $context = []): string
             {
                 unset($context);
@@ -343,6 +345,7 @@ it('performs one native OAuth protocol validation per HTTP authorization request
             }
         },
         new class implements PasswordVerifierInterface {
+            #[\Override]
             public function verify(string $plainPassword, string $storedHash): PasswordVerificationResult
             {
                 return new PasswordVerificationResult(password_verify($plainPassword, $storedHash));
@@ -366,6 +369,7 @@ it('performs one native OAuth protocol validation per HTTP authorization request
         $fixture->introspection,
         new AuthorizationServerMetadata($config),
         new class implements JwkSetProviderInterface {
+            #[\Override]
             public function jwks(): array
             {
                 return ['keys' => []];
@@ -425,6 +429,7 @@ final class FoundationOAuthClientStoreProbe implements OAuthClientStoreInterface
 
     public function __construct(private readonly OAuthClientStoreInterface $inner) {}
 
+    #[\Override]
     public function find(string $clientId): ?OAuthClient
     {
         ++$this->findReads;
@@ -432,11 +437,13 @@ final class FoundationOAuthClientStoreProbe implements OAuthClientStoreInterface
         return $this->inner->find($clientId);
     }
 
+    #[\Override]
     public function list(int $limit = 100): array
     {
         return $this->inner->list($limit);
     }
 
+    #[\Override]
     public function redirectUris(string $clientId): array
     {
         ++$this->redirectUriReads;
@@ -444,16 +451,19 @@ final class FoundationOAuthClientStoreProbe implements OAuthClientStoreInterface
         return $this->inner->redirectUris($clientId);
     }
 
+    #[\Override]
     public function register(OAuthClient $client, array $redirectUris, array $scopes): void
     {
         $this->inner->register($client, $redirectUris, $scopes);
     }
 
+    #[\Override]
     public function replaceRedirectUris(string $clientId, array $redirectUris, int $createdAt): void
     {
         $this->inner->replaceRedirectUris($clientId, $redirectUris, $createdAt);
     }
 
+    #[\Override]
     public function replaceScopes(string $clientId, array $scopes, int $createdAt): void
     {
         $this->inner->replaceScopes($clientId, $scopes, $createdAt);
@@ -466,11 +476,13 @@ final class FoundationOAuthClientStoreProbe implements OAuthClientStoreInterface
         $this->scopeReads = 0;
     }
 
+    #[\Override]
     public function save(OAuthClient $client): void
     {
         $this->inner->save($client);
     }
 
+    #[\Override]
     public function scopes(string $clientId): array
     {
         ++$this->scopeReads;

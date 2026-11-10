@@ -39,6 +39,7 @@ final class BrowserSessionResolutionProbe extends ServiceProvider
 {
     private bool $resolved = false;
 
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
@@ -435,6 +436,7 @@ it('reports cleanup failures without replacing the primary session failure', fun
 
     $locks = new class implements LockProviderInterface {
         public int $releases = 0;
+        #[\Override]
         public function acquire(string $key, float $waitSeconds, float $leaseSeconds = 30.0): ?LockHandle
         {
             unset($waitSeconds);
@@ -442,11 +444,13 @@ it('reports cleanup failures without replacing the primary session failure', fun
             return new LockHandle($key, 'token', leaseSeconds: $leaseSeconds);
         }
 
+        #[\Override]
         public function refresh(?LockHandle $handle, float $leaseSeconds): bool
         {
             return $handle !== null && $leaseSeconds > 0;
         }
 
+        #[\Override]
         public function release(?LockHandle $handle): void
         {
             if ($handle !== null) {
@@ -461,6 +465,7 @@ it('reports cleanup failures without replacing the primary session failure', fun
 
         public bool $fail = false;
 
+        #[\Override]
         public function log($level, string|Stringable $message, array $context = []): void
         {
             if ($this->fail) {
@@ -543,16 +548,19 @@ it('releases CacheLayer session locks when request handling fails', function ():
         public bool $owned = true;
         public bool $failRelease = false;
         public int $released = 0;
+        #[\Override]
         public function acquire(string $key, float $waitSeconds, float $leaseSeconds = 30.0): ?LockHandle
         {
             unset($waitSeconds);
             ++$this->acquired;
             return new LockHandle($key, 'token', leaseSeconds: $leaseSeconds);
         }
+        #[\Override]
         public function refresh(?LockHandle $handle, float $leaseSeconds): bool
         {
             return $this->owned && $handle !== null && $leaseSeconds > 0;
         }
+        #[\Override]
         public function release(?LockHandle $handle): void
         {
             if ($handle !== null) {

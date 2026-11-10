@@ -110,11 +110,13 @@ final class OAuth21FlowFixture
         $psrClock = new EpicryptClockAdapter($this->clock);
 
         $this->accounts = new class implements AccountProviderInterface {
+            #[\Override]
             public function findById(string $id): ?AccountInterface
             {
                 return $id === 'account-1' ? new OAuth21FlowAccount($id) : null;
             }
 
+            #[\Override]
             public function findByIdentifier(string $identifier): ?AccountInterface
             {
                 return $identifier === 'account@example.test' ? new OAuth21FlowAccount('account-1') : null;
@@ -336,11 +338,13 @@ final class OAuth21FlowFixture
     private static function authorizer(): AuthorizerInterface
     {
         return new class implements AuthorizerInterface {
+            #[\Override]
             public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void
             {
                 unset($principal, $ability, $resource, $context);
             }
 
+            #[\Override]
             public function can(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): AuthorizationDecision
             {
                 unset($principal, $ability, $resource, $context);
@@ -357,6 +361,7 @@ final class OAuth21FlowFixture
         return new readonly class($state) implements ContainerInterface {
             public function __construct(private RuntimeExecutionState $state) {}
 
+            #[\Override]
             public function get(string $id): mixed
             {
                 if ($id === RuntimeExecutionState::class) {
@@ -366,6 +371,7 @@ final class OAuth21FlowFixture
                 throw new \LogicException(sprintf('Fixture container has no service "%s".', $id));
             }
 
+            #[\Override]
             public function has(string $id): bool
             {
                 return $id === RuntimeExecutionState::class;
@@ -376,6 +382,7 @@ final class OAuth21FlowFixture
     private static function hasher(): PasswordHasherInterface
     {
         return new class implements PasswordHasherInterface {
+            #[\Override]
             public function hash(string $plainPassword, array $context = []): string
             {
                 unset($context);
@@ -402,6 +409,7 @@ final class OAuth21FlowFixture
     private static function verifier(): PasswordVerifierInterface
     {
         return new class implements PasswordVerifierInterface {
+            #[\Override]
             public function verify(string $plainPassword, string $storedHash): PasswordVerificationResult
             {
                 return new PasswordVerificationResult(password_verify($plainPassword, $storedHash));

@@ -529,6 +529,7 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
 
         public ?string $clientFilename = null;
 
+        #[\Override]
         public function scan(MalwareScanRequest $request): MalwareScanVerdict
         {
             ++$this->calls;
@@ -553,6 +554,7 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
     $container = new class implements ContainerInterface {
         public ?MalwareScannerInterface $scanner = null;
 
+        #[\Override]
         public function get(string $id): mixed
         {
             if ($id !== MalwareScannerInterface::class || $this->scanner === null) {
@@ -562,6 +564,7 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
             return $this->scanner;
         }
 
+        #[\Override]
         public function has(string $id): bool
         {
             return $id === MalwareScannerInterface::class && $this->scanner !== null;
@@ -716,11 +719,13 @@ it('prepares Pathwise download metadata once for full and stale If-Range respons
         }],
     );
     $container = new class implements ContainerInterface {
+        #[\Override]
         public function get(string $id): never
         {
             throw new LogicException(sprintf('No test service "%s" is registered.', $id));
         }
 
+        #[\Override]
         public function has(string $id): bool
         {
             unset($id);
@@ -801,6 +806,7 @@ final class FoundationFilesystemMetadataProbe extends Filesystem
 
     public int $mimeTypeReads = 0;
 
+    #[\Override]
     public function fileSize(string $path): int
     {
         ++$this->fileSizeReads;
@@ -808,6 +814,7 @@ final class FoundationFilesystemMetadataProbe extends Filesystem
         return parent::fileSize($path);
     }
 
+    #[\Override]
     public function lastModified(string $path): int
     {
         ++$this->lastModifiedReads;
@@ -815,6 +822,7 @@ final class FoundationFilesystemMetadataProbe extends Filesystem
         return parent::lastModified($path);
     }
 
+    #[\Override]
     public function mimeType(string $path): string
     {
         ++$this->mimeTypeReads;

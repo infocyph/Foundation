@@ -15,6 +15,7 @@ final class OAuthAuditCapture implements AuditEventStoreInterface
     /** @var list<AuthEvent> */
     public array $events = [];
 
+    #[\Override]
     public function record(AuthEvent $event): void
     {
         $this->events[] = $event;
@@ -25,15 +26,25 @@ final class OAuthAuditCapture implements AuditEventStoreInterface
         $ids = new class implements AuthIdGeneratorInterface {
             private int $sequence = 0;
 
+            #[\Override]
             public function accountId(): string { return $this->next('account'); }
+            #[\Override]
             public function auditEventId(): string { return $this->next('audit'); }
+            #[\Override]
             public function challengeId(): string { return $this->next('challenge'); }
+            #[\Override]
             public function correlationId(): string { return $this->next('correlation'); }
+            #[\Override]
             public function credentialId(): string { return $this->next('credential'); }
+            #[\Override]
             public function deviceId(): string { return $this->next('device'); }
+            #[\Override]
             public function grantId(): string { return $this->next('grant'); }
+            #[\Override]
             public function permissionId(): string { return $this->next('permission'); }
+            #[\Override]
             public function roleId(): string { return $this->next('role'); }
+            #[\Override]
             public function sessionId(): string { return $this->next('session'); }
 
             private function next(string $prefix): string
@@ -43,6 +54,7 @@ final class OAuthAuditCapture implements AuditEventStoreInterface
         };
         $clock = new readonly class($now) implements ClockInterface {
             public function __construct(private int $time) {}
+            #[\Override]
             public function now(): int { return $this->time; }
         };
 

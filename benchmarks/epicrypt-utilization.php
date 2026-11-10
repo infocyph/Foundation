@@ -234,6 +234,7 @@ $foundationJwks = new EpicryptOAuthJwkSetProvider($oauthFixture->keys);
 
 $directOidc = new OpenIdUserInfoProjector(
     new class implements OpenIdSubjectIdentifierProviderInterface {
+        #[\Override]
         public function subject(string $principalId, string $clientId): string
         {
             unset($clientId);
@@ -242,6 +243,7 @@ $directOidc = new OpenIdUserInfoProjector(
         }
     },
     new class implements OpenIdClaimsProviderInterface {
+        #[\Override]
         public function claims(string $principalId, string $clientId, array $scopes): array
         {
             unset($principalId, $clientId);
@@ -261,6 +263,7 @@ $directPatStore = new class implements PersonalAccessTokenStoreInterface {
     /** @var array<string, PersonalAccessTokenRecord> */
     private array $records = [];
 
+    #[\Override]
     public function create(PersonalAccessTokenRecord $record): bool
     {
         if (isset($this->records[$record->tokenId])) {
@@ -272,11 +275,13 @@ $directPatStore = new class implements PersonalAccessTokenStoreInterface {
         return true;
     }
 
+    #[\Override]
     public function find(string $tokenId): ?PersonalAccessTokenRecord
     {
         return $this->records[$tokenId] ?? null;
     }
 
+    #[\Override]
     public function listForSubject(string $subject, int $limit = 100): array
     {
         return array_slice(array_values(array_filter(
@@ -285,6 +290,7 @@ $directPatStore = new class implements PersonalAccessTokenStoreInterface {
         )), 0, $limit);
     }
 
+    #[\Override]
     public function revoke(string $tokenId, string $subject, int $revokedAt): ?PersonalAccessTokenRecord
     {
         $record = $this->records[$tokenId] ?? null;
@@ -303,6 +309,7 @@ $directPatStore = new class implements PersonalAccessTokenStoreInterface {
         );
     }
 
+    #[\Override]
     public function revokeAll(string $subject, int $revokedAt): int
     {
         $count = 0;
@@ -347,6 +354,7 @@ $runtimeState = new RuntimeExecutionState();
 $container = new readonly class ($runtimeState) implements ContainerInterface {
     public function __construct(private RuntimeExecutionState $state) {}
 
+    #[\Override]
     public function get(string $id): mixed
     {
         if ($id === RuntimeExecutionState::class) {
@@ -356,6 +364,7 @@ $container = new readonly class ($runtimeState) implements ContainerInterface {
         throw new LogicException(sprintf('Epicrypt benchmark container has no service "%s".', $id));
     }
 
+    #[\Override]
     public function has(string $id): bool
     {
         return $id === RuntimeExecutionState::class;
