@@ -131,8 +131,6 @@ final readonly class AuthorizationRequestValidator
     /**
      * @param array<string, mixed> $parameters
      * @return array<string, string|list<string>>
-     */
-    /**
      * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
      */
     private function protocolParameters(array $parameters): array
