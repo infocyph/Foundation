@@ -68,6 +68,7 @@ it('coordinates through the PSR container contract without requiring an InterMix
         {
         }
 
+        #[\Override]
         public function get(string $id): mixed
         {
             if ($id === $this->service::class) {
@@ -77,6 +78,7 @@ it('coordinates through the PSR container contract without requiring an InterMix
             throw new RuntimeException(sprintf('Unknown service "%s".', $id));
         }
 
+        #[\Override]
         public function has(string $id): bool
         {
             return $id === $this->service::class;

@@ -143,6 +143,7 @@ it('isolates FormRequest overrides and native ReqShield profiles across reused v
 
     $factory = $app->make(ValidatorFactory::class);
     $form = new class($factory) extends FormRequest {
+        #[\Override]
         protected function rules(Request $request): array
         {
             unset($request);
@@ -150,6 +151,7 @@ it('isolates FormRequest overrides and native ReqShield profiles across reused v
             return ['email' => 'required|email', 'age' => 'required|integer'];
         }
 
+        #[\Override]
         protected function options(Request $request): array
         {
             unset($request);

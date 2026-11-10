@@ -237,6 +237,7 @@ it('prevents a second native TalkingBytes HTTP attempt when a borrowed host canc
 
         public function __construct(private RequestContext $request) {}
 
+        #[\Override]
         public function send(HttpRequest $request): CommunicationResult
         {
             ++$this->attempts;

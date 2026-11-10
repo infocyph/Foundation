@@ -498,6 +498,7 @@ it('queries role permissions only when current direct permissions cannot grant t
     $roles = new class implements RoleStoreInterface {
         public int $reads = 0;
 
+        #[\Override]
         public function rolesForAccount(string $accountId): array
         {
             ++$this->reads;

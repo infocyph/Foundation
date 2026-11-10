@@ -33,12 +33,14 @@ final readonly class RuntimeStateContainer implements ContainerInterface
         ]);
     }
 
+    #[\Override]
     public function get(string $id): mixed
     {
         return $this->services[$id]
             ?? throw new \LogicException(sprintf('Fixture container has no service "%s".', $id));
     }
 
+    #[\Override]
     public function has(string $id): bool
     {
         return isset($this->services[$id]);

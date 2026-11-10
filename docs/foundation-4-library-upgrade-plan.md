@@ -14,6 +14,11 @@ The [consolidated review](foundation-4-consolidated-review.md#current-maintenanc
 - **Final local checks:** required PHPForge process and all static/quality/architecture gates pass, including PHPStan and Psalm. Focused regressions: **44 passed / 5,575 assertions**. Final full local suite: **990 passed, 25 unavailable-service failures / 36,937 assertions**, with the same 25 failed identities as the previous baseline. Strict Composer validation and local documentation links pass. Evidence: `/tmp/foundation-maintenance/qa-final.log`, `focused-final.log` and `validation-summary.json`.
 - **Source checkpoint:** maintenance changes are committed at `d30abb10b11ab61d080e064cd34e213a838ec0f7`. Exact-head [Security & Standards 42377166328](https://github.com/infocyph/Foundation/actions/runs/42377166328) and [native hosts 42377166008](https://github.com/infocyph/Foundation/actions/runs/42377166008) both passed, including PHPForge stable/lowest, static analysis, consumers and selected service integrations. The paired-host jobs were skipped; green host smoke is **not P6 certification**. No merge, tag, publication or lockfile-policy change.
 
+## Batch 143 — sixth native override-contract remediation batch
+
+- Add **19** native PHP 8.4 `#[\\Override]` attributes to exact Psalm-identified overridden methods across **12** more `tests/` and `benchmarks/` files. No method bodies or signatures altered. Cumulative source fixes: **504/523** override diagnostics at **72** file locations of the original report. Fresh official CI must verify the current count.
+- No change to Psalm/PHPStan thresholds, accepted code contracts, or P6 certification; `composer.lock` still gitignored and `infocyph/phpforge` still `dev-main@dev`. PR #20 draft/unmerged.
+
 ## Batch 142 — fifth native override-contract remediation batch
 
 - Add **27** `#[\\Override]` attributes to the exact Psalm-identified declarations in **12** additional test/benchmark files; implementation bodies remain unchanged. Cumulative **485/523** declarations across **60** files addressed from the original static-analysis report, subject to a fresh exact-head analyzer verification.

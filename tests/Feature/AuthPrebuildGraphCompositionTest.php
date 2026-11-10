@@ -101,6 +101,7 @@ it('resolves optional authorization policies against the completed runtime graph
     $resolver = new class implements PolicyResolverInterface {
         public int $calls = 0;
 
+        #[\Override]
         public function resolve(mixed $resource): ?PolicyInterface
         {
             expect($resource)->toBeInstanceOf(stdClass::class);

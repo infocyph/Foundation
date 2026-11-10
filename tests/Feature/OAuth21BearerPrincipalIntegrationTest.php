@@ -65,12 +65,14 @@ it('resolves account and service OAuth bearer tokens into the existing principal
 
             public function __construct(array $seen) { unset($seen); }
 
+            #[\Override]
             public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void
             {
                 unset($resource, $context);
                 $this->seen[] = ['principal' => $principal, 'ability' => $ability];
             }
 
+            #[\Override]
             public function can(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): AuthorizationDecision
             {
                 unset($resource, $context);

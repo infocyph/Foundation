@@ -50,6 +50,7 @@ it('enforces browser-session contention through every configured shared lock bac
         new class(new SessionExecutionState()) implements ContainerInterface {
             public function __construct(private readonly SessionExecutionState $state) {}
 
+            #[\Override]
             public function get(string $id): mixed
             {
                 if ($id === SessionExecutionState::class) {
@@ -59,6 +60,7 @@ it('enforces browser-session contention through every configured shared lock bac
                 throw new RuntimeException(sprintf('Unexpected test service "%s".', $id));
             }
 
+            #[\Override]
             public function has(string $id): bool
             {
                 return $id === SessionExecutionState::class;

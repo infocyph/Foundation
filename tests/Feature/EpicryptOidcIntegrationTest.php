@@ -143,6 +143,7 @@ it('requires verified OIDC auth time rather than fabricating issuance-time authe
             'max_age' => '60',
         ]);
         $jwks = new class implements JwkSetProviderInterface {
+            #[\Override]
             public function jwks(): array
             {
                 return ['keys' => []];

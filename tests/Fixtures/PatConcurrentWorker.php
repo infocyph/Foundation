@@ -66,6 +66,7 @@ final class PatConcurrentWorker
         $container = new readonly class($state) implements ContainerInterface {
             public function __construct(private RuntimeExecutionState $state) {}
 
+            #[\Override]
             public function get(string $id): mixed
             {
                 if ($id === RuntimeExecutionState::class) {
@@ -75,6 +76,7 @@ final class PatConcurrentWorker
                 throw new \LogicException(sprintf('PAT worker container has no service "%s".', $id));
             }
 
+            #[\Override]
             public function has(string $id): bool
             {
                 return $id === RuntimeExecutionState::class;

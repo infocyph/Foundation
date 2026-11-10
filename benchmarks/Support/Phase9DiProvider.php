@@ -32,6 +32,7 @@ final class Phase9DiProvider extends ServiceProvider
         );
     }
 
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
