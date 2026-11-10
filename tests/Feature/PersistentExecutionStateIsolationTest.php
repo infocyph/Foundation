@@ -26,21 +26,25 @@ final readonly class FoundationPersistentPrincipal implements PrincipalInterface
 {
     public function __construct(private string $identifier) {}
 
+    #[\Override]
     public function accountId(): ?string
     {
         return $this->identifier;
     }
 
+    #[\Override]
     public function id(): string
     {
         return $this->identifier;
     }
 
+    #[\Override]
     public function metadata(): array
     {
         return [];
     }
 
+    #[\Override]
     public function type(): PrincipalType
     {
         return PrincipalType::ACCOUNT;
@@ -61,6 +65,7 @@ final class FoundationPersistentScopedProbe
 
 final class FoundationPersistentStateProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);

@@ -13,11 +13,13 @@ use Infocyph\DBLayer\Schema\SchemaManager;
 
 final class FoundationDBLayerFirstMigration implements Migration
 {
+    #[\Override]
     public function id(): string
     {
         return '20260825000100_create_foundation_dblayer_first';
     }
 
+    #[\Override]
     public function up(SchemaManager $schema, MigrationContext $context): void
     {
         $context->checkpoint();
@@ -27,6 +29,7 @@ final class FoundationDBLayerFirstMigration implements Migration
         });
     }
 
+    #[\Override]
     public function down(SchemaManager $schema, MigrationContext $context): void
     {
         $context->checkpoint();
@@ -36,11 +39,13 @@ final class FoundationDBLayerFirstMigration implements Migration
 
 final class FoundationDBLayerSecondMigration implements Migration
 {
+    #[\Override]
     public function id(): string
     {
         return '20260825000200_create_foundation_dblayer_second';
     }
 
+    #[\Override]
     public function up(SchemaManager $schema, MigrationContext $context): void
     {
         $context->checkpoint();
@@ -50,6 +55,7 @@ final class FoundationDBLayerSecondMigration implements Migration
         });
     }
 
+    #[\Override]
     public function down(SchemaManager $schema, MigrationContext $context): void
     {
         $context->checkpoint();

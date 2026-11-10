@@ -95,6 +95,7 @@ it('does not persist caller session or device metadata as canonical authorizatio
         $clock = new SystemClock();
 
         $inner = new class implements \Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface {
+            #[\Override]
             public function authorize(
                 \Infocyph\Foundation\Auth\Principal\PrincipalInterface $principal,
                 string $ability,
@@ -105,6 +106,7 @@ it('does not persist caller session or device metadata as canonical authorizatio
                 throw new LogicException('The tested path is can().');
             }
 
+            #[\Override]
             public function can(
                 \Infocyph\Foundation\Auth\Principal\PrincipalInterface $principal,
                 string $ability,
@@ -121,17 +123,20 @@ it('does not persist caller session or device metadata as canonical authorizatio
         expect($authorizer->can($principal, 'read', context: $untrusted)->allowed)->toBeFalse();
 
         $grants = new class implements \Infocyph\Foundation\Auth\Authorization\Grant\GrantStoreInterface {
+            #[\Override]
             public function grantsForPrincipal(string $principalId): array
             {
                 unset($principalId);
                 return [];
             }
 
+            #[\Override]
             public function revoke(string $grantId): void
             {
                 unset($grantId);
             }
 
+            #[\Override]
             public function save(\Infocyph\Foundation\Auth\Authorization\Grant\AccessGrant $grant): void
             {
                 unset($grant);

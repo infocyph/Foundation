@@ -523,6 +523,7 @@ it('preserves encoded JSON zero in authentication notification templates and pay
         ],
     ]));
     $zero = new class implements JsonSerializable {
+        #[\Override]
         public function jsonSerialize(): int
         {
             return 0;
@@ -557,11 +558,13 @@ it('rejects verified email tokens whose subject or destination differs from the 
         $tokens = new class($verification) implements EmailVerificationTokenServiceInterface {
             public function __construct(private TokenVerificationResult $verification) {}
 
+            #[\Override]
             public function issue(string $accountId, string $email, array $context = []): string
             {
                 return $accountId . ':' . $email . ':' . count($context);
             }
 
+            #[\Override]
             public function verify(string $token): TokenVerificationResult
             {
                 return $token === 'test-token'
@@ -596,11 +599,13 @@ it('rejects a verified password reset token for another stored account', functio
     $store->save(new PasswordResetRequest('reset-request', 'victim', $now, $now + 3600));
 
     $tokens = new class implements PasswordResetTokenServiceInterface {
+        #[\Override]
         public function issue(string $accountId, array $context = []): string
         {
             return $accountId . ':' . count($context);
         }
 
+        #[\Override]
         public function verify(string $token): TokenVerificationResult
         {
             return new TokenVerificationResult(

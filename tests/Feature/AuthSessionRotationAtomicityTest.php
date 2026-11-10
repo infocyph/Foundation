@@ -73,11 +73,17 @@ it('does not resurrect a session revoked while manager rotation is in flight', f
     $barrier = new class($store) implements SessionStoreInterface {
         public ?AuthSession $replacement = null;
         public function __construct(private SessionStoreInterface $store) {}
+        #[\Override]
         public function create(AuthSession $session): void { $this->store->create($session); }
+        #[\Override]
         public function find(string $sessionId): ?AuthSession { return $this->store->find($sessionId); }
+        #[\Override]
         public function revoke(string $sessionId): void { $this->store->revoke($sessionId); }
+        #[\Override]
         public function revokeAllForAccount(string $accountId, ?string $exceptSessionId = null): void { $this->store->revokeAllForAccount($accountId, $exceptSessionId); }
+        #[\Override]
         public function touch(string $sessionId, int $lastSeenAt): void { $this->store->touch($sessionId, $lastSeenAt); }
+        #[\Override]
         public function rotate(AuthSession $current, AuthSession $replacement, int $now): bool
         {
             $this->replacement = $replacement;

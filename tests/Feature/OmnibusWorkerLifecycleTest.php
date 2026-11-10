@@ -41,11 +41,13 @@ it('passes Foundation lifecycle callbacks through to Omnibus 3 workers', functio
 
         public int $stopChecks = 0;
 
+        #[\Override]
         public function heartbeat(): void
         {
             $this->heartbeats++;
         }
 
+        #[\Override]
         public function stopRequested(): bool
         {
             $this->stopChecks++;
@@ -65,6 +67,7 @@ it('keeps Omnibus worker configuration reads cold until a worker is constructed'
     $observer = new class extends ServiceProvider {
         public bool $resolved = false;
 
+        #[\Override]
         public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
             unset($context);
@@ -100,11 +103,13 @@ it('passes parent lifecycle directly to Omnibus 3 WorkerPool before child spawn'
     $lifecycle = new class implements WorkerLifecycle {
         public int $heartbeats = 0;
 
+        #[\Override]
         public function heartbeat(): void
         {
             $this->heartbeats++;
         }
 
+        #[\Override]
         public function stopRequested(): bool
         {
             return true;

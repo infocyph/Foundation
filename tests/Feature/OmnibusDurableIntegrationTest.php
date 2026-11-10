@@ -33,11 +33,13 @@ final readonly class FoundationOmnibusDurableMessage
 
 final readonly class FoundationOmnibusDurableMessageCodec implements MessageCodec
 {
+    #[\Override]
     public function alias(): string
     {
         return 'foundation.omnibus26.durable-message.v1';
     }
 
+    #[\Override]
     public function decode(array $payload): object
     {
         $value = $payload['value'] ?? null;
@@ -48,6 +50,7 @@ final readonly class FoundationOmnibusDurableMessageCodec implements MessageCode
         return new FoundationOmnibusDurableMessage($value);
     }
 
+    #[\Override]
     public function encode(object $message): array
     {
         if (!$message instanceof FoundationOmnibusDurableMessage) {
@@ -57,6 +60,7 @@ final readonly class FoundationOmnibusDurableMessageCodec implements MessageCode
         return ['value' => $message->value];
     }
 
+    #[\Override]
     public function type(): string
     {
         return FoundationOmnibusDurableMessage::class;
@@ -546,6 +550,7 @@ it('keeps the DBLayer durable graph cold when durable messaging is disabled', fu
         /** @var array<string, bool> */
         public array $resolved = [];
 
+        #[\Override]
         public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
             unset($context);

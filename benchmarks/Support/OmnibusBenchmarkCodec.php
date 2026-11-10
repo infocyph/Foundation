@@ -8,16 +8,19 @@ use Infocyph\Omnibus\Serialization\MessageCodec;
 
 final readonly class OmnibusBenchmarkCodec implements MessageCodec
 {
+    #[\Override]
     public function alias(): string
     {
         return 'foundation.benchmark.omnibus.v1';
     }
 
+    #[\Override]
     public function decode(array $payload): object
     {
         return new OmnibusBenchmarkMessage((string) ($payload['value'] ?? ''));
     }
 
+    #[\Override]
     public function encode(object $message): array
     {
         if (!$message instanceof OmnibusBenchmarkMessage) {
@@ -27,6 +30,7 @@ final readonly class OmnibusBenchmarkCodec implements MessageCodec
         return ['value' => $message->value];
     }
 
+    #[\Override]
     public function type(): string
     {
         return OmnibusBenchmarkMessage::class;

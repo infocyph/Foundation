@@ -37,11 +37,13 @@ it('rejects an address change occurring after verification trust checking but be
             private InMemoryAccountStore $accounts,
         ) {}
 
+        #[\Override]
         public function consume(string $requestId): void
         {
             $this->requests->consume($requestId);
         }
 
+        #[\Override]
         public function consumeAndApply(string $requestId, callable $apply): bool
         {
             // Deterministic interleaving, not a timer-based race approximation.
@@ -50,22 +52,26 @@ it('rejects an address change occurring after verification trust checking but be
             return $this->requests->consumeAndApply($requestId, $apply);
         }
 
+        #[\Override]
         public function find(string $requestId): ?EmailVerificationRequest
         {
             return $this->requests->find($requestId);
         }
 
+        #[\Override]
         public function save(EmailVerificationRequest $request): void
         {
             $this->requests->save($request);
         }
     };
     $tokens = new class implements EmailVerificationTokenServiceInterface {
+        #[\Override]
         public function issue(string $accountId, string $email, array $context = []): string
         {
             return $accountId . ':' . $email . ':' . count($context);
         }
 
+        #[\Override]
         public function verify(string $token): TokenVerificationResult
         {
             return new TokenVerificationResult(
