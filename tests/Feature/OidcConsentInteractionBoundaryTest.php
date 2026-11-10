@@ -56,6 +56,7 @@ it('rechecks OIDC interaction on a valid-CSRF approval POST before issuing a cod
     $csrfToken = $browser->csrfToken();
     $principals = new CurrentPrincipalContext(RuntimeStateContainer::principal());
     $keys = new class implements JwkSetProviderInterface {
+        #[\Override]
         public function jwks(): array
         {
             return ['keys' => []];

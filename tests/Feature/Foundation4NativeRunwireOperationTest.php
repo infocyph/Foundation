@@ -104,6 +104,7 @@ it('uses native ReqShield and TalkingBytes operation cancellation without retain
     $request = RequestContext::create($runtime);
     CacheRunwire::bind($runtime);
     $validator = new class(new ValidatorFactory(new ConfigRepository(), new SchemaRegistry())) extends FormRequest {
+        #[\Override]
         protected function rules(Request $request): array
         {
             unset($request);

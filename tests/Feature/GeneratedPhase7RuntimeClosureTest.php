@@ -37,6 +37,7 @@ final class FoundationPhase7GeneratedScopedProbe
 
 final class FoundationPhase7GeneratedProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if ($context->runtimeMode === RuntimeMode::Worker) {

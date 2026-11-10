@@ -14,6 +14,11 @@ The [consolidated review](foundation-4-consolidated-review.md#current-maintenanc
 - **Final local checks:** required PHPForge process and all static/quality/architecture gates pass, including PHPStan and Psalm. Focused regressions: **44 passed / 5,575 assertions**. Final full local suite: **990 passed, 25 unavailable-service failures / 36,937 assertions**, with the same 25 failed identities as the previous baseline. Strict Composer validation and local documentation links pass. Evidence: `/tmp/foundation-maintenance/qa-final.log`, `focused-final.log` and `validation-summary.json`.
 - **Source checkpoint:** maintenance changes are committed at `d30abb10b11ab61d080e064cd34e213a838ec0f7`. Exact-head [Security & Standards 42377166328](https://github.com/infocyph/Foundation/actions/runs/42377166328) and [native hosts 42377166008](https://github.com/infocyph/Foundation/actions/runs/42377166008) both passed, including PHPForge stable/lowest, static analysis, consumers and selected service integrations. The paired-host jobs were skipped; green host smoke is **not P6 certification**. No merge, tag, publication or lockfile-policy change.
 
+## Batch 144 — seventh native override-contract remediation batch
+
+- Add **12** native PHP 8.4 `#[\\Override]` attributes to remaining precisely located Psalm overrides across **12** untouched test/benchmark files. Method bodies and signatures unchanged. Original-report declaration fixes now total **516/523** across **84** files, pending a verified exact-head analyzer run.
+- Full PHPForge, PHP 8.4/8.5, native host and release evidence checks are still mandatory. No skipped findings, relaxed thresholds, lockfile policy change, or P6 waiver. Draft/unmerged PR; **93/95** checklist.
+
 ## Batch 143 — sixth native override-contract remediation batch
 
 - Add **19** native PHP 8.4 `#[\\Override]` attributes to exact Psalm-identified overridden methods across **12** more `tests/` and `benchmarks/` files. No method bodies or signatures altered. Cumulative source fixes: **504/523** override diagnostics at **72** file locations of the original report. Fresh official CI must verify the current count.

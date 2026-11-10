@@ -27,6 +27,7 @@ it('never serves stale remote JOSE keys when a selected resolver cancels the bor
             private bool $throwDuringResolution,
         ) {}
 
+        #[\Override]
         public function resolve(string $hostname): array
         {
             expect($hostname)->toBe('issuer.example');

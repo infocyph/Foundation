@@ -12,6 +12,7 @@ final class FoundationPersistentRuntimeSoakProbe {}
 
 final class FoundationPersistentRuntimeSoakProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);

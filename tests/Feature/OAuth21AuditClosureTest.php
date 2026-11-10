@@ -52,6 +52,7 @@ it('audits authorization denial revocation invalid redirect and invalid scope at
             oauth21AuditStub(OAuthIntrospectionManager::class),
             oauth21AuditStub(AuthorizationServerMetadata::class),
             new class implements JwkSetProviderInterface {
+                #[\Override]
                 public function jwks(): array
                 {
                     return ['keys' => []];

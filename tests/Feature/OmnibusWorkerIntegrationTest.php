@@ -57,6 +57,7 @@ beforeEach(function (): void {
 
 it('runs bounded Omnibus workers with a fresh Foundation execution scope per message', function (): void {
     $provider = new class extends ServiceProvider {
+        #[\Override]
         public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
             unset($context);

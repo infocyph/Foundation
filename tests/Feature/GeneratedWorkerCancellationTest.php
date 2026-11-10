@@ -19,6 +19,7 @@ final class FoundationGeneratedWorkerCancellationProbe {}
 
 final class FoundationGeneratedWorkerCancellationProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);

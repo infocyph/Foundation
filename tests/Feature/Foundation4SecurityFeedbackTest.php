@@ -17,6 +17,7 @@ use Infocyph\Foundation\Foundation;
 it('requires exact step-up methods, rejects invalid policy and expired sessions', function (): void {
     $clock = new class implements ClockInterface {
         public int $time = 1700000000;
+        #[\Override]
         public function now(): int { return $this->time; }
     };
     $stepUp = new StepUpManager(new ArrayTtlStore($clock), $clock);

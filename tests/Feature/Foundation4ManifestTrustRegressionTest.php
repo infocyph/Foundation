@@ -313,6 +313,7 @@ it('validates and decodes the same captured bytes for trusted generated runtime 
 /** Test-only provider for authenticated worker topology artifacts. */
 final class FoundationManifestTrustedWorkerProvider implements \Infocyph\Foundation\Worker\WorkerProvider
 {
+    #[\Override]
     public function run(\Infocyph\Foundation\Worker\WorkerRuntime $runtime): int
     {
         unset($runtime);

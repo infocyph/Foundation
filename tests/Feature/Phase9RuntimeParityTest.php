@@ -52,6 +52,7 @@ final class Phase9ParityScopedProbe
 
 final class Phase9ParityProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
