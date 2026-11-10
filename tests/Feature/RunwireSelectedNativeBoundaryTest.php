@@ -253,6 +253,9 @@ it('detaches a throwing Foundation exception reporter from the native Runwire re
     $logger = new \Infocyph\Foundation\Logging\HttpExceptionLogger(
         new \Infocyph\Foundation\Logging\ExceptionReporter(
             new class extends \Psr\Log\AbstractLogger {
+                /**
+                 * @throws \DomainException
+                 */
                 #[\Override]
                 public function log($level, string|\Stringable $message, array $context = []): void
                 {

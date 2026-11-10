@@ -172,6 +172,7 @@ final readonly class ExecutionScope
      * @param array<string, mixed> $seeds
      * @throws \LogicException
      * @throws \Infocyph\Runwire\Exception\CancelledException
+     * @throws \Throwable
      */
     private static function hostRunwireContext(array $seeds): ?RunwireExecutionContext
     {

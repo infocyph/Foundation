@@ -37,6 +37,9 @@ final class FoundationB4LateProvider extends ServiceProvider
 {
     public function __construct(private readonly ServiceRegistry $registry) {}
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {

@@ -94,6 +94,7 @@ final readonly class ConfigValidator
 
     /**
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     private function runChecks(bool $assumeProduction): ConfigValidationResult
     {

@@ -72,6 +72,9 @@ it('rolls back transactional DDL when a migration fails before it is recorded', 
     $migration = new class implements Migration {
         #[\Override]
         public function id(): string { return '20260827000000_oauth_partial_failure_probe'; }
+        /**
+         * @throws \RuntimeException
+         */
         #[\Override]
         public function up(SchemaManager $schema, MigrationContext $context): void {
             $schema->create('oauth_partial_failure_probe', static function (Blueprint $table): void {

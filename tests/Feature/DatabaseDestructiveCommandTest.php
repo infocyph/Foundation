@@ -419,6 +419,8 @@ function foundationDestructiveCommandMarkerCount(string $databasePath): int
 
 /**
  * @throws \RuntimeException
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
  */
 function foundationDestructiveCommandMigrate(CommandDispatcher $dispatcher): void
 {
@@ -441,6 +443,7 @@ function foundationDestructiveCommandPdo(string $databasePath): PDO
  * @param list<string> $argv
  * @throws \InvalidArgumentException
  * @throws \LogicException
+ * @throws \UnexpectedValueException
  */
 function foundationDestructiveCommandRun(
     CommandDispatcher $dispatcher,

@@ -163,7 +163,10 @@ it('rejects client authentication downgrade client mismatch PKCE failure and cod
     }
 });
 
-/** @param callable(): mixed $operation */
+/**
+ * @param callable(): mixed $operation
+ * @throws \RuntimeException
+ */
 function oauth21ProtocolError(callable $operation): OAuthProtocolException
 {
     try {

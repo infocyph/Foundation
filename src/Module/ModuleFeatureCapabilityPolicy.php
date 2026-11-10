@@ -33,6 +33,7 @@ final class ModuleFeatureCapabilityPolicy
      * @return array<string,bool>|null
      * @throws \UnexpectedValueException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public static function fromConfig(ConfigRepository $config): ?array
     {

@@ -300,6 +300,7 @@ function foundationEnvironmentStorageProject(string $suffix): string
  * @return array{exit:int,io:FoundationEnvironmentStorageIO}
  * @throws \InvalidArgumentException
  * @throws \LogicException
+ * @throws \UnexpectedValueException
  */
 function foundationEnvironmentStorageRun(CommandDispatcher $dispatcher, array $argv): array
 {

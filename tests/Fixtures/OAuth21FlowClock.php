@@ -10,6 +10,9 @@ final class OAuth21FlowClock implements ClockInterface
 {
     public function __construct(private int $now) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function advance(int $seconds): void
     {
         if ($seconds < 0) {

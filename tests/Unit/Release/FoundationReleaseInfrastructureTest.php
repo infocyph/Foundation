@@ -225,6 +225,9 @@ function foundationReleaseInfrastructureManifest(string $generation): array
     ];
 }
 
+/**
+ * @throws \RuntimeException
+ */
 function foundationReleaseInfrastructureGeneration(string $root, string $generation): string
 {
     $directory = $root . '/generations/' . $generation;

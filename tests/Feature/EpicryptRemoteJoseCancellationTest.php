@@ -27,6 +27,9 @@ it('never serves stale remote JOSE keys when a selected resolver cancels the bor
             private bool $throwDuringResolution,
         ) {}
 
+        /**
+         * @throws \Infocyph\Runwire\Exception\CancelledException
+         */
         #[\Override]
         public function resolve(string $hostname): array
         {

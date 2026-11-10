@@ -79,6 +79,7 @@ final class DatabaseSystemCommand extends SystemCommand
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     private function destructiveMigration(string $operation): int
     {
@@ -102,6 +103,7 @@ final class DatabaseSystemCommand extends SystemCommand
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     private function migrate(): int
     {
@@ -139,6 +141,7 @@ final class DatabaseSystemCommand extends SystemCommand
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     private function migrationStatus(): int
     {
@@ -263,6 +266,7 @@ final class DatabaseSystemCommand extends SystemCommand
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     private function rollback(): int
     {
@@ -280,6 +284,7 @@ final class DatabaseSystemCommand extends SystemCommand
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     private function seed(): int
     {

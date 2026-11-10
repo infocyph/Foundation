@@ -16,6 +16,9 @@ final readonly class FoundationReleaseCarryoverMessageCodec implements MessageCo
         return 'foundation.omnibus26.durable-message.v1';
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     #[\Override]
     public function decode(array $payload): object
     {
@@ -27,6 +30,9 @@ final readonly class FoundationReleaseCarryoverMessageCodec implements MessageCo
         return new FoundationReleaseCarryoverMessage($value);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function encode(object $message): array
     {

@@ -54,6 +54,7 @@ final class CommunicationGraphFactory
 
     /**
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public static function http(CommunicationProfiles $profiles): HttpClient
     {

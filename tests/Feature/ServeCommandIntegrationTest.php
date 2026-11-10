@@ -210,7 +210,10 @@ function foundationServeBurst(string $address): array
     }
 }
 
-/** @param resource $process */
+/**
+ * @param resource $process
+ * @throws \RuntimeException
+ */
 function foundationServeWait(mixed $process, string $address, string $project): void
 {
     $deadline = microtime(true) + 15;

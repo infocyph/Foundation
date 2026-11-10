@@ -36,6 +36,7 @@ final readonly class DatabaseTestManager
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function refresh(?string $connection = null): array
     {

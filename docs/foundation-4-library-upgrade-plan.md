@@ -2,6 +2,13 @@
 
 Date: 2026-11-10 (Asia/Dhaka). Status: **93/95 implementation criteria checked; Runwire 3.0.1 minimum selected in Batch 136 (exact-head QA pending); both P6 sustained certifications remain open.**
 
+## Batch 153 — 50-file strict-analysis remediation (one commit; CI pending)
+
+- Baseline: strict CI [Security & Standards #42855087741](https://github.com/infocyph/Foundation/actions/runs/42855087741) on `57c39e9124d500ac717632a21bacb519c2786d07` reported Psalm **1,251** errors on each PHP 8.4/8.5 analysis job and PHPStan **1,000+ displayed** errors. Regular QA, consumers, benchmarks, and native-host smoke passed on that previous source revision.
+- Single-batch scope: **50 distinct PHP files** (`src/`, `tests/`, `benchmarks/`), addressing precise `MissingThrowsDocblock` findings through method-level exception-contract propagation at the matching call sites and deliberately throwing test helpers; no application branch, runtime semantics, quality threshold, analyzer suppression or Composer-lock policy changes.
+- Verification: Run official strict Psalm and PHPStan on PHP 8.4 and PHP 8.5, plus functional, formatting, benchmark, native-host and consumer QA. The post-batch result is **pending** until exact-head GitHub Actions completes; do not infer the error reduction from the number of annotations. Review any newly surfaced transitive exception obligations before closing this batch.
+- Tracker: this 50-file commit satisfies the requested *minimum file count*, but **does not mark the dual-analyzer remediation complete** or waive any release gate. The overall upgrade implementation remains **93/95** until the two non-waivable P6 sustained-host certifications pass. Keep PR #20 draft/unmerged and `infocyph/phpforge` at `dev-main@dev`.
+
 ## Batch 152c — production exception contracts, second group (verification pending)
 
 - Add **11 exact checked exception annotations across 10 production files** for configuration, module state, command history, scheduling, OIDC and selected validation Runwire cancellation. This includes the delegating FormRequest invoke entrypoint so the exception contract remains accurate for callers. No method bodies, runtime behavior, analyzer settings or public signatures changed.

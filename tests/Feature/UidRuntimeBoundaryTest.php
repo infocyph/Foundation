@@ -175,6 +175,9 @@ function foundationUidRuntimeConfig(string $project): array
     ];
 }
 
+/**
+ * @throws \RuntimeException
+ */
 function foundationUidRuntimeProject(): string
 {
     $project = sys_get_temp_dir() . '/foundation-uid-runtime-' . bin2hex(random_bytes(8));

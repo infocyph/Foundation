@@ -30,6 +30,9 @@ final class Foundation4PublicContractProvider extends ServiceProvider
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function boot(Application $app): void
     {

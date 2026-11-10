@@ -248,6 +248,9 @@ it('isolates execution state while preserving bounded process-local memoizers', 
     }
 });
 
+/**
+ * @throws \ReflectionException
+ */
 function foundationPersistentMemoized(FoundationPersistentMemoCalls $calls): int
 {
     $calls->memoClosure ??= static function () use ($calls): int {

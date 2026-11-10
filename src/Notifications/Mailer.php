@@ -33,6 +33,7 @@ final readonly class Mailer
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public function sendEmail(EmailMessage $message, ?string $profile = null): CommunicationResult
     {

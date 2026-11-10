@@ -45,6 +45,9 @@ it('keeps primary command error ahead of lock release and reports otherwise unma
             return true;
         }
 
+        /**
+         * @throws \RuntimeException
+         */
         #[\Override]
         public function release(?LockHandle $handle): void
         {

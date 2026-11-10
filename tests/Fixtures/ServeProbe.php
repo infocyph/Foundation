@@ -9,6 +9,9 @@ use Infocyph\Webrick\Response\Response;
 
 final class ServeProbe
 {
+    /**
+     * @throws \RuntimeException
+     */
     public static function failure(): never
     {
         throw new \RuntimeException('serve-probe-private-error');

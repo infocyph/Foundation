@@ -494,6 +494,7 @@ it('keeps specialist catalog package floors aligned with the tested dependency s
 /**
  * @param list<array<string,mixed>> $modules
  * @return array<string,mixed>
+ * @throws \RuntimeException
  */
 function moduleStateFind(array $modules, string $name): array
 {

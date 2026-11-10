@@ -47,7 +47,15 @@ function phase9HttpScalarTax(int $foundation, int $direct): array
     ];
 }
 
-/** @return array<string,mixed> */
+/**
+ * @return array<string,mixed>
+ * @throws \RuntimeException
+ * @throws \UnexpectedValueException
+ * @throws \Exception
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \Psr\Cache\InvalidArgumentException
+ */
 function phase9HttpChild(string $variant): array
 {
     $operations = max(1_000, (int) (getenv('PHASE9_HTTP_OPERATIONS') ?: 100_000));

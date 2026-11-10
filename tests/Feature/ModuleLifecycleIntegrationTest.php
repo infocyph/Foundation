@@ -358,6 +358,7 @@ function moduleLifecycleWriteComposer(string $basePath, array $requirements): vo
  * @param list<string> $argv
  * @throws \InvalidArgumentException
  * @throws \LogicException
+ * @throws \UnexpectedValueException
  */
 function moduleLifecycleRun(
     CommandDispatcher $dispatcher,

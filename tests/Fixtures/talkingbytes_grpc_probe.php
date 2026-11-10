@@ -67,6 +67,9 @@ try {
     $invoker = new class($stub) implements NativeGrpcInvoker {
         public function __construct(private FoundationGrpcFixtureStub $stub) {}
 
+        /**
+         * @throws \InvalidArgumentException
+         */
         #[\Override]
         public function invoke(
             string $method,

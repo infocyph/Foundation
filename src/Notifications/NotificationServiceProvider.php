@@ -37,6 +37,7 @@ final class NotificationServiceProvider extends ServiceProvider
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public static function emailer(EmailProfiles $profiles): Emailer
     {
@@ -60,6 +61,7 @@ final class NotificationServiceProvider extends ServiceProvider
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public static function spoolReceiver(EmailProfiles $profiles): SpoolEmailReceiver
     {

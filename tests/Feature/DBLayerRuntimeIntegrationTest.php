@@ -36,6 +36,9 @@ function foundationDbLayerRuntimeFactory(array $database): array
     $container = new class ($state) implements ContainerInterface {
         public function __construct(private RuntimeExecutionState $state) {}
 
+        /**
+         * @throws \RuntimeException
+         */
         #[\Override]
         public function get(string $id): mixed
         {

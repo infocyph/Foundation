@@ -71,6 +71,8 @@ final class MessagingGraphFactory
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
      * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public static function durableSerializer(OmnibusDurableFactory $factory): JsonEnvelopeSerializer
     {
@@ -132,6 +134,9 @@ final class MessagingGraphFactory
         return new ListenerMap($resolver->listeners($configured));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function messageFactoryMap(
         MessagingRuntimeResolver $resolver,
         mixed $configured,

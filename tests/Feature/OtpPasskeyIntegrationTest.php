@@ -46,6 +46,7 @@ function foundationOtpPasskeyConfig(string $storeDriver = 'memory'): array
 /**
  * OpenSSL's P-256 coordinate buffers can omit leading zero bytes; COSE EC2
  * requires each coordinate to occupy exactly 32 bytes.
+ * @throws \InvalidArgumentException
  */
 function foundationCoseP256Coordinate(string $coordinate): string
 {

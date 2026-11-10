@@ -95,6 +95,9 @@ it('does not persist caller session or device metadata as canonical authorizatio
         $clock = new SystemClock();
 
         $inner = new class implements \Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface {
+            /**
+             * @throws \LogicException
+             */
             #[\Override]
             public function authorize(
                 \Infocyph\Foundation\Auth\Principal\PrincipalInterface $principal,

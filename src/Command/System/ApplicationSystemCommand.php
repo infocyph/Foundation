@@ -323,6 +323,7 @@ final class ApplicationSystemCommand extends SystemCommand
     /**
      * @throws \UnexpectedValueException
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
      */
     private function ready(): int
     {
@@ -344,6 +345,7 @@ final class ApplicationSystemCommand extends SystemCommand
      * @return array<string, array<string, bool>>
      * @throws \RuntimeException
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     private function releaseCapabilities(): array
     {

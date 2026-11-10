@@ -41,6 +41,7 @@ final readonly class EmailProfiles
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public function authEmailer(): Emailer
     {

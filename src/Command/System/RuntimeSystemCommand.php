@@ -381,6 +381,7 @@ final class RuntimeSystemCommand extends SystemCommand
     /**
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function storageLink(): int
     {
@@ -392,6 +393,7 @@ final class RuntimeSystemCommand extends SystemCommand
     /**
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function storageStatus(): int
     {
@@ -419,6 +421,7 @@ final class RuntimeSystemCommand extends SystemCommand
     /**
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function storageUnlink(): int
     {

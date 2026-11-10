@@ -130,6 +130,7 @@ final class Foundation4AuthenticatedWorkload
      * @throws \InvalidArgumentException
      * @throws \LogicException
      * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \Throwable
      */
     public static function seed(array $configuration, string $directory): void
     {

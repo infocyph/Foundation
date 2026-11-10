@@ -121,6 +121,9 @@ it('preserves explicit X-Sendfile and X-Accel policy without Foundation body emi
     }
 });
 
+/**
+ * @throws \UnexpectedValueException
+ */
 function foundationFilesystemOffloadRemoveDirectory(string $directory): void
 {
     if (!is_dir($directory)) {

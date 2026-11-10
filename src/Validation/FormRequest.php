@@ -62,6 +62,7 @@ abstract class FormRequest
      * @return array<int|string,mixed>
      * @throws \LogicException
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     final public function validated(Request $request): array
     {

@@ -8,6 +8,9 @@ use RuntimeException;
 
 final class FoundationReleaseCarryoverHandler
 {
+    /**
+     * @throws \RuntimeException
+     */
     public function __invoke(FoundationReleaseCarryoverMessage $message): void
     {
         if ($message->value === 'dead-letter') {

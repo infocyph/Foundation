@@ -158,6 +158,7 @@ final readonly class ReadinessReport
     /**
      * @return array{ready:bool,detail:string}
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     private function configurationReadiness(): array
     {

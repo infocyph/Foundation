@@ -240,6 +240,7 @@ final class CommandExecutionCoordinator
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function recordWaitIfNeeded(
         CommandExecutionPolicy $policy,

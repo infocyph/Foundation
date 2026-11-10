@@ -57,6 +57,9 @@ it('fails passwordless issuance and redemption when atomic state is unavailable'
             return $this->store->get($key, $default);
         }
 
+        /**
+         * @throws \RuntimeException
+         */
         #[\Override]
         public function pull(string $key, mixed $default = null): mixed
         {
@@ -67,6 +70,9 @@ it('fails passwordless issuance and redemption when atomic state is unavailable'
             return $this->store->pull($key, $default);
         }
 
+        /**
+         * @throws \RuntimeException
+         */
         #[\Override]
         public function put(string $key, mixed $value, int $ttlSeconds): void
         {

@@ -272,6 +272,9 @@ PHP);
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \UnexpectedValueException
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     public function setUpAuthorization(): void
     {
@@ -286,6 +289,8 @@ PHP);
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \UnexpectedValueException
+     * @throws \Exception
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     public function setUpMfa(): void
     {
@@ -308,6 +313,8 @@ PHP);
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \UnexpectedValueException
+     * @throws \Exception
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     public function setUpPasskey(): void
     {
@@ -326,6 +333,14 @@ PHP);
         ));
     }
 
+    /**
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function setUpToken(): void
     {
         $this->setUpAuth();

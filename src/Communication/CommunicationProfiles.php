@@ -40,6 +40,7 @@ final readonly class CommunicationProfiles
      * @param callable(GrpcRequest):GrpcResponse $caller
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public function grpc(callable $caller, ?string $profile = null): GrpcClient
     {
@@ -50,6 +51,7 @@ final readonly class CommunicationProfiles
      * @param array<string, string> $methodMap
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public function grpcGeneratedStub(
         object $stubClient,
@@ -72,6 +74,7 @@ final readonly class CommunicationProfiles
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public function grpcNative(
         NativeGrpcInvoker $invoker,
@@ -143,6 +146,7 @@ final readonly class CommunicationProfiles
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public function webhookSender(?string $profile = null): WebhookSender
     {

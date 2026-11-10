@@ -207,7 +207,10 @@ it('rejects disabled accounts disabled clients and revoked authorizations', func
     }
 });
 
-/** @param array<string, string> $changes */
+/**
+ * @param array<string, string> $changes
+ * @throws \RuntimeException
+ */
 function oauth21RejectRewriteHeader(string $token, array $changes): string
 {
     [$encodedHeader, $payload, $signature] = explode('.', $token, 3);

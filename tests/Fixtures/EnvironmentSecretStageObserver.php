@@ -16,6 +16,9 @@ final class EnvironmentSecretStageObserver
 
     public static int $writes = 0;
 
+    /**
+     * @throws \RuntimeException
+     */
     public static function inspect(mixed $stream): void
     {
         if (!self::$active) {

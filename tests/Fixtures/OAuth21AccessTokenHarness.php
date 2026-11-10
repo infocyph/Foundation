@@ -14,6 +14,7 @@ final readonly class OAuth21AccessTokenHarness
 
     /**
      * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException
+     * @throws \RuntimeException
      */
     public function verify(string $token, string $audience): OAuthAccessTokenClaims
     {

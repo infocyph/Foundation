@@ -43,6 +43,12 @@ final readonly class RepresentativeBenchmark
      * @param string $outputPath Destination for the PHPForge benchmark-result document.
      * @return array<string, mixed>
      * @throws \RuntimeException
+     * @throws \Exception
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function run(string $outputPath): array
     {
