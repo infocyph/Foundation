@@ -15,17 +15,17 @@ final class Phase9DiProvider extends ServiceProvider
 {
     public static function definitions(ContainerBuilder $builder): void
     {
-        $builder->bind(
+        $builder->factory(
             Phase9DiLeaf::class,
             FactoryDefinition::construct(Phase9DiLeaf::class, ['phase-9']),
             LifetimeEnum::Singleton,
         );
-        $builder->bind(
+        $builder->factory(
             Phase9DiNode::class,
             FactoryDefinition::construct(Phase9DiNode::class, [new ServiceReference(Phase9DiLeaf::class)]),
             LifetimeEnum::Transient,
         );
-        $builder->bind(
+        $builder->factory(
             Phase9DiScopedProbe::class,
             FactoryDefinition::construct(Phase9DiScopedProbe::class),
             LifetimeEnum::Scoped,

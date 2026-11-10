@@ -67,7 +67,7 @@ final class AuthBench
         );
 
         $verified = $this->services->mfa()->verifyChallenge(
-            $challenge->challenge?->id ?? '',
+            $challenge->challenge->id,
             '000000',
         );
         if (!$verified->successful()) {
@@ -129,7 +129,7 @@ final class AuthBench
                 'files' => [],
             ],
         ]);
-        $this->services = new AuthServices($this->app);
+        $this->services = new AuthServices($this->app->container(), $this->app->config());
         $created = $this->services->accounts()->create(
             'benchmark@example.test',
             $this->services->passwordHasher()->hash('benchmark-secret'),
@@ -177,7 +177,7 @@ PHP);
                 'files' => ['web.php'],
             ],
         ])->boot();
-        $this->services = new AuthServices($this->app);
+        $this->services = new AuthServices($this->app->container(), $this->app->config());
         $created = $this->services->accounts()->create(
             'request-benchmark@example.test',
             $this->services->passwordHasher()->hash('benchmark-secret'),

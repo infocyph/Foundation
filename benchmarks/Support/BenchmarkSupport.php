@@ -13,6 +13,10 @@ final class BenchmarkSupport
         int $repetitions,
         int $warmup,
     ): array {
+        if ($operations < 1 || $repetitions < 1 || $warmup < 0) {
+            throw new \InvalidArgumentException('Benchmark operations and repetitions must be positive and warmup non-negative.');
+        }
+
         $samples = [];
 
         for ($repeat = 0; $repeat < $repetitions; ++$repeat) {
@@ -56,7 +60,13 @@ final class BenchmarkSupport
             \RecursiveIteratorIterator::CHILD_FIRST,
         );
         foreach ($files as $file) {
-            $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+            /** @var \SplFileInfo $file */
+            $path = $file->getPathname();
+            if ($file->isDir()) {
+                rmdir($path);
+            } else {
+                unlink($path);
+            }
         }
         rmdir($directory);
     }
@@ -68,6 +78,10 @@ final class BenchmarkSupport
         int $repetitions,
         int $warmup,
     ): array {
+        if ($operations < 1 || $repetitions < 1 || $warmup < 0) {
+            throw new \InvalidArgumentException('Benchmark operations and repetitions must be positive and warmup non-negative.');
+        }
+
         $samples = [];
 
         for ($repeat = 0; $repeat < $repetitions; ++$repeat) {
@@ -89,7 +103,7 @@ final class BenchmarkSupport
             'median_ns' => round($median, 2),
             'ops_per_second' => round(1_000_000_000 / $median, 2),
             'min_ns' => round($samples[0], 2),
-            'max_ns' => round($samples[array_key_last($samples)], 2),
+            'max_ns' => round($samples[count($samples) - 1], 2),
             'samples_ns' => array_map(static fn(float $sample): float => round($sample, 2), $samples),
         ];
     }
