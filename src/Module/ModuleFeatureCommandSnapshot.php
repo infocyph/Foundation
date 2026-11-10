@@ -85,6 +85,8 @@ final readonly class ModuleFeatureCommandSnapshot
     /**
      * Change detector, not a security signature. Both the CLI and the locked
      * activation path read the same authoritative Composer root/lock/install data.
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
      */
     private function composerFingerprint(): string
     {

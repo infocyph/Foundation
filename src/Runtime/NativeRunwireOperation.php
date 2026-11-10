@@ -15,6 +15,7 @@ final readonly class NativeRunwireOperation
 {
     /**
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public static function current(): ?RunwireExecutionContext
     {

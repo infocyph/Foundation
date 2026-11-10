@@ -17,6 +17,9 @@ final class FoundationOperationsReleaseIO implements CommandIO
     /** @var list<mixed> */
     public array $json = [];
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
@@ -61,6 +64,9 @@ final class FoundationOperationsReleaseIO implements CommandIO
     #[\Override]
     public function note(string $message): void {}
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function password(string $question): string
     {
@@ -73,6 +79,9 @@ final class FoundationOperationsReleaseIO implements CommandIO
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function read(string $question, ?string $default = null): string
     {
@@ -240,6 +249,7 @@ it('closes maintenance runtime control and process registry operations through r
 
 /**
  * @param array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:true} $record
+ * @throws \RuntimeException
  */
 function foundationOperationsMakeStale(string $basePath, array $record): void
 {
@@ -252,7 +262,10 @@ function foundationOperationsMakeStale(string $basePath, array $record): void
     }
 }
 
-/** @return array<string, mixed> */
+/**
+ * @return array<string, mixed>
+ * @throws \RuntimeException
+ */
 function foundationOperationsPayload(FoundationOperationsReleaseIO $io): array
 {
     $payload = $io->json[0] ?? null;
@@ -263,7 +276,12 @@ function foundationOperationsPayload(FoundationOperationsReleaseIO $io): array
     return $payload;
 }
 
-/** @param list<string> $argv */
+/**
+ * @param list<string> $argv
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \RuntimeException
+ */
 function foundationOperationsRun(CommandDispatcher $dispatcher, array $argv): FoundationOperationsReleaseIO
 {
     $io = new FoundationOperationsReleaseIO();

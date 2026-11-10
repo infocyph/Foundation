@@ -31,6 +31,9 @@ final readonly class GrpcInboundWorker implements WorkerProvider
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
+     * @throws \Throwable
      */
     #[\Override]
     public function run(WorkerRuntime $runtime): int

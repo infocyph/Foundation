@@ -12,6 +12,9 @@ use Infocyph\Webrick\Request\Request;
 /**
  * @param array<string, array{enabled:bool}> $offload
  * @return array{Application,string}
+ * @throws \Exception
+ * @throws \LogicException
+ * @throws \Psr\Cache\InvalidArgumentException
  */
 function foundationFilesystemOffloadApp(array $offload = []): array
 {
@@ -129,6 +132,9 @@ function foundationFilesystemOffloadRemoveDirectory(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!$file instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('Filesystem fixture iterator yielded an invalid entry.');
+        }
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

@@ -124,7 +124,10 @@ function foundationCacheLayerAtomicRedisDsn(): string
     return sprintf('redis://%s%s:%s', $credentials, $host, $port);
 }
 
-/** @return list<string> */
+/**
+ * @return list<string>
+ * @throws \RuntimeException
+ */
 function foundationCacheLayerAtomicWorkers(
     string $mode,
     string $namespace,

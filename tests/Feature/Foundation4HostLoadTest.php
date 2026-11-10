@@ -41,6 +41,14 @@ it('still counts and rejects failed measured responses after successful connecti
     });
 });
 
+/**
+ * @throws \RuntimeException
+ * @throws \Symfony\Component\Process\Exception\LogicException
+ * @throws \Symfony\Component\Process\Exception\ProcessSignaledException
+ * @throws \Symfony\Component\Process\Exception\ProcessStartFailedException
+ * @throws \Symfony\Component\Process\Exception\ProcessTimedOutException
+ * @throws \Symfony\Component\Process\Exception\RuntimeException
+ */
 function foundationHostLoadProbe(string $mode, callable $assert, bool $authenticated = true): void
 {
     $socket = stream_socket_server('tcp://127.0.0.1:0', $code, $message);

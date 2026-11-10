@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
-/** @return array{requests:int,successful:int,failed:int,rpm:float,duration_seconds:float,p50_ms:float,p95_ms:float,p99_ms:float} */
+/**
+ * @return array{requests:int,successful:int,failed:int,rpm:float,duration_seconds:float,p50_ms:float,p95_ms:float,p99_ms:float}
+ * @throws \RuntimeException
+ */
 function f4HostLoad(string $path, int $expectedRequests): array
 {
     $result = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
@@ -46,7 +49,10 @@ function f4HostLoad(string $path, int $expectedRequests): array
     ];
 }
 
-/** @return array<string,int|float|null> */
+/**
+ * @return array<string,int|float|null>
+ * @throws \RuntimeException
+ */
 function f4HostSamples(string $path): array
 {
     $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -94,7 +100,10 @@ function f4HostSamples(string $path): array
     ];
 }
 
-/** @param list<float> $values */
+/**
+ * @param list<float> $values
+ * @throws \RuntimeException
+ */
 function f4HostMedian(array $values): float
 {
     sort($values, SORT_NUMERIC);

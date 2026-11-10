@@ -121,6 +121,11 @@ it('emits file and stream bodies through the real SAPI response writer', functio
     }
 });
 
+/**
+ * @throws \InvalidArgumentException
+ * @throws \RuntimeException
+ * @throws \Throwable
+ */
 function foundationSapiEmission(string $file, bool $stream): string
 {
     $autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';

@@ -637,6 +637,9 @@ final class ModuleCatalog
         ));
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function validate(): void
     {
         new ModuleCatalogValidator()->validate($this->all());

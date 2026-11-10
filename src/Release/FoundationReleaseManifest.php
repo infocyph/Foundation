@@ -310,6 +310,7 @@ final class FoundationReleaseManifest
     /**
      * @param array<array-key,mixed> $value
      * @return array<string,mixed>
+     * @throws \UnexpectedValueException
      */
     private static function stringMap(array $value, string $field): array
     {

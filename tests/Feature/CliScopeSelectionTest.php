@@ -19,6 +19,9 @@ final class FoundationCliScopeFreeCommand implements CommandHandlerInterface
 
     public function __construct(private readonly Application $application) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public static function define(CommandDefinition $command): void
     {
@@ -51,6 +54,9 @@ final class FoundationCliScopedCommand implements CommandHandlerInterface
 
     public function __construct(private readonly Application $application) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public static function define(CommandDefinition $command): void
     {
@@ -60,6 +66,9 @@ final class FoundationCliScopedCommand implements CommandHandlerInterface
             ->scope();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     #[\Override]
     public function run(CommandContext $context): int
     {

@@ -93,6 +93,11 @@ final class OAuthBearerTokenPrincipalResolver extends AbstractPrincipalResolver
         return null;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function verifyForAnyAudience(#[\SensitiveParameter] string $token): ?OAuthVerifiedAccessToken
     {
         foreach ($this->audiences as $audience) {

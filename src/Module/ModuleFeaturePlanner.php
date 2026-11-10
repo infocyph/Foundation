@@ -182,6 +182,7 @@ final readonly class ModuleFeaturePlanner
      * @phpstan-param Context $context
      * @param array{require:array<string,string>,remove:list<string>,activate:array<string,bool>,publish:list<string>,schemas:list<string>} $effects
      * @param list<string> $blockers
+     * @throws \InvalidArgumentException
      */
     private function checkRemove(
         string $id,

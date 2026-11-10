@@ -12,6 +12,9 @@ final class FoundationMaintenanceWorker implements WorkerProvider
 {
     public static int $runs = 0;
 
+    /**
+     * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
+     */
     #[\Override]
     public function run(WorkerRuntime $runtime): int
     {

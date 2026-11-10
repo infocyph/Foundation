@@ -81,6 +81,11 @@ it('keeps OAuth and application bearer token profiles mutually exclusive', funct
     }
 });
 
+/**
+ * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ */
 function oauth21SeparatedOAuthToken(OAuth21FlowFixture $fixture, string $audience): string
 {
     $redirect = 'https://separation.example.test/callback';

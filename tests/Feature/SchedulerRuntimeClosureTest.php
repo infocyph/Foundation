@@ -28,6 +28,9 @@ final class FoundationSchedulerRuntimeIO implements CommandIO
     /** @var list<mixed> */
     public array $payloads = [];
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
@@ -80,6 +83,9 @@ final class FoundationSchedulerRuntimeIO implements CommandIO
         unset($message);
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function password(string $question): string
     {
@@ -94,6 +100,9 @@ final class FoundationSchedulerRuntimeIO implements CommandIO
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function read(string $question, ?string $default = null): string
     {
@@ -492,6 +501,11 @@ function foundationSchedulerConfig(string $project, bool $locks = false, bool $m
     return $config;
 }
 
+/**
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \UnexpectedValueException
+ */
 function foundationSchedulerDispatcher(string $project): CommandDispatcher
 {
     return CommandDispatcher::project(

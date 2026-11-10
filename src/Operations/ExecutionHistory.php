@@ -137,6 +137,7 @@ final readonly class ExecutionHistory
     /**
      * @param array<string, scalar|null> $metadata
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function record(
         string $kind,
@@ -259,6 +260,9 @@ final readonly class ExecutionHistory
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function shiftRotatedHistory(string $path, int $retained): void
     {
         for ($index = $retained - 1; $index >= 1; --$index) {

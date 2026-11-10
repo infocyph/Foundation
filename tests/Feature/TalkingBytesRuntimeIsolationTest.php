@@ -140,6 +140,14 @@ it('uses TalkingBytes v2 bound webhook signatures with Foundation atomic replay 
         ->toThrow(RuntimeException::class, 'signature_mismatch');
 });
 
+/**
+ * @throws \Exception
+ * @throws \Infocyph\Foundation\Exception\ConfigurationException
+ * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \Psr\Cache\InvalidArgumentException
+ */
 function foundationTalkingBytesStatefulApplication(): \Infocyph\Foundation\Application\Application
 {
     return Foundation::web([

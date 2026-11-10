@@ -14,6 +14,11 @@ use Infocyph\Foundation\Http\HttpServiceProvider;
 use Infocyph\Foundation\Messaging\MessagingServiceProvider;
 use Infocyph\Foundation\Routing\RoutingServiceProvider;
 
+/**
+ * @throws \Infocyph\Foundation\Exception\BootstrapException
+ * @throws \LogicException
+ * @throws \UnexpectedValueException
+ */
 function foundationB4SelectedProviders(RuntimeMode $mode, array $features): array
 {
     $config = new ConfigRepository([

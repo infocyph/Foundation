@@ -75,7 +75,10 @@ final readonly class MessagingRuntimeResolver
         return $middleware;
     }
 
-    /** @return array<class-string, callable> */
+    /**
+     * @return array<class-string, callable>
+     * @throws \InvalidArgumentException
+     */
     public function handlers(mixed $configured): array
     {
         $handlers = [];
@@ -118,7 +121,10 @@ final readonly class MessagingRuntimeResolver
         return $middleware;
     }
 
-    /** @return array<class-string, list<callable>> */
+    /**
+     * @return array<class-string, list<callable>>
+     * @throws \InvalidArgumentException
+     */
     public function listeners(mixed $configured): array
     {
         $listeners = [];
@@ -137,7 +143,10 @@ final readonly class MessagingRuntimeResolver
         return $listeners;
     }
 
-    /** @return array<string, callable(): object> */
+    /**
+     * @return array<string, callable(): object>
+     * @throws \InvalidArgumentException
+     */
     public function scheduledMessages(mixed $configured): array
     {
         $messages = [];

@@ -61,6 +61,9 @@ final class FoundationMessageHandler
 
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function __invoke(FoundationMessage $message, Envelope $envelope): void
     {
         $probe = $this->application->make(FoundationMessageProbe::class);
@@ -84,6 +87,10 @@ final class FoundationFailingMessageHandler
 
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
+     */
     public function __invoke(): never
     {
         self::$scopes[] = $this->application->make(FoundationMessageProbe::class)->sequence;
@@ -98,6 +105,9 @@ final class FoundationFiberMessageHandler
 
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function __invoke(FoundationFiberMessage $message): void
     {
         $before = $this->application->make(FoundationMessageProbe::class)->sequence;
@@ -129,6 +139,11 @@ final class FoundationScheduledMessageFactory
 function foundationMessagingApplication(array $messaging = []): Application
 {
     $provider = new class extends ServiceProvider {
+        /**
+         * @throws \Exception
+         * @throws \LogicException
+         * @throws \Psr\Cache\InvalidArgumentException
+         */
         #[\Override]
         public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {

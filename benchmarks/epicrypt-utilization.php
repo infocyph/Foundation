@@ -354,6 +354,9 @@ $runtimeState = new RuntimeExecutionState();
 $container = new readonly class ($runtimeState) implements ContainerInterface {
     public function __construct(private RuntimeExecutionState $state) {}
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function get(string $id): mixed
     {
@@ -622,6 +625,9 @@ try {
             RecursiveIteratorIterator::CHILD_FIRST,
         );
         foreach ($iterator as $entry) {
+            if (!$entry instanceof \SplFileInfo) {
+                throw new \UnexpectedValueException('Epicrypt benchmark iterator yielded an invalid entry.');
+            }
             $entry->isDir() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());
         }
         rmdir($root);

@@ -450,6 +450,9 @@ it('reports cleanup failures without replacing the primary session failure', fun
             return $handle !== null && $leaseSeconds > 0;
         }
 
+        /**
+         * @throws \RuntimeException
+         */
         #[\Override]
         public function release(?LockHandle $handle): void
         {
@@ -465,6 +468,9 @@ it('reports cleanup failures without replacing the primary session failure', fun
 
         public bool $fail = false;
 
+        /**
+         * @throws \RuntimeException
+         */
         #[\Override]
         public function log($level, string|Stringable $message, array $context = []): void
         {
@@ -560,6 +566,9 @@ it('releases CacheLayer session locks when request handling fails', function ():
         {
             return $this->owned && $handle !== null && $leaseSeconds > 0;
         }
+        /**
+         * @throws \RuntimeException
+         */
         #[\Override]
         public function release(?LockHandle $handle): void
         {
@@ -698,7 +707,10 @@ it('isolates active sessions between concurrent fibers', function (): void {
         ->toThrow(LogicException::class);
 });
 
-/** @return array{Closure,SessionManager,ArraySessionStore,SessionConfig,Container} */
+/**
+ * @return array{Closure,SessionManager,ArraySessionStore,SessionConfig,Container}
+ * @throws \InvalidArgumentException
+ */
 function browserSessionStack(): array
 {
     $config = SessionConfig::fromRepository(new ConfigRepository([

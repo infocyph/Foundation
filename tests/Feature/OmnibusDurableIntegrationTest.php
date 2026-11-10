@@ -39,6 +39,9 @@ final readonly class FoundationOmnibusDurableMessageCodec implements MessageCode
         return 'foundation.omnibus26.durable-message.v1';
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     #[\Override]
     public function decode(array $payload): object
     {
@@ -50,6 +53,9 @@ final readonly class FoundationOmnibusDurableMessageCodec implements MessageCode
         return new FoundationOmnibusDurableMessage($value);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function encode(object $message): array
     {
@@ -76,6 +82,10 @@ final class FoundationOmnibusDurableHandler
 
     public static ?RequestContext $cancelDuringDelivery = null;
 
+    /**
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     * @throws \RuntimeException
+     */
     public function __invoke(FoundationOmnibusDurableMessage $message): void
     {
         if ($message->value === 'cancel-inflight' && self::$cancelDuringDelivery !== null) {
@@ -580,7 +590,15 @@ it('keeps the DBLayer durable graph cold when durable messaging is disabled', fu
         ->and($app->has(DBLayerTransport::class))->toBeFalse();
 });
 
-/** @return array{0:\Infocyph\Foundation\Application\Application,1:string} */
+/**
+ * @return array{0:\Infocyph\Foundation\Application\Application,1:string}
+ * @throws \Exception
+ * @throws \Infocyph\Foundation\Exception\ConfigurationException
+ * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \Psr\Cache\InvalidArgumentException
+ */
 function foundationOmnibusDurableApp(
     ?array $selectedFeatures = null,
     int $retryMaximumAttempts = 1,
@@ -634,7 +652,10 @@ function foundationOmnibusDurableApp(
     return [$app, $database];
 }
 
-/** @return array<string, mixed> */
+/**
+ * @return array<string, mixed>
+ * @throws \RuntimeException
+ */
 function foundationOmnibusSelectedDatabaseConfig(
     string $driver,
     string $dsnVariable,
@@ -690,6 +711,9 @@ function foundationOmnibusDatabaseConfig(string $database): array
     ];
 }
 
+/**
+ * @throws \RuntimeException
+ */
 function foundationOmnibusDatabasePath(): string
 {
     $path = tempnam(sys_get_temp_dir(), 'foundation-omnibus-');

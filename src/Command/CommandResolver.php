@@ -79,6 +79,9 @@ final readonly class CommandResolver
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function activateCapabilities(CommandDefinition $definition): void
     {
         foreach ($definition->capabilities() as $capability) {

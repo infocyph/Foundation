@@ -53,6 +53,7 @@ final readonly class ModuleFeatureResolver
      * @param list<string> $features
      *
      * @return list<string>
+     * @throws \InvalidArgumentException
      */
     public function normalize(array $features): array
     {
@@ -82,6 +83,7 @@ final readonly class ModuleFeatureResolver
      * @phpstan-param Context $context
      * @param list<string> $features
      * @phpstan-return Resolution
+     * @throws \InvalidArgumentException
      */
     public function resolve(array $features, array $context): array
     {

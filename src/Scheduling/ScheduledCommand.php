@@ -318,7 +318,10 @@ final class ScheduledCommand
         return is_string($value) && $value !== '' ? $value : null;
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \UnexpectedValueException
+     */
     private static function stringList(mixed $value): array
     {
         if (!is_array($value)) {

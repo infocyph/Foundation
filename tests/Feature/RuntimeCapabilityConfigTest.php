@@ -311,7 +311,12 @@ it('uses an in-memory counter for process-local CacheLayer auth state', function
         ->and($counter?->class)->toBe(InMemoryCounterStore::class);
 });
 
-/** @return array<string, mixed> */
+/**
+ * @return array<string, mixed>
+ * @throws \Infocyph\Foundation\Exception\BootstrapException
+ * @throws \LogicException
+ * @throws \UnexpectedValueException
+ */
 function foundationRuntimeCapabilityDefinitions(ConfigRepository $config, RuntimeMode $mode = RuntimeMode::Cli): array
 {
     $context = FoundationBuildContext::fromConfig($config, $mode);

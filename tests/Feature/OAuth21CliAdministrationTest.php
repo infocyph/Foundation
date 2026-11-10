@@ -23,6 +23,9 @@ final class OAuth21CliTestIO implements CommandIO
     /** @var list<mixed> */
     public array $payloads = [];
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
@@ -73,6 +76,9 @@ final class OAuth21CliTestIO implements CommandIO
         unset($message);
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function password(string $question): string
     {

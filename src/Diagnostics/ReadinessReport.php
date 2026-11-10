@@ -92,6 +92,7 @@ final readonly class ReadinessReport
 
     /**
      * @param array<string,array{ready:bool,detail:string}> $checks
+     * @throws \InvalidArgumentException
      */
     private function appendSchemaChecks(array &$checks, ConfiguredCapabilities $capabilities): void
     {

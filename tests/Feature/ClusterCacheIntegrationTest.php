@@ -165,6 +165,11 @@ it('adapts CacheLayer atomic counters to auth lockout counters', function (): vo
         ->and($backend->lastTtl)->toBe(900);
 });
 
+/**
+ * @throws \Exception
+ * @throws \LogicException
+ * @throws \Psr\Cache\InvalidArgumentException
+ */
 function foundationClusterCacheApplication(): \Infocyph\Foundation\Application\Application
 {
     $basePath = sys_get_temp_dir() . '/foundation-cluster-cache-' . uniqid('', true);

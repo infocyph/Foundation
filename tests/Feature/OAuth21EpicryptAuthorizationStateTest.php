@@ -130,6 +130,12 @@ it('projects Epicrypt authorizations through the authoritative Foundation author
     }
 });
 
+/**
+ * @throws \Infocyph\Foundation\Exception\ConfigurationException
+ * @throws \LogicException
+ * @throws \Psr\Container\ContainerExceptionInterface
+ * @throws \Psr\Container\NotFoundExceptionInterface
+ */
 function oauth21EpicryptStateMigrations(DBLayerFactory $factory, AuthTables $tables): void
 {
     new MigrationRunner($factory->connection(), [

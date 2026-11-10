@@ -26,7 +26,13 @@ final readonly class AuthContentionFixture
     public DBLayerFactory $factory;
     public AuthTables $tables;
 
-    /** @param array<string, mixed> $connection */
+    /**
+     * @param array<string, mixed> $connection
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function __construct(array $connection)
     {
         $this->factory = new DBLayerFactory(new DatabaseConnectionResolver(new ConfigRepository([
@@ -58,6 +64,9 @@ final readonly class AuthContentionFixture
             : new RememberTokenRecord('device', $id, hash('sha256', $id), $id, 'owner', 'family', $now, $now + 300);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public static function waitFor(string $path): void
     {
         $until = microtime(true) + 15;
@@ -72,6 +81,9 @@ final readonly class AuthContentionFixture
         throw new RuntimeException('Auth contention barrier timed out: ' . basename($path));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public function compete(string $kind, string $directory, string $worker, int $now): bool
     {
         $store = $this->store($kind);

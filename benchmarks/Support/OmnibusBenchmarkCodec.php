@@ -14,12 +14,23 @@ final readonly class OmnibusBenchmarkCodec implements MessageCodec
         return 'foundation.benchmark.omnibus.v1';
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function decode(array $payload): object
     {
-        return new OmnibusBenchmarkMessage((string) ($payload['value'] ?? ''));
+        $value = $payload['value'] ?? '';
+        if (!is_string($value)) {
+            throw new \InvalidArgumentException('Benchmark message value must be a string.');
+        }
+
+        return new OmnibusBenchmarkMessage($value);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function encode(object $message): array
     {

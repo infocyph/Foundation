@@ -68,6 +68,9 @@ final readonly class OmnibusDurableFactory
 
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function serializer(): JsonEnvelopeSerializer
     {

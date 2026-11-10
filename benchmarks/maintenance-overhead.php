@@ -8,7 +8,15 @@ use Infocyph\Foundation\Routing\WebReleaseRuntime;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
-/** @return array<string,mixed> */
+/**
+ * @return array<string,mixed>
+ * @throws \Exception
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \Psr\Cache\InvalidArgumentException
+ * @throws \RuntimeException
+ * @throws \UnexpectedValueException
+ */
 function foundationMaintenanceBenchmarkMode(string $mode): array
 {
     $enabled = $mode === 'enabled';
@@ -108,6 +116,9 @@ PHP);
     ];
 }
 
+/**
+ * @throws \RuntimeException
+ */
 function foundationMaintenanceBenchmarkChild(string $mode): array
 {
     $command = [PHP_BINARY, __FILE__, '--mode=' . $mode];

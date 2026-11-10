@@ -9,6 +9,9 @@ use RuntimeException;
 
 final readonly class Phase9ServerHandler
 {
+    /**
+     * @throws \RuntimeException
+     */
     public static function failure(): Response
     {
         throw new RuntimeException('Foundation host request failure probe.');

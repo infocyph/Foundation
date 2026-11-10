@@ -14,6 +14,9 @@ final class FoundationEnvironmentStorageIO implements CommandIO
     /** @var list<mixed> */
     public array $json = [];
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
@@ -58,6 +61,9 @@ final class FoundationEnvironmentStorageIO implements CommandIO
     #[\Override]
     public function note(string $message): void {}
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function password(string $question): string
     {
@@ -70,6 +76,9 @@ final class FoundationEnvironmentStorageIO implements CommandIO
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function read(string $question, ?string $default = null): string
     {
@@ -246,7 +255,12 @@ it('rejects storage link traversal outside Foundation public and storage roots',
     }
 });
 
-/** @param array<string, string> $links */
+/**
+ * @param array<string, string> $links
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \UnexpectedValueException
+ */
 function foundationEnvironmentStorageDispatcher(string $basePath, array $links = []): CommandDispatcher
 {
     return CommandDispatcher::project(
@@ -284,6 +298,8 @@ function foundationEnvironmentStorageProject(string $suffix): string
 /**
  * @param list<string> $argv
  * @return array{exit:int,io:FoundationEnvironmentStorageIO}
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
  */
 function foundationEnvironmentStorageRun(CommandDispatcher $dispatcher, array $argv): array
 {

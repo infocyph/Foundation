@@ -51,6 +51,7 @@ final readonly class ModuleSchemaManager
      * Provision every schema currently required by configured application capabilities.
      *
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
+     * @throws \InvalidArgumentException
      */
     public function installApplicable(?string $connection = null): array
     {

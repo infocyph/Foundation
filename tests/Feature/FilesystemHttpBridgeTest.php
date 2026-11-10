@@ -22,7 +22,12 @@ use League\Flysystem\Local\LocalFilesystemAdapter;
 use Psr\Container\ContainerInterface;
 
 
-/** @return array{Application,string} */
+/**
+ * @return array{Application,string}
+ * @throws \Exception
+ * @throws \LogicException
+ * @throws \Psr\Cache\InvalidArgumentException
+ */
 function foundationFilesystemApp(): array
 {
     $basePath = sys_get_temp_dir() . '/foundation-filesystem-' . bin2hex(random_bytes(5));
@@ -529,6 +534,9 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
 
         public ?string $clientFilename = null;
 
+        /**
+         * @throws \LogicException
+         */
         #[\Override]
         public function scan(MalwareScanRequest $request): MalwareScanVerdict
         {
@@ -554,6 +562,9 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
     $container = new class implements ContainerInterface {
         public ?MalwareScannerInterface $scanner = null;
 
+        /**
+         * @throws \RuntimeException
+         */
         #[\Override]
         public function get(string $id): mixed
         {
@@ -719,6 +730,9 @@ it('prepares Pathwise download metadata once for full and stale If-Range respons
         }],
     );
     $container = new class implements ContainerInterface {
+        /**
+         * @throws \LogicException
+         */
         #[\Override]
         public function get(string $id): never
         {

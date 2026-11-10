@@ -36,6 +36,11 @@ use Infocyph\Foundation\Auth\Support\InMemoryGrantStore;
 use Infocyph\Foundation\Auth\Support\InMemoryPermissionStore;
 use Infocyph\Foundation\Foundation;
 
+/**
+ * @throws \Exception
+ * @throws \LogicException
+ * @throws \Psr\Cache\InvalidArgumentException
+ */
 function foundationAuthApplication(): Application
 {
     return Foundation::web([

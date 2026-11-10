@@ -87,6 +87,15 @@ final class Foundation4AuthenticatedWorkload
         ];
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     public static function read(
         Request $request,
         RequestPrincipalResolver $resolver,
@@ -113,7 +122,15 @@ final class Foundation4AuthenticatedWorkload
             ->withHeader('X-Foundation-Benchmark-Worker', (string) getmypid());
     }
 
-    /** @param array<string, mixed> $configuration */
+    /**
+     * @param array<string, mixed> $configuration
+     * @throws \Exception
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     */
     public static function seed(array $configuration, string $directory): void
     {
         $app = Foundation::cli($configuration + ['_config_cache' => false])->boot();

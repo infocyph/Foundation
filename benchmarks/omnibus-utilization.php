@@ -33,6 +33,9 @@ use Infocyph\Omnibus\Transport\InMemoryTransport;
 use Infocyph\Omnibus\Transport\TransportRegistry;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
+/**
+ * @throws \RuntimeException
+ */
 function omnibusCycle(MessageBus $bus, InMemoryTransport|DBLayerTransport $transport): void
 {
     $bus->dispatch(new OmnibusBenchmarkMessage('bench'));

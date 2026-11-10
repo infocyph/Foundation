@@ -273,6 +273,7 @@ final readonly class GeneratedRuntime
     /**
      * @param array<string,mixed> $metadata
      * @throws \UnexpectedValueException
+     * @throws \LogicException
      */
     private static function providerRegistry(array $metadata): ServiceRegistry
     {

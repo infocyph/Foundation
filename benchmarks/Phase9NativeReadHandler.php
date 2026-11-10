@@ -16,6 +16,10 @@ use RuntimeException;
  */
 final readonly class Phase9NativeReadHandler
 {
+    /**
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public static function read(): Response
     {
         $root = getenv('FOUNDATION_HOST_APP');

@@ -61,6 +61,13 @@ final class FoundationMessagingRestartingHandler
 
     public function __construct(private readonly Application $application) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \Throwable
+     */
     public function __invoke(FoundationMessagingReleaseMessage $message): void
     {
         self::$handled[] = $message->value;
@@ -78,6 +85,9 @@ final class FoundationMessagingCommandIO implements CommandIO
     /** @var list<mixed> */
     public array $json = [];
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
@@ -122,6 +132,9 @@ final class FoundationMessagingCommandIO implements CommandIO
     #[\Override]
     public function note(string $message): void {}
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function password(string $question): string
     {
@@ -134,6 +147,9 @@ final class FoundationMessagingCommandIO implements CommandIO
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function read(string $question, ?string $default = null): string
     {

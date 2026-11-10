@@ -15,6 +15,9 @@ final class FoundationModuleLifecycleIO implements CommandIO
     /** @var list<mixed> */
     public array $payloads = [];
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
@@ -67,6 +70,9 @@ final class FoundationModuleLifecycleIO implements CommandIO
         unset($message);
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function password(string $question): string
     {
@@ -81,6 +87,9 @@ final class FoundationModuleLifecycleIO implements CommandIO
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function read(string $question, ?string $default = null): string
     {
@@ -259,6 +268,9 @@ function moduleLifecycleBasePath(string $name): string
 
 /**
  * @param array<string,mixed> $config
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \UnexpectedValueException
  */
 function moduleLifecycleDispatcher(string $basePath, array $config = []): CommandDispatcher
 {
@@ -342,7 +354,11 @@ function moduleLifecycleWriteComposer(string $basePath, array $requirements): vo
     ], JSON_THROW_ON_ERROR));
 }
 
-/** @param list<string> $argv */
+/**
+ * @param list<string> $argv
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ */
 function moduleLifecycleRun(
     CommandDispatcher $dispatcher,
     array $argv,
@@ -355,6 +371,9 @@ function moduleLifecycleRun(
     }
 }
 
+/**
+ * @throws \RuntimeException
+ */
 function moduleLifecycleScalar(string $databasePath, string $sql): mixed
 {
     $statement = new PDO('sqlite:' . $databasePath)->query($sql);
@@ -365,6 +384,9 @@ function moduleLifecycleScalar(string $databasePath, string $sql): mixed
     return $statement->fetchColumn();
 }
 
+/**
+ * @throws \RuntimeException
+ */
 function moduleLifecycleTableExists(string $databasePath, string $table): bool
 {
     if (!is_file($databasePath)) {

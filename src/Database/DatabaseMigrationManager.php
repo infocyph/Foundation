@@ -114,6 +114,7 @@ final readonly class DatabaseMigrationManager
     /**
      * @return list<Migration>
      * @throws \InvalidArgumentException
+     * @throws \UnexpectedValueException
      */
     private function migrations(): array
     {
@@ -156,6 +157,7 @@ final readonly class DatabaseMigrationManager
     /**
      * @return list<Seeder|callable>
      * @throws \InvalidArgumentException
+     * @throws \UnexpectedValueException
      */
     private function seeders(): array
     {

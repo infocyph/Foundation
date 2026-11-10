@@ -66,6 +66,7 @@ final readonly class ModuleFeatureSchemaExecutor
 
     /**
      * @phpstan-param Context $context
+     * @throws \RuntimeException
      */
     private function assertOwnedPackages(array $context): void
     {
@@ -78,6 +79,7 @@ final readonly class ModuleFeatureSchemaExecutor
 
     /**
      * @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $results
+     * @throws \RuntimeException
      */
     private function assertReady(array $results): void
     {

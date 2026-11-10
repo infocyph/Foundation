@@ -6,7 +6,10 @@ namespace Infocyph\Foundation\Benchmarks\Support;
 
 final class BenchmarkSupport
 {
-    /** @return array{median_ns:float,min_ns:float,max_ns:float,spread_percent:float} */
+    /**
+     * @return array{median_ns:float,min_ns:float,max_ns:float,spread_percent:float}
+     * @throws \InvalidArgumentException
+     */
     public static function measure(
         callable $operation,
         int $operations,
@@ -71,7 +74,10 @@ final class BenchmarkSupport
         rmdir($directory);
     }
 
-    /** @return array{median_ns:float,ops_per_second:float,min_ns:float,max_ns:float,samples_ns:list<float>} */
+    /**
+     * @return array{median_ns:float,ops_per_second:float,min_ns:float,max_ns:float,samples_ns:list<float>}
+     * @throws \InvalidArgumentException
+     */
     public static function throughputMeasure(
         callable $operation,
         int $operations,

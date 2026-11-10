@@ -50,6 +50,9 @@ it('enforces browser-session contention through every configured shared lock bac
         new class(new SessionExecutionState()) implements ContainerInterface {
             public function __construct(private readonly SessionExecutionState $state) {}
 
+            /**
+             * @throws \RuntimeException
+             */
             #[\Override]
             public function get(string $id): mixed
             {
@@ -92,6 +95,7 @@ it('enforces browser-session contention through every configured shared lock bac
 
 /**
  * @return array{LockProviderInterface, LockProviderInterface}|null
+ * @throws \RuntimeException
  */
 function sessionRedisLockProviders(string $hostKey, string $portKey, string $passwordKey): ?array
 {
@@ -126,6 +130,7 @@ function sessionRedisLockProviders(string $hostKey, string $portKey, string $pas
 
 /**
  * @return array{LockProviderInterface, LockProviderInterface}|null
+ * @throws \RuntimeException
  */
 function sessionMemcachedLockProviders(): ?array
 {

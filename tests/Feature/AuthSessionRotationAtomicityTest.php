@@ -23,6 +23,12 @@ use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
+/**
+ * @throws \Infocyph\Foundation\Exception\ConfigurationException
+ * @throws \LogicException
+ * @throws \Psr\Container\ContainerExceptionInterface
+ * @throws \Psr\Container\NotFoundExceptionInterface
+ */
 function atomicAuthSessionStore(string $backend): SessionStoreInterface
 {
     if ($backend === 'memory') {

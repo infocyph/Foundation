@@ -270,6 +270,7 @@ final readonly class ParsedInput
     /**
      * @param list<string> $tokens
      * @param array<string, string|bool|list<string>> $options
+     * @throws \InvalidArgumentException
      */
     private static function consumeShortOptions(
         array $tokens,

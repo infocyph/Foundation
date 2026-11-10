@@ -43,6 +43,10 @@ it('rejects an address change occurring after verification trust checking but be
             $this->requests->consume($requestId);
         }
 
+        /**
+         * @throws \Infocyph\Foundation\Auth\Exception\StorageException
+         * @throws \Throwable
+         */
         #[\Override]
         public function consumeAndApply(string $requestId, callable $apply): bool
         {

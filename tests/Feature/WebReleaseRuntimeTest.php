@@ -44,36 +44,54 @@ final class FoundationUnusedBackendProvider extends ServiceProvider
     /** @var list<string> */
     public static array $unusedActivations = [];
 
+    /**
+     * @throws \LogicException
+     */
     public static function http(): \Infocyph\TalkingBytes\Http\HttpClient
     {
         self::$unusedActivations[] = 'http';
         throw new LogicException('Unused HTTP integration was activated.');
     }
 
+    /**
+     * @throws \LogicException
+     */
     public static function messaging(): \Infocyph\Omnibus\MessageBus
     {
         self::$unusedActivations[] = 'messaging';
         throw new LogicException('Unused message bus was activated.');
     }
 
+    /**
+     * @throws \LogicException
+     */
     public static function cache(): \Infocyph\Foundation\Cache\CacheLayerFactory
     {
         self::$unusedActivations[] = 'cache';
         throw new LogicException('Unused cache integration was activated.');
     }
 
+    /**
+     * @throws \LogicException
+     */
     public static function mail(): \Infocyph\Foundation\Notifications\MailNotificationChannel
     {
         ++self::$mailActivations;
         throw new LogicException('Unused mail integration was activated.');
     }
 
+    /**
+     * @throws \LogicException
+     */
     public static function filesystem(): \Infocyph\Foundation\Filesystem\StorageRegistry
     {
         ++self::$filesystemActivations;
         throw new LogicException('Unused filesystem integration was activated.');
     }
 
+    /**
+     * @throws \LogicException
+     */
     public static function database(): \Infocyph\Foundation\Database\DBLayerFactory
     {
         ++self::$activations;
@@ -169,6 +187,9 @@ final class FoundationCompiledReleaseHandler
 
 final class FoundationCompiledReleaseFailureHandler
 {
+    /**
+     * @throws \RuntimeException
+     */
     public function __invoke(): never
     {
         throw new RuntimeException('sensitive-foundation-runtime-failure');
@@ -741,6 +762,12 @@ final class FoundationRunwireReleaseContextHandler
         return Response::json(['request' => $runwireRequest->requestId]);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public static function show(
         \Infocyph\Runwire\RuntimeContext $runtime,
         \Infocyph\Runwire\RequestContext $runwireRequest,
@@ -900,6 +927,12 @@ final class FoundationRunwireInterleavedHandler
         ]);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public static function show(
         \Infocyph\Runwire\RuntimeContext $runtime,
         \Infocyph\Runwire\RequestContext $runwireRequest,

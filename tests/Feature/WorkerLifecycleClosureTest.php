@@ -82,6 +82,15 @@ final class FoundationWorkerLifecycleRestartProvider implements WorkerProvider
 
     public function __construct(private readonly Application $application) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \Throwable
+     * @throws \UnexpectedValueException
+     */
     #[\Override]
     public function run(WorkerRuntime $runtime): int
     {

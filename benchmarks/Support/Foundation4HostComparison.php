@@ -29,6 +29,7 @@ final class Foundation4HostComparison
      * @param array<string, mixed> $candidate
      * @param array<string, mixed>|null $upgradeEvidence
      * @return array<string, mixed>
+     * @throws \InvalidArgumentException
      */
     public static function compare(array $baseline, array $candidate, ?array $upgradeEvidence = null): array
     {
@@ -134,6 +135,7 @@ final class Foundation4HostComparison
     /**
      * @param array<string, mixed> $report
      * @return array<string, array{hardware_id:string,rpms:list<float>}>
+     * @throws \InvalidArgumentException
      */
     private static function cases(array $report): array
     {

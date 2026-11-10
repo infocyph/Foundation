@@ -189,7 +189,10 @@ final class ArrayKitConfigCache
         }
     }
 
-    /** @param list<string> $namespaces */
+    /**
+     * @param list<string> $namespaces
+     * @throws \RuntimeException
+     */
     private function removeStaleFiles(string $directory, array $namespaces, bool $keepFlat = true): void
     {
         $keep = array_fill_keys([

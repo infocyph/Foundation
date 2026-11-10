@@ -27,6 +27,7 @@ final readonly class RepresentativeBenchmark
      * @param int $repetitions Number of independently measured samples.
      * @param int $warmupOperations Unmeasured operations performed before each sample.
      * @param int $operations Measured operations performed in each sample.
+     * @throws \InvalidArgumentException
      */
     public function __construct(
         private int $repetitions = 3,
@@ -41,6 +42,7 @@ final readonly class RepresentativeBenchmark
     /**
      * @param string $outputPath Destination for the PHPForge benchmark-result document.
      * @return array<string, mixed>
+     * @throws \RuntimeException
      */
     public function run(string $outputPath): array
     {
@@ -137,7 +139,15 @@ PHP);
         }
     }
 
-    /** @param string $basePath Temporary application root. */
+    /**
+     * @param string $basePath Temporary application root.
+     * @throws \Exception
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     */
     private function application(string $basePath): Application
     {
         return Foundation::web([
@@ -161,7 +171,14 @@ PHP);
         ])->boot();
     }
 
-    /** @return callable():bool */
+    /**
+     * @return callable():bool
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     private function applicationBearerOperation(Application $application): callable
     {
         $services = $application->make(AuthServices::class);
@@ -201,7 +218,10 @@ PHP);
         };
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \RuntimeException
+     */
     private function environment(): array
     {
         $stable = getenv('FOUNDATION_BENCHMARK_STABLE') === '1';
@@ -359,7 +379,12 @@ PHP);
         ];
     }
 
-    /** @return callable():bool */
+    /**
+     * @return callable():bool
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function oauthBearerOperation(OAuth21FlowFixture $fixture): callable
     {
         $audience = 'https://benchmark-resource.example.test';
@@ -450,6 +475,7 @@ PHP);
     /**
      * @param string $outputPath Destination for the benchmark result.
      * @param array<string, mixed> $document Complete PHPForge benchmark document.
+     * @throws \RuntimeException
      */
     private function write(string $outputPath, array $document): void
     {

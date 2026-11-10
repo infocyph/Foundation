@@ -14,6 +14,9 @@ final class FoundationOptimizationCommandIO implements CommandIO
     /** @var list<mixed> */
     public array $json = [];
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
@@ -58,6 +61,9 @@ final class FoundationOptimizationCommandIO implements CommandIO
     #[\Override]
     public function note(string $message): void {}
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function password(string $question): string
     {
@@ -70,6 +76,9 @@ final class FoundationOptimizationCommandIO implements CommandIO
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function read(string $question, ?string $default = null): string
     {
@@ -232,7 +241,12 @@ it('requires explicit production capability topology for optimize', function ():
     }
 });
 
-/** @param list<string>|null $capabilities */
+/**
+ * @param list<string>|null $capabilities
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \UnexpectedValueException
+ */
 function foundationOptimizationDispatcher(string $basePath, ?array $capabilities): CommandDispatcher
 {
     $app = [
@@ -256,7 +270,10 @@ function foundationOptimizationDispatcher(string $basePath, ?array $capabilities
     );
 }
 
-/** @return array<string, mixed> */
+/**
+ * @return array<string, mixed>
+ * @throws \RuntimeException
+ */
 function foundationOptimizationPayload(FoundationOptimizationCommandIO $io): array
 {
     $payload = $io->json[0] ?? null;
@@ -267,6 +284,11 @@ function foundationOptimizationPayload(FoundationOptimizationCommandIO $io): arr
     return $payload;
 }
 
+/**
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \RuntimeException
+ */
 function foundationOptimizationRun(CommandDispatcher $dispatcher, string $command): FoundationOptimizationCommandIO
 {
     $io = new FoundationOptimizationCommandIO();

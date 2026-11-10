@@ -14,6 +14,9 @@ final class FoundationCacheSchemaCommandIO implements CommandIO
     /** @var list<mixed> */
     public array $payloads = [];
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
@@ -66,6 +69,9 @@ final class FoundationCacheSchemaCommandIO implements CommandIO
         unset($message);
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function password(string $question): string
     {
@@ -80,6 +86,9 @@ final class FoundationCacheSchemaCommandIO implements CommandIO
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function read(string $question, ?string $default = null): string
     {

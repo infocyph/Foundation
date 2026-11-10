@@ -123,7 +123,10 @@ final readonly class CronExpression
         return [(int) substr($base, 0, $separator), (int) substr($base, $separator + 1)];
     }
 
-    /** @param array{int,int} $range */
+    /**
+     * @param array{int,int} $range
+     * @throws \InvalidArgumentException
+     */
     private function validate(string $part, array $range): void
     {
         foreach (explode(',', $part) as $segment) {
@@ -173,7 +176,10 @@ final readonly class CronExpression
         }
     }
 
-    /** @param array{int,int} $range */
+    /**
+     * @param array{int,int} $range
+     * @throws \InvalidArgumentException
+     */
     private function validateValues(string $segment, array $range): void
     {
         foreach (preg_split('/[-\/]/', $segment) ?: [] as $value) {

@@ -27,6 +27,14 @@ use Infocyph\OTP\MobileOTP;
 use Infocyph\OTP\ValueObjects\AotpChallenge;
 use Infocyph\OTP\ValueObjects\GridChallenge;
 
+/**
+ * @throws \Exception
+ * @throws \Infocyph\Foundation\Exception\ConfigurationException
+ * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \Psr\Cache\InvalidArgumentException
+ */
 function foundationOtpApp(): \Infocyph\Foundation\Application\Application
 {
     $basePath = sys_get_temp_dir() . '/foundation-otp61-' . bin2hex(random_bytes(8));

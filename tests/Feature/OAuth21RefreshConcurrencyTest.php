@@ -184,6 +184,9 @@ function oauth21RefreshConcurrencyFactory(string $database, string $name): DBLay
     ])), RuntimeStateContainer::execution());
 }
 
+/**
+ * @throws \RuntimeException
+ */
 function oauth21ReadRefreshContentionResult(string $path): string
 {
     $contents = file_get_contents($path);
@@ -194,7 +197,10 @@ function oauth21ReadRefreshContentionResult(string $path): string
     return trim($contents);
 }
 
-/** @param list<string> $files */
+/**
+ * @param list<string> $files
+ * @throws \RuntimeException
+ */
 function oauth21CleanupRefreshContentionFiles(array $files, string $directory): void
 {
     foreach ($files as $file) {
@@ -210,6 +216,7 @@ function oauth21CleanupRefreshContentionFiles(array $files, string $directory): 
 /**
  * @param list<string> $command
  * @return resource
+ * @throws \RuntimeException
  */
 function oauth21StartRefreshContentionProcess(array $command)
 {

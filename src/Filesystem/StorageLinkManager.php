@@ -111,6 +111,7 @@ final readonly class StorageLinkManager
     /**
      * @return list<array{link:string,target:string}>
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function configured(): array
     {

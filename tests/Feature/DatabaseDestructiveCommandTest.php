@@ -49,6 +49,9 @@ final class FoundationDestructiveCommandIO implements CommandIO
         private readonly bool $confirmation = false,
     ) {}
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
@@ -91,6 +94,9 @@ final class FoundationDestructiveCommandIO implements CommandIO
     #[\Override]
     public function note(string $message): void {}
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function password(string $question): string
     {
@@ -103,6 +109,9 @@ final class FoundationDestructiveCommandIO implements CommandIO
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function read(string $question, ?string $default = null): string
     {
@@ -260,7 +269,12 @@ it('requires force for destructive database commands in production even when con
     }
 });
 
-/** @return array{string,string,CommandDispatcher} */
+/**
+ * @return array{string,string,CommandDispatcher}
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \UnexpectedValueException
+ */
 function foundationDestructiveCommandFixture(string $name, string $environment = 'testing'): array
 {
     $basePath = sys_get_temp_dir() . '/foundation-destructive-' . $name . '-' . bin2hex(random_bytes(6));
@@ -373,6 +387,9 @@ function foundationDestructiveCommandFixture(string $name, string $environment =
     ];
 }
 
+/**
+ * @throws \RuntimeException
+ */
 function foundationDestructiveCommandInsertMarker(string $databasePath, string $value): void
 {
     $statement = foundationDestructiveCommandPdo($databasePath)->prepare(
@@ -384,6 +401,9 @@ function foundationDestructiveCommandInsertMarker(string $databasePath, string $
     $statement->execute([$value]);
 }
 
+/**
+ * @throws \RuntimeException
+ */
 function foundationDestructiveCommandMarkerCount(string $databasePath): int
 {
     $statement = foundationDestructiveCommandPdo($databasePath)
@@ -397,6 +417,9 @@ function foundationDestructiveCommandMarkerCount(string $databasePath): int
     return is_int($count) ? $count : (int) $count;
 }
 
+/**
+ * @throws \RuntimeException
+ */
 function foundationDestructiveCommandMigrate(CommandDispatcher $dispatcher): void
 {
     $io = new FoundationDestructiveCommandIO();
@@ -414,7 +437,11 @@ function foundationDestructiveCommandPdo(string $databasePath): PDO
     return $pdo;
 }
 
-/** @param list<string> $argv */
+/**
+ * @param list<string> $argv
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ */
 function foundationDestructiveCommandRun(
     CommandDispatcher $dispatcher,
     array $argv,
@@ -427,6 +454,9 @@ function foundationDestructiveCommandRun(
     }
 }
 
+/**
+ * @throws \RuntimeException
+ */
 function foundationDestructiveCommandTableExists(string $databasePath, string $table): bool
 {
     $statement = foundationDestructiveCommandPdo($databasePath)->prepare(

@@ -57,6 +57,9 @@ final class FoundationMaintenanceBenchmarkAdapter implements RuntimeAdapterInter
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function write(Response $response, RuntimeRequestContext $context): void
     {

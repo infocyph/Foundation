@@ -14,6 +14,9 @@ final class FoundationModuleBaselineIO implements CommandIO
 
     public mixed $payload = null;
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
@@ -62,6 +65,9 @@ final class FoundationModuleBaselineIO implements CommandIO
         unset($message);
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function password(string $question): string
     {
@@ -74,6 +80,9 @@ final class FoundationModuleBaselineIO implements CommandIO
         return true;
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function read(string $question, ?string $default = null): string
     {

@@ -116,6 +116,13 @@ final class OAuth21FlowFixture
                 return $id === 'account-1' ? new OAuth21FlowAccount($id) : null;
             }
 
+            /**
+             * @throws \Infocyph\Foundation\Exception\ConfigurationException
+             * @throws \InvalidArgumentException
+             * @throws \LogicException
+             * @throws \Psr\Container\ContainerExceptionInterface
+             * @throws \Psr\Container\NotFoundExceptionInterface
+             */
             #[\Override]
             public function findByIdentifier(string $identifier): ?AccountInterface
             {
@@ -361,6 +368,9 @@ final class OAuth21FlowFixture
         return new readonly class($state) implements ContainerInterface {
             public function __construct(private RuntimeExecutionState $state) {}
 
+            /**
+             * @throws \LogicException
+             */
             #[\Override]
             public function get(string $id): mixed
             {

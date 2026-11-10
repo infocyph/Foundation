@@ -16,6 +16,9 @@ use Infocyph\TalkingBytes\Http\HttpClient;
 /**
  * @param array<string,bool> $features
  * @return array{context:FoundationBuildContext,classes:list<string>,builder:\Infocyph\InterMix\DI\ContainerBuilder}
+ * @throws \Infocyph\Foundation\Exception\BootstrapException
+ * @throws \LogicException
+ * @throws \UnexpectedValueException
  */
 function moduleB5ExecutionGraph(array $features): array
 {

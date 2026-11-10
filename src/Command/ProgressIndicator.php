@@ -108,7 +108,10 @@ final readonly class ProgressIndicator
         }
     }
 
-    /** @param iterable<mixed> $items */
+    /**
+     * @param iterable<mixed> $items
+     * @throws \UnexpectedValueException
+     */
     private function consume(
         iterable $items,
         callable $handler,

@@ -14,6 +14,7 @@ final class FoundationModuleCliComparison
      * @param array<string,mixed> $baseline
      * @param array<string,mixed> $candidate
      * @return array<string,mixed>
+     * @throws \InvalidArgumentException
      */
     public static function compare(array $baseline, array $candidate): array
     {
@@ -58,7 +59,10 @@ final class FoundationModuleCliComparison
         ];
     }
 
-    /** @param array<string,mixed> $report */
+    /**
+     * @param array<string,mixed> $report
+     * @throws \InvalidArgumentException
+     */
     private static function validate(array $report): void
     {
         if (($report['schema_version'] ?? null) !== 2

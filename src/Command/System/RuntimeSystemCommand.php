@@ -287,6 +287,9 @@ final class RuntimeSystemCommand extends SystemCommand
 
     /**
      * @throws \UnexpectedValueException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     * @throws \Throwable
      */
     private function scheduleRun(): int
     {

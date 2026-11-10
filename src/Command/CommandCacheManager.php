@@ -28,6 +28,7 @@ final readonly class CommandCacheManager
 
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
      */
     public function write(
         string $path = 'bootstrap/cache/commands.php',

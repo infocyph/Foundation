@@ -32,6 +32,7 @@ final class ModuleFeatureCapabilityPolicy
      *
      * @return array<string,bool>|null
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     public static function fromConfig(ConfigRepository $config): ?array
     {
@@ -90,6 +91,8 @@ final class ModuleFeatureCapabilityPolicy
 
     /**
      * @param array<string,bool> $selected
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     private static function assertSelectedDependencies(
         array $selected,

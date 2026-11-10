@@ -150,6 +150,9 @@ PHP;
     }
 });
 
+/**
+ * @throws \RuntimeException
+ */
 function oauth21ReadContentionResult(string $path): string
 {
     $contents = file_get_contents($path);
@@ -162,6 +165,7 @@ function oauth21ReadContentionResult(string $path): string
 
 /**
  * @param list<string> $files
+ * @throws \RuntimeException
  */
 function oauth21CleanupContentionFiles(array $files, string $directory): void
 {
@@ -178,6 +182,7 @@ function oauth21CleanupContentionFiles(array $files, string $directory): void
 /**
  * @param list<string> $command
  * @return resource
+ * @throws \RuntimeException
  */
 function oauth21StartContentionProcess(array $command)
 {

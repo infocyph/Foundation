@@ -227,6 +227,7 @@ final class ModuleArchitectureCatalog
      * @return array<string,string>
      * @param list<string> $features
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function packages(string $module, array $features): array
     {

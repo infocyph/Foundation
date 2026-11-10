@@ -156,7 +156,10 @@ final readonly class AuthorizationRequestValidator
         return $normalized;
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function protocolResult(array $parameters): AuthorizationProtocolResult
     {
         $protocolParameters = $this->protocolParameters($parameters);

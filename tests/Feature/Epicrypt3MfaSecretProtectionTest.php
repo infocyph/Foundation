@@ -53,6 +53,9 @@ function foundationEpicrypt3MfaDbFactory(): array
     $container = new class($state) implements ContainerInterface {
         public function __construct(private RuntimeExecutionState $state) {}
 
+        /**
+         * @throws \RuntimeException
+         */
         #[\Override]
         public function get(string $id): mixed
         {
@@ -85,6 +88,9 @@ function foundationEpicrypt3MfaDbFactory(): array
     return [new DBLayerFactory(new DatabaseConnectionResolver($config), $container), $state];
 }
 
+/**
+ * @throws \InvalidArgumentException
+ */
 function foundationEpicrypt3MfaFactor(string $id = 'factor-1', int $revision = 3): MfaFactor
 {
     return new MfaFactor(

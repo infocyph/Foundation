@@ -171,6 +171,7 @@ final readonly class ExecutionScope
      *
      * @param array<string, mixed> $seeds
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     private static function hostRunwireContext(array $seeds): ?RunwireExecutionContext
     {
@@ -217,6 +218,8 @@ final readonly class ExecutionScope
     /**
      * @param array<string, mixed> $seeds
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     * @throws \Throwable
      */
     private static function runwireScopeSeed(array $seeds, RuntimeContext $runtime): ?CoroutineScope
     {

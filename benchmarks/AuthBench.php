@@ -34,6 +34,12 @@ final class AuthBench
 
     private AuthServices $services;
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     #[Bench\BeforeMethods('setUpAuthorization')]
     public function benchAuthorization(): void
     {
@@ -46,6 +52,12 @@ final class AuthBench
         }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     #[Bench\BeforeMethods('setUpAuth')]
     public function benchLogin(): void
     {
@@ -58,6 +70,12 @@ final class AuthBench
         }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     #[Bench\BeforeMethods('setUpMfa')]
     public function benchMfaChallenge(): void
     {
@@ -75,6 +93,13 @@ final class AuthBench
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     #[Bench\BeforeMethods('setUpPasskey')]
     public function benchPasskeyAuthentication(): void
     {
@@ -96,6 +121,12 @@ final class AuthBench
         }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     #[Bench\BeforeMethods('setUpToken')]
     public function benchTokenVerification(): void
     {
@@ -111,6 +142,11 @@ final class AuthBench
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     */
     #[Bench\BeforeMethods('setUpAuthenticatedRequest')]
     public function benchWarmAuthenticatedRequest(): void
     {
@@ -119,6 +155,14 @@ final class AuthBench
         }
     }
 
+    /**
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function setUpAuth(): void
     {
         $this->app = Foundation::web([
@@ -142,6 +186,17 @@ final class AuthBench
         $this->account = $account;
     }
 
+    /**
+     * @throws \Exception
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function setUpAuthenticatedRequest(): void
     {
         $basePath = sys_get_temp_dir() . '/foundation-auth-benchmark';
@@ -207,6 +262,11 @@ PHP);
         }
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function setUpAuthorization(): void
     {
         $this->setUpAuth();
@@ -214,6 +274,13 @@ PHP);
         $this->services->permissions()->assignToAccount($this->account->id(), $permission->id);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function setUpMfa(): void
     {
         $this->setUpAuth();
@@ -230,6 +297,12 @@ PHP);
         $this->factor = $factor;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function setUpPasskey(): void
     {
         $this->setUpAuth();

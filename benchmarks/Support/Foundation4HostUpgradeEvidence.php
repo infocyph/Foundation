@@ -14,6 +14,7 @@ final class Foundation4HostUpgradeEvidence
 {
     /**
      * @return array{sha256:string,packages:array<string,array{version:string,source_ref:?string,dist_ref:?string}>}
+     * @throws \InvalidArgumentException
      */
     public static function fromLock(string $path): array
     {
@@ -67,6 +68,7 @@ final class Foundation4HostUpgradeEvidence
      * @param array<string,mixed> $candidate
      * @param array<string,mixed> $allowed
      * @return list<string>
+     * @throws \InvalidArgumentException
      */
     public static function review(array $baseline, array $candidate, array $allowed): array
     {
@@ -94,6 +96,7 @@ final class Foundation4HostUpgradeEvidence
      * @param array<string,mixed> $candidate
      * @param array<string,mixed> $evidence
      * @return list<string>
+     * @throws \InvalidArgumentException
      */
     public static function verify(array $baseline, array $candidate, array $evidence): array
     {
@@ -154,6 +157,7 @@ final class Foundation4HostUpgradeEvidence
 
     /**
      * @return array{version:string,source_ref:?string,dist_ref:?string}
+     * @throws \InvalidArgumentException
      */
     private static function identity(mixed $package): array
     {
@@ -178,6 +182,7 @@ final class Foundation4HostUpgradeEvidence
 
     /**
      * @return array{sha256:string,packages:array<string,mixed>}
+     * @throws \InvalidArgumentException
      */
     private static function manifest(mixed $manifest): array
     {

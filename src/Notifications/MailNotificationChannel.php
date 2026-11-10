@@ -47,7 +47,10 @@ final readonly class MailNotificationChannel implements NotificationChannel
         return $this->mailer->sendEmail($message->withTo(...$recipients), $profile);
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \InvalidArgumentException
+     */
     private function recipients(mixed $route): array
     {
         if (is_string($route)) {

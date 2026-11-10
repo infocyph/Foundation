@@ -53,6 +53,9 @@ final readonly class FoundationPhase8ReleaseCliCommand implements CommandHandler
 {
     public function __construct(private FoundationPhase8ReleaseProbe $probe) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public static function define(CommandDefinition $command): void
     {
@@ -72,6 +75,9 @@ final readonly class FoundationPhase8ReleaseSchedulerCommand implements CommandH
 {
     public function __construct(private FoundationPhase8ReleaseProbe $probe) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public static function define(CommandDefinition $command): void
     {
@@ -93,6 +99,12 @@ final class FoundationPhase8ReleaseWorkerProvider implements WorkerProvider
 
     public function __construct(private readonly FoundationPhase8ReleaseProbe $probe) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
+     * @throws \LogicException
+     * @throws \Throwable
+     */
     #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
@@ -111,6 +123,9 @@ final class FoundationPhase8ReleaseIO implements CommandIO
     /** @var list<string> */
     public array $lines = [];
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
@@ -163,6 +178,9 @@ final class FoundationPhase8ReleaseIO implements CommandIO
         $this->lines[] = $message;
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function password(string $question): string
     {
@@ -177,6 +195,9 @@ final class FoundationPhase8ReleaseIO implements CommandIO
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function read(string $question, ?string $default = null): string
     {

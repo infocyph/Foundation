@@ -22,6 +22,9 @@ use Infocyph\Foundation\Validation\ValidationServiceProvider;
  * @param array<string,bool> $features
  * @param array<string,mixed> $auth
  * @return array{registry:ServiceRegistry,builder:\Infocyph\InterMix\DI\ContainerBuilder}
+ * @throws \Infocyph\Foundation\Exception\BootstrapException
+ * @throws \LogicException
+ * @throws \UnexpectedValueException
  */
 function moduleB5SecurityGraph(array $features, array $auth = []): array
 {

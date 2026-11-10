@@ -164,7 +164,10 @@ function oauth21DurableRevocationFactory(string $database, string $name): DBLaye
     ])), RuntimeStateContainer::execution());
 }
 
-/** @param list<string> $files */
+/**
+ * @param list<string> $files
+ * @throws \RuntimeException
+ */
 function oauth21CleanupDurableRevocationFiles(array $files, string $directory): void
 {
     foreach ($files as $file) {
@@ -177,7 +180,10 @@ function oauth21CleanupDurableRevocationFiles(array $files, string $directory): 
     }
 }
 
-/** @param list<string> $command */
+/**
+ * @param list<string> $command
+ * @throws \RuntimeException
+ */
 function oauth21RunDurableRevocationProcess(array $command): int
 {
     $pipes = [];

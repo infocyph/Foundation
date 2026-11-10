@@ -132,6 +132,9 @@ final class MessagingGraphFactory
         return new MessageFactoryMap($resolver->scheduledMessages($configured));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function routeMap(mixed $configured, mixed $default): RouteMap
     {
         if (!is_array($configured)) {

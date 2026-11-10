@@ -109,6 +109,11 @@ it('resolves account and service OAuth bearer tokens into the existing principal
     }
 });
 
+/**
+ * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ */
 function oauth21AccountBearerToken(OAuth21FlowFixture $fixture, string $audience): string
 {
     $redirect = 'https://account-resource.example.test/callback';
@@ -144,6 +149,10 @@ function oauth21AccountBearerToken(OAuth21FlowFixture $fixture, string $audience
     ))->accessToken;
 }
 
+/**
+ * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+ * @throws \InvalidArgumentException
+ */
 function oauth21ServiceBearerToken(OAuth21FlowFixture $fixture, string $audience): string
 {
     $registration = $fixture->clients->register(

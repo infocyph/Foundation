@@ -193,7 +193,10 @@ PHP);
     }
 }
 
-/** @return array<string,mixed> */
+/**
+ * @return array<string,mixed>
+ * @throws \RuntimeException
+ */
 function phase9HttpSpawn(string $variant): array
 {
     $process = proc_open(

@@ -153,6 +153,14 @@ it('forwards Foundation stop policy through TalkingBytes inbound cancellation', 
         ->and(FoundationTalkingBytesGrpcHandler::$handled)->toBe(0);
 });
 
+/**
+ * @throws \Exception
+ * @throws \Infocyph\Foundation\Exception\ConfigurationException
+ * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \Psr\Cache\InvalidArgumentException
+ */
 function foundationTalkingBytesGrpcApplication(
     FoundationTalkingBytesGrpcSource $source,
 ): \Infocyph\Foundation\Application\Application {

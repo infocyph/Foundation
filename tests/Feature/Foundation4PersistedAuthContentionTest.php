@@ -17,7 +17,10 @@ use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Tests\Fixtures\AuthContentionFixture;
 use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
-/** @return array<string, mixed> */
+/**
+ * @return array<string, mixed>
+ * @throws \RuntimeException
+ */
 function persistedAuthConnection(string $driver, string $directory): array
 {
     if ($driver === 'sqlite') {
@@ -47,7 +50,10 @@ function persistedAuthConnection(string $driver, string $directory): array
     ];
 }
 
-/** @return array{resource, resource, resource} */
+/**
+ * @return array{resource, resource, resource}
+ * @throws \RuntimeException
+ */
 function startPersistedAuthWorker(string $directory, string $kind, string $worker, int $now): array
 {
     $process = proc_open([

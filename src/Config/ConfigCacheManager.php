@@ -86,6 +86,7 @@ final readonly class ConfigCacheManager
      * @param array<array-key, mixed> $configured
      * @param array{common:list<class-string<ServiceProviderInterface>>,web:list<class-string<ServiceProviderInterface>>,cli:list<class-string<ServiceProviderInterface>>,worker:list<class-string<ServiceProviderInterface>>,scheduler:list<class-string<ServiceProviderInterface>>} $fromFile
      * @return array{common:list<class-string<ServiceProviderInterface>>,web:list<class-string<ServiceProviderInterface>>,cli:list<class-string<ServiceProviderInterface>>,worker:list<class-string<ServiceProviderInterface>>,scheduler:list<class-string<ServiceProviderInterface>>}
+     * @throws \RuntimeException
      */
     private function compiledProviders(array $configured, array $fromFile): array
     {

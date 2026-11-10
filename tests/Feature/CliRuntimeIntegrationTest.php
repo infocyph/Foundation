@@ -39,6 +39,9 @@ final class FoundationCliRuntimeIO implements CommandIO
 
     public function __construct(private readonly bool $machine = false) {}
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
@@ -91,6 +94,9 @@ final class FoundationCliRuntimeIO implements CommandIO
         $this->lines[] = $message;
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function password(string $question): string
     {
@@ -105,6 +111,9 @@ final class FoundationCliRuntimeIO implements CommandIO
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function read(string $question, ?string $default = null): string
     {
@@ -153,6 +162,10 @@ final readonly class FoundationCliProbeCommand implements CommandHandlerInterfac
 {
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     #[\Override]
     public static function define(CommandDefinition $command): void
     {
@@ -195,6 +208,9 @@ final readonly class FoundationCliProbeCommand implements CommandHandlerInterfac
 
 final class FoundationCliExitCommand implements CommandHandlerInterface
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public static function define(CommandDefinition $command): void
     {
@@ -212,12 +228,18 @@ final class FoundationCliExitCommand implements CommandHandlerInterface
 
 final class FoundationCliThrowCommand implements CommandHandlerInterface
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command->name('cli:throw')->description('Throw a deliberate command failure.')->group('Testing');
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     #[\Override]
     public function run(CommandContext $context): int
     {
@@ -231,6 +253,9 @@ final readonly class FoundationCliOverlapCommand implements CommandHandlerInterf
 {
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public static function define(CommandDefinition $command): void
     {
@@ -245,6 +270,9 @@ final readonly class FoundationCliOverlapCommand implements CommandHandlerInterf
             ));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     #[\Override]
     public function run(CommandContext $context): int
     {
@@ -257,6 +285,9 @@ final readonly class FoundationCliOverlapCommand implements CommandHandlerInterf
 
 final class FoundationCliHiddenCommand implements CommandHandlerInterface
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public static function define(CommandDefinition $command): void
     {
@@ -454,6 +485,9 @@ it('skips overlapping commands under a shared file lock and records cancellation
 
 final class FoundationServeUnbootedProvider extends ServiceProvider
 {
+    /**
+     * @throws \LogicException
+     */
     #[\Override]
     public function boot(Application $app): void
     {
@@ -562,6 +596,11 @@ it('rejects malformed serving options before creating release artifacts', functi
     }
 })->with(['--runtime=imaginary', '--protocol-policy=imaginary', '--workers=-1', '--workers=1.5', '--workers=1025', '--port=65536', '--host=']);
 
+/**
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \UnexpectedValueException
+ */
 function foundationCliRuntimeDispatcher(
     string $project,
     bool $history = false,
@@ -621,6 +660,9 @@ function foundationCliRuntimeProject(bool $history = false): string
     return $project;
 }
 
+/**
+ * @throws \LogicException
+ */
 function foundationCliRuntimeWriteManifest(string $project, CommandRegistry $registry): void
 {
     file_put_contents(

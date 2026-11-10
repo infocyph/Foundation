@@ -40,6 +40,9 @@ final class FoundationWorkerMessageHandler
 
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function __invoke(FoundationWorkerMessage $message, Envelope $envelope): void
     {
         self::$handled[] = [
