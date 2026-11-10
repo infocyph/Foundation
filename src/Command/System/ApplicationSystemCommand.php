@@ -472,10 +472,10 @@ final class ApplicationSystemCommand extends SystemCommand
             swoole: new SwooleOptions(host: trim($host, '[]'), port: $port, workerCount: (int) ($workerOption ?? 0)),
         );
     }
+
     /**
      * @throws \InvalidArgumentException
      */
-
     private function servePolicy(AdaptiveProtocolPolicy $defaults, AdaptivePolicyMode $mode): AdaptiveProtocolPolicy
     {
         return new AdaptiveProtocolPolicy(

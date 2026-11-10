@@ -305,11 +305,11 @@ final class Bootstrapper
 
         return $normalized;
     }
+
     /**
      * @throws \LogicException
      * @throws \Infocyph\Foundation\Exception\BootstrapException
      */
-
     private function registerOptionalProviders(FoundationBuildContext $context, ServiceRegistry $registry): void
     {
         foreach (self::OPTIONAL_BUILT_INS as $provider) {
