@@ -112,6 +112,9 @@ final readonly class CommandExecutionPolicy
         ];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function assertTimeouts(?float $timeoutSeconds, ?float $idleTimeoutSeconds): void
     {
         foreach (['timeout' => $timeoutSeconds, 'idle timeout' => $idleTimeoutSeconds] as $label => $seconds) {

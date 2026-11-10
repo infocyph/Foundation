@@ -174,6 +174,9 @@ final readonly class CommandDispatcher
      * @param array<int|string,mixed> $value
      * @return array<string,mixed>
      */
+    /**
+     * @throws \UnexpectedValueException
+     */
     private static function associative(array $value): array
     {
         $normalized = [];

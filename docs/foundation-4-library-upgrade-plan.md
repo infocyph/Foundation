@@ -2,6 +2,11 @@
 
 Date: 2026-11-10 (Asia/Dhaka). Status: **93/95 implementation criteria checked; Runwire 3.0.1 minimum selected in Batch 136 (exact-head QA pending); both P6 sustained certifications remain open.**
 
+## Batch 150 — OAuth and CLI exception-contract cleanup
+
+- From the completed official PHPForge analysis on `42105eac`, correct **16 direct `MissingThrowsDocblock` diagnostics across 14 methods in 12 reviewed OAuth/authentication/CLI production files**. Add precise exception PHPDoc only; preserve all method signatures, exception behavior, implementation, analyzer settings and gates. This is a source-edit count and does not claim a measured fresh analyzer reduction.
+- Run exact-head official PHPForge PHP 8.4/8.5 Psalm/PHPStan and stable/lowest QA, native hosts and consumer checks after this batch. Existing 1,821 Psalm and 1,000+ PHPStan findings describe the pre-batch analyzer report, not the updated candidate. Continue remediation without exemptions, suppression or tool downgrades.
+- P6 matched-host certifications remain open and unwaived; checklist stays **93/95**, PR stays draft/unmerged, no tag/release, `composer.lock` stays gitignored and PHPForge remains `dev-main@dev`.
 ## Current implementation and maintenance status
 
 The [consolidated review](foundation-4-consolidated-review.md#current-maintenance-and-tracker-synchronization) owns the current findings and verification evidence. Earlier batch entries below are historical snapshots; their old counts, unresolved findings and package/CI claims do not describe the current working tree.

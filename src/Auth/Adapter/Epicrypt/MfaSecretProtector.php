@@ -29,6 +29,9 @@ final readonly class MfaSecretProtector
     /**
      * @throws \InvalidArgumentException
      */
+    /**
+     * @throws \LogicException
+     */
     public function protect(MfaFactor $factor): MfaFactor
     {
         $metadata = $factor->metadata;

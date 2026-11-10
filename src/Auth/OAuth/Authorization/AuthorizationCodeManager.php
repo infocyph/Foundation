@@ -148,6 +148,9 @@ final readonly class AuthorizationCodeManager
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function assertPermissions(PrincipalInterface $principal, AuthorizationRequest $request): void
     {
         foreach ($request->requiredPermissions as $permission) {

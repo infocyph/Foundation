@@ -174,7 +174,10 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         ];
     }
 
-    /** @param list<string> $redirectUris */
+    /**
+     * @param list<string> $redirectUris
+     * @throws \RuntimeException
+     */
     private function insertRedirectUris(Connection $connection, string $clientId, array $redirectUris, int $createdAt): void
     {
         foreach ($redirectUris as $uri) {
@@ -188,7 +191,10 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         }
     }
 
-    /** @param list<string> $scopes */
+    /**
+     * @param list<string> $scopes
+     * @throws \RuntimeException
+     */
     private function insertScopes(Connection $connection, string $clientId, array $scopes, int $createdAt): void
     {
         foreach ($scopes as $scope) {

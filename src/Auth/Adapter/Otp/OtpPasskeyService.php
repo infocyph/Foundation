@@ -179,7 +179,10 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
         return $this->challenge($ceremony, $accountId, $now);
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \RuntimeException
+     */
     private function activeCredentialRecords(string $accountId): array
     {
         $records = [];

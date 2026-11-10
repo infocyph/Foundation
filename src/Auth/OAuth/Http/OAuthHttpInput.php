@@ -24,6 +24,9 @@ final readonly class OAuthHttpInput
         'client_assertion_type',
     ];
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         private int $maximumQueryBytes = 8192,
         private int $maximumFormBytes = 16384,
@@ -264,7 +267,10 @@ final readonly class OAuthHttpInput
         );
     }
 
-    /** @param array<string, string> $parameters */
+    /**
+     * @param array<string, string> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function rejectCredentialParameters(array $parameters): void
     {
         foreach (self::CREDENTIAL_PARAMETERS as $name) {

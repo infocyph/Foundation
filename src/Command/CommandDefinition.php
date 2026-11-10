@@ -63,6 +63,9 @@ final class CommandDefinition
      * @throws \UnexpectedValueException
      * @throws \InvalidArgumentException
      */
+    /**
+     * @throws \LogicException
+     */
     public static function fromManifest(array $manifest): self
     {
         $definition = self::definitionFromScalars($manifest);

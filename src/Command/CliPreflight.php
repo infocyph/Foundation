@@ -32,6 +32,9 @@ final readonly class CliPreflight
      * @throws \InvalidArgumentException
      * @throws \LogicException
      */
+    /**
+     * @throws \UnexpectedValueException
+     */
     public function __construct(
         private CommandRegistry $registry = new CommandRegistry(),
         private string $displayName = 'Foundation',
