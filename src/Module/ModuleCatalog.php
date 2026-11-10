@@ -554,6 +554,7 @@ final class ModuleCatalog
      * @phpstan-param ModuleDefinition $definition
      * @param list<string> $features
      * @return array<string,string>
+     * @throws \InvalidArgumentException
      */
     public function installationPackages(array $definition, array $features = []): array
     {
@@ -569,6 +570,7 @@ final class ModuleCatalog
     /**
      * @phpstan-param ModuleDefinition $definition
      * @return array<string,string>
+     * @throws \InvalidArgumentException
      */
     public function managedPackages(array $definition): array
     {
@@ -644,6 +646,7 @@ final class ModuleCatalog
      * @phpstan-param ModuleDefinition $definition
      * @param list<string> $features
      * @return list<string>
+     * @throws \InvalidArgumentException
      */
     private function normalizeFeatures(array $definition, array $features): array
     {
@@ -678,6 +681,7 @@ final class ModuleCatalog
     /**
      * @phpstan-param ModuleDefinition $definition
      * @param list<string> $requestedFeatures
+     * @throws \InvalidArgumentException
      */
     private function requestFeature(string $requested, array $definition, array $requestedFeatures): string|false|null
     {

@@ -372,6 +372,8 @@ final class CommandDefinition
 
     /**
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     private static function applyArguments(self $definition, mixed $arguments): void
     {
@@ -392,6 +394,8 @@ final class CommandDefinition
 
     /**
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     private static function applyOptions(self $definition, mixed $options): void
     {

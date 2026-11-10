@@ -393,6 +393,7 @@ final class ApplicationSystemCommand extends SystemCommand
      * @throws \Exception
      * @throws \LogicException
      * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \Throwable
      */
     private function serve(): int
     {
@@ -471,6 +472,9 @@ final class ApplicationSystemCommand extends SystemCommand
             swoole: new SwooleOptions(host: trim($host, '[]'), port: $port, workerCount: (int) ($workerOption ?? 0)),
         );
     }
+    /**
+     * @throws \InvalidArgumentException
+     */
 
     private function servePolicy(AdaptiveProtocolPolicy $defaults, AdaptivePolicyMode $mode): AdaptiveProtocolPolicy
     {

@@ -139,6 +139,9 @@ final readonly class OmnibusDurableFactory
     /**
      * @return list<MessageCodec>
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     private function messageCodecs(): array
     {
@@ -164,6 +167,9 @@ final readonly class OmnibusDurableFactory
     /**
      * @return list<StampCodec>
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     private function stampCodecs(): array
     {

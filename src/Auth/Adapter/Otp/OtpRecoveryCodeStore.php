@@ -28,6 +28,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     #[\Override]
     public function consume(string $binding, string $hashedCode, DateTimeImmutable $usedAt): array
@@ -94,6 +95,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     #[\Override]
     public function replace(string $binding, array $hashedCodes, DateTimeImmutable $issuedAt): array
@@ -186,6 +188,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
     /**
      * @param array<array-key, mixed> $hashes
      * @return list<string>
+     * @throws \RuntimeException
      */
     private function hashes(array $hashes): array
     {

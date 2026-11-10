@@ -65,6 +65,9 @@ final readonly class ScheduleManager
     /**
      * @return list<ScheduleRun>
      * @throws \UnexpectedValueException
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Throwable
      */
     public function runDue(
         string $routes = 'routes/schedule.php',
@@ -516,7 +519,11 @@ final readonly class ScheduleManager
         }
     }
 
-    /** @param array<array-key,mixed> $entries */
+    /**
+     * @param array<array-key,mixed> $entries
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     */
     private function scheduleFromManifest(array $entries): Schedule
     {
         $schedule = new Schedule();

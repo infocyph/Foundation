@@ -91,7 +91,11 @@ final readonly class ModuleFeatureCommandSnapshot
         return hash('xxh3', serialize($this->composerMetadata()));
     }
 
-    /** @return array<string,?string> */
+    /**
+     * @return array<string,?string>
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
+     */
     private function composerMetadata(): array
     {
         $parts = [];
@@ -178,7 +182,10 @@ final readonly class ModuleFeatureCommandSnapshot
         return $versions;
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function publishedConfigs(): array
     {
         $published = [];

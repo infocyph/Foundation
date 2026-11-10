@@ -164,6 +164,7 @@ final class WorkerTopology
     /**
      * @param array<array-key,mixed> $configured
      * @return array<string,array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
+     * @throws \UnexpectedValueException
      */
     private function normalize(array $configured, float $defaultWait, float $defaultLease): array
     {
