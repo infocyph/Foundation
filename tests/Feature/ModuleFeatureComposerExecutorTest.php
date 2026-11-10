@@ -17,7 +17,19 @@ function f4ComposerFixture(array $requirements = []): string
     return $root;
 }
 
-/** @param array<string,string> $requirements */
+/**
+ * @param array<string,string> $requirements
+ * @return array{
+ *   root_known:bool,
+ *   root_requirements:array<string,string>,
+ *   installed:array<string,string>,
+ *   enabled:list<string>,
+ *   selected_features:list<string>,
+ *   config:array<string,mixed>,
+ *   extensions:list<string>,
+ *   published_configs:list<string>
+ * }
+ */
 function f4ComposerContext(array $requirements = []): array
 {
     return [

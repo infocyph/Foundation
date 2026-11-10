@@ -15,7 +15,18 @@ function moduleB3Dir(): string
     return $path;
 }
 
-/** @return array<string,mixed> */
+/**
+ * @return array{
+ *   root_known:bool,
+ *   root_requirements:array<string,string>,
+ *   installed:array<string,string>,
+ *   enabled:list<string>,
+ *   selected_features:list<string>,
+ *   config:array<string,mixed>,
+ *   extensions:list<string>,
+ *   published_configs:list<string>
+ * }
+ */
 function moduleB3Context(): array
 {
     return [

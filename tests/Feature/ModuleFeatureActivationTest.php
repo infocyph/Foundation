@@ -6,7 +6,16 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Module\ModuleActivationManager;
 use Infocyph\Foundation\Module\ModuleCatalog;
 
-/** @return array<string,mixed> */
+/**
+ * @return array{
+ *   root_known:bool,
+ *   root_requirements:array<string,string>,
+ *   installed:array<string,string>,
+ *   enabled:list<string>,
+ *   config:array<string,mixed>,
+ *   extensions:list<string>
+ * }
+ */
 function featureActivationContext(): array
 {
     return [

@@ -2,6 +2,13 @@
 
 Date: 2026-11-10 (Asia/Dhaka). Status: **93/95 implementation criteria checked; Runwire 3.0.1 minimum selected in Batch 136 (exact-head QA pending); both P6 sustained certifications remain open.**
 
+## Batch 152a — type-contract remediation (in progress)
+
+- The latest completed strict PR-merge PHP 8.4/8.5 analysis at [42848533326](https://github.com/infocyph/Foundation/actions/runs/42848533326) reported **1,324 Psalm errors** on each PHP version, down from 1,807 before Batch 151; PHPStan remains failed with 1,000+ displayed diagnostics. The workflow checked out synthetic merge `e36048137` containing source head `1428a929`. These are verified **pre-152a** counts, not post-change results.
+- Correct the actual typed module context fixture contracts in five feature-test files, preserving the arrays' runtime values and mutable test cases. Guard a nullable MFA issuance result in the benchmark before dereference. Retain fail-loud assertions for mandatory module snapshot fields while giving both analyzers the explicit optional-key access contract.
+- This is a focused first portion of the next 100-file dual-analyzer cohort, **not** a completed 100-file batch or a claim of zero errors. Verify full official strict Psalm and PHPStan on both PHP 8.4/8.5, Pint/Pest, benchmarks, native hosts and consumers. Expand to the remaining diagnostic-bearing files; prioritize production taint boundaries after verifying actual source-to-sink semantics. No suppressions, configuration relaxations, runtime compatibility shim, or benchmark budget changes.
+- The canonical P6 checklist stays **93/95**. Both sustained-host certifications remain open and non-waivable; PR remains draft/unmerged, with `composer.lock` ignored and `infocyph/phpforge` at `dev-main@dev`.
+
 ## Batch 150 — OAuth and CLI exception-contract cleanup
 
 - From the completed official PHPForge analysis on `42105eac`, correct **16 direct `MissingThrowsDocblock` diagnostics across 14 methods in 12 reviewed OAuth/authentication/CLI production files**. Add precise exception PHPDoc only; preserve all method signatures, exception behavior, implementation, analyzer settings and gates. This is a source-edit count and does not claim a measured fresh analyzer reduction.

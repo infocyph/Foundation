@@ -6,6 +6,17 @@ use Infocyph\Foundation\Module\ModuleArchitectureCatalog;
 use Infocyph\Foundation\Module\ModuleFeaturePlanner;
 use Infocyph\Foundation\Module\ModuleFeatureResolver;
 
+/**
+ * @return array{
+ *   root_known:bool,
+ *   root_requirements:array<string,string>,
+ *   installed:array<string,string>,
+ *   enabled:list<string>,
+ *   config:array<string,mixed>,
+ *   extensions:list<string>,
+ *   published_configs:list<string>
+ * }
+ */
 function f4FeatureFixture(): array
 {
     return [

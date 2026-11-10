@@ -52,8 +52,8 @@ it('reads a fresh root Composer and selected-feature project snapshot for the v2
             ->and($state['root_requirements'])->toBe(['infocyph/dblayer' => '^6.1.4'])
             ->and($state['installed']['infocyph/dblayer'] ?? null)->toBe('6.1.4.0')
             ->and($state['enabled'])->toBe(['data.database'])
-            ->and($state['selected_features'])->toBe(['data.database', 'data.filesystem'])
-            ->and($state['published_configs'])->toBe(['database.php'])
+            ->and($state['selected_features'] ?? null)->toBe(['data.database', 'data.filesystem'])
+            ->and($state['published_configs'] ?? null)->toBe(['database.php'])
             ->and($plan['effects']['require'])->toBe([])
             ->and($plan['applicable'])->toBeTrue();
     } finally {
@@ -90,7 +90,7 @@ it('preserves explicitly configured disabled feature ownership for shared packag
         ]);
         $snapshot = new ModuleFeatureCommandSnapshot($app)->capture();
         expect($snapshot['enabled'])->toBe([])
-            ->and($snapshot['selected_features'])->toBe(['security.mfa', 'security.passkey']);
+            ->and($snapshot['selected_features'] ?? null)->toBe(['security.mfa', 'security.passkey']);
     } finally {
         foundationB6Clean($path);
     }

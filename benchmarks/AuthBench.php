@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\Account\Account;
 use Infocyph\Foundation\Auth\Authentication\Login\LoginRequest;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
 use Infocyph\Foundation\Auth\AuthServices;
+use Infocyph\Foundation\Auth\Mfa\MfaChallenge;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorType;
 use Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationResult;
@@ -84,8 +85,13 @@ final class AuthBench
             factorId: $this->factor->id,
         );
 
+        $issuedChallenge = $challenge->challenge;
+        if (!$issuedChallenge instanceof MfaChallenge) {
+            throw new \LogicException('MFA benchmark challenge was not created.');
+        }
+
         $verified = $this->services->mfa()->verifyChallenge(
-            $challenge->challenge->id,
+            $issuedChallenge->id,
             '000000',
         );
         if (!$verified->successful()) {
