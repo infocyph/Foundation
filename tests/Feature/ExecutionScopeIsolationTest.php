@@ -20,6 +20,7 @@ final class FoundationExecutionScopeProbe {}
 
 final class FoundationExecutionScopeProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
@@ -34,6 +35,7 @@ final class FoundationExecutionScopeProvider extends ServiceProvider
 
 final class FoundationFailingScopeLeaveProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if ($context->runtimeMode !== RuntimeMode::Cli) {

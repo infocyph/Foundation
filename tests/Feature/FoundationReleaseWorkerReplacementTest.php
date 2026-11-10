@@ -31,6 +31,7 @@ final class FoundationReleaseReplacementWorker implements WorkerProvider
     /** @var list<string> */
     public static array $executionIds = [];
 
+    #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
         self::$runs++;
@@ -51,6 +52,7 @@ final class FoundationReleaseReplacementWorker implements WorkerProvider
 
 final class FoundationReleaseReplacementProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if ($context->runtimeMode !== RuntimeMode::Worker) {

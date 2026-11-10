@@ -18,6 +18,7 @@ final class FoundationCollectingLogger extends AbstractLogger
     /** @var list<array{level:mixed,message:string,context:array<string,mixed>}> */
     public array $records = [];
 
+    #[\Override]
     public function log($level, string|Stringable $message, array $context = []): void
     {
         $this->records[] = [
@@ -77,6 +78,7 @@ it('uses an application supplied PSR logger at the HTTP reporting boundary', fun
     $provider = new class($logger) extends ServiceProvider {
         public function __construct(private readonly LoggerInterface $logger) {}
 
+        #[\Override]
         public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
             unset($context);

@@ -14,6 +14,11 @@ The [consolidated review](foundation-4-consolidated-review.md#current-maintenanc
 - **Final local checks:** required PHPForge process and all static/quality/architecture gates pass, including PHPStan and Psalm. Focused regressions: **44 passed / 5,575 assertions**. Final full local suite: **990 passed, 25 unavailable-service failures / 36,937 assertions**, with the same 25 failed identities as the previous baseline. Strict Composer validation and local documentation links pass. Evidence: `/tmp/foundation-maintenance/qa-final.log`, `focused-final.log` and `validation-summary.json`.
 - **Source checkpoint:** maintenance changes are committed at `d30abb10b11ab61d080e064cd34e213a838ec0f7`. Exact-head [Security & Standards 42377166328](https://github.com/infocyph/Foundation/actions/runs/42377166328) and [native hosts 42377166008](https://github.com/infocyph/Foundation/actions/runs/42377166008) both passed, including PHPForge stable/lowest, static analysis, consumers and selected service integrations. The paired-host jobs were skipped; green host smoke is **not P6 certification**. No merge, tag, publication or lockfile-policy change.
 
+## Batch 142 — fifth native override-contract remediation batch
+
+- Add **27** `#[\\Override]` attributes to the exact Psalm-identified declarations in **12** additional test/benchmark files; implementation bodies remain unchanged. Cumulative **485/523** declarations across **60** files addressed from the original static-analysis report, subject to a fresh exact-head analyzer verification.
+- No suppression, skip or quality-threshold relaxation. Composer retains Runwire `^3.0.1`, PHPForge `dev-main@dev` and ignored lockfile. P6 still pending (**93/95** implementation items), PR draft and unmerged.
+
 ## Batch 141 — fourth native override-contract remediation batch
 
 - Add **42** verified native PHP 8.4 `#[\\Override]` attributes in **12** previously unedited tests/benchmarks files, preserving existing implementations. Accumulated exact-declaration edits: **458/523** Psalm `MissingOverrideAttribute` findings across **48** unique files (counts sourced from the original failed analyzer log; fresh QA confirmation is required).

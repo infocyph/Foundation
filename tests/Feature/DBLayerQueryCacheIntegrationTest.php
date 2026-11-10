@@ -28,6 +28,7 @@ function foundationDbLayerQueryRuntime(array $config): array
 
         public bool $cacheManagerTouched = false;
 
+        #[\Override]
         public function get(string $id): mixed
         {
             if ($id === CacheLayerFactory::class) {
@@ -41,6 +42,7 @@ function foundationDbLayerQueryRuntime(array $config): array
                 ?? throw new RuntimeException(sprintf('Unknown test service "%s".', $id));
         }
 
+        #[\Override]
         public function has(string $id): bool
         {
             if ($id === CacheLayerFactory::class) {

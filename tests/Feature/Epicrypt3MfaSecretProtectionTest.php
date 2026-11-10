@@ -53,6 +53,7 @@ function foundationEpicrypt3MfaDbFactory(): array
     $container = new class($state) implements ContainerInterface {
         public function __construct(private RuntimeExecutionState $state) {}
 
+        #[\Override]
         public function get(string $id): mixed
         {
             if ($id === RuntimeExecutionState::class) {
@@ -62,6 +63,7 @@ function foundationEpicrypt3MfaDbFactory(): array
             throw new RuntimeException(sprintf('Unknown test service "%s".', $id));
         }
 
+        #[\Override]
         public function has(string $id): bool
         {
             return $id === RuntimeExecutionState::class;

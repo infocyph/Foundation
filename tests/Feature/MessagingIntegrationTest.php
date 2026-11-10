@@ -129,6 +129,7 @@ final class FoundationScheduledMessageFactory
 function foundationMessagingApplication(array $messaging = []): Application
 {
     $provider = new class extends ServiceProvider {
+        #[\Override]
         public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
             unset($context);
@@ -178,6 +179,7 @@ it('keeps Omnibus deferred until messaging is selected', function (): void {
     $observer = new class extends ServiceProvider {
         public bool $resolved = false;
 
+        #[\Override]
         public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
             unset($context);

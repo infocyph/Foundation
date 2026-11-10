@@ -39,6 +39,7 @@ final class FoundationGeneratedRuntimeScopedProbe
 
 final class FoundationGeneratedRuntimeDynamicProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
@@ -48,6 +49,7 @@ final class FoundationGeneratedRuntimeDynamicProvider extends ServiceProvider
 
 final class FoundationGeneratedRuntimeProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if ($context->runtimeMode === RuntimeMode::Worker) {

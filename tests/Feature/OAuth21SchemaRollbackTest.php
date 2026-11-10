@@ -70,7 +70,9 @@ it('rolls back transactional DDL when a migration fails before it is recorded', 
     $connection = $factory->connection();
     $schema = new SchemaManager($connection);
     $migration = new class implements Migration {
+        #[\Override]
         public function id(): string { return '20260827000000_oauth_partial_failure_probe'; }
+        #[\Override]
         public function up(SchemaManager $schema, MigrationContext $context): void {
             $schema->create('oauth_partial_failure_probe', static function (Blueprint $table): void {
                 $table->string('id', 64)->primary();
@@ -78,6 +80,7 @@ it('rolls back transactional DDL when a migration fails before it is recorded', 
             $context->checkpoint();
             throw new RuntimeException('synthetic OAuth migration failure');
         }
+        #[\Override]
         public function down(SchemaManager $schema, MigrationContext $context): void {
             $schema->dropIfExists('oauth_partial_failure_probe');
             $context->checkpoint();

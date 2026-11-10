@@ -39,11 +39,13 @@ final class FoundationPersistentEmissionAdapter implements RuntimeAdapterInterfa
         );
     }
 
+    #[\Override]
     public function capabilities(): RuntimeCapabilities
     {
         return $this->runtimeCapabilities;
     }
 
+    #[\Override]
     public function context(
         mixed $nativeRequest = null,
         mixed $nativeResponse = null,
@@ -66,6 +68,7 @@ final class FoundationPersistentEmissionAdapter implements RuntimeAdapterInterfa
         );
     }
 
+    #[\Override]
     public function write(Response $response, RuntimeRequestContext $context): void
     {
         ++$this->writes;

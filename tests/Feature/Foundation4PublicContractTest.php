@@ -17,6 +17,7 @@ final class Foundation4PublicContractProvider extends ServiceProvider
 {
     public static int $booted = 0;
 
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if ($context->runtimeMode !== RuntimeMode::Cli) {
@@ -29,6 +30,7 @@ final class Foundation4PublicContractProvider extends ServiceProvider
         );
     }
 
+    #[\Override]
     public function boot(Application $app): void
     {
         if ($app->runtimeMode() === RuntimeMode::Cli) {

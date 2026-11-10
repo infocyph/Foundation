@@ -33,6 +33,7 @@ final class FoundationTalkingBytesGrpcHandler implements GrpcInboundHandlerInter
         $this->sequence = ++self::$next;
     }
 
+    #[\Override]
     public function handle(GrpcInboundRequest $request): GrpcInboundResponse
     {
         ++self::$handled;
@@ -59,6 +60,7 @@ final class FoundationTalkingBytesGrpcSource implements GrpcInboundSource
         $this->inner = new FakeGrpcInboundSource();
     }
 
+    #[\Override]
     public function accept(?CancellationSignal $cancellation = null): ?GrpcInboundExchange
     {
         $this->sawCancellation = $this->sawCancellation || $cancellation !== null;
@@ -85,6 +87,7 @@ final class FoundationTalkingBytesGrpcProvider extends ServiceProvider
 {
     public function __construct(private readonly FoundationTalkingBytesGrpcSource $source) {}
 
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
