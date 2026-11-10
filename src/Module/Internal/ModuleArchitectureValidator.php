@@ -98,6 +98,7 @@ final class ModuleArchitectureValidator
     /**
      * @param list<string> $configs
      * @param array<string,string> $owners
+     * @throws \LogicException
      */
     private function assertConfiguration(string $id, array $configs, array &$owners): void
     {
@@ -158,6 +159,7 @@ final class ModuleArchitectureValidator
     /**
      * @param array<string,string> $packages
      * @param array<string,list<array{id:string,constraint:string}>> $packageOwners
+     * @throws \LogicException
      */
     private function assertPackages(string $id, array $packages, array &$packageOwners): void
     {
@@ -183,7 +185,10 @@ final class ModuleArchitectureValidator
         }
     }
 
-    /** @param array{extensions:list<string>,optional_extensions:list<string>} $platform */
+    /**
+     * @param array{extensions:list<string>,optional_extensions:list<string>} $platform
+     * @throws \LogicException
+     */
     private function assertPlatform(string $id, array $platform): void
     {
         foreach (['extensions', 'optional_extensions'] as $type) {
@@ -198,6 +203,7 @@ final class ModuleArchitectureValidator
     /**
      * @param list<string> $schemas
      * @param array<string,string> $owners
+     * @throws \LogicException
      */
     private function assertSchemas(string $id, array $schemas, array &$owners): void
     {
@@ -225,6 +231,7 @@ final class ModuleArchitectureValidator
      * @phpstan-param list<array{target:string,when?:array{key:string,operator:'equals'|'not-empty',value?:bool|int|string}}> $dependencies
      * @phpstan-param array<string,ArchitectureModule> $modules
      * @return list<string>
+     * @throws \LogicException
      */
     private function resolveDependencies(string $id, array $dependencies, array $modules): array
     {

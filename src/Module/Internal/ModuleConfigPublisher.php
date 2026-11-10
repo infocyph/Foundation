@@ -152,6 +152,7 @@ final readonly class ModuleConfigPublisher
      * @param array<string,string> $backups
      * @param list<string> $published
      * @param list<string> $existing
+     * @throws \RuntimeException
      */
     private function publishStaged(
         array &$staged,
@@ -224,6 +225,7 @@ final readonly class ModuleConfigPublisher
      * @param list<string> $configured
      * @param list<string> $existing
      * @return array<string,string>
+     * @throws \RuntimeException
      */
     private function sources(string $directory, array $configured, array &$existing, bool $force): array
     {
@@ -246,6 +248,7 @@ final readonly class ModuleConfigPublisher
     /**
      * @param array<string,string> $sources
      * @param array<string,string> $staged
+     * @throws \RuntimeException
      */
     private function stage(string $directory, array $sources, array &$staged): void
     {

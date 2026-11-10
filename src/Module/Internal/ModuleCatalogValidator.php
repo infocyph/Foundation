@@ -13,7 +13,10 @@ namespace Infocyph\Foundation\Module\Internal;
  */
 final class ModuleCatalogValidator
 {
-    /** @phpstan-param array<string,ModuleDefinition> $modules */
+    /**
+     * @phpstan-param array<string,ModuleDefinition> $modules
+     * @throws \LogicException
+     */
     public function validate(array $modules): void
     {
         $this->assertAliases($modules);
@@ -39,7 +42,10 @@ final class ModuleCatalogValidator
         }
     }
 
-    /** @phpstan-param array<string,ModuleDefinition> $modules */
+    /**
+     * @phpstan-param array<string,ModuleDefinition> $modules
+     * @throws \LogicException
+     */
     private function assertAliases(array $modules): void
     {
         $owners = [];
@@ -52,6 +58,7 @@ final class ModuleCatalogValidator
     /**
      * @phpstan-param list<ModuleDependency> $dependencies
      * @phpstan-param array<string,ModuleDefinition> $modules
+     * @throws \LogicException
      */
     private function assertDependencies(
         string $scope,
@@ -102,7 +109,10 @@ final class ModuleCatalogValidator
         }
     }
 
-    /** @phpstan-param array<string,ModuleFeature> $features */
+    /**
+     * @phpstan-param array<string,ModuleFeature> $features
+     * @throws \LogicException
+     */
     private function assertFeatures(string $module, array $features): void
     {
         foreach ($features as $name => $feature) {
@@ -120,6 +130,7 @@ final class ModuleCatalogValidator
     /**
      * @param list<string> $owners
      * @phpstan-param array<string,ModuleFeature> $features
+     * @throws \LogicException
      */
     private function assertPackageFeatureOwners(
         string $module,
@@ -171,6 +182,7 @@ final class ModuleCatalogValidator
     /**
      * @phpstan-param array<string,PackageRequirement> $packages
      * @phpstan-param array<string,ModuleFeature> $features
+     * @throws \LogicException
      */
     private function assertPackages(string $module, array $packages, array $features): void
     {
@@ -182,6 +194,7 @@ final class ModuleCatalogValidator
     /**
      * @phpstan-param PlatformRequirement $platform
      * @phpstan-param array<string,PackageRequirement> $packages
+     * @throws \LogicException
      */
     private function assertPlatform(string $scope, array $platform, array $packages): void
     {

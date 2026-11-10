@@ -21,6 +21,7 @@ final class CommandRegistry
      * @param array<array-key, mixed> $applicationCommands
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \UnexpectedValueException
      */
     public function __construct(
         array $applicationCommands = [],
@@ -152,7 +153,10 @@ final class CommandRegistry
         return array_slice(array_keys($candidates), 0, $limit);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \LogicException
+     */
     public function toManifest(): array
     {
         $commands = [];
@@ -178,6 +182,7 @@ final class CommandRegistry
     /**
      * @param array<int|string, mixed> $value
      * @return array<string, mixed>
+     * @throws \UnexpectedValueException
      */
     private static function associative(array $value): array
     {
