@@ -158,8 +158,11 @@ it('creates TalkingBytes gRPC clients and inbound dispatchers through Foundation
     $response = $dispatcher->receive('/orders.v1.OrderService/Create', ['order_id' => 1001]);
 
     expect($result->successful)->toBeTrue()
-        ->and($result->response)->toBeInstanceOf(GrpcResponse::class)
-        ->and($result->response->message)->toBe(['echo' => ['order_id' => 1001]])
+        ->and($result->response)->toBeInstanceOf(GrpcResponse::class);
+    if (!$result->response instanceof GrpcResponse) {
+        throw new \UnexpectedValueException('gRPC call must return a typed response.');
+    }
+    expect($result->response->message)->toBe(['echo' => ['order_id' => 1001]])
         ->and($response->isOk())->toBeTrue()
         ->and($response->message)->toBe(['accepted' => ['order_id' => 1001]]);
 });

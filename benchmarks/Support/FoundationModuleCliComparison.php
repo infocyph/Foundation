@@ -32,14 +32,24 @@ final class FoundationModuleCliComparison
 
         $commands = [];
         foreach (self::COMMANDS as $name) {
-            $before = $baseline['commands'][$name];
-            $after = $candidate['commands'][$name];
+            $before = $baseline['commands'][$name] ?? null;
+            $after = $candidate['commands'][$name] ?? null;
+            if (!is_array($before) || !is_array($after)) {
+                throw new \InvalidArgumentException('Module CLI comparison requires structured command metrics.');
+            }
             $metrics = [];
             foreach (['cold_ms', 'warm_p50_ms', 'warm_p95_ms'] as $field) {
+                $oldMs = $before[$field] ?? null;
+                $newMs = $after[$field] ?? null;
+                if ((!is_float($oldMs) && !is_int($oldMs))
+                    || (!is_float($newMs) && !is_int($newMs))
+                    || $oldMs <= 0.0 || $newMs <= 0.0) {
+                    throw new \InvalidArgumentException('Module CLI timing values must be positive numbers.');
+                }
                 $metrics[$field] = [
-                    'baseline_ms' => $before[$field],
-                    'candidate_ms' => $after[$field],
-                    'delta_percent' => round(($after[$field] / $before[$field] - 1.0) * 100, 3),
+                    'baseline_ms' => $oldMs,
+                    'candidate_ms' => $newMs,
+                    'delta_percent' => round(($newMs / $oldMs - 1.0) * 100, 3),
                 ];
             }
             $commands[] = ['command' => $name, 'metrics' => $metrics];

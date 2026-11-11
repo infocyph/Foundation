@@ -220,12 +220,18 @@ it('runs Scheduler execution units in fresh InterMix scopes', function (): void 
             $left = $app->make('scheduler.runtime.scoped');
             $right = $app->make('scheduler.runtime.scoped');
 
+            if (!$left instanceof FoundationSchedulerScopedProbe || !$right instanceof FoundationSchedulerScopedProbe) {
+                throw new \UnexpectedValueException('Scheduler scope must resolve the registered probe type.');
+            }
             return [$left->sequence, $right->sequence];
         });
         $second = $runtime->execute(function () use ($app): array {
             $left = $app->make('scheduler.runtime.scoped');
             $right = $app->make('scheduler.runtime.scoped');
 
+            if (!$left instanceof FoundationSchedulerScopedProbe || !$right instanceof FoundationSchedulerScopedProbe) {
+                throw new \UnexpectedValueException('Scheduler scope must resolve the registered probe type.');
+            }
             return [$left->sequence, $right->sequence];
         });
 
@@ -648,6 +654,9 @@ function foundationSchedulerRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!$file instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('Scheduler fixture cleanup requires filesystem entries.');
+        }
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

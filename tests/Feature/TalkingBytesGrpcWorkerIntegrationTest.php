@@ -119,16 +119,21 @@ it('runs accepted gRPC exchanges inside fresh Foundation worker execution scopes
 
     $result = $app->make(GrpcInboundWorker::class)->run($runtime);
 
+    $firstMessage = $first->response()?->message;
+    $secondMessage = $second->response()?->message;
+    if (!is_array($firstMessage) || !is_array($secondMessage)) {
+        throw new \UnexpectedValueException('gRPC workers must publish structured response messages.');
+    }
     expect($result)->toBe(0)
         ->and($source->sawCancellation)->toBeTrue()
         ->and($heartbeat)->toBeGreaterThanOrEqual(2)
         ->and($first->completed())->toBeTrue()
         ->and($second->completed())->toBeTrue()
-        ->and($first->response()?->message['sequence'] ?? null)->toBe(1)
-        ->and($second->response()?->message['sequence'] ?? null)->toBe(2)
+        ->and($firstMessage['sequence'] ?? null)->toBe(1)
+        ->and($secondMessage['sequence'] ?? null)->toBe(2)
         ->and(FoundationTalkingBytesGrpcHandler::$handled)->toBe(2)
-        ->and($first->response()?->message['message'] ?? null)->toBe(['id' => 1])
-        ->and($second->response()?->message['message'] ?? null)->toBe(['id' => 2]);
+        ->and($firstMessage['message'] ?? null)->toBe(['id' => 1])
+        ->and($secondMessage['message'] ?? null)->toBe(['id' => 2]);
 });
 
 it('forwards Foundation stop policy through TalkingBytes inbound cancellation', function (): void {

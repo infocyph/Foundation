@@ -14,6 +14,7 @@ use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 use Infocyph\Webrick\Request\Core\Stream;
 use Infocyph\Webrick\Request\Request;
 
+/** @param array<string,string> $headers */
 function oauthHttpRequest(string $body, array $headers = [], string $uri = '/oauth/token'): Request
 {
     return new Request(

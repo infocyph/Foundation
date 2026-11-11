@@ -158,14 +158,17 @@ it('does not persist caller session or device metadata as canonical authorizatio
         $delegation = new \Infocyph\Foundation\Auth\Authorization\Grant\DelegationManager($grants, $store, $ids, $clock);
         $grant = $delegation->grant('account-1', 'read', metadata: $untrusted);
         expect($grant->grant)->not->toBeNull();
-        $delegation->revoke($grant->grant?->id ?? '', 'account-1', $untrusted);
+        $delegation->revoke($grant->grant->id, 'account-1', $untrusted);
 
         $rows = $connection->select('SELECT type, session_id, device_id, metadata FROM ' . $fixture->tables->auditEvents());
         expect($rows)->toHaveCount(3);
         foreach ($rows as $row) {
             expect($row['session_id'])->toBeNull()
                 ->and($row['device_id'])->toBeNull();
-            $metadata = json_decode((string) $row['metadata'], true, flags: JSON_THROW_ON_ERROR);
+            if (!is_string($row['metadata'] ?? null)) {
+                throw new \UnexpectedValueException('Persisted audit metadata must be JSON text.');
+            }
+            $metadata = json_decode($row['metadata'], true, flags: JSON_THROW_ON_ERROR);
             if (!is_array($metadata)) {
                 throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
             }
@@ -252,10 +255,16 @@ it('redacts arbitrary uppercase and mixed-case secrets for all auth-purpose audi
         expect($rows)->toHaveCount(4);
         foreach ($rows as $row) {
             $raw = $row['metadata'] ?? null;
+            if (!is_string($raw)) {
+                throw new \UnexpectedValueException('Persisted audit metadata must be JSON text.');
+            }
             expect($raw)->toBeString();
             $metadata = json_decode($raw, true, flags: JSON_THROW_ON_ERROR);
             if (!is_array($metadata)) {
                 throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
+            }
+            if (!is_array($metadata['context'] ?? null) || !is_array($metadata['context']['nested'] ?? null)) {
+                throw new \UnexpectedValueException('Persisted audit redaction context must be structured.');
             }
             expect($metadata['request_id'])->toBe('safe-request')
                 ->and($metadata['authorization_id'])->toBe('safe-authorization')

@@ -35,14 +35,20 @@ function f4HostLoad(string $path, int $expectedRequests): array
         throw new RuntimeException('Authenticated worker telemetry does not cover every successful response.');
     }
 
+    $databaseQueries = $result['database_queries'] ?? 0;
+    $cacheHits = $result['application_cache_hits'] ?? 0;
+    if (!is_numeric($databaseQueries) || !is_numeric($cacheHits)) {
+        throw new RuntimeException('Host load application counters must be numeric.');
+    }
+
     return [
         'requests' => (int) $result['requests'],
         'connection_warmup' => $result['connection_warmup'],
         'measured_new_connections' => $result['measured_new_connections'],
         'load_cpu_percent' => $result['load_cpu_percent'],
         'worker_requests' => $result['worker_requests'],
-        'database_queries' => (int) ($result['database_queries'] ?? 0),
-        'application_cache_hits' => (int) ($result['application_cache_hits'] ?? 0),
+        'database_queries' => (int) $databaseQueries,
+        'application_cache_hits' => (int) $cacheHits,
         'authenticated' => ($result['authenticated'] ?? false) === true,
         'successful' => (int) $result['successful'],
         'failed' => (int) $result['failed'],

@@ -14,6 +14,7 @@ use Infocyph\Foundation\Runtime\RuntimeExecutionState;
 use Psr\Container\ContainerInterface;
 
 /**
+ * @param array<string,mixed> $config
  * @return array{DBLayerFactory,RuntimeExecutionState,object,ConfigRepository,CacheManager}
  */
 function foundationDbLayerQueryRuntime(array $config): array
@@ -58,7 +59,12 @@ function foundationDbLayerQueryRuntime(array $config): array
     $container->services[RuntimeExecutionState::class] = $state;
 
     $database = new DBLayerFactory(new DatabaseConnectionResolver($repository), $container);
-    $paths = new PathManager((string) ($config['app']['base_path'] ?? sys_get_temp_dir()));
+    $appConfig = $config['app'] ?? null;
+    $basePath = is_array($appConfig) ? ($appConfig['base_path'] ?? sys_get_temp_dir()) : sys_get_temp_dir();
+    if (!is_string($basePath)) {
+        throw new \UnexpectedValueException('Query cache fixture base path must be a string.');
+    }
+    $paths = new PathManager($basePath);
     $cache = new CacheLayerFactory(
         $repository,
         $paths,

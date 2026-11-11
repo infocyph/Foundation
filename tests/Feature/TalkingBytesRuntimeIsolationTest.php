@@ -44,6 +44,9 @@ it('keeps mutable TalkingBytes clients isolated across sequential Foundation exe
         return [$http, $emailer];
     });
 
+    if (!is_array($first) || !is_array($second)) {
+        throw new \UnexpectedValueException('Scoped TalkingBytes integrations must return instance pairs.');
+    }
     expect($first[0])->not->toBe($second[0])
         ->and($first[1])->not->toBe($second[1]);
 });
@@ -74,6 +77,9 @@ it('keeps scoped TalkingBytes client graphs Fiber-local under interleaving', fun
     $firstBefore = $first->start();
     $secondBefore = $second->start();
 
+    if (!is_array($firstBefore) || !is_array($secondBefore)) {
+        throw new \UnexpectedValueException('Fibers must suspend with structured runtime identity pairs.');
+    }
     expect($firstBefore[0])->not->toBe($secondBefore[0])
         ->and($firstBefore[1])->not->toBe($secondBefore[1]);
 

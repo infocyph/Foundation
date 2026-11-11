@@ -217,7 +217,11 @@ it('isolates native cache operations through borrowed Fiber contexts and restore
                     Fiber::suspend($key);
                     CacheRunwire::checkpoint();
 
-                    return $store->get($key);
+                    $value = $store->get($key);
+                    if (!is_string($value)) {
+                        throw new \UnexpectedValueException('Scoped cache must retain its string payload.');
+                    }
+                    return $value;
                 },
                 [RuntimeContext::class => $runtime, RequestContext::class => $request],
             ),

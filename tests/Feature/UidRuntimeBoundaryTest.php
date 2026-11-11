@@ -100,7 +100,6 @@ PHP);
 
         expect($run->successful())->toBeTrue()
             ->and($latest['status'] ?? null)->toBe('succeeded')
-            ->and($executionId)->toBeString()
             ->and(ULID::isValid($executionId))->toBeTrue();
 
         $records = $history->find($executionId);

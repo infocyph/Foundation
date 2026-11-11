@@ -105,6 +105,9 @@ it('serves real requests with isolated contexts and recovers after a failed requ
                 continue;
             }
             expect($headers[0] ?? '')->toContain('200');
+            if (!is_string($body)) {
+                throw new \UnexpectedValueException('HTTP serving probe must return response bytes.');
+            }
             $response = json_decode($body, true, flags: JSON_THROW_ON_ERROR);
             if (!is_array($response)) {
                 throw new \UnexpectedValueException('Expected a decoded JSON object.');
@@ -215,7 +218,11 @@ function foundationServeBurst(string $address): array
             if (!is_string($body)) {
                 throw new RuntimeException('HTTP serving probe returned no response body.');
             }
-            $responses[] = json_decode($body, true, flags: JSON_THROW_ON_ERROR);
+            $response = json_decode($body, true, flags: JSON_THROW_ON_ERROR);
+            if (!is_array($response)) {
+                throw new \UnexpectedValueException('HTTP serving burst must return structured JSON.');
+            }
+            $responses[] = $response;
         }
 
         return $responses;

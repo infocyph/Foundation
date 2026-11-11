@@ -138,7 +138,7 @@ it('composes the complete credential and token lifecycle without eager sibling s
 
         $remember = $services->rememberMe()->issue($account->id(), 'device-1');
         expect($remember->token)->not->toBeNull()
-            ->and($services->rememberMe()->verify($remember->token?->value ?? '')->verified())->toBeTrue();
+            ->and($services->rememberMe()->verify($remember->token->value)->verified())->toBeTrue();
 
         $now = time();
         $access = $services->tokens()->issueAccessToken(new AccessTokenClaims(
@@ -274,6 +274,9 @@ it('refuses forged audit identity in denied authorization delegation and unsucce
 
     $audit = $app->make(AuditEventStoreInterface::class);
     expect($audit)->toBeInstanceOf(InMemoryAuditEventStore::class);
+    if (!$audit instanceof InMemoryAuditEventStore) {
+        throw new \UnexpectedValueException('Domain integration requires the in-memory audit fixture.');
+    }
     $types = [
         AuthEventType::AUTHORIZATION_DENIED,
         AuthEventType::DELEGATED_ACCESS_GRANTED,

@@ -44,6 +44,9 @@ it('keeps runtime token roots out of generated InterMix artifacts', function (st
     try {
         $report = new GeneratedRuntimeCompiler()->compile($config, RuntimeMode::Cli, $artifact, ['auth']);
         $runtimePath = realpath($artifact);
+        if (!is_string($runtimePath)) {
+            throw new \UnexpectedValueException('Generated runtime artifact must resolve to a file path.');
+        }
         expect($runtimePath)->toBeString();
         foreach ([
             $artifact,

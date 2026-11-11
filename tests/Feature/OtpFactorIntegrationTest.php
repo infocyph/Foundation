@@ -83,14 +83,13 @@ it('keeps AOTP private keys device-owned and composes native challenges', functi
         );
         $factor = $enrollment->factor;
 
-        expect($factor)->toBeInstanceOf(MfaFactor::class)
-            ->and($factor?->metadata['otp']['public_key'] ?? null)->toBe($keys->publicKey)
-            ->and($factor?->metadata['otp'])->not->toHaveKey('private_key')
-            ->and($enrollment->context['otp'] ?? [])->not->toHaveKey('private_key');
-
-        if (!$factor instanceof MfaFactor) {
-            throw new RuntimeException('AOTP enrollment did not create a factor.');
+        if (!$factor instanceof MfaFactor || !is_array($factor->metadata['otp'] ?? null)) {
+            throw new \UnexpectedValueException('AOTP enrollment must produce a factor with OTP metadata.');
         }
+        expect($factor)->toBeInstanceOf(MfaFactor::class)
+            ->and($factor->metadata['otp']['public_key'] ?? null)->toBe($keys->publicKey)
+            ->and($factor->metadata['otp'])->not->toHaveKey('private_key')
+            ->and($enrollment->context['otp'] ?? [])->not->toHaveKey('private_key');
 
         $enrollmentChallenge = $otp->issueAotpEnrollmentChallenge('acct-aotp-1', $factor->id);
         $enrollmentResponse = AOTP::respond(

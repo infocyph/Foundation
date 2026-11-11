@@ -80,7 +80,7 @@ try {
     $workloads = [
         arrayKitBenchmarkMeasure('source-config-composition', 250, static function () use ($sourceInput): void {
             $config = (new ConfigLoader())->load($sourceInput)->all();
-            if (($config['app']['name'] ?? null) !== 'benchmark') {
+            if (!is_array($config['app'] ?? null) || ($config['app']['name'] ?? null) !== 'benchmark') {
                 throw new RuntimeException('Unexpected source configuration result.');
             }
         }),
@@ -109,7 +109,7 @@ try {
                 overrides: [],
                 namespaces: ['app', 'cache'],
             )->all();
-            if (($config['cache']['default'] ?? null) !== 'local') {
+            if (!is_array($config['cache'] ?? null) || ($config['cache']['default'] ?? null) !== 'local') {
                 throw new RuntimeException('Unexpected materialized configuration result.');
             }
         }),
@@ -286,7 +286,7 @@ function arrayKitBenchmarkRuntimeEnvironment(string $arrayKitVersion): array
         'php_sapi' => PHP_SAPI,
         'operating_system' => php_uname(),
         'cpu_model' => $cpuModel,
-        'memory_limit' => (($__foundation154_289 = ini_get('memory_limit')) !== false && $__foundation154_289 !== '' && $__foundation154_289 !== '0' ? $__foundation154_289 : 'unknown'),
+        'memory_limit' => (ini_get('memory_limit') ?: 'unknown'),
         'opcache' => extension_loaded('Zend OPcache'),
         'jit' => (($__foundation154_291 = ini_get('opcache.jit')) !== false && $__foundation154_291 !== '' && $__foundation154_291 !== '0' ? $__foundation154_291 : false),
         'xdebug' => extension_loaded('xdebug'),

@@ -284,6 +284,9 @@ it('redacts arbitrarily cased nested credentials for login, reset, MFA and passk
     expect($audit->events())->toHaveCount(4);
     foreach ($audit->events() as $event) {
         $metadata = $event->metadata;
+        if (!is_array($metadata['context'] ?? null) || !is_array($metadata['context']['nested'] ?? null)) {
+            throw new \UnexpectedValueException('Audit metadata must preserve the nested redaction context.');
+        }
         expect($metadata['request_id'])->toBe('safe-request')
             ->and($metadata['authorization_id'])->toBe('safe-authorization')
             ->and($metadata['TokenId'])->toBe('safe-token-id')
@@ -291,9 +294,6 @@ it('redacts arbitrarily cased nested credentials for login, reset, MFA and passk
             ->and($metadata['CREDENTIAL_ID'])->toBe('safe-credential-id')
             ->and($metadata['context']['nested']['device'])->toBe('browser');
 
-        if (!is_array($metadata['context'] ?? null) || !is_array($metadata['context']['nested'] ?? null)) {
-            throw new \UnexpectedValueException('Audit metadata must preserve the nested redaction context.');
-        }
         $context = $metadata['context'];
         foreach (['PASSWORD', 'pAsSwOrD', 'TOKEN', 'API_KEY', 'AUTHORIZATION', 'PRIVATE_KEY', 'mFaSeEd'] as $key) {
             expect($context[$key])->toBe('[REDACTED]');
@@ -336,7 +336,10 @@ it('redacts the full credential-key matrix while preserving explicit audit ident
 
     expect($audit->events())->toHaveCount(4);
     foreach ($audit->events() as $event) {
-        $context = $event->metadata['context'];
+        $context = $event->metadata['context'] ?? null;
+        if (!is_array($context) || !is_array($context['nested'] ?? null)) {
+            throw new \UnexpectedValueException('Credential audit must provide nested redaction metadata.');
+        }
         expect($context['safe'])->toBe($identifiers);
         foreach ($sensitive as $key => $sentinel) {
             expect($context['nested'][$key])->toBe('[REDACTED]');

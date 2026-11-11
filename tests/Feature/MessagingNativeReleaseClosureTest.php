@@ -212,11 +212,10 @@ it('executes Omnibus failure administration and queue monitoring through the rea
 
         $shown = new FoundationMessagingCommandIO();
         expect($dispatcher->run(['infbyte', 'queue:failed:show', 'retry-me'], $shown))->toBe(ExitCode::SUCCESS);
-        if (!is_array($shown->json[0] ?? null)) {
+        if (!isset($shown->json[0]) || !is_array($shown->json[0])) {
             throw new \UnexpectedValueException('Failed-message detail must be an array.');
         }
-        expect($shown->json[0])->toBeArray()
-            ->and($shown->json[0]['id'] ?? null)->toBe('retry-me')
+        expect($shown->json[0]['id'] ?? null)->toBe('retry-me')
             ->and($shown->json[0]['decoded'] ?? null)->toBeTrue();
 
         $retried = new FoundationMessagingCommandIO();

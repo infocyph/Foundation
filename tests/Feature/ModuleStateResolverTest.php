@@ -23,7 +23,7 @@ it('separates direct module ownership from transitive package availability', fun
             'database',
         );
 
-        if (!is_array($direct) || !is_array($direct['packages'] ?? null)
+        if (!is_array($direct['packages'] ?? null)
             || !is_array($direct['packages']['infocyph/dblayer'] ?? null)) {
             throw new \UnexpectedValueException('Direct module ownership requires a DBLayer package status.');
         }

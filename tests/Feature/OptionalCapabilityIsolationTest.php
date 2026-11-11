@@ -33,14 +33,12 @@ it('boots with Foundation core dependencies while optional packages remain unava
         ->and($probe['warm_base_path'] ?? null)->toBe($root)
         ->and(array_filter($probe['loaded_before_isolation'] ?? []))->toBe([]);
 
-    $services = $probe['services'] ?? [];
-    if (!is_array($services) || !is_array($probe['loaded_before_isolation'] ?? null)) {
-        throw new \UnexpectedValueException('Optional capabilities must provide structured isolation evidence.');
-    }
-    expect($services)->toBeArray();
+    $services = $probe['services'];
     foreach ($services as $service => $state) {
-        expect($state)->toBeArray()
-            ->and($state['has'] ?? true)->toBeFalse()
+        if (!is_array($state)) {
+            throw new \UnexpectedValueException('Optional capability service evidence must be structured.');
+        }
+        expect($state['has'] ?? true)->toBeFalse()
             ->and($state['message'] ?? null)->toBeString()
             ->and($state['message'])->toContain(
                 'Unable to resolve service "' . $service . '".',
@@ -53,6 +51,11 @@ it('boots with Foundation core dependencies while optional packages remain unava
         ->and($probe['notifications']['mail_error'])
         ->toContain('optional infocyph/talkingbytes email integration');
 
+    if (!is_array($probe['auth']['default'] ?? null)
+        || !is_array($probe['auth']['otp'] ?? null)
+        || !is_array($probe['auth']['webauthn'] ?? null)) {
+        throw new \UnexpectedValueException('Optional authentication probe must contain driver evidence.');
+    }
     expect($probe['auth']['default']['resolved'] ?? false)->toBeTrue()
         ->and($probe['auth']['default']['message'] ?? null)->toBeNull()
         ->and($probe['auth']['otp']['message'] ?? null)->toBeString()

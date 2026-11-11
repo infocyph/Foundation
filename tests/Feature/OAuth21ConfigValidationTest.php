@@ -33,6 +33,9 @@ it('fails closed when enabled OAuth is missing issuer keys or database state', f
 
 it('accepts the supported OAuth profile when required deployment state is configured', function (): void {
     $config = AuthDefaults::all();
+    if (!is_array($config['auth'] ?? null) || !is_array($config['auth']['oauth'] ?? null)) {
+        throw new \UnexpectedValueException('OAuth defaults must contain a structured configuration.');
+    }
     $config['auth']['oauth'] = array_replace_recursive($config['auth']['oauth'], [
         'enabled' => true,
         'issuer' => 'https://issuer.example.test',

@@ -209,9 +209,14 @@ it('keeps bounded process-local memoizers warm without clearing the shared cache
 
 function foundationCacheOnceValue(OnceMemoizer $memoizer, int &$calls): int
 {
-    return $memoizer->once(static function () use (&$calls): int {
+    $value = $memoizer->once(static function () use (&$calls): int {
         return ++$calls;
     });
+    if (!is_int($value)) {
+        throw new \UnexpectedValueException('Once memoizer must preserve its integer payload.');
+    }
+
+    return $value;
 }
 
 

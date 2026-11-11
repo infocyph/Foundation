@@ -119,7 +119,10 @@ it('protects MFA symmetric secrets with bound AAD and leaves the domain revision
     $factor = foundationEpicrypt3MfaFactor();
 
     $stored = $protector->protect($factor);
-    $storedOtp = $stored->metadata['otp'];
+    $storedOtp = $stored->metadata['otp'] ?? null;
+    if (!is_array($storedOtp) || !is_array($storedOtp['_secret_protection'] ?? null)) {
+        throw new \UnexpectedValueException('Protected MFA OTP metadata must contain an envelope.');
+    }
 
     expect($stored->revision)->toBe($factor->revision)
         ->and($storedOtp['secret'])->toStartWith('ep2.')
@@ -130,9 +133,13 @@ it('protects MFA symmetric secrets with bound AAD and leaves the domain revision
         ->and($storedOtp['_secret_protection']['version'])->toBe(1);
 
     $read = $protector->unprotectResult($stored);
-    expect($read->factor->metadata['otp']['secret'])->toBe('JBSWY3DPEHPK3PXP')
-        ->and($read->factor->metadata['otp']['pin'])->toBe('9284')
-        ->and($read->factor->metadata['otp'])->not->toHaveKey('_secret_protection')
+    $readOtp = $read->factor->metadata['otp'] ?? null;
+    if (!is_array($readOtp)) {
+        throw new \UnexpectedValueException('Unprotected MFA OTP metadata must be structured.');
+    }
+    expect($readOtp['secret'])->toBe('JBSWY3DPEHPK3PXP')
+        ->and($readOtp['pin'])->toBe('9284')
+        ->and($readOtp)->not->toHaveKey('_secret_protection')
         ->and($read->factor->revision)->toBe($factor->revision)
         ->and($read->usedFallbackKey)->toBeFalse()
         ->and($read->legacyPlaintext)->toBeFalse();

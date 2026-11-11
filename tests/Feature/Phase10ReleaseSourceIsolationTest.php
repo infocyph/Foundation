@@ -54,13 +54,16 @@ it('boots immutable releases without rediscovering application source files', fu
             throw new \UnexpectedValueException('Generated Foundation release manifest must be an array.');
         }
 
+        if (!is_string($manifest['config_sha256'] ?? null)) {
+            throw new \UnexpectedValueException('Release manifest must contain a configuration digest.');
+        }
         expect(is_file($generation . '/config.php'))->toBeTrue()
             ->and($manifest['config_path'] ?? null)->toBe('config.php')
             ->and($manifest['config_sha256'] ?? null)->toMatch('/^[a-f0-9]{64}$/D');
 
         $releaseConfig = FoundationReleaseConfig::load(
             $generation . '/config.php',
-            (string) $manifest['config_sha256'],
+            $manifest['config_sha256'],
         );
         expect($releaseConfig->isCompiled())->toBeTrue()
             ->and($releaseConfig->get('app.base_path'))->toBe($project);
@@ -239,6 +242,9 @@ function foundationPhase10ReleaseRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!$file instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('Release fixture cleanup requires filesystem entries.');
+        }
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

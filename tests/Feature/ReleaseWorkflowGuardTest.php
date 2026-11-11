@@ -9,7 +9,13 @@ it('requires tagged Foundation releases to pass quality and production consumers
     if (!is_array($workflow) || !is_array($workflow['jobs'] ?? null)) {
         throw new \UnexpectedValueException('Release workflow must define a jobs map.');
     }
-    $jobs = $workflow['jobs'];
+    $jobs = [];
+    foreach ($workflow['jobs'] as $name => $definition) {
+        if (!is_string($name) || !is_array($definition)) {
+            throw new \UnexpectedValueException('Release workflow jobs must be named mappings.');
+        }
+        $jobs[$name] = $definition;
+    }
 
     expect($jobs['release']['needs'] ?? [])->toContain('phpforge', 'production-consumer', 'release-evidence', 'runtime-hosts')
         ->and($jobs['release']['if'])->toContain("startsWith(github.ref, 'refs/tags/')")

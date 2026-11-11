@@ -116,7 +116,7 @@ it('keeps Composer publication metadata and optional package roles consistent wi
         'psr/log' => '^3.0.2',
     ];
 
-    if (!is_array($manifest) || !is_array($manifest['autoload'] ?? null)
+    if (!is_array($manifest['autoload'] ?? null)
         || !is_array($manifest['autoload']['psr-4'] ?? null)
         || !is_array($manifest['require'] ?? null)
         || !is_array($manifest['require-dev'] ?? null)

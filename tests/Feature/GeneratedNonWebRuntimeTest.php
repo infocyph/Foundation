@@ -423,6 +423,9 @@ it('keeps the last good artifact when a new build contains skipped definitions',
         ];
 
         $invalid = $config;
+        if (!is_array($invalid['providers'] ?? null) || !is_array($invalid['providers']['common'] ?? null)) {
+            throw new \UnexpectedValueException('Generated runtime fixture must contain provider configuration.');
+        }
         $invalid['providers']['common'][] = FoundationGeneratedRuntimeDynamicProvider::class;
         expect(fn() => $compiler->compile($invalid, RuntimeMode::Cli, $artifact))
             ->toThrow(RuntimeException::class, 'not statically compiled');
@@ -449,6 +452,9 @@ it('rejects stale runtime, configuration, and capability identities before loadi
             ->toThrow(RuntimeException::class, 'identity does not match');
 
         $changed = $config;
+        if (!is_array($changed['app'] ?? null)) {
+            throw new \UnexpectedValueException('Generated runtime fixture must contain application configuration.');
+        }
         $changed['app']['name'] = 'Changed generated runtime';
         expect(fn() => GeneratedRuntime::load($changed, RuntimeMode::Cli, $artifact))
             ->toThrow(RuntimeException::class, 'identity does not match');
@@ -535,6 +541,9 @@ it('treats feature selection as trusted immutable generated-runtime identity', f
         $metadata = $artifact . '.foundation.json';
         $contents = (string) file_get_contents($metadata);
         $forged = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($forged)) {
+            throw new \UnexpectedValueException('Generated runtime metadata must be an object.');
+        }
         $forged['config_fingerprint'] = str_repeat('0', 32);
         file_put_contents($metadata, json_encode($forged, JSON_THROW_ON_ERROR));
 

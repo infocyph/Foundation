@@ -17,6 +17,15 @@ $candidate = json_decode((string) file_get_contents($argv[2]), true, flags: JSON
 if (!is_array($candidate)) {
     throw new \UnexpectedValueException('Expected a decoded JSON object.');
 }
+foreach ([$baseline, $candidate] as $report) {
+    foreach (array_keys($report) as $key) {
+        if (!is_string($key)) {
+            throw new InvalidArgumentException('Module CLI reports require string keys.');
+        }
+    }
+}
+/** @var array<string,mixed> $baseline */
+/** @var array<string,mixed> $candidate */
 $result = FoundationModuleCliComparison::compare($baseline, $candidate);
 $json = json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL;
 if (file_put_contents($argv[3], $json, LOCK_EX) === false) {

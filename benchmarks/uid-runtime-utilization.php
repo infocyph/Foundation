@@ -128,7 +128,7 @@ function uidRuntimeEnvironment(string $uidVersion): array
         'php_sapi' => PHP_SAPI,
         'operating_system' => php_uname(),
         'cpu_model' => $cpuModel,
-        'memory_limit' => (($__foundation154_131 = ini_get('memory_limit')) !== false && $__foundation154_131 !== '' && $__foundation154_131 !== '0' ? $__foundation154_131 : 'unknown'),
+        'memory_limit' => (ini_get('memory_limit') ?: 'unknown'),
         'opcache' => extension_loaded('Zend OPcache'),
         'jit' => (($__foundation154_133 = ini_get('opcache.jit')) !== false && $__foundation154_133 !== '' && $__foundation154_133 !== '0' ? $__foundation154_133 : false),
         'xdebug' => extension_loaded('xdebug'),

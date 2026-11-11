@@ -222,8 +222,8 @@ it('recovers an in-flight host-cancelled durable message after its original visi
         // Omnibus leaves an in-flight cancelled delivery leased until visibility
         // expiry. It must not acknowledge it or turn host cancellation into a
         // permanent delivery failure.
-        expect((int) $connection->scalar('SELECT COUNT(*) FROM omnibus_messages'))->toBe(1)
-            ->and((int) $connection->scalar('SELECT attempts FROM omnibus_messages'))->toBe(1)
+        expect(foundationOmnibusDurableScalarInt($connection, 'SELECT COUNT(*) FROM omnibus_messages'))->toBe(1)
+            ->and(foundationOmnibusDurableScalarInt($connection, 'SELECT attempts FROM omnibus_messages'))->toBe(1)
             ->and($transport->size('work'))->toBe(0)
             ->and($app->make(DBLayerFailureStore::class)->all())->toBe([])
             ->and(FoundationOmnibusDurableHandler::$handled)->toBe([]);
@@ -237,7 +237,7 @@ it('recovers an in-flight host-cancelled durable message after its original visi
             ->and(FoundationOmnibusDurableHandler::$handled)->toBe(['cancel-inflight'])
             ->and($transport->size('work'))->toBe(0)
             ->and($app->make(DBLayerFailureStore::class)->all())->toBe([])
-            ->and((int) $connection->scalar('SELECT COUNT(*) FROM omnibus_messages'))->toBe(0)
+            ->and(foundationOmnibusDurableScalarInt($connection, 'SELECT COUNT(*) FROM omnibus_messages'))->toBe(0)
             ->and($consumer->run('work')->received)->toBe(0);
     } finally {
         unset($app);
@@ -323,7 +323,7 @@ it('retries a transient durable delivery once without losing or duplicating the 
             ->and($first->succeeded)->toBe(0)
             ->and($first->failed)->toBe(0)
             ->and($transport->size('work'))->toBe(1)
-            ->and((int) $connection->scalar('SELECT attempts FROM omnibus_messages'))->toBe(1)
+            ->and(foundationOmnibusDurableScalarInt($connection, 'SELECT attempts FROM omnibus_messages'))->toBe(1)
             ->and($app->make(DBLayerFailureStore::class)->all())->toBe([])
             ->and(FoundationOmnibusDurableHandler::$handled)->toBe([]);
 
@@ -336,7 +336,7 @@ it('retries a transient durable delivery once without losing or duplicating the 
             ->and(FoundationOmnibusDurableHandler::$handled)->toBe(['transient'])
             ->and($transport->size('work'))->toBe(0)
             ->and($app->make(DBLayerFailureStore::class)->all())->toBe([])
-            ->and((int) $connection->scalar('SELECT COUNT(*) FROM omnibus_messages'))->toBe(0);
+            ->and(foundationOmnibusDurableScalarInt($connection, 'SELECT COUNT(*) FROM omnibus_messages'))->toBe(0);
 
         expect($consumer->run('work')->received)->toBe(0)
             ->and(FoundationOmnibusDurableHandler::$handled)->toBe(['transient']);
@@ -370,11 +370,11 @@ it('rejects a stale durable lease receipt after a newer consumer reclaims the me
             ->and($current->attempt)->toBe($stale->attempt + 1)
             ->and(fn() => $transport->acknowledge($stale))->toThrow(InvalidReservation::class)
             ->and(fn() => $transport->release($stale))->toThrow(InvalidReservation::class)
-            ->and((int) $connection->scalar('SELECT COUNT(*) FROM omnibus_messages'))->toBe(1);
+            ->and(foundationOmnibusDurableScalarInt($connection, 'SELECT COUNT(*) FROM omnibus_messages'))->toBe(1);
 
         $transport->acknowledge($current);
 
-        expect((int) $connection->scalar('SELECT COUNT(*) FROM omnibus_messages'))->toBe(0)
+        expect(foundationOmnibusDurableScalarInt($connection, 'SELECT COUNT(*) FROM omnibus_messages'))->toBe(0)
             ->and($app->make(DBLayerFailureStore::class)->all())->toBe([]);
     } finally {
         unset($app);
@@ -433,10 +433,10 @@ it('preserves durable receipts and retries on selected production SQL engines', 
             ->and($current->receipt)->not->toBe($stale->receipt)
             ->and(fn() => $transport->acknowledge($stale))->toThrow(InvalidReservation::class)
             ->and(fn() => $transport->release($stale))->toThrow(InvalidReservation::class)
-            ->and((int) $connection->scalar("SELECT COUNT(*) FROM {$tables['messages']}"))->toBe(1);
+            ->and(foundationOmnibusDurableScalarInt($connection, "SELECT COUNT(*) FROM {$tables['messages']}"))->toBe(1);
 
         $transport->acknowledge($current);
-        expect((int) $connection->scalar("SELECT COUNT(*) FROM {$tables['messages']}"))->toBe(0);
+        expect(foundationOmnibusDurableScalarInt($connection, "SELECT COUNT(*) FROM {$tables['messages']}"))->toBe(0);
 
         $bus->dispatch(new FoundationOmnibusDurableMessage('transient'));
         $first = $consumer->run('work');
@@ -450,7 +450,7 @@ it('preserves durable receipts and retries on selected production SQL engines', 
             ->and(FoundationOmnibusDurableHandler::$transientAttempts)->toBe(2)
             ->and(FoundationOmnibusDurableHandler::$handled)->toBe(['transient'])
             ->and($transport->size('work'))->toBe(0)
-            ->and((int) $connection->scalar("SELECT COUNT(*) FROM {$tables['messages']}"))->toBe(0)
+            ->and(foundationOmnibusDurableScalarInt($connection, "SELECT COUNT(*) FROM {$tables['messages']}"))->toBe(0)
             ->and($app->make(DBLayerFailureStore::class)->all())->toBe([]);
     } finally {
         // Per-test tables avoid modifying any shared selected CI database schema.
@@ -790,3 +790,14 @@ it('rejects durable selected messaging without DB ownership before opening stora
         foundationOmnibusRemoveDatabase($database);
     }
 });
+
+/** @throws \UnexpectedValueException */
+function foundationOmnibusDurableScalarInt(\Infocyph\DBLayer\Connection\Connection $connection, string $query): int
+{
+    $value = $connection->scalar($query);
+    if (!is_numeric($value)) {
+        throw new \UnexpectedValueException('Durable transport count query must return a number.');
+    }
+
+    return (int) $value;
+}

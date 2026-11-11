@@ -151,6 +151,9 @@ function foundationTalkingBytesEmailRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!$file instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('Email fixture cleanup requires filesystem entries.');
+        }
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

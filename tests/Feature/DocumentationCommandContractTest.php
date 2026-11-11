@@ -21,7 +21,7 @@ it('keeps documented infbyte command examples dispatchable', function (): void {
             throw new RuntimeException('Unable to read documentation file: ' . $path);
         }
         preg_match_all('/\bphp\s+infbyte\s+([a-z][a-z0-9:_-]*)/i', $contents, $matches);
-        foreach ($matches[1] ?? [] as $command) {
+        foreach ($matches[1] as $command) {
             $documented[strtolower($command)] = $path;
         }
     }

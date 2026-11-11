@@ -117,9 +117,15 @@ it('includes Foundation OAuth routes in compiled Webrick releases', function ():
             $root . '/bootstrap/cache/release.json',
             ['auth', 'cache', 'database', 'session'],
         );
+        if (!is_array($release['intermix'] ?? null)) {
+            throw new \UnexpectedValueException('Compiled OAuth release must provide InterMix evidence.');
+        }
         expect($release['intermix']['skipped'] ?? null)->toBe([]);
 
         $payload = require $router;
+        if (!is_array($payload)) {
+            throw new \UnexpectedValueException('Compiled OAuth router payload must be an array.');
+        }
         expect($payload)->toBeArray();
         $artifact = CompiledRouterArtifact::fromPayload($payload);
         $oauthMetadata = null;
@@ -182,7 +188,7 @@ it('resolves Foundation-owned OAuth environment configuration once at bootstrap'
     }
 });
 
-/** @return array<string, object> */
+/** @return array<string, \Infocyph\Webrick\Interfaces\RouteInterface> */
 function foundationOAuthHttpRoutes(Registrar $registrar): array
 {
     $routes = [];

@@ -56,6 +56,9 @@ it('forwards host Runwire inputs through worker CLI and scheduler owned and borr
                 executionId: new ExecutionId('native-' . $mode),
             );
 
+            if (!is_array($result) || !is_array($result[3] ?? null)) {
+                throw new \UnexpectedValueException('Borrowed Runwire scope must return a structured context tuple.');
+            }
             expect($result[0])->toBe($runtime)
                 ->and($result[1])->toBe($request)
                 ->and($result[2])->toBe($result[3][2])

@@ -65,6 +65,7 @@ if ($profile === 'authenticated-read') {
     $sourceConfig = array_replace_recursive($sourceConfig, \Infocyph\Foundation\Benchmarks\Foundation4AuthenticatedWorkload::configuration($app));
     \Infocyph\Foundation\Benchmarks\Foundation4AuthenticatedWorkload::seed($sourceConfig, $app);
 }
+/** @var array<string,mixed> $sourceConfig */
 $configCache = $app . '/bootstrap/cache/config';
 $configLoader = new ConfigLoader();
 $normalizedConfig = $configLoader->load($sourceConfig + ['_config_cache' => false]);
@@ -130,6 +131,9 @@ $release = new WebReleaseCompiler()->compile(
 $trustedSha256 = $release['release_runtime_manifest_sha256'] ?? null;
 if (!is_string($trustedSha256) || preg_match('/^[a-f0-9]{64}$/D', $trustedSha256) !== 1) {
     throw new RuntimeException('Phase 9 server fixture did not produce a trusted release manifest identity.');
+}
+if (!is_array($release['intermix'] ?? null)) {
+    throw new RuntimeException('Phase 9 server fixture must produce an InterMix compilation report.');
 }
 $skipped = $release['intermix']['skipped'] ?? null;
 if (!is_array($skipped) || $skipped !== []) {

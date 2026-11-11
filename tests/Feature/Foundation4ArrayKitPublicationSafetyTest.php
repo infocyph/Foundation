@@ -116,7 +116,11 @@ it('preserves native generations for readers pinned before a single-mode transit
 
         $writer->writeSingle(['app' => ['name' => 'after']], $cache);
 
-        expect($writer->loadSingle($cache . '/config.php')['app']['name'] ?? null)->toBe('after');
+        $published = $writer->loadSingle($cache . '/config.php');
+        if (!is_array($published) || !is_array($published['app'] ?? null)) {
+            throw new \UnexpectedValueException('Published ArrayKit config must contain an application map.');
+        }
+        expect($published['app']['name'] ?? null)->toBe('after');
         if ($generation !== null) {
             // Native generations pin readers; legacy ArrayKit versions wrote root-level files.
             expect($pointer)->not->toBeFile()

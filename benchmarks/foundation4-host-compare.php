@@ -18,6 +18,15 @@ if (!is_array($baseline) || !is_array($candidate) || array_is_list($baseline) ||
     throw new InvalidArgumentException('Both Foundation 4 host reports must be JSON objects.');
 }
 
+foreach ([$baseline, $candidate] as $report) {
+    foreach (array_keys($report) as $key) {
+        if (!is_string($key)) {
+            throw new InvalidArgumentException('Foundation 4 host reports require string keys.');
+        }
+    }
+}
+/** @var array<string,mixed> $baseline */
+/** @var array<string,mixed> $candidate */
 $result = Foundation4HostComparison::compare($baseline, $candidate);
 $json = json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL;
 if (file_put_contents($argv[3], $json, LOCK_EX) === false) {

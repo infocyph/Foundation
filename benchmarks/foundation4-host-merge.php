@@ -43,7 +43,14 @@ foreach ($reports as $variant => $parts) {
                 throw new RuntimeException('Paired host report identity mismatch: ' . $field);
             }
         }
-        foreach ($part['soak'] ?? [] as $host => $soak) {
+        $soakReports = $part['soak'] ?? [];
+        if (!is_array($soakReports) || !is_array($part['hosts'] ?? null)) {
+            throw new RuntimeException('Paired host report must include soak and host maps.');
+        }
+        foreach ($soakReports as $host => $soak) {
+            if (!is_string($host)) {
+                throw new RuntimeException('Paired host identity must be a string.');
+            }
             if (!is_array($soak) || !is_array($soak['windows'] ?? null)) {
                 throw new RuntimeException('Invalid sustained host soak evidence structure.');
             }
@@ -54,6 +61,9 @@ foreach ($reports as $variant => $parts) {
                 throw new RuntimeException('Missing or duplicate sustained host soak evidence.');
             }
             foreach ($soak['windows'] as $window) {
+                if (!is_array($window)) {
+                    throw new RuntimeException('Sustained host soak window must be structured.');
+                }
                 if (($window['duration_seconds'] ?? 0) < 120
                     || ($window['successful'] ?? 0) < $combined['request_count']
                     || ($window['failed'] ?? null) !== 0
@@ -68,7 +78,13 @@ foreach ($reports as $variant => $parts) {
             $combined['soak'][$host] = $soak;
         }
         foreach ($part['hosts'] as $host => $cases) {
+            if (!is_string($host) || !is_array($cases)) {
+                throw new RuntimeException('Paired host cases must have named host lists.');
+            }
             foreach ($cases as $case) {
+                if (!is_array($case)) {
+                    throw new RuntimeException('Paired host scenario must be structured.');
+                }
                 $case['hardware_id'] = $part['hardware_id'];
                 $combined['hosts'][$host][] = $case;
             }

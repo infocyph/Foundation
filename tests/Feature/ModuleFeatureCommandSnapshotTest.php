@@ -156,8 +156,7 @@ it('reloads changed application policy and rejects a plan captured before that c
         file_put_contents($path . '/config/auth.php', "<?php return ['drivers' => ['passwords' => 'security']];\n");
 
         $current = $snapshots->capture();
-        if (!is_array($current['config'] ?? null)
-        || !is_array($current['config']['auth'] ?? null)
+        if (!is_array($current['config']['auth'] ?? null)
         || !is_array($current['config']['auth']['drivers'] ?? null)) {
             throw new \UnexpectedValueException('Expected a structured module configuration snapshot.');
         }

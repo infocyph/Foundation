@@ -101,6 +101,9 @@ it('finalizes abandoned browser sessions when their native request scope is disc
         return $session;
     });
 
+    if (!$session instanceof BrowserSession) {
+        throw new \UnexpectedValueException('Browser session fixture must return an owned session.');
+    }
     expect(fn(): mixed => $session->put('after_scope', true))
         ->toThrow(LogicException::class, 'finalized for this request');
 });
@@ -177,7 +180,10 @@ it('accepts CSRF tokens only from the configured header or body', function (): v
         ]),
     );
     $id = browserSessionCookieId($bootstrap);
-    $token = browserSessionJson($bootstrap)['token'];
+    $token = browserSessionJson($bootstrap)['token'] ?? null;
+    if (!is_string($token)) {
+        throw new \UnexpectedValueException('CSRF bootstrap must issue a string token.');
+    }
 
     $header = $sessionMiddleware(
         Request::fake(
@@ -229,7 +235,10 @@ it('rejects cross-session and superseded CSRF tokens without invalidating other 
     $firstId = browserSessionCookieId($first);
     $secondId = browserSessionCookieId($second);
     $firstToken = browserSessionJson($first)['token'];
-    $secondToken = browserSessionJson($second)['token'];
+    $secondToken = browserSessionJson($second)['token'] ?? null;
+    if (!is_string($firstToken) || !is_string($secondToken)) {
+        throw new \UnexpectedValueException('CSRF session bootstrap must return string tokens.');
+    }
     $submit = static fn(string $id, string $token): Response => $sessionMiddleware(
         Request::fake(
             headers: [
@@ -258,7 +267,10 @@ it('rejects cross-session and superseded CSRF tokens without invalidating other 
             'token' => BrowserSession::fromRequest($request)->regenerateCsrfToken(),
         ]),
     );
-    $replacementToken = browserSessionJson($rotated)['token'];
+    $replacementToken = browserSessionJson($rotated)['token'] ?? null;
+    if (!is_string($replacementToken)) {
+        throw new \UnexpectedValueException('CSRF rotation must return a string token.');
+    }
 
     expect($replacementToken)->not->toBe($firstToken)
         ->and($submit($firstId, $firstToken)->getStatusCode())->toBe(419)

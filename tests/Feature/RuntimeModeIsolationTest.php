@@ -126,6 +126,9 @@ it('keeps Webrick and HTTP adapters out of non-web compilation and execution', f
         if (!is_array($probe)) {
             throw new \UnexpectedValueException('Expected a decoded JSON object.');
         }
+        if (!is_array($probe['executions'] ?? null)) {
+            throw new \UnexpectedValueException('Runtime isolation probe must provide execution identities.');
+        }
         expect($probe['runtime'])->toBe($mode)
             ->and($probe['webrick'])->toBe([])
             ->and($probe['executions'])->toHaveCount(2)
@@ -145,6 +148,9 @@ function runtimeModeRemoveDirectory(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!$file instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('Runtime fixture cleanup requires filesystem entries.');
+        }
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

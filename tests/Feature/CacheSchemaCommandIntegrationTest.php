@@ -185,6 +185,9 @@ it('manages database-backed CacheLayer schemas through core cache commands', fun
         if (!is_array($installPayload)) {
             throw new \UnexpectedValueException('Expected cache schema installation payload.');
         }
+        if (!is_array($installPayload['schemas'] ?? null) || !is_array($installPayload['schemas'][0] ?? null)) {
+            throw new \UnexpectedValueException('Installed cache schema must contain a schema record.');
+        }
         expect($installPayload['schemas'][0]['state'] ?? null)->toBe('installed')
             ->and($installPayload['schemas'][0]['installed'] ?? null)->toBeTrue();
 
@@ -194,6 +197,9 @@ it('manages database-backed CacheLayer schemas through core cache commands', fun
         $afterPayload = $after->lastPayload();
         if (!is_array($afterPayload)) {
             throw new \UnexpectedValueException('Cache schema status response must be an array.');
+        }
+        if (!is_array($afterPayload['schemas'] ?? null) || !is_array($afterPayload['schemas'][0] ?? null)) {
+            throw new \UnexpectedValueException('Final cache schema status must contain a schema record.');
         }
         expect($afterPayload['schemas'][0]['state'] ?? null)->toBe('installed');
     } finally {

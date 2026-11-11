@@ -22,10 +22,18 @@ it('enforces browser-session contention through every configured shared lock bac
         throw new RuntimeException('The configured CI lock backend is unavailable.');
     }
 
+    if (!is_array($pair) || !array_is_list($pair) || count($pair) !== 2
+        || !$pair[0] instanceof LockProviderInterface
+        || !$pair[1] instanceof LockProviderInterface) {
+        throw new \UnexpectedValueException('Lock fixture must return two lock providers.');
+    }
     [$holder, $contender] = $pair;
     $id = bin2hex(random_bytes(32));
     $key = FoundationCacheKey::security('session-lock', 'browser-session-lock', $id);
     $held = $holder->acquire($key, 0.0, 5.0);
+    if ($held === null) {
+        throw new \UnexpectedValueException('Shared lock fixture must acquire its first lease.');
+    }
     expect($held)->not->toBeNull();
 
     $config = static fn(float $wait): SessionConfig => SessionConfig::fromRepository(

@@ -13,6 +13,7 @@ use Infocyph\ReqShield\Support\ValidationResult;
 it('emits JsonDispatch 3 success envelopes and resource transformations', function (): void {
     $factory = new JsonDispatchResponseFactory('example', '7.4.0');
     $resource = new class(['id' => 7, 'secret' => 'hidden']) extends JsonResource {
+        /** @throws \UnexpectedValueException */
         #[\Override]
         public function resolve(): mixed
         {

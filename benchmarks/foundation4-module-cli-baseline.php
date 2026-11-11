@@ -109,10 +109,29 @@ try {
             ));
         }
 
+        $moduleFeatures = [];
+        $modules = [];
+        if ($name === 'list') {
+            $modules = $io->payload['modules'] ?? null;
+            if (!is_array($modules)) {
+                throw new RuntimeException('Module inventory must contain a list of modules.');
+            }
+            foreach ($modules as $module) {
+                if (!is_array($module) || !is_array($module['features'] ?? null)) {
+                    throw new RuntimeException('Module inventory must contain feature lists.');
+                }
+                foreach ($module['features'] as $feature) {
+                    if (!is_string($feature)) {
+                        throw new RuntimeException('Module inventory feature names must be strings.');
+                    }
+                    $moduleFeatures[] = $feature;
+                }
+            }
+        }
         if ($name === 'list' && (
             ($io->payload['schema_version'] ?? null) !== 2
-            || count($io->payload['modules'] ?? []) !== 3
-            || count(array_merge(...array_column($io->payload['modules'] ?? [], 'features'))) < 1
+            || count($modules) !== 3
+            || $moduleFeatures === []
         )) {
             throw new RuntimeException('Foundation 4 module catalog must contain exactly three groups with nonempty feature inventory.');
         }
@@ -122,7 +141,7 @@ try {
         }
 
         if ($name === 'list') {
-            $featureCount = count(array_merge(...array_column($io->payload['modules'], 'features')));
+            $featureCount = count($moduleFeatures);
         }
 
         $warm = [];
