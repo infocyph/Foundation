@@ -66,9 +66,6 @@ it('allows only one rotation and rejects revoked changed expired and cross-accou
     expect($store->rotate($original, $second, $now))->toBeFalse();
     $fresh = $store->find('original');
     expect($fresh)->not->toBeNull();
-    if ($fresh === null) {
-        throw new RuntimeException('Session fixture disappeared.');
-    }
     expect($store->rotate($fresh, $second, $now + 301))->toBeFalse()
         ->and($store->rotate($fresh, new AuthSession('foreign', 'other', null, $now, $now, $now + 300), $now))->toBeFalse()
         ->and($store->find('original'))->not->toBeNull();

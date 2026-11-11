@@ -39,7 +39,7 @@ function cacheLayer33Measure(
         }
         $elapsed = max(1, hrtime(true) - $started);
         $totalNanoseconds += $elapsed;
-        $samples[] = $elapsed / $operations;
+        $samples[] = (float) $elapsed / (float) $operations;
     }
 
     sort($samples, SORT_NUMERIC);
@@ -60,7 +60,7 @@ function cacheLayer33Measure(
         ],
         'repetitions' => $repetitions,
         'warmup_operations' => $warmup,
-        'duration_seconds' => $totalNanoseconds / 1_000_000_000,
+        'duration_seconds' => (float) $totalNanoseconds / 1_000_000_000.0,
         'concurrency' => 1,
         'result' => [
             'attempted_operations' => $attempted,
@@ -85,7 +85,7 @@ function cacheLayer33Measure(
             ],
             'stability' => [
                 'status' => 'unverified',
-                'spread_percent' => (($maximum - $minimum) / max(0.000001, $median)) * 100,
+                'spread_percent' => (($maximum - $minimum) / max(0.000001, $median)) * 100.0,
             ],
         ],
     ];

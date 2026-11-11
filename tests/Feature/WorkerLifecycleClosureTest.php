@@ -211,7 +211,9 @@ it('does not enter an explicit singleton provider when another owner holds its l
 
     $externalLocks = new FileLockProvider($lockPath);
     $held = $externalLocks->acquire('foundation:worker:singleton-blocked', 0.0, 30.0);
-    expect($held)->not->toBeNull();
+    if ($held === null) {
+        throw new \RuntimeException('Expected a competing singleton worker lock.');
+    }
 
     try {
         $app = Foundation::worker([
@@ -228,9 +230,7 @@ it('does not enter an explicit singleton provider when another owner holds its l
             ->and(FoundationWorkerLifecycleSingletonProvider::$runs)->toBe(0)
             ->and((new RuntimeProcessRegistry($app))->all('worker', 'singleton-blocked'))->toBe([]);
     } finally {
-        if ($held !== null) {
-            $externalLocks->release($held);
-        }
+        $externalLocks->release($held);
         foundationWorkerLifecycleRemove($basePath);
     }
 });

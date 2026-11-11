@@ -708,7 +708,7 @@ it('isolates active sessions between concurrent fibers', function (): void {
 });
 
 /**
- * @return array{Closure,SessionManager,ArraySessionStore,SessionConfig,Container}
+ * @return array{Closure(Request, callable(Request):Response):Response,SessionManager,ArraySessionStore,SessionConfig,Container}
  * @throws \InvalidArgumentException
  */
 function browserSessionStack(): array

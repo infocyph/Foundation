@@ -53,10 +53,14 @@ it('accepts a stable throughput change inside the strict 2 percent budget', func
         throw new \UnexpectedValueException('Host comparison cases must be an array.');
     }
 
+    $firstCase = $result['cases'][0] ?? null;
+    if (!is_array($firstCase)) {
+        throw new \UnexpectedValueException('Host comparison must contain a measured case.');
+    }
     expect($result['passed'])->toBeTrue()
         ->and($result['cases'])->toHaveCount(12)
-        ->and($result['cases'][0]['status'])->toBe('pass')
-        ->and($result['cases'][0]['delta_percent'])->toBe(-2.0);
+        ->and($firstCase['status'])->toBe('pass')
+        ->and($firstCase['delta_percent'])->toBe(-2.0);
 });
 
 it('rejects a throughput regression exceeding 2 percent', function (): void {

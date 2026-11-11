@@ -138,10 +138,9 @@ it('resolves relative log paths from the application and includes exception deta
         ]);
 
         $record = json_decode(trim((string) file_get_contents($path)), true, flags: JSON_THROW_ON_ERROR);
-        if (!is_array($record)) {
-            throw new \UnexpectedValueException('Expected a JSON log record.');
+        if (!is_array($record) || !is_array($record['context'] ?? null) || !is_array($record['context']['exception'] ?? null)) {
+            throw new \UnexpectedValueException('Expected an error log with structured exception context.');
         }
-
 
         expect($record['context']['exception']['message'])->toBe('safe-in-this-test')
             ->and($record['context']['exception'])->toHaveKey('trace');

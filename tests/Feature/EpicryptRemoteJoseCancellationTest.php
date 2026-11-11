@@ -75,7 +75,9 @@ it('never serves stale remote JOSE keys when a selected resolver cancels the bor
             null,
             static function () use ($remote): void {
                 $borrowed = CacheRunwire::current();
-                expect($borrowed)->not->toBeNull();
+                if ($borrowed === null) {
+                    throw new \RuntimeException('Expected a bound Runwire execution context.');
+                }
 
                 $context = new RunwireExecutionContext(
                     $borrowed->runtime,

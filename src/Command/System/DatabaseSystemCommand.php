@@ -13,11 +13,20 @@ use Infocyph\Foundation\Database\DBLayerFactory;
 
 final class DatabaseSystemCommand extends SystemCommand
 {
+    private readonly Application $application;
+
+    private readonly DatabaseMigrationManager $migrations;
+
+    private readonly DBLayerFactory $database;
+
     public function __construct(
-        private readonly Application $application,
-        private readonly DatabaseMigrationManager $migrations,
-        private readonly DBLayerFactory $database,
+        Application $application,
+        DatabaseMigrationManager $migrations,
+        DBLayerFactory $database,
     ) {
+        $this->application = $application;
+        $this->migrations = $migrations;
+        $this->database = $database;
     }
 
     #[\Override]

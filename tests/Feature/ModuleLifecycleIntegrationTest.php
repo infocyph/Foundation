@@ -154,10 +154,14 @@ it('publishes the three-group eight-feature public command inventory in version 
             ]);
 
         $details = new FoundationModuleLifecycleIO();
-        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:show', 'data'], $details))->toBe(ExitCode::SUCCESS)
-            ->and($details->lastPayload()['module'])->toBe('data')
-            ->and($details->lastPayload()['schema_version'])->toBe(2)
-            ->and(array_keys($details->lastPayload()['states']))->toBe(['data.database', 'data.filesystem']);
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:show', 'data'], $details))->toBe(ExitCode::SUCCESS);
+        $detailPayload = $details->lastPayload();
+        if (!is_array($detailPayload) || !is_array($detailPayload['states'] ?? null)) {
+            throw new \UnexpectedValueException('Module detail response must contain a state map.');
+        }
+        expect($detailPayload['module'])->toBe('data')
+            ->and($detailPayload['schema_version'])->toBe(2)
+            ->and(array_keys($detailPayload['states']))->toBe(['data.database', 'data.filesystem']);
     } finally {
         moduleLifecycleRemoveDirectory($path);
     }

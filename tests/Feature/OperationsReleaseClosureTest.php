@@ -14,7 +14,7 @@ final class FoundationOperationsReleaseIO implements CommandIO
     /** @var list<string> */
     public array $errors = [];
 
-    /** @var list<mixed> */
+    /** @var list<array<array-key,mixed>> */
     public array $json = [];
 
     /**
@@ -52,6 +52,9 @@ final class FoundationOperationsReleaseIO implements CommandIO
     #[\Override]
     public function json(mixed $value): void
     {
+        if (!is_array($value)) {
+            throw new \UnexpectedValueException('Operations command output must be a JSON object.');
+        }
         $this->json[] = $value;
     }
 

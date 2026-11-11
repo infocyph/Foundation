@@ -40,14 +40,18 @@ it('audits access-token revocation only after authoritative Epicrypt status chan
 
         expect(fn() => $fixture->accessTokens->verify($issued->accessToken, $audience))
             ->toThrow(OAuthTokenException::class)
-            ->and($capture->events)->toHaveCount(1)
-            ->and($capture->events[0]->type)->toBe(AuthEventType::OAUTH_ACCESS_TOKEN_REVOKED)
-            ->and($capture->events[0]->metadata)->toMatchArray([
+            ->and($capture->events)->toHaveCount(1);
+        $event = $capture->events[0] ?? null;
+        if (!$event instanceof \Infocyph\Foundation\Auth\Audit\AuthEvent) {
+            throw new \UnexpectedValueException('Expected an OAuth revocation audit event.');
+        }
+        expect($event->type)->toBe(AuthEventType::OAUTH_ACCESS_TOKEN_REVOKED)
+            ->and($event->metadata)->toMatchArray([
                 'client_id' => $registration->client->clientId,
                 'result' => 'revoked',
                 'token_type' => 'access_token',
             ])
-            ->and(json_encode($capture->events[0]->metadata, JSON_THROW_ON_ERROR))
+            ->and(json_encode($event->metadata, JSON_THROW_ON_ERROR))
             ->not->toContain($issued->accessToken);
     } finally {
         $fixture->close();

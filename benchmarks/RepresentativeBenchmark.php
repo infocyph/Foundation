@@ -279,6 +279,7 @@ PHP);
      * @param callable():bool $operation One complete validated operation.
      * @param array<string, mixed> $metadata Reproduction metadata.
      * @return array<string, mixed>
+     * @throws \RuntimeException
      */
     private function measure(string $name, string $type, callable $operation, array $metadata): array
     {
@@ -367,7 +368,7 @@ PHP);
                     'p50' => $this->percentile($latencies, 0.50),
                     'p95' => $this->percentile($latencies, 0.95),
                     'p99' => $this->percentile($latencies, 0.99),
-                    'maximum' => $latencies[array_key_last($latencies)] ?? null,
+                    'maximum' => $latencies === [] ? null : $latencies[count($latencies) - 1],
                 ],
                 'cpu' => [
                     'average_percent' => null,

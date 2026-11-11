@@ -117,6 +117,7 @@ PHP);
 }
 
 /**
+ * @return array{median_ns_per_operation:float, ...}
  * @throws \RuntimeException
  */
 function foundationMaintenanceBenchmarkChild(string $mode): array
@@ -146,9 +147,13 @@ function foundationMaintenanceBenchmarkChild(string $mode): array
     }
 
     $result = json_decode(trim($stdout), true, flags: JSON_THROW_ON_ERROR);
-    if (!is_array($result)) {
-        throw new RuntimeException('Maintenance benchmark child returned an invalid result.');
+    if (!is_array($result)
+        || (!is_int($result['median_ns_per_operation'] ?? null)
+            && !is_float($result['median_ns_per_operation'] ?? null))
+    ) {
+        throw new RuntimeException('Maintenance benchmark child returned invalid latency measurements.');
     }
+    $result['median_ns_per_operation'] = (float) $result['median_ns_per_operation'];
 
     return $result;
 }

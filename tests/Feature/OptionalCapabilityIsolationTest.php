@@ -20,6 +20,14 @@ it('boots with Foundation core dependencies while optional packages remain unava
     if (!is_array($probe)) {
         throw new \UnexpectedValueException('Optional-capability probe must return a JSON object.');
     }
+    if (!is_array($probe['base'] ?? null)
+        || !is_array($probe['services'] ?? null)
+        || !is_array($probe['notifications'] ?? null)
+        || !is_array($probe['auth'] ?? null)
+        || !is_array($probe['loaded_before_isolation'] ?? null)
+    ) {
+        throw new \UnexpectedValueException('Optional-capability probe has incomplete structured evidence.');
+    }
     expect($probe)->not->toHaveKey('fatal')
         ->and($probe['base']['created_and_booted'] ?? false)->toBeTrue()
         ->and($probe['base']['base_path'] ?? null)->toBe($root)

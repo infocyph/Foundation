@@ -189,8 +189,12 @@ it('manages database-backed CacheLayer schemas through core cache commands', fun
 
         $after = new FoundationCacheSchemaCommandIO();
         expect($dispatcher->run(['infbyte', 'cache:schema:status'], $after))
-            ->toBe(ExitCode::SUCCESS)
-            ->and($after->lastPayload()['schemas'][0]['state'] ?? null)->toBe('installed');
+            ->toBe(ExitCode::SUCCESS);
+        $afterPayload = $after->lastPayload();
+        if (!is_array($afterPayload)) {
+            throw new \UnexpectedValueException('Cache schema status response must be an array.');
+        }
+        expect($afterPayload['schemas'][0]['state'] ?? null)->toBe('installed');
     } finally {
         foundationCacheSchemaCommandRemoveDirectory($basePath);
     }

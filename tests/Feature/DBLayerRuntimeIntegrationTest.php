@@ -29,7 +29,10 @@ function foundationDbLayerRuntimeConfig(string $database = ':memory:'): Connecti
     ]);
 }
 
-/** @return array{DBLayerFactory,RuntimeExecutionState} */
+/**
+ * @param array<string,mixed> $database
+ * @return array{DBLayerFactory,RuntimeExecutionState}
+ */
 function foundationDbLayerRuntimeFactory(array $database): array
 {
     $state = new RuntimeExecutionState();

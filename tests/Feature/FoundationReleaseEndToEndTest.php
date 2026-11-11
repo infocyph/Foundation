@@ -930,6 +930,7 @@ PHP,
     return $project;
 }
 
+/** @throws \UnexpectedValueException */
 function foundationPhase8ReleaseRemove(string $directory): void
 {
     if (!is_dir($directory)) {

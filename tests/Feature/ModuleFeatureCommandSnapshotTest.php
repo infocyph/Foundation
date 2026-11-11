@@ -156,8 +156,12 @@ it('reloads changed application policy and rejects a plan captured before that c
         $old = $snapshots->capture();
         file_put_contents($path . '/config/auth.php', "<?php return ['drivers' => ['passwords' => 'security']];\n");
 
+        $current = $snapshots->capture();
+        if (!is_array($current['config']['auth']['drivers'] ?? null)) {
+            throw new \UnexpectedValueException('Expected a structured module configuration snapshot.');
+        }
         expect(fn() => $snapshots->assertCurrent($old))->toThrow(RuntimeException::class, 'Feature configuration changed')
-            ->and($snapshots->capture()['config']['auth']['drivers']['passwords'])->toBe('security');
+            ->and($current['config']['auth']['drivers']['passwords'])->toBe('security');
     } finally {
         foundationB6Clean($path);
     }

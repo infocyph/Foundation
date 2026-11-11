@@ -44,6 +44,10 @@ it('pins required feature extensions without making optional accelerators Core d
         flags: JSON_THROW_ON_ERROR,
     );
 
+    if (!is_array($manifest) || !is_array($manifest['require'] ?? null)) {
+        throw new \UnexpectedValueException('Composer runtime requirements must be an array.');
+    }
+
     expect($catalog->feature('data', 'database')['platform']['extensions'])->toBe(['pdo'])
         ->and($catalog->feature('data', 'filesystem')['platform']['extensions'])->toBe(['fileinfo'])
         ->and($catalog->feature('security', 'validation')['platform']['extensions'])->toBe(['fileinfo', 'hash', 'mbstring'])

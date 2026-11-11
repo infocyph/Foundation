@@ -60,6 +60,9 @@ it('keeps documented feature inventory and v2 CLI catalog in sync', function ():
 
 it('keeps the Foundation 4 migration commands compatible with the final v2 catalog', function (): void {
     $guide = file_get_contents(dirname(__DIR__, 2) . '/docs/foundation-4-migration.md');
+    if ($guide === false) {
+        throw new \RuntimeException('Unable to read Foundation migration documentation.');
+    }
     expect($guide)->toBeString()
         ->and($guide)->toContain('schema_version: 2')
         ->and($guide)->toContain('data.database')
@@ -79,6 +82,9 @@ it('keeps the Foundation 4 migration commands compatible with the final v2 catal
 it('keeps release notes explicit about the v2 features and required host certification', function (): void {
     $notes = file_get_contents(dirname(__DIR__, 2) . '/docs/foundation-4.0-release-notes.md');
     $inventory = new ModuleFeatureCommandCatalog()->inventory();
+    if ($notes === false) {
+        throw new \RuntimeException('Unable to read Foundation release notes.');
+    }
 
     expect($notes)->toContain('schema_version: 2')
         ->and($notes)->toContain('Unpublished release candidate')

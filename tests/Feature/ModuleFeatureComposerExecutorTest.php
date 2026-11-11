@@ -82,11 +82,12 @@ function f4ComposerCommands(string $root): array
     return array_map(
         static function (string $line): array {
             $decoded = json_decode($line, true, flags: JSON_THROW_ON_ERROR);
-            if (!is_array($decoded) || array_any($decoded, static fn(mixed $value): bool => !is_string($value))) {
+            if (!is_array($decoded) || !array_is_list($decoded) || array_any($decoded, static fn(mixed $value): bool => !is_string($value))) {
                 throw new RuntimeException('Invalid module Composer command log entry.');
             }
 
-            return array_values($decoded);
+            /** @var list<string> $decoded */
+            return $decoded;
         },
         is_file($root . '/commands.jsonl')
             ? (($commands = file($root . '/commands.jsonl', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES)) === false

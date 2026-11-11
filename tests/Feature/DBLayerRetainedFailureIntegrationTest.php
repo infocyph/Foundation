@@ -28,9 +28,6 @@ it('rolls back failed statements while retaining the error and reuses native DBL
         foreach (explode(';', substr($dsn, strlen($driver) + 1)) as $part) {
             if (str_contains($part, '=')) {
                 $pair = explode('=', $part, 2);
-                if (!isset($pair[1])) {
-                    throw new RuntimeException('Malformed native database connection parameter.');
-                }
                 [$key, $value] = $pair;
                 $properties[$key] = $value;
             }

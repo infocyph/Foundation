@@ -118,15 +118,8 @@ it('forks initializes terminates and reaps an Omnibus worker child without skipp
     expect($parentPid)->toBeInt();
     $marker = tempnam(sys_get_temp_dir(), 'foundation-worker-pool-');
     expect($marker)->toBeString();
-    if (!is_int($parentPid) || !is_string($marker)) {
-        throw new RuntimeException('Unable to initialize WorkerPool fork-safety probe.');
-    }
-
     $terminate = constant('SIGTERM');
     $interrupt = constant('SIGINT');
-    if (!is_int($terminate) || !is_int($interrupt)) {
-        throw new RuntimeException('WorkerPool signals are unavailable.');
-    }
     $previousTerminate = pcntl_signal_get_handler($terminate);
     $previousInterrupt = pcntl_signal_get_handler($interrupt);
 

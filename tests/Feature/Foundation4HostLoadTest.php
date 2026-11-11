@@ -44,6 +44,9 @@ it('still counts and rejects failed measured responses after successful connecti
             throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
         }
 
+        if (!is_array($result['connection_warmup'] ?? null)) {
+            throw new \UnexpectedValueException('Host load report requires connection warmup telemetry.');
+        }
         expect($result['connection_warmup']['successful'])->toBe(10)
             ->and($result['successful'])->toBe(0)
             ->and($result['failed'])->toBe(100)

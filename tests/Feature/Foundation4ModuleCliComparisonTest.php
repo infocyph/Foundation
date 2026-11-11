@@ -32,9 +32,13 @@ it('reports v2 cold/warm CLI deltas without treating a microbenchmark as matched
         throw new \UnexpectedValueException('Module CLI comparison commands must be an array.');
     }
 
+    $warmDelta = $result['commands'][0]['metrics']['warm_p50_ms'] ?? null;
+    if (!is_array($warmDelta) || !is_numeric($warmDelta['delta_percent'] ?? null)) {
+        throw new \UnexpectedValueException('Expected a measured module CLI warm-latency delta.');
+    }
     expect($result['host_rpm_certified'])->toBeFalse()
         ->and($result['commands'])->toHaveCount(7)
-        ->and($result['commands'][0]['metrics']['warm_p50_ms']['delta_percent'])->toBe(10.0);
+        ->and($warmDelta['delta_percent'])->toBe(10.0);
 });
 
 it('rejects identical sources, short sample series and incomparable PHP runtimes', function (): void {

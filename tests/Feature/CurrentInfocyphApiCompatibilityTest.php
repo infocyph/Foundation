@@ -81,7 +81,6 @@ it('targets the Omnibus 3 pool backend and lifecycle surface', function (): void
         ->and(interface_exists(WorkerLifecycle::class))->toBeTrue();
 
     $constructor = new ReflectionClass(WorkerPool::class)->getConstructor();
-    expect($constructor)->not->toBeNull();
     if ($constructor === null) {
         throw new \RuntimeException('Omnibus WorkerPool constructor is missing.');
     }

@@ -464,7 +464,9 @@ it('skips overlapping commands under a shared file lock and records cancellation
     $lockPath = $project . '/storage/cache/locks';
     $locks = new FileLockProvider($lockPath);
     $held = $locks->acquire('foundation-cli-runtime-overlap', 0.0, 5.0);
-    expect($held)->not->toBeNull();
+    if ($held === null) {
+        throw new \RuntimeException('Expected a CLI overlap lock.');
+    }
 
     try {
         $dispatcher = foundationCliRuntimeDispatcher($project, history: true, lockPath: $lockPath);
@@ -476,9 +478,7 @@ it('skips overlapping commands under a shared file lock and records cancellation
             ->and(foundationCliRuntimeStatuses(foundationCliRuntimeHistory($project), 'cli:overlap'))
             ->toBe(['pending', 'cancelled']);
     } finally {
-        if ($held !== null) {
-            $locks->release($held);
-        }
+        $locks->release($held);
         foundationCliRuntimeRemoveDirectory($project);
     }
 });

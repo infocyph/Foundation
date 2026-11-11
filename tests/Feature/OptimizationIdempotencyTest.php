@@ -11,7 +11,7 @@ final class FoundationOptimizationCommandIO implements CommandIO
     /** @var list<string> */
     public array $errors = [];
 
-    /** @var list<mixed> */
+    /** @var list<array<array-key,mixed>> */
     public array $json = [];
 
     /**
@@ -49,6 +49,9 @@ final class FoundationOptimizationCommandIO implements CommandIO
     #[\Override]
     public function json(mixed $value): void
     {
+        if (!is_array($value)) {
+            throw new \UnexpectedValueException('Optimization command output must be a JSON object.');
+        }
         $this->json[] = $value;
     }
 

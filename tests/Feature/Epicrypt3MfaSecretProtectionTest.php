@@ -219,10 +219,10 @@ it('persists only protected MFA secrets while preserving revision based DB CAS',
 
     $loaded = $store->findForAccount('account-1')[0] ?? null;
     expect($loaded)->toBeInstanceOf(MfaFactor::class)
-        ->and($loaded?->metadata['otp']['secret'])->toBe('JBSWY3DPEHPK3PXP')
-        ->and($loaded?->revision)->toBe(0);
+        ->and($loaded->metadata['otp']['secret'])->toBe('JBSWY3DPEHPK3PXP')
+        ->and($loaded->revision)->toBe(0);
 
-    $updated = $loaded?->withMetadata(array_replace_recursive(
+    $updated = $loaded->withMetadata(array_replace_recursive(
         $loaded->metadata,
         ['otp' => ['counter' => 7]],
     ));

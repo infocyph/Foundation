@@ -211,7 +211,7 @@ it('rejects a deferred database cursor from a completed host request without poi
         $deferred = $app->execution()->run(
             static function () use ($factory, $infrastructure, $first): \Generator {
                 expect($factory->infrastructureConnection())->toBe($infrastructure)
-                    ->and($infrastructure->runwireBinding()['request'])->toBe($first);
+                    ->and(($infrastructure->runwireBinding()['request'] ?? null))->toBe($first);
 
                 return $infrastructure->stream('SELECT 5');
             },
@@ -224,14 +224,14 @@ it('rejects a deferred database cursor from a completed host request without poi
 
         $app->execution()->run(
             static function () use ($infrastructure, $deferred, $second): void {
-                expect($infrastructure->runwireBinding()['request'])->toBe($second)
+                expect(($infrastructure->runwireBinding()['request'] ?? null))->toBe($second)
                     ->and($infrastructure->scalar('SELECT 6'))->toBe(6)
                     ->and(fn() => iterator_to_array($deferred))
                     ->toThrow(\Infocyph\DBLayer\Exceptions\ConnectionException::class, 'Completed Runwire request');
 
                 expect($infrastructure->transaction(
                     static function (\Infocyph\DBLayer\Connection\Connection $connection) use ($second): mixed {
-                        expect($connection->runwireBinding()['request'])->toBe($second);
+                        expect(($connection->runwireBinding()['request'] ?? null))->toBe($second);
 
                         return $connection->scalar('SELECT 7');
                     },

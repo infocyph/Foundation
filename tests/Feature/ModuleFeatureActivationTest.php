@@ -93,7 +93,9 @@ it('disables one feature without changing enabled siblings or application policy
         $context['enabled'] = ['security.mfa', 'security.passkey'];
         $pathToConfig = $activation->applyFeatures('disable', ['security.mfa'], $context);
         $config = require $pathToConfig;
-
+        if (!is_array($config)) {
+            throw new \UnexpectedValueException('Generated module configuration must be an array.');
+        }
         expect($config['features'])->toBe(['security.mfa' => false, 'security.passkey' => true])
             ->and($config['capabilities'])->toBe(['filesystem' => true]);
     } finally {

@@ -123,10 +123,10 @@ it('runs the existing scheduler manager on one trusted generated container with 
             0.0,
             5.0,
         );
-        expect($handle)->not->toBeNull();
         if ($handle === null) {
             throw new \RuntimeException('Expected scheduler lock acquisition.');
         }
+        expect($handle)->not->toBeNull();
         $locks->release($handle);
 
         $scheduler = new SchedulerRuntime($runtime->application);
@@ -505,7 +505,7 @@ function foundationPhase7Lines(string $path): array
 {
     $lines = is_file($path) ? file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
 
-    return is_array($lines) ? array_values($lines) : [];
+    return is_array($lines) ? $lines : [];
 }
 
 /** @throws \UnexpectedValueException */

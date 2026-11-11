@@ -352,7 +352,9 @@ it('skips overlapping scheduled work under shared CacheLayer ownership and recor
             0.0,
             5.0,
         );
-        expect($held)->not->toBeNull();
+        if ($held === null) {
+            throw new \RuntimeException('Expected a scheduler overlap lock.');
+        }
 
         try {
             $run = $manager->runNamed('locked');
@@ -372,9 +374,7 @@ it('skips overlapping scheduled work under shared CacheLayer ownership and recor
             $records = (new ExecutionHistory($app))->find($executionId);
             expect(array_column($records, 'status'))->toBe(['pending', 'cancelled']);
         } finally {
-            if ($held !== null) {
-                $locks->release($held);
-            }
+            $locks->release($held);
         }
     } finally {
         foundationSchedulerRemove($project);

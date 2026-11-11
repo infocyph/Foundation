@@ -129,7 +129,9 @@ it('compiles and reuses minimal generated CLI and scheduler runtimes', function 
             $artifact = $project . '/bootstrap/cache/' . $mode->value . '.php';
             $report = $compiler->compile($config, $mode, $artifact);
             $runtimeFile = realpath($artifact);
-            expect($runtimeFile)->toBeString();
+            if ($runtimeFile === false) {
+                throw new \RuntimeException('Compiled runtime artifact is not accessible.');
+            }
             expect($report['runtime'])->toBe($mode->value)
                 ->and($report['skipped'])->toBe([])
                 ->and($report['capabilities'])->toBe([])
@@ -224,7 +226,9 @@ it('leaves InterMix manifest validation to the InterMix production loader', func
     try {
         $report = new GeneratedRuntimeCompiler()->compile($config, RuntimeMode::Cli, $artifact);
         $runtimeFile = realpath($artifact);
-        expect($runtimeFile)->toBeString();
+        if ($runtimeFile === false) {
+            throw new \RuntimeException('Compiled runtime artifact is not accessible.');
+        }
         $manifestPath = dirname($runtimeFile) . '/manifest.json';
         $manifest = json_decode(
             (string) file_get_contents($manifestPath),
@@ -408,7 +412,9 @@ it('keeps the last good artifact when a new build contains skipped definitions',
     try {
         $compiler->compile($config, RuntimeMode::Cli, $artifact);
         $runtimeFile = realpath($artifact);
-        expect($runtimeFile)->toBeString();
+        if ($runtimeFile === false) {
+            throw new \RuntimeException('Compiled runtime artifact is not accessible.');
+        }
         $manifestPath = dirname($runtimeFile) . '/manifest.json';
         $before = [
             hash_file('sha256', $artifact),

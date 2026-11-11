@@ -355,10 +355,6 @@ it('allows HTTP-facing verification issuance only to an account-stored email', f
             status: AccountStatus::PENDING_VERIFICATION,
         )->account;
         expect($account)->not->toBeNull();
-        if ($account === null) {
-            throw new LogicException('Expected a stored account.');
-        }
-
         $forged = $actions->requestEmailVerification([
             'account_id' => $account->id(),
             'email' => 'attacker@example.test',
@@ -381,10 +377,6 @@ it('allows HTTP-facing verification issuance only to an account-stored email', f
             status: AccountStatus::PENDING_VERIFICATION,
         )->account;
         expect($username)->not->toBeNull();
-        if ($username === null) {
-            throw new LogicException('Expected a stored username account.');
-        }
-
         expect($actions->requestEmailVerification([
             'account_id' => $username->id(),
         ])->email())->toBe('account@example.test');
@@ -435,10 +427,6 @@ it('refuses caller context as authoritative audit identity through credential an
         $services = $app->make(AuthServices::class);
         $account = $services->accounts()->create('provenance@example.test')->account;
         expect($account)->not->toBeNull();
-        if ($account === null) {
-            throw new LogicException('Expected an account.');
-        }
-
         $context = ['session_id' => 'forged-session', 'device_id' => 'forged-device'];
         $services->passwordResets()->issue($account->id(), $context);
         $services->emailVerification()->issue($account->id(), $account->identifier(), $context);
@@ -487,10 +475,6 @@ it('does not promote caller supplied password-change audit IDs and preserves pas
             $hasher->hash('initial-password'),
         )->account;
         expect($account)->not->toBeNull();
-        if ($account === null) {
-            throw new LogicException('Expected an account.');
-        }
-
         $forged = ['session_id' => 'untrusted-session', 'device_id' => 'untrusted-device'];
         expect($services->passwordChanges()->change(
             $account->id(),
@@ -645,10 +629,6 @@ it('keeps bearer issuance tokens in trusted auth services but never in HTTP-faci
             status: AccountStatus::PENDING_VERIFICATION,
         )->account;
         expect($account)->not->toBeNull();
-        if ($account === null) {
-            throw new LogicException('Expected a persisted account.');
-        }
-
         $email = $actions->requestEmailVerification(['account_id' => $account->id()]);
         $reset = $actions->requestPasswordReset(['identifier' => $account->identifier()]);
         $passwordless = $actions->requestPasswordless(['identifier' => $account->identifier()]);
@@ -683,10 +663,6 @@ it('binds HTTP password reset delivery and token subject for account ID and iden
     $app->container()->withinScope('webrick.request', static function () use ($app): void {
         $services = $app->make(AuthServices::class);
         $account = $services->accounts()->create('reset-owner@example.test')->account;
-        if ($account === null) {
-            throw new LogicException('Expected a persisted account.');
-        }
-
         $notifications = $app->make(AuthNotifierInterface::class);
         if (!$notifications instanceof CollectingAuthNotifier) {
             throw new LogicException('Expected collecting notifier.');
@@ -725,10 +701,6 @@ it('binds HTTP password reset delivery and token subject for account ID and iden
 
             $token = $notification->payload['token'] ?? null;
             expect($token)->toBeString();
-            if (!is_string($token)) {
-                throw new LogicException('Expected a reset token.');
-            }
-
             $outbound->send($notification);
             expect($services->passwordResets()->complete($token, 'replacement-hash')->completed())->toBeTrue()
                 ->and($services->accountProvider()->findById($account->id())?->passwordHash())->toBe('replacement-hash');
@@ -787,10 +759,6 @@ it('keeps verified email and passwordless tokens bound to trusted notification r
             $outbound->send($notification);
             $token = $notification->payload['token'] ?? null;
             expect($token)->toBeString();
-            if (!is_string($token)) {
-                throw new LogicException('Expected a delivered token.');
-            }
-
             if ($notification->type === AuthNotificationType::EMAIL_VERIFICATION_REQUESTED) {
                 expect($notification->accountId)->toBe($account->id())
                     ->and($services->emailVerification()->verify($token)->verified())->toBeTrue();
@@ -941,10 +909,6 @@ it('cannot verify a stale email token after the authoritative account email chan
             metadata: ['email' => 'previous@example.test'],
             status: AccountStatus::PENDING_VERIFICATION,
         )->account;
-        if ($account === null) {
-            throw new LogicException('Expected an account.');
-        }
-
         $issued = $services->emailVerification()->issue($account->id(), 'previous@example.test');
         expect($issued->status)->toBe(EmailVerificationStatus::ISSUED)
             ->and($issued->token)->toBeString();

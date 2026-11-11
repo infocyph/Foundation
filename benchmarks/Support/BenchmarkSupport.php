@@ -99,7 +99,7 @@ final class BenchmarkSupport
             for ($iteration = 0; $iteration < $operations; ++$iteration) {
                 $operation();
             }
-            $samples[] = (hrtime(true) - $started) / $operations;
+            $samples[] = (float) (hrtime(true) - $started) / (float) $operations;
         }
 
         sort($samples, SORT_NUMERIC);

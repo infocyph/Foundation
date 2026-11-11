@@ -119,6 +119,9 @@ it('passes CacheLayer-native tier descriptors and applies Foundation lock policy
     $adapter = $reflection->getProperty('adapter')->getValue($cache);
     $lockProvider = $reflection->getProperty('lockProvider')->getValue($cache);
 
+    if (!$adapter instanceof TieredCacheAdapter || !$lockProvider instanceof FileLockProvider) {
+        throw new \UnexpectedValueException('Cache adapter and lock provider must match the selected native backends.');
+    }
     expect($adapter)->toBeInstanceOf(TieredCacheAdapter::class)
         ->and($lockProvider)->toBeInstanceOf(FileLockProvider::class);
 

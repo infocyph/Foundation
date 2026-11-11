@@ -62,8 +62,12 @@ it('persists no sensitive matrix key across nested login reset MFA and passkey r
             }
             $raw = $row['metadata'];
             $metadata = json_decode($raw, true, flags: JSON_THROW_ON_ERROR);
-            if (!is_array($metadata)) {
-                throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
+            if (!is_array($metadata)
+                || !is_array($metadata['context'] ?? null)
+                || !is_array($metadata['context']['nested'] ?? null)
+                || !is_int($metadata['chunk_index'] ?? null)
+            ) {
+                throw new \UnexpectedValueException('Persisted audit metadata must retain structured context and chunk indices.');
             }
             expect($metadata['context']['safe'])->toBe($identifiers);
             $keys = $chunks[$metadata['chunk_index']];

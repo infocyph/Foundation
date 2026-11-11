@@ -266,7 +266,8 @@ PHP);
             (string) $release['release_runtime_manifest_sha256'],
             foundationCapabilities: [],
         );
-        expect(FoundationManifestChangingStream::$opens)->toBe(1)
+        expect($runtime)->toBeInstanceOf(\Infocyph\Foundation\Routing\WebReleaseRuntime::class)
+            ->and(FoundationManifestChangingStream::$opens)->toBe(1)
             ->and(is_file($marker))->toBeFalse();
     } finally {
         if ($registered) {

@@ -15,6 +15,8 @@ use Infocyph\Foundation\Messaging\MessagingServiceProvider;
 use Infocyph\Foundation\Routing\RoutingServiceProvider;
 
 /**
+ * @param array<string, bool> $features
+ * @return list<class-string>
  * @throws \Infocyph\Foundation\Exception\BootstrapException
  * @throws \LogicException
  * @throws \UnexpectedValueException

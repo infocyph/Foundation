@@ -26,6 +26,11 @@ function f4HostLoad(string $path, int $expectedRequests): array
     ) {
         throw new RuntimeException(sprintf('Invalid response-verified host load: %s', $path));
     }
+    foreach (['successful', 'failed', 'rpm', 'duration_seconds', 'p50_ms', 'p95_ms', 'p99_ms'] as $field) {
+        if (!is_int($result[$field] ?? null) && !is_float($result[$field] ?? null)) {
+            throw new RuntimeException(sprintf('Host load field %s must be numeric.', $field));
+        }
+    }
     if (($result['authenticated'] ?? false) && array_sum($result['worker_requests']) !== $result['successful']) {
         throw new RuntimeException('Authenticated worker telemetry does not cover every successful response.');
     }

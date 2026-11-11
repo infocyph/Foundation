@@ -502,7 +502,7 @@ it('keeps specialist catalog package floors aligned with the tested dependency s
 
 /**
  * @param list<array<string,mixed>> $modules
- * @return array<string,mixed>
+ * @return array{packages:array<string,array<string,mixed>>, blockers:list<string>,warnings:list<string>, ...}
  * @throws \RuntimeException
  */
 function moduleStateFind(array $modules, string $name): array
@@ -512,8 +512,20 @@ function moduleStateFind(array $modules, string $name): array
         static fn(array $candidate): bool => ($candidate['name'] ?? null) === $name,
     );
 
-    if (!is_array($module)) {
-        throw new RuntimeException(sprintf('Module %s was not resolved.', $name));
+    if (!is_array($module) || !is_array($module['packages'] ?? null)
+        || !is_array($module['blockers'] ?? null) || !is_array($module['warnings'] ?? null)
+    ) {
+        throw new RuntimeException(sprintf('Module %s has an invalid resolution structure.', $name));
+    }
+    foreach ($module['packages'] as $packageName => $package) {
+        if (!is_string($packageName) || !is_array($package)) {
+            throw new RuntimeException('Module package details must be keyed arrays.');
+        }
+    }
+    foreach ([$module['blockers'], $module['warnings']] as $diagnostics) {
+        if (!array_is_list($diagnostics) || array_any($diagnostics, static fn(mixed $value): bool => !is_string($value))) {
+            throw new RuntimeException('Module diagnostic collections must be string lists.');
+        }
     }
 
     return $module;

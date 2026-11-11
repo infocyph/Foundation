@@ -72,7 +72,6 @@ it('serializes PAT issue against concurrent revoke-all for the same subject', fu
         }
 
         $record = $store->find(PatConcurrentWorker::TOKEN_ID);
-        expect($record)->not->toBeNull();
         if ($record === null) {
             throw new RuntimeException('Concurrent PAT record was not found.');
         }

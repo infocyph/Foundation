@@ -13,17 +13,18 @@ use Infocyph\InterMix\DI\ContainerBuilder;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 /**
- * @param array{median_ns:int|float} $foundation
- * @param array{median_ns:int|float} $direct
+ * @param array{median_ns:float|int, ...} $foundation
+ * @param array{median_ns:float|int, ...} $direct
  * @return array{delta_ns:float,percent:float}
  */
 function phase9DiTax(array $foundation, array $direct): array
 {
-    $delta = $foundation['median_ns'] - $direct['median_ns'];
+    $directMedian = (float) $direct['median_ns'];
+    $delta = (float) $foundation['median_ns'] - $directMedian;
 
     return [
         'delta_ns' => round($delta, 2),
-        'percent' => round(($delta / max(0.000001, $direct['median_ns'])) * 100, 2),
+        'percent' => round(($delta / max(0.000001, $directMedian)) * 100.0, 2),
     ];
 }
 

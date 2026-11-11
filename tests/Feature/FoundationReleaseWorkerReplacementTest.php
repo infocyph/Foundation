@@ -377,6 +377,7 @@ function foundationReleaseReplacementProject(): string
     return $project;
 }
 
+/** @throws \UnexpectedValueException */
 function foundationReleaseReplacementRemove(string $directory): void
 {
     if (!is_dir($directory)) {

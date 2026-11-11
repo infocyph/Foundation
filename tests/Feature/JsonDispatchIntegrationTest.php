@@ -69,7 +69,16 @@ it('maps ReqShield field failures without renormalizing validation output', func
         ]),
     ));
 
-    $data = $response->assertStatus(422)->json()['data'];
+    $payload = $response->assertStatus(422)->json();
+    $data = $payload['data'] ?? null;
+    if (!is_array($data) || !array_is_list($data)) {
+        throw new \UnexpectedValueException('Validation envelope must contain a list of errors.');
+    }
+    foreach ($data as $issue) {
+        if (!is_array($issue) || !is_array($issue['source'] ?? null)) {
+            throw new \UnexpectedValueException('Validation error must contain a structured source.');
+        }
+    }
 
     expect($data)->toHaveCount(2)
         ->and($data[0]['code'])->toBe('VALIDATION_FAILED')
