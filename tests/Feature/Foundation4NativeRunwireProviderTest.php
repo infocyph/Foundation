@@ -8,7 +8,7 @@ use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
-use Infocyph\InterMix\DI\Container;
+use Infocyph\InterMix\DI\RuntimeContainerInterface;
 use Infocyph\Omnibus\MessageBus;
 use Infocyph\Runwire\Exception\CancelledException;
 use Infocyph\Runwire\RequestContext;
@@ -64,7 +64,7 @@ it('forwards published native providers through compiled and borrowed execution 
                     ->and(($connection->runwireBinding()['request'] ?? null))->toBe($request)
                     ->and($bus->runwireBinding()->request())->toBe($request);
                 $container = $app->runtime();
-                if (!$container instanceof Container) {
+                if (!$container instanceof RuntimeContainerInterface) {
                     throw new LogicException('Expected an InterMix scoped runtime container.');
                 }
                 $captured = $container->captureScopeContext();
@@ -202,7 +202,7 @@ it('keeps the host coroutine scope in a structured child and stops native work a
         static function (\Infocyph\Runwire\Coroutine\CoroutineScope $scope) use ($app, $runtime, $request, $observed, $throughLibrary): mixed {
             $callback = static function () use ($app, $scope, $request, $observed): mixed {
                 $container = $app->runtime();
-                if (!$container instanceof Container) {
+                if (!$container instanceof RuntimeContainerInterface) {
                     throw new LogicException('Expected an InterMix scoped runtime container.');
                 }
                 $captured = $container->captureScopeContext();
@@ -263,7 +263,7 @@ it('cancels only a child task while consuming a native cursor and keeps its host
             static function (\Infocyph\Runwire\Coroutine\CoroutineScope $scope) use ($app, $runtime, $request, $state): void {
                 $app->execution()->run(static function () use ($app, $scope, $request, $state): void {
                     $container = $app->runtime();
-                    if (!$container instanceof Container) {
+                    if (!$container instanceof RuntimeContainerInterface) {
                         throw new LogicException('Expected an InterMix scoped runtime container.');
                     }
                     $captured = $container->captureScopeContext();

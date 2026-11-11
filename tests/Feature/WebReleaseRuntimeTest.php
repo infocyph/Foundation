@@ -6,7 +6,7 @@ use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
-use Infocyph\InterMix\DI\Container;
+use Infocyph\InterMix\DI\RuntimeContainerInterface;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
@@ -353,7 +353,7 @@ it('keeps unused backend integrations cold throughout unrelated flows', function
                 ? WebReleaseRuntime::loadPrevalidated($config, $manifest, $release['release_runtime_manifest_sha256'], foundationCapabilities: $capabilities)
                 : WebReleaseRuntime::load($config, $manifest, foundationCapabilities: $capabilities))->container;
         }
-        if (!$container instanceof Container) {
+        if (!$container instanceof RuntimeContainerInterface) {
             throw new LogicException('Expected an InterMix release runtime container.');
         }
         $container->withinScope('webrick.request', static function (\Psr\Container\ContainerInterface $scope) use ($flow): void {
