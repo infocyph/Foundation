@@ -22,6 +22,7 @@ final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
      * @param list<string> $criticalTypes
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public static function talkingBytes(
         EmailProfiles $profiles,

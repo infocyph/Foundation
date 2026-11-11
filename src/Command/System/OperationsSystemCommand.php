@@ -113,6 +113,7 @@ final class OperationsSystemCommand extends SystemCommand
 
     /**
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     private function configValidate(): int
     {

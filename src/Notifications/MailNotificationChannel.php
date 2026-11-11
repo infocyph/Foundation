@@ -18,6 +18,7 @@ final readonly class MailNotificationChannel implements NotificationChannel
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     #[\Override]
     public function send(

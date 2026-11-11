@@ -21,6 +21,9 @@ use Infocyph\InterMix\DI\ProductionContainer;
 final class FoundationProductionCommandResolverProbe implements CommandHandlerInterface
 {
     public static int $runs = 0;
+    /**
+     * @throws \InvalidArgumentException
+     */
 
     #[\Override]
     public static function define(CommandDefinition $command): void

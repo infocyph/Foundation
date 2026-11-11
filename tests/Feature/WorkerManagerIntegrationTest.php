@@ -14,6 +14,9 @@ final class FoundationMaintenanceWorker implements WorkerProvider
 
     /**
      * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     * @throws \Throwable
      */
     #[\Override]
     public function run(WorkerRuntime $runtime): int

@@ -23,6 +23,7 @@ final readonly class ConfigValidator
 
     /**
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     public function validate(): ConfigValidationResult
     {
@@ -31,6 +32,7 @@ final readonly class ConfigValidator
 
     /**
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     public function validateForProduction(): ConfigValidationResult
     {

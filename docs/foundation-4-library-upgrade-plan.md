@@ -2,6 +2,13 @@
 
 Date: 2026-11-10 (Asia/Dhaka). Status: **93/95 implementation criteria checked; Runwire 3.0.1 minimum selected in Batch 136 (exact-head QA pending); both P6 sustained certifications remain open.**
 
+## Batch 154 — targeted dual-analyzer remediation (24 PHP files; exact-head CI required)
+
+- Baseline: official [Security & Standards #42884677526](https://github.com/infocyph/Foundation/actions/runs/42884677526), source head `c2644593542a78997b2c65086077bfb583af15c2`, reports **1,164 Psalm errors in 215 files on both PHP 8.4 and 8.5** and PHPStan **1,000+ reported diagnostics** (report truncated; no total inferred). The 24 paired-host source-only measurement jobs completed, but primary and confirmation comparison verdict jobs **both failed**; no sustained P6 certification is accepted.
+- Scope: **24 existing PHP files**, including production callers, exception-aware tests and benchmark report ingestion. Propagate specific previously reported uncaught-exception contracts without swallowing or changing exception behavior; use actual `SplFileInfo` narrowing and reject JSON-array payloads where host evidence requires objects. This is an explicitly **partial 100-file cohort**, not a completed 100-file batch. One commit includes this tracker.
+- Verification: exact-head GitHub Actions strict Psalm/PHPStan for PHP 8.4/8.5, Pint, functional stable/lowest, native hosts, consumer and benchmark checks are **pending**. The pre-batch counts cannot be used as a post-batch reduction. Review diagnostics for newly propagated `@throws` obligations and P6 comparison JSON evidence; do not weaken benchmark thresholds.
+- The 93/95 implementation record is unchanged. Both P6 certifications remain non-waivable and failed/pending; PR stays draft/unmerged and untagged. `composer.lock` stays ignored; `infocyph/phpforge` stays at `dev-main@dev`.
+
 ## Batch 153 — 50-file strict-analysis remediation (one commit; CI pending)
 
 - Baseline: strict CI [Security & Standards #42855087741](https://github.com/infocyph/Foundation/actions/runs/42855087741) on `57c39e9124d500ac717632a21bacb519c2786d07` reported Psalm **1,251** errors on each PHP 8.4/8.5 analysis job and PHPStan **1,000+ displayed** errors. Regular QA, consumers, benchmarks, and native-host smoke passed on that previous source revision.

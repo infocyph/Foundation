@@ -97,6 +97,12 @@ final class OAuth21FlowFixture
     public readonly OAuthScopeResolver $scopes;
     public readonly AuthTables $tables;
     public readonly OAuthTokenManager $tokens;
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
 
     public function __construct(
         public readonly int $now = 0,
@@ -326,6 +332,9 @@ final class OAuth21FlowFixture
         );
         $this->accessTokens = new OAuth21AccessTokenHarness($nativeAccess);
     }
+    /**
+     * @throws \InvalidArgumentException
+     */
 
     public function advance(int $seconds): void
     {

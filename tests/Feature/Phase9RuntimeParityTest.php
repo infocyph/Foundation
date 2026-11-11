@@ -219,7 +219,12 @@ PHP);
     }
 });
 
-/** @return array{same_within_scope:bool,isolated_between_scopes:bool} */
+/**
+ * @return array{same_within_scope:bool,isolated_between_scopes:bool}
+ * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+ * @throws \LogicException
+ * @throws \Throwable
+ */
 function phase9ParityScopes(\Infocyph\Foundation\Application\Application $application): array
 {
     $first = $application->execution()->run(static function () use ($application): array {

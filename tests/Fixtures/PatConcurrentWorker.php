@@ -59,6 +59,12 @@ final class PatConcurrentWorker
             return 1;
         }
     }
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
 
     public static function factory(string $database): DBLayerFactory
     {

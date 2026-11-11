@@ -131,7 +131,10 @@ it('rejects OAuth signing keys whose EC curve does not match the selected JOSE a
     'P-521 used for ES384' => [OpenSslCurveName::SECP521R1, AsymmetricJwtAlgorithm::ES384],
 ]);
 
-/** @param array{private:string,public:string} $keys */
+/**
+ * @param array{private:string,public:string} $keys
+ * @throws \InvalidArgumentException
+ */
 function oauth21AccessTokenService(array $keys, string $issuer, AsymmetricJwtAlgorithm $algorithm = AsymmetricJwtAlgorithm::ES256): EpicryptOAuthAccessTokenService
 {
     $keyId = 'oauth-key-1';

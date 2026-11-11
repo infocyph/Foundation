@@ -67,6 +67,9 @@ it('coordinates through the PSR container contract without requiring an InterMix
         public function __construct(private readonly object $service)
         {
         }
+        /**
+         * @throws \RuntimeException
+         */
 
         #[\Override]
         public function get(string $id): mixed

@@ -14,6 +14,9 @@ function chmod(string $filename, int $permissions): bool
 
     return \chmod($filename, $permissions);
 }
+/**
+ * @throws \RuntimeException
+ */
 
 function fwrite(mixed $stream, string $data, ?int $length = null): int|false
 {

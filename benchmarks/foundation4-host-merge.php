@@ -13,7 +13,7 @@ if (!in_array($argc, [3, 6], true)) {
 $reports = ['baseline' => [], 'candidate' => []];
 $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($argv[1], FilesystemIterator::SKIP_DOTS));
 foreach ($files as $file) {
-    if (!$file->isFile() || $file->getFilename() !== 'report.json') {
+    if (!$file instanceof SplFileInfo || !$file->isFile() || $file->getFilename() !== 'report.json') {
         continue;
     }
     $variant = basename($file->getPath());
@@ -21,6 +21,9 @@ foreach ($files as $file) {
         continue;
     }
     $report = json_decode((string) file_get_contents($file->getPathname()), true, flags: JSON_THROW_ON_ERROR);
+    if (!is_array($report) || array_is_list($report)) {
+        throw new InvalidArgumentException('Paired host report must be a JSON object.');
+    }
     $reports[$variant][] = $report;
 }
 $merged = [];

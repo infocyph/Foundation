@@ -69,6 +69,7 @@ final readonly class ReadinessReport
      * @param array<string,array{ready:bool,detail:string}> $checks
      * @throws \UnexpectedValueException
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
      */
     private function appendLegacyModuleChecks(array &$checks): void
     {

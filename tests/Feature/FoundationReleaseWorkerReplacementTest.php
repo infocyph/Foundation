@@ -30,6 +30,13 @@ final class FoundationReleaseReplacementWorker implements WorkerProvider
 
     /** @var list<string> */
     public static array $executionIds = [];
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
+     * @throws \LogicException
+     * @throws \Throwable
+     * @throws \InvalidArgumentException
+     */
 
     #[\Override]
     public function run(WorkerRuntime $runtime): int

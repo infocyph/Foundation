@@ -53,6 +53,12 @@ final class FoundationWorkerLifecycleScopeProvider implements WorkerProvider
     public static array $executionIds = [];
 
     public function __construct(private readonly Application $application) {}
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
+     * @throws \LogicException
+     * @throws \Throwable
+     */
 
     #[\Override]
     public function run(WorkerRuntime $runtime): int

@@ -20,6 +20,7 @@ final readonly class ConfiguredCapabilities
     /**
      * @throws \UnexpectedValueException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function __construct(private ConfigRepository $config)
     {

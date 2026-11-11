@@ -14,7 +14,7 @@ if ($argc !== 4) {
 
 $baseline = json_decode((string) file_get_contents($argv[1]), true, flags: JSON_THROW_ON_ERROR);
 $candidate = json_decode((string) file_get_contents($argv[2]), true, flags: JSON_THROW_ON_ERROR);
-if (!is_array($baseline) || !is_array($candidate)) {
+if (!is_array($baseline) || !is_array($candidate) || array_is_list($baseline) || array_is_list($candidate)) {
     throw new InvalidArgumentException('Both Foundation 4 host reports must be JSON objects.');
 }
 

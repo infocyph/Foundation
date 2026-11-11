@@ -135,6 +135,11 @@ final class FoundationScheduledMessageFactory
         return new FoundationMessage('scheduled');
     }
 }
+/**
+ * @throws \Exception
+ * @throws \LogicException
+ * @throws \Psr\Cache\InvalidArgumentException
+ */
 
 function foundationMessagingApplication(array $messaging = []): Application
 {

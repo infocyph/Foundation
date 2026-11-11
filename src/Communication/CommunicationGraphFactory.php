@@ -118,6 +118,7 @@ final class CommunicationGraphFactory
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
     public static function webhookSender(CommunicationProfiles $profiles): WebhookSender
     {
