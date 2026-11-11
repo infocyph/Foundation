@@ -8,6 +8,7 @@ use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
+use Infocyph\InterMix\DI\Container;
 use Infocyph\Omnibus\MessageBus;
 use Infocyph\Runwire\Exception\CancelledException;
 use Infocyph\Runwire\RequestContext;
@@ -62,7 +63,11 @@ it('forwards published native providers through compiled and borrowed execution 
                     ->and($connection->scalar('SELECT 1'))->toBe(1)
                     ->and(($connection->runwireBinding()['request'] ?? null))->toBe($request)
                     ->and($bus->runwireBinding()->request())->toBe($request);
-                $captured = $app->runtime()->captureScopeContext();
+                $container = $app->runtime();
+                if (!$container instanceof Container) {
+                    throw new LogicException('Expected an InterMix scoped runtime container.');
+                }
+                $captured = $container->captureScopeContext();
                 $child = new Fiber(static fn(): mixed => $execution->withinBorrowedScope(
                     $captured,
                     static function () use ($app, $factory, $bus, $runtime, $request): mixed {
@@ -196,7 +201,11 @@ it('keeps the host coroutine scope in a structured child and stops native work a
         $request,
         static function (\Infocyph\Runwire\Coroutine\CoroutineScope $scope) use ($app, $runtime, $request, $observed, $throughLibrary): mixed {
             $callback = static function () use ($app, $scope, $request, $observed): mixed {
-                $captured = $app->runtime()->captureScopeContext();
+                $container = $app->runtime();
+                if (!$container instanceof Container) {
+                    throw new LogicException('Expected an InterMix scoped runtime container.');
+                }
+                $captured = $container->captureScopeContext();
                 $child = $scope->spawn(static fn(): mixed => $app->execution()->withinBorrowedScope(
                     $captured,
                     static function () use ($app, $scope, $request, $observed): void {
@@ -253,7 +262,11 @@ it('cancels only a child task while consuming a native cursor and keeps its host
             $request,
             static function (\Infocyph\Runwire\Coroutine\CoroutineScope $scope) use ($app, $runtime, $request, $state): void {
                 $app->execution()->run(static function () use ($app, $scope, $request, $state): void {
-                    $captured = $app->runtime()->captureScopeContext();
+                    $container = $app->runtime();
+                    if (!$container instanceof Container) {
+                        throw new LogicException('Expected an InterMix scoped runtime container.');
+                    }
+                    $captured = $container->captureScopeContext();
                     $child = $scope->spawn(static fn(): mixed => $app->execution()->withinBorrowedScope(
                         $captured,
                         static function () use ($app, $scope, $state, $request): void {

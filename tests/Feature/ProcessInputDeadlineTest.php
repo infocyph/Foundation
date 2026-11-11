@@ -205,7 +205,7 @@ it('reaps a noninteractive child when an output callback fails with pending stdi
 
 it('retries deterministic zero and partial stdin writes without skipping bytes', function (): void {
     $wrapper = new class {
-        public $context;
+        public mixed $context;
 
         public static string $captured = '';
 
@@ -279,6 +279,11 @@ it('restores caller signal handlers and async mode after normal and failed proce
     $async = pcntl_async_signals();
     $interrupt = pcntl_signal_get_handler(SIGINT);
     $terminate = pcntl_signal_get_handler(SIGTERM);
+    if ((!is_int($interrupt) && !is_callable($interrupt))
+        || (!is_int($terminate) && !is_callable($terminate))
+    ) {
+        throw new RuntimeException('Unable to capture the original process signal handlers.');
+    }
 
     try {
         $runner = new ProcessRunner();

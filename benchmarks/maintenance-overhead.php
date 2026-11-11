@@ -102,7 +102,7 @@ PHP);
     }
 
     sort($samples);
-    $medianNs = (float) $samples[(int) floor((count($samples) - 1) / 2)];
+    $medianNs = $samples[(int) floor((count($samples) - 1) / 2)];
 
     return [
         'mode' => $mode,
@@ -173,8 +173,8 @@ if (is_string($mode) && $mode !== '') {
 
 $disabled = foundationMaintenanceBenchmarkChild('disabled');
 $enabled = foundationMaintenanceBenchmarkChild('enabled');
-$disabledNs = (float) ($disabled['median_ns_per_operation'] ?? 0.0);
-$enabledNs = (float) ($enabled['median_ns_per_operation'] ?? 0.0);
+$disabledNs = $disabled['median_ns_per_operation'] ?? 0.0;
+$enabledNs = $enabled['median_ns_per_operation'] ?? 0.0;
 if ($disabledNs <= 0.0 || $enabledNs <= 0.0) {
     throw new RuntimeException('Maintenance benchmark did not produce positive timings.');
 }

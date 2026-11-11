@@ -49,10 +49,6 @@ final readonly class CacheLayerTtlStore implements TtlStoreInterface
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \InvalidArgumentException
      * @throws \LogicException
-     *
-     * @param null|string $default
-     *
-     * @psalm-param '__expired__'|null $default
      */
     #[\Override]
     public function get(string $key, mixed $default = null): mixed
@@ -75,10 +71,6 @@ final readonly class CacheLayerTtlStore implements TtlStoreInterface
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
      * @throws \LogicException
-     *
-     * @param int|string|string[] $value
-     *
-     * @psalm-param 'payload'|'short-lived'|array{id: 'one'}|int<0, max> $value
      */
     #[\Override]
     public function put(string $key, mixed $value, int $ttlSeconds): void

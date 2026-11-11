@@ -133,7 +133,6 @@ it('rejects Composer metadata changed after the v2 plan before locked activation
         $activation = new \Infocyph\Foundation\Module\ModuleActivationManager($app);
         $manifest = $path . '/vendor/composer/installed.json';
         $contents = file_get_contents($manifest);
-        expect($contents)->toBeString();
         if ($contents === false) {
             throw new \RuntimeException('Unable to read installed Composer metadata.');
         }

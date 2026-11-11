@@ -122,8 +122,10 @@ it('finalizes browser sessions before deferred response bodies are produced', fu
     );
     $id = browserSessionCookieId($response);
     $producer = $response->getProducer();
-    expect($producer)->not->toBeNull()
-        ->and(fn() => iterator_to_array($producer()))
+    if ($producer === null) {
+        throw new \RuntimeException('Expected the finalized stream producer.');
+    }
+    expect(fn() => iterator_to_array($producer()))
         ->toThrow(LogicException::class, 'finalized for this request');
 
     $saved = browserSessionWithinScope(

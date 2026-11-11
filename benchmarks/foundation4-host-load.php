@@ -5,7 +5,10 @@ declare(strict_types=1);
 if ($argc !== 5) {
     throw new InvalidArgumentException('Usage: php foundation4-host-load.php URL REQUESTS CONCURRENCY OUTPUT');
 }
-[, $url, $requested, $parallel, $output] = $argv;
+$url = $argv[1] ?? throw new InvalidArgumentException('Missing host load URL.');
+$requested = $argv[2] ?? throw new InvalidArgumentException('Missing request count.');
+$parallel = $argv[3] ?? throw new InvalidArgumentException('Missing concurrency.');
+$output = $argv[4] ?? throw new InvalidArgumentException('Missing report path.');
 $requests = (int) $requested;
 $concurrency = (int) $parallel;
 $minimumSeconds = (float) ((($__foundation154_11 = getenv('FOUNDATION_HOST_MIN_SECONDS')) !== false && $__foundation154_11 !== '' && $__foundation154_11 !== '0' ? $__foundation154_11 : 0));
@@ -114,10 +117,10 @@ try {
     curl_multi_close($multi);
 }
 
-$duration = max((hrtime(true) - $start) / 1_000_000_000, 0.000001);
+$duration = max((float) (hrtime(true) - $start) / 1_000_000_000.0, 0.000001);
 $cpuFinished = getrusage();
-$cpuSeconds = ($cpuFinished['ru_utime.tv_sec'] - $cpuStarted['ru_utime.tv_sec'])
-    + ($cpuFinished['ru_stime.tv_sec'] - $cpuStarted['ru_stime.tv_sec'])
+$cpuSeconds = (float) ($cpuFinished['ru_utime.tv_sec'] - $cpuStarted['ru_utime.tv_sec'])
+    + (float) ($cpuFinished['ru_stime.tv_sec'] - $cpuStarted['ru_stime.tv_sec'])
     + ($cpuFinished['ru_utime.tv_usec'] - $cpuStarted['ru_utime.tv_usec']) / 1_000_000
     + ($cpuFinished['ru_stime.tv_usec'] - $cpuStarted['ru_stime.tv_usec']) / 1_000_000;
 sort($latencies, SORT_NUMERIC);

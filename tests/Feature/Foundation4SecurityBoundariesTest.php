@@ -663,6 +663,9 @@ it('binds HTTP password reset delivery and token subject for account ID and iden
     $app->container()->withinScope('webrick.request', static function () use ($app): void {
         $services = $app->make(AuthServices::class);
         $account = $services->accounts()->create('reset-owner@example.test')->account;
+        if ($account === null) {
+            throw new LogicException('Expected a password-reset account.');
+        }
         $notifications = $app->make(AuthNotifierInterface::class);
         if (!$notifications instanceof CollectingAuthNotifier) {
             throw new LogicException('Expected collecting notifier.');
@@ -909,6 +912,9 @@ it('cannot verify a stale email token after the authoritative account email chan
             metadata: ['email' => 'previous@example.test'],
             status: AccountStatus::PENDING_VERIFICATION,
         )->account;
+        if ($account === null) {
+            throw new LogicException('Expected a persisted email verification account.');
+        }
         $issued = $services->emailVerification()->issue($account->id(), 'previous@example.test');
         expect($issued->status)->toBe(EmailVerificationStatus::ISSUED)
             ->and($issued->token)->toBeString();

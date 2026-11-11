@@ -64,9 +64,8 @@ it('rejects application refresh replay after an atomic rotation', function (): v
         $tokens = $app->make(AuthServices::class)->tokens();
         $issued = $tokens->issueRefreshToken('account');
         $old = $issued->refreshToken;
-        expect($old)->not->toBeNull();
         if ($old === null) {
-            return;
+            throw new LogicException('Expected a newly issued refresh token.');
         }
 
         $first = $tokens->rotateRefreshToken($old);
@@ -84,9 +83,8 @@ it('invalidates a rotated remember-me credential and denies replay', function ()
         $remember = $app->make(AuthServices::class)->rememberMe();
         $issued = $remember->issue('account', 'device');
         $old = $issued->record;
-        expect($old)->not->toBeNull();
         if ($old === null || $issued->token === null) {
-            return;
+            throw new LogicException('Expected a newly issued remember-me credential and token.');
         }
 
         $rotated = $remember->rotate($old);

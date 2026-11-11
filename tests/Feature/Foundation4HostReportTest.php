@@ -57,7 +57,11 @@ it('distinguishes CPU used within the sample window from lifetime CPU gauges', f
             ->and($run['load_cpu_percent'])->toBe(7.5)
             ->and($run['samples'])->toBe($singleSample ? 1 : 3);
     } finally {
-        foreach (glob($directory . '/*') as $file) {
+        $files = glob($directory . '/*');
+        if ($files === false) {
+            throw new \RuntimeException('Unable to enumerate generated host report files.');
+        }
+        foreach ($files as $file) {
             unlink($file);
         }
         rmdir($directory);

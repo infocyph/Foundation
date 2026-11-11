@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Composer\InstalledVersions;
 use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheOptions;
+use Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface;
 use Infocyph\CacheLayer\Counter\AtomicCounters;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerTtlStore;
@@ -116,7 +117,7 @@ function cacheLayer33RedisDsn(): string
     return sprintf('redis://%s%s:%s', $credentials, $host, $port);
 }
 
-/** @return array{0:?AtomicCounters,1:?string} */
+/** @return array{0:?AtomicCounterStoreInterface,1:?string} */
 function cacheLayer33RedisCounters(string $namespace): array
 {
     if (!class_exists(Redis::class)) {
@@ -390,7 +391,7 @@ $workloads = [
 
 $counterNamespace = 'foundation-cachelayer-33-benchmark-' . bin2hex(random_bytes(4));
 [$nativeCounters, $redisCounterSkipReason] = cacheLayer33RedisCounters($counterNamespace);
-if ($nativeCounters instanceof AtomicCounters) {
+if ($nativeCounters instanceof AtomicCounterStoreInterface) {
     $foundationCounters = new AtomicCounterStore($nativeCounters);
     $nativeCounters->delete('direct-counter');
     $foundationCounters->reset('auth:counter');
@@ -423,8 +424,8 @@ for ($i = 0; $i < $soakOperations; ++$i) {
     $ttl->put($key, $i, 60);
     $ttl->pull($key);
 }
-$soakSeconds = max(1, hrtime(true) - $soakStarted) / 1_000_000_000;
-$soakLatencyMs = ($soakSeconds * 1_000.0) / $soakOperations;
+$soakSeconds = (float) max(1, hrtime(true) - $soakStarted) / 1_000_000_000.0;
+$soakLatencyMs = ($soakSeconds * 1_000.0) / (float) $soakOperations;
 $after = memory_get_usage(true);
 $workloads[] = [
     'name' => 'persistent-auth-state-memory-soak',

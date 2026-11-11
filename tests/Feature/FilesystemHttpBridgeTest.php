@@ -225,7 +225,7 @@ it('isolates lazy streamed downloads across Fibers and rejects an abandoned comp
     $second = \Infocyph\Runwire\RequestContext::create($runtime);
     $abandoned = \Infocyph\Runwire\RequestContext::create($runtime);
     try {
-        $responseFor = static fn($owner): mixed => \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
+        $responseFor = static fn(\Infocyph\Runwire\RequestContext $owner): mixed => \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
             $owner,
             null,
             static fn() => $responses->download(
@@ -237,8 +237,9 @@ it('isolates lazy streamed downloads across Fibers and rejects an abandoned comp
         );
         $one = $responseFor($first)->getProducer();
         $two = $responseFor($second)->getProducer();
-        expect($one)->not->toBeNull()
-            ->and($two)->not->toBeNull();
+        if ($one === null || $two === null) {
+            throw new LogicException('Expected both isolated file response streams.');
+        }
 
         $firstStream = $one();
         $secondStream = $two();
@@ -542,7 +543,11 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
         {
             ++$this->calls;
             $this->stagedPath = $request->localPath;
-            $this->stagedContents = file_get_contents($request->localPath);
+            $contents = file_get_contents($request->localPath);
+            if ($contents === false) {
+                throw new \RuntimeException('Unable to read staged upload for malware scan.');
+            }
+            $this->stagedContents = $contents;
             $this->stagedSize = $request->size;
             $this->clientFilename = $request->clientFilename;
 

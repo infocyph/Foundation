@@ -167,8 +167,10 @@ it('composes the complete credential and token lifecycle without eager sibling s
             ->and($services->tokens()->rotateRefreshToken($rotation->record ?? $refreshRecord)->failed())->toBeTrue();
 
         $notifier = $app->make(AuthNotifierInterface::class);
-        expect($notifier)->toBeInstanceOf(CollectingAuthNotifier::class)
-            ->and($notifier->notifications())->not->toBeEmpty();
+        if (!$notifier instanceof CollectingAuthNotifier) {
+            throw new LogicException('Expected the collecting authentication notifier.');
+        }
+        expect($notifier->notifications())->not->toBeEmpty();
     });
 });
 
@@ -236,8 +238,10 @@ it('composes permissions roles grants gates and denial auditing', function (): v
     expect($services->authorizer()->can($principal, 'invoice.approve')->code)->toBe('explicit_gate');
 
     $audit = $app->make(AuditEventStoreInterface::class);
-    expect($audit)->toBeInstanceOf(InMemoryAuditEventStore::class)
-        ->and($audit->events())->not->toBeEmpty();
+    if (!$audit instanceof InMemoryAuditEventStore) {
+        throw new LogicException('Expected the in-memory audit event store.');
+    }
+    expect($audit->events())->not->toBeEmpty();
 });
 
 it('refuses forged audit identity in denied authorization delegation and unsuccessful login', function (): void {

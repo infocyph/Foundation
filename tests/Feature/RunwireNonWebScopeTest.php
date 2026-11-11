@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Runtime\ExecutionId;
+use Infocyph\InterMix\DI\Container;
 use Infocyph\Runwire\RequestContext;
 use Infocyph\Runwire\Runtime\Enum\CancellationReason;
 use Infocyph\Runwire\Runtime\Enum\RuntimeDriver;
@@ -31,7 +32,11 @@ it('forwards host Runwire inputs through worker CLI and scheduler owned and borr
                 static function (ExecutionId $id) use ($app): array {
                     $host = $app->make(RuntimeContext::class);
                     $request = $app->make(RequestContext::class);
-                    $scope = $app->runtime()->captureScopeContext();
+                    $container = $app->runtime();
+                    if (!$container instanceof Container) {
+                        throw new LogicException('Expected an InterMix runtime scope container.');
+                    }
+                    $scope = $container->captureScopeContext();
                     $fiber = new Fiber(static fn(): array => $app->execution()->withinBorrowedScope(
                         $scope,
                         static fn(ExecutionId $borrowed): array => [

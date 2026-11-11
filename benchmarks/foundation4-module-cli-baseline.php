@@ -15,6 +15,7 @@ function foundationModuleBaselinePercentile(array $samples, float $quantile): fl
     return round($samples[max(0, min(count($samples) - 1, (int) ceil((float) count($samples) * $quantile) - 1))], 3);
 }
 
+/** @throws \UnexpectedValueException */
 function foundationModuleBaselineCleanup(string $folder): void
 {
     $files = new RecursiveIteratorIterator(

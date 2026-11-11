@@ -166,7 +166,6 @@ it('manages database-backed CacheLayer schemas through core cache commands', fun
             ->toBe(ExitCode::FAILURE);
 
         $beforePayload = $before->lastPayload();
-        expect($beforePayload)->toBeArray();
         if (!is_array($beforePayload)) {
             throw new \UnexpectedValueException('Expected cache schema status payload.');
         }
@@ -179,8 +178,7 @@ it('manages database-backed CacheLayer schemas through core cache commands', fun
             ->toBe(ExitCode::SUCCESS);
 
         $installPayload = $install->lastPayload();
-        expect($cachePath)->toBeFile()
-            ->and($installPayload)->toBeArray();
+        expect($cachePath)->toBeFile();
         if (!is_array($installPayload)) {
             throw new \UnexpectedValueException('Expected cache schema installation payload.');
         }

@@ -177,7 +177,7 @@ it('restores independently created Foundation 4 auth and OAuth state from a veri
             ['f4-oauth-refresh'],
         )[0];
 
-        if (!is_array($savedMfa) || !is_string($savedMfa['metadata'] ?? null)) {
+        if (!is_string($savedMfa['metadata'] ?? null)) {
             throw new \UnexpectedValueException('Restored MFA metadata must be a JSON string.');
         }
         $decodedMfa = json_decode($savedMfa['metadata'], true, flags: JSON_THROW_ON_ERROR);
@@ -186,7 +186,6 @@ it('restores independently created Foundation 4 auth and OAuth state from a veri
         }
 
         if (!is_string($savedHash) || !is_numeric($savedSession)
-            || !is_array($savedPasskey) || !is_array($savedOAuth)
         ) {
             throw new \UnexpectedValueException('Restored authentication state has invalid scalar or record types.');
         }

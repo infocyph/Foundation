@@ -130,7 +130,6 @@ it('includes Foundation OAuth routes in compiled Webrick releases', function ():
             }
         }
 
-        expect($oauthMetadata)->not->toBeNull();
         if ($oauthMetadata === null) {
             throw new \UnexpectedValueException('Compiled OAuth metadata route is missing.');
         }

@@ -169,8 +169,6 @@ it('keeps trusted worker and scheduler production containers bounded across long
     $workerArtifact = $project . '/bootstrap/cache/worker.php';
     $schedulerArtifact = $project . '/bootstrap/cache/scheduler.php';
     $database = $project . '/storage/runtime.sqlite';
-    $pdo = null;
-
     try {
         $compiler = new GeneratedRuntimeCompiler();
         $workerReport = $compiler->compile(
@@ -421,7 +419,6 @@ it('keeps trusted worker and scheduler production containers bounded across long
             ->and(spl_object_id($schedulerRuntime->container))->toBe($schedulerContainerId)
             ->and(max(0, memory_get_usage(true) - $schedulerMemory))->toBeLessThanOrEqual(32 * 1024 * 1024);
     } finally {
-        $pdo = null;
         foundationPhase7GeneratedRemove($project);
     }
 });

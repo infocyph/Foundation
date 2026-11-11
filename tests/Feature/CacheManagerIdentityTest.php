@@ -6,6 +6,7 @@ use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Foundation;
+use Infocyph\InterMix\DI\Container;
 use Infocyph\Runwire\Exception\CancelledException;
 use Infocyph\Runwire\RequestContext;
 use Infocyph\Runwire\Runtime\Enum\CancellationReason;
@@ -198,7 +199,11 @@ it('isolates native cache operations through borrowed Fiber contexts and restore
                     expect(CacheRunwire::current()?->request)->toBe($request)
                         ->and($store->set($key, $key, 60))->toBeTrue();
 
-                    $captured = $app->runtime()->captureScopeContext();
+                    $container = $app->runtime();
+                    if (!$container instanceof Container) {
+                        throw new LogicException('Expected an InterMix runtime scope container.');
+                    }
+                    $captured = $container->captureScopeContext();
                     $child = new Fiber(static fn(): mixed => $app->execution()->withinBorrowedScope(
                         $captured,
                         static fn(): array => [

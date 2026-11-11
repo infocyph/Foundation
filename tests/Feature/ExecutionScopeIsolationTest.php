@@ -199,7 +199,11 @@ it('forwards one host-owned InterMix scope through a child Fiber without taking 
         return $app->execution()->run(
             static function (ExecutionId $executionId) use ($app): array {
                 $state = $app->make(FoundationExecutionScopeProbe::class);
-                $context = $app->runtime()->captureScopeContext();
+                $container = $app->runtime();
+                if (!$container instanceof Container) {
+                    throw new LogicException('Expected an InterMix runtime scope container.');
+                }
+                $context = $container->captureScopeContext();
                 Fiber::suspend([$context, $state, $executionId]);
 
                 return [
@@ -246,7 +250,11 @@ it('preserves thrown child failures without closing the borrowed owner scope', f
         return $app->execution()->run(
             static function (ExecutionId $id) use ($app): array {
                 $state = $app->make(FoundationExecutionScopeProbe::class);
-                $context = $app->runtime()->captureScopeContext();
+                $container = $app->runtime();
+                if (!$container instanceof Container) {
+                    throw new LogicException('Expected an InterMix runtime scope container.');
+                }
+                $context = $container->captureScopeContext();
                 Fiber::suspend([$context, $state, $id]);
 
                 return [$app->make(FoundationExecutionScopeProbe::class), $app->make(ExecutionId::class)];

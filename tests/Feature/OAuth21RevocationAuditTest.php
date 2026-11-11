@@ -35,7 +35,7 @@ it('audits access-token revocation only after authoritative Epicrypt status chan
             'scope' => 'profile:read',
         ], $authentication);
 
-        $capture->events = [];
+        $capture->clear();
         $fixture->revocation->revoke($issued->accessToken, $authentication, 'access_token');
 
         expect(fn() => $fixture->accessTokens->verify($issued->accessToken, $audience))
@@ -88,7 +88,7 @@ it('keeps revocation non-oracular for a token owned by another client', function
             $owner->secret,
         ));
 
-        $capture->events = [];
+        $capture->clear();
         $fixture->revocation->revoke(
             $issued->accessToken,
             new OAuthClientAuthentication(

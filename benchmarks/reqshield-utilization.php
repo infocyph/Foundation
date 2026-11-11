@@ -50,7 +50,6 @@ $directFlat = Validator::make($flatRules)
     ->setNestedFlattenMode('required')
     ->stripUnknown();
 $directCompiled = new CompiledValidator($directFlat);
-$foundationFlat = $flatFactory->make('benchmark.flat');
 $foundationCompiled = $flatFactory->compile('benchmark.flat');
 
 $databaseRoot = sys_get_temp_dir() . '/foundation-reqshield-benchmark-' . bin2hex(random_bytes(5));

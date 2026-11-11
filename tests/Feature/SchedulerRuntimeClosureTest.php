@@ -634,7 +634,7 @@ function foundationSchedulerLines(string $path): array
     }
     $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
-    return is_array($lines) ? array_values($lines) : [];
+    return is_array($lines) ? $lines : [];
 }
 
 function foundationSchedulerRemove(string $directory): void

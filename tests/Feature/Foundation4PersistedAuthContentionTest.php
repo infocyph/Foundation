@@ -33,9 +33,9 @@ function persistedAuthConnection(string $driver, string $directory): array
     }
     $parts = [];
     foreach (explode(';', substr($dsn, strlen($driver) + 1)) as $piece) {
-        if (str_contains($piece, '=')) {
-            [$keyName, $value] = explode('=', $piece, 2);
-            $parts[$keyName] = $value;
+        $separator = strpos($piece, '=');
+        if ($separator !== false) {
+            $parts[substr($piece, 0, $separator)] = substr($piece, $separator + 1);
         }
     }
 
@@ -130,7 +130,7 @@ it('commits one persisted auth transition across independent competing processes
                 }
                 $results[$worker] = $outcome['changed'];
             }
-            expect(array_sum($results), $driver . ':' . $kind)->toBe(1);
+            expect(array_sum($results))->toBe(1, $driver . ':' . $kind);
             $winner = array_search(true, $results, true);
             if ($kind === 'reset' || $kind === 'email') {
                 expect($db->table($fixture->tables->accounts())->where('id', '=', 'owner')->value('password_hash'))->toBe($winner);

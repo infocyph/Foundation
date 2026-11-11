@@ -25,11 +25,11 @@ it('classifies native library edges while rejecting framework-to-application dep
             . "final class Probe implements \\Infocyph\\Infbyte\\AppContract, \\Infocyph\\Runwire\\NativeContract {}\n",
         );
         $original = file_get_contents($root . '/deptrac.yaml');
-        expect($original)->toBeString()->toContain('    - ./src');
         if ($original === false) {
             throw new \RuntimeException('Unable to load Deptrac policy fixture.');
         }
 
+        expect($original)->toContain('    - ./src');
         file_put_contents(
             $directory . '/deptrac.yaml',
             str_replace('    - ./src', '    - ' . $directory . '/src', $original),

@@ -130,7 +130,7 @@ it('serves real requests with isolated contexts and recovers after a failed requ
         }
         if ($runtime === RuntimeDriver::SWOOLE) {
             $responses = [];
-            $deadline = microtime(true) + 5;
+            $deadline = microtime(true) + 5.0;
             do {
                 array_push($responses, ...foundationServeBurst($address));
                 if (count(array_unique(array_column($responses, 'pid'))) === $workers) {
@@ -152,7 +152,7 @@ it('serves real requests with isolated contexts and recovers after a failed requ
     } finally {
         if (is_resource($process)) {
             proc_terminate($process);
-            $deadline = microtime(true) + 5;
+            $deadline = microtime(true) + 5.0;
             while (proc_get_status($process)['running'] && microtime(true) < $deadline) {
                 usleep(10_000);
             }
@@ -233,7 +233,7 @@ function foundationServeBurst(string $address): array
  */
 function foundationServeWait(mixed $process, string $address, string $project): void
 {
-    $deadline = microtime(true) + 15;
+    $deadline = microtime(true) + 15.0;
     do {
         $connection = stream_socket_client('tcp://' . $address, $errorCode, $errorMessage, 0.05, STREAM_CLIENT_CONNECT | STREAM_CLIENT_ASYNC_CONNECT);
         if (is_resource($connection)) {

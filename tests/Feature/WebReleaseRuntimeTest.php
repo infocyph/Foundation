@@ -6,6 +6,7 @@ use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
+use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
@@ -352,6 +353,9 @@ it('keeps unused backend integrations cold throughout unrelated flows', function
                 ? WebReleaseRuntime::loadPrevalidated($config, $manifest, $release['release_runtime_manifest_sha256'], foundationCapabilities: $capabilities)
                 : WebReleaseRuntime::load($config, $manifest, foundationCapabilities: $capabilities))->container;
         }
+        if (!$container instanceof Container) {
+            throw new LogicException('Expected an InterMix release runtime container.');
+        }
         $container->withinScope('webrick.request', static function (\Psr\Container\ContainerInterface $scope) use ($flow): void {
             match ($flow) {
                 'grpc' => expect($scope->get(\Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher::class)->receive('/cold.Service/Echo', ['ok' => true])->status->value)->toBe(0),
@@ -459,14 +463,18 @@ it('compiles and boots a trusted route-first Webrick release without live router
         }
 
         $plainPlan = $plansByPath['/plain'] ?? null;
-        expect($plainPlan)->not->toBeNull()
-            ->and($plainPlan->requiresRequest())->toBeFalse()
+        if ($plainPlan === null) {
+            throw new LogicException('Compiled plain route plan is missing.');
+        }
+        expect($plainPlan->requiresRequest())->toBeFalse()
             ->and($plainPlan->requiresScope())->toBeFalse()
             ->and(RouteCapability::has($plainPlan->capabilities, RouteCapability::MIDDLEWARE))->toBeFalse();
 
         $middlewarePlan = $plansByPath['/middleware'] ?? null;
-        expect($middlewarePlan)->not->toBeNull()
-            ->and($middlewarePlan->requiresRequest())->toBeTrue()
+        if ($middlewarePlan === null) {
+            throw new LogicException('Compiled middleware route plan is missing.');
+        }
+        expect($middlewarePlan->requiresRequest())->toBeTrue()
             ->and($middlewarePlan->requiresScope())->toBeTrue()
             ->and(RouteCapability::has($middlewarePlan->capabilities, RouteCapability::MIDDLEWARE))->toBeTrue();
 
@@ -588,8 +596,10 @@ it('compiles maintenance as an opt-in Webrick gate with bounded runtime refresh'
             }
         }
 
-        expect($plainPlan)->not->toBeNull()
-            ->and($plainPlan->requiresRequest())->toBeFalse()
+        if ($plainPlan === null) {
+            throw new LogicException('Compiled plain route plan is missing.');
+        }
+        expect($plainPlan->requiresRequest())->toBeFalse()
             ->and($plainPlan->requiresScope())->toBeFalse()
             ->and(RouteCapability::has($plainPlan->capabilities, RouteCapability::MIDDLEWARE))->toBeFalse()
             ->and($artifact->hasGlobalMiddleware())->toBeTrue();

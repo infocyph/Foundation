@@ -46,6 +46,7 @@ final class FoundationEnvironmentStorageIO implements CommandIO
         return false;
     }
 
+    /** @throws \UnexpectedValueException */
     #[\Override]
     public function json(mixed $value): void
     {
@@ -126,7 +127,7 @@ it('protects environment files atomically with restrictive permissions and safe 
             ->and($encryptedIO['io']->json[0]['operation'] ?? null)->toBe('encrypt')
             ->and(is_file($encrypted))->toBeTrue()
             ->and(file_get_contents($encrypted))->not->toBe($plaintext)
-            ->and((fileperms($encrypted) ?: throw new \RuntimeException('Unable to read encrypted file permissions.')) & 0777)->toBe(0600);
+            ->and(foundationEnvironmentStoragePermissions($encrypted))->toBe(0600);
         foundationEnvironmentStorageExpectNoStages($basePath);
 
         $decryptedIO = foundationEnvironmentStorageRun($dispatcher, [
@@ -135,7 +136,7 @@ it('protects environment files atomically with restrictive permissions and safe 
         expect($decryptedIO['exit'])->toBe(ExitCode::SUCCESS)
             ->and($decryptedIO['io']->json[0]['operation'] ?? null)->toBe('decrypt')
             ->and(file_get_contents($restored))->toBe($plaintext)
-            ->and((fileperms($restored) ?: throw new \RuntimeException('Unable to read restored file permissions.')) & 0777)->toBe(0600);
+            ->and(foundationEnvironmentStoragePermissions($restored))->toBe(0600);
         foundationEnvironmentStorageExpectNoStages($basePath);
 
         file_put_contents($restored, 'preserve-without-force');
@@ -152,7 +153,7 @@ it('protects environment files atomically with restrictive permissions and safe 
         ]);
         expect($forced['exit'])->toBe(ExitCode::SUCCESS)
             ->and(file_get_contents($restored))->toBe($plaintext)
-            ->and((fileperms($restored) ?: throw new \RuntimeException('Unable to read restored file permissions.')) & 0777)->toBe(0600);
+            ->and(foundationEnvironmentStoragePermissions($restored))->toBe(0600);
         foundationEnvironmentStorageExpectNoStages($basePath);
 
         file_put_contents($restored, 'must-survive-failed-decryption');
@@ -281,6 +282,17 @@ function foundationEnvironmentStorageExpectNoStages(string $basePath): void
 {
     expect(((array) glob($basePath . '/.*.tmp')))->toBe([])
         ->and(((array) glob($basePath . '/.*.bak')))->toBe([]);
+}
+
+/** @throws \RuntimeException */
+function foundationEnvironmentStoragePermissions(string $path): int
+{
+    $permissions = fileperms($path);
+    if ($permissions === false) {
+        throw new \RuntimeException('Unable to read environment file permissions.');
+    }
+
+    return $permissions & 0777;
 }
 
 function foundationEnvironmentStorageKey(): string

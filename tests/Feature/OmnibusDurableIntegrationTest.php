@@ -669,9 +669,9 @@ function foundationOmnibusSelectedDatabaseConfig(
 
     $properties = [];
     foreach (explode(';', substr($dsn, strlen($driver) + 1)) as $part) {
-        if (str_contains($part, '=')) {
-            [$key, $value] = explode('=', $part, 2);
-            $properties[$key] = $value;
+        $separator = strpos($part, '=');
+        if ($separator !== false) {
+            $properties[substr($part, 0, $separator)] = substr($part, $separator + 1);
         }
     }
     $database = $properties['dbname'] ?? null;

@@ -22,6 +22,11 @@ final class ArrayKitProfileDto
     public int $age = 0;
 
     public string $name = '';
+
+    public function __construct()
+    {
+        $this->address = new ArrayKitProfileAddressDto();
+    }
 }
 
 it('extends foundation config repository with arraykit config capabilities', function (): void {

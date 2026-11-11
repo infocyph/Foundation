@@ -528,6 +528,7 @@ function moduleStateFind(array $modules, string $name): array
         }
     }
 
+    /** @var array{packages:array<string,array<string,mixed>>, blockers:list<string>,warnings:list<string>, ...} $module */
     return $module;
 }
 

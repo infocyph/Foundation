@@ -13,6 +13,7 @@ use Infocyph\Runwire\Runtime\RequestExecutionPolicy;
 use Infocyph\Runwire\RuntimeContext;
 use Infocyph\TalkingBytes\Core\Result\CommunicationResult;
 use Infocyph\TalkingBytes\Grpc\GrpcStatus;
+use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundRequest;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse;
 use Infocyph\TalkingBytes\Grpc\Sender\GrpcRequest;
 use Infocyph\TalkingBytes\Grpc\Sender\GrpcResponse;
@@ -150,7 +151,7 @@ it('creates TalkingBytes gRPC clients and inbound dispatchers through Foundation
     ));
 
     $dispatcher = $profiles->grpcInbound([
-        '/orders.v1.OrderService/Create' => static fn($request): GrpcInboundResponse => GrpcInboundResponse::ok(
+        '/orders.v1.OrderService/Create' => static fn(GrpcInboundRequest $request): GrpcInboundResponse => GrpcInboundResponse::ok(
             ['accepted' => $request->message],
         ),
     ]);

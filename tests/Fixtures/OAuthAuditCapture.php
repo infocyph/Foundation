@@ -21,6 +21,11 @@ final class OAuthAuditCapture implements AuditEventStoreInterface
         $this->events[] = $event;
     }
 
+    public function clear(): void
+    {
+        $this->events = [];
+    }
+
     public function recorder(int $now = 1_700_000_000): OAuthAuditRecorder
     {
         $ids = new class implements AuthIdGeneratorInterface {

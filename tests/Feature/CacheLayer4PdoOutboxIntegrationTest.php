@@ -24,10 +24,9 @@ it('keeps native PDO outbox events inside the same DBLayer transaction across no
 
     $properties = [];
     foreach (explode(';', substr($dsn, strlen($driver) + 1)) as $piece) {
-        if (str_contains($piece, '=')) {
-            $pair = explode('=', $piece, 2);
-            [$key, $value] = $pair;
-            $properties[$key] = $value;
+        $separator = strpos($piece, '=');
+        if ($separator !== false) {
+            $properties[substr($piece, 0, $separator)] = substr($piece, $separator + 1);
         }
     }
     $databaseName = $properties['dbname'] ?? null;

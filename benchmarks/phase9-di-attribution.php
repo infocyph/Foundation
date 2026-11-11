@@ -159,8 +159,8 @@ try {
     if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
         throw new RuntimeException(sprintf('Unable to create benchmark output directory "%s".', $directory));
     }
-    file_put_contents($output, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL, LOCK_EX);
-    fwrite(STDOUT, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+    file_put_contents($output, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL, LOCK_EX);
+    fwrite(STDOUT, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL);
 } finally {
     \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($root);
 }

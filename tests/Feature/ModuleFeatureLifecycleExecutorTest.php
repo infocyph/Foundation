@@ -210,6 +210,9 @@ it('removes only unshared feature packages and never deletes persisted applicati
         $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
         $result = new ModuleFeatureLifecycleExecutor($app)->apply('remove', ['security.passkey'], $context);
         $commands = file($path . '/commands.jsonl', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (!is_array($commands) || !isset($commands[0])) {
+            throw new \RuntimeException('Expected a recorded Composer lifecycle command.');
+        }
 
         expect($result['status'])->toBe('complete')
             ->and($result['phases'][0]['name'])->toBe('composer')

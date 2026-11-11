@@ -26,10 +26,9 @@ it('rolls back failed statements while retaining the error and reuses native DBL
 
         $properties = [];
         foreach (explode(';', substr($dsn, strlen($driver) + 1)) as $part) {
-            if (str_contains($part, '=')) {
-                $pair = explode('=', $part, 2);
-                [$key, $value] = $pair;
-                $properties[$key] = $value;
+            $separator = strpos($part, '=');
+            if ($separator !== false) {
+                $properties[substr($part, 0, $separator)] = substr($part, $separator + 1);
             }
         }
 

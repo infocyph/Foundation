@@ -49,6 +49,7 @@ final class FoundationOperationsReleaseIO implements CommandIO
         return false;
     }
 
+    /** @throws \UnexpectedValueException */
     #[\Override]
     public function json(mixed $value): void
     {

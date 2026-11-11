@@ -984,8 +984,10 @@ it('uses only process environment to select a trusted release generation', funct
         putenv($digestName . '=' . $trustedDigest);
 
         $bootstrap = FoundationReleaseBootstrap::fromEnvironment();
-        expect($bootstrap)->toBeInstanceOf(FoundationReleaseBootstrap::class)
-            ->and($bootstrap->releaseRoot)->toBe($trustedRoot)
+        if (!$bootstrap instanceof FoundationReleaseBootstrap) {
+            throw new \RuntimeException('Expected trusted release bootstrap from process environment.');
+        }
+        expect($bootstrap->releaseRoot)->toBe($trustedRoot)
             ->and($bootstrap->trustedFoundationManifestSha256)->toBe($trustedDigest);
     } finally {
         foreach ($previous as $name => $state) {

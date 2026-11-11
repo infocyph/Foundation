@@ -218,8 +218,10 @@ it('persists only protected MFA secrets while preserving revision based DB CAS',
         ->and($raw)->toContain('ep2.');
 
     $loaded = $store->findForAccount('account-1')[0] ?? null;
-    expect($loaded)->toBeInstanceOf(MfaFactor::class)
-        ->and($loaded->metadata['otp']['secret'])->toBe('JBSWY3DPEHPK3PXP')
+    if (!$loaded instanceof MfaFactor) {
+        throw new RuntimeException('Expected a decrypted MFA factor.');
+    }
+    expect($loaded->metadata['otp']['secret'])->toBe('JBSWY3DPEHPK3PXP')
         ->and($loaded->revision)->toBe(0);
 
     $updated = $loaded->withMetadata(array_replace_recursive(
@@ -256,11 +258,11 @@ it('does not let stale fallback-key reprotection overwrite a newer OTP counter r
     expect($oldStore->compareAndSwap(null, $factor))->toBeTrue();
     $stale = $rotatedStore->findForAccount('account-1')[0] ?? null;
     $current = $rotatedStore->findForAccount('account-1')[0] ?? null;
-    expect($stale)->toBeInstanceOf(MfaFactor::class)
-        ->and($current)->toBeInstanceOf(MfaFactor::class);
     if (!$stale instanceof MfaFactor || !$current instanceof MfaFactor) {
         throw new RuntimeException('Rotation test failed to load MFA factors.');
     }
+    expect($stale)->toBeInstanceOf(MfaFactor::class)
+        ->and($current)->toBeInstanceOf(MfaFactor::class);
 
     $counterUpdate = $current->withMetadata(array_replace_recursive(
         $current->metadata,

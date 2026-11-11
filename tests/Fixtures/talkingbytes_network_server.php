@@ -55,7 +55,7 @@ while ($requests < 24 && microtime(true) < $until) {
     $head = substr($incoming, 0, $separator);
     $body = substr($incoming, $separator + 4);
     $firstLine = strtok($head, "\r\n");
-    if ($firstLine === false || $firstLine === '' || $firstLine === '0') {
+    if ($firstLine === false || $firstLine === '0') {
         $firstLine = '';
     }
     $path = '/';

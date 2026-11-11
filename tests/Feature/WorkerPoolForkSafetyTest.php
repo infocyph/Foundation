@@ -153,10 +153,10 @@ it('forks initializes terminates and reaps an Omnibus worker child without skipp
         $pool->run();
 
         $payload = file_get_contents($marker);
-        expect($payload)->toBeString();
-        $decoded = is_string($payload)
-            ? json_decode($payload, true, 16, JSON_THROW_ON_ERROR)
-            : [];
+        if ($payload === false) {
+            throw new RuntimeException('Unable to read the WorkerPool child probe marker.');
+        }
+        $decoded = json_decode($payload, true, 16, JSON_THROW_ON_ERROR);
         expect($decoded)->toBeArray()
             ->and($decoded['parent'] ?? null)->toBe($parentPid)
             ->and($decoded['child'] ?? null)->toBeInt()
