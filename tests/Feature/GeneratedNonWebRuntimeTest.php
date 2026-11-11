@@ -231,6 +231,9 @@ it('leaves InterMix manifest validation to the InterMix production loader', func
             true,
             flags: JSON_THROW_ON_ERROR,
         );
+        if (!is_array($manifest)) {
+            throw new \UnexpectedValueException('Expected a decoded JSON object.');
+        }
         $manifest['digest'] = str_repeat('0', 32);
         file_put_contents(
             $manifestPath,
@@ -487,6 +490,10 @@ function foundationGeneratedRuntimeRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!$file instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('Expected a filesystem iterator entry.');
+        }
+
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

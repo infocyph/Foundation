@@ -480,6 +480,9 @@ it('keeps specialist catalog package floors aligned with the tested dependency s
         true,
         flags: JSON_THROW_ON_ERROR,
     );
+    if (!is_array($composer)) {
+        throw new \UnexpectedValueException('Expected a decoded JSON object.');
+    }
     $dev = $composer['require-dev'] ?? [];
 
     $catalog = new ModuleCatalog();
@@ -544,6 +547,10 @@ function moduleStateRemoveDirectory(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!$file instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('Expected a filesystem iterator entry.');
+        }
+
         $file->isDir() && !$file->isLink() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

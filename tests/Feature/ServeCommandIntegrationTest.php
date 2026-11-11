@@ -106,6 +106,9 @@ it('serves real requests with isolated contexts and recovers after a failed requ
             }
             expect($headers[0] ?? '')->toContain('200');
             $response = json_decode($body, true, flags: JSON_THROW_ON_ERROR);
+            if (!is_array($response)) {
+                throw new \UnexpectedValueException('Expected a decoded JSON object.');
+            }
             expect($response['pid'])->toBeGreaterThan(0);
             if ($direct) {
                 expect($response['runtime_pid'])->toBeNull()

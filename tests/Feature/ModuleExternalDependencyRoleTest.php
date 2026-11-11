@@ -10,6 +10,9 @@ it('keeps external runtime and developer requirements in their correct Composer 
         true,
         flags: JSON_THROW_ON_ERROR,
     );
+    if (!is_array($manifest)) {
+        throw new \UnexpectedValueException('Expected a decoded JSON object.');
+    }
     $runtime = $manifest['require'];
     $development = $manifest['require-dev'];
     $features = new ModuleArchitectureCatalog();

@@ -54,6 +54,9 @@ it('keeps optional specialist packages out of the Foundation runtime requirement
         true,
         flags: JSON_THROW_ON_ERROR,
     );
+    if (!is_array($composer)) {
+        throw new \UnexpectedValueException('Expected a decoded JSON object.');
+    }
     $required = array_keys(is_array($composer['require'] ?? null) ? $composer['require'] : []);
 
     expect($required)->toContain(

@@ -204,6 +204,10 @@ it('keeps exact host Runwire identities in source-free compiled worker CLI and s
             RecursiveIteratorIterator::CHILD_FIRST,
         );
         foreach ($files as $file) {
+            if (!$file instanceof \SplFileInfo) {
+                throw new \UnexpectedValueException('Expected a filesystem iterator entry.');
+            }
+
             $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
         }
         rmdir($project);

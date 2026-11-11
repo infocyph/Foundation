@@ -150,6 +150,10 @@ function moduleConfigRemoveDirectory(string $directory): void
     );
 
     foreach ($files as $file) {
+        if (!$file instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('Expected a filesystem iterator entry.');
+        }
+
         if ($file->isDir() && !$file->isLink()) {
             rmdir($file->getPathname());
         } else {

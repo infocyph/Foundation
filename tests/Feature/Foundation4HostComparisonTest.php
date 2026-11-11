@@ -252,6 +252,9 @@ it('retains both required host soaks when aggregating separately paired scenario
         }
         $path = $directory . '/runwire-4-10/candidate/report.json';
         $part = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($part)) {
+            throw new \UnexpectedValueException('Expected a decoded JSON object.');
+        }
         unset($part['soak']);
         file_put_contents($path, json_encode($part, JSON_THROW_ON_ERROR));
         expect($runner->run($command, new \Infocyph\Foundation\Process\ProcessOptions(timeoutSeconds: 30))->exitCode)->not->toBe(0);

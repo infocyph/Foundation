@@ -44,6 +44,10 @@ function moduleB3Cleanup(string $path): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!$file instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('Expected a filesystem iterator entry.');
+        }
+
         $file->isDir() && !$file->isLink() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($path);

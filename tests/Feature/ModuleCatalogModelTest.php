@@ -49,6 +49,9 @@ it('keeps Composer core and specialist module floors on one supported generation
         512,
         JSON_THROW_ON_ERROR,
     );
+    if (!is_array($manifest)) {
+        throw new \UnexpectedValueException('Expected a decoded JSON object.');
+    }
     expect($manifest)->toBeArray();
 
     $core = [

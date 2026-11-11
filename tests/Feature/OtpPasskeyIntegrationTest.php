@@ -180,6 +180,9 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
             throw new RuntimeException('Unable to sign the wrong-origin authenticator fixture.');
         }
         $wrongOriginPayload = json_decode($payload, true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($wrongOriginPayload)) {
+            throw new \UnexpectedValueException('Expected a decoded JSON object.');
+        }
         $wrongOriginPayload['response']['authenticatorData'] = foundationWebauthnBase64Url($wrongOriginAuthenticatorData);
         $wrongOriginPayload['response']['clientDataJSON'] = foundationWebauthnBase64Url($wrongOriginClientData);
         $wrongOriginPayload['response']['signature'] = foundationWebauthnBase64Url($wrongOriginSignature);

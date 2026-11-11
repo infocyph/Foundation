@@ -444,6 +444,9 @@ it('compiles and boots a trusted route-first Webrick release without live router
             true,
             flags: JSON_THROW_ON_ERROR,
         );
+        if (!is_array($metadata)) {
+            throw new \UnexpectedValueException('Expected a decoded JSON object.');
+        }
         expect($metadata['fallback']['required'] ?? null)->toBeFalse()
             ->and($metadata['fallback']['identity_required'] ?? null)->toBeFalse();
 

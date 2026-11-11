@@ -78,10 +78,11 @@ if ($phase === 'old-seed') {
 }
 
 $failed = $failures->all();
-if (count($failed) !== 1
-    || !$failed[0]->envelope?->message instanceof FoundationReleaseCarryoverMessage
-    || $failed[0]->envelope->message->value !== 'dead-letter'
-) {
+if (count($failed) !== 1) {
+    throw new RuntimeException('Retained Omnibus failure store no longer decodes the original failure.');
+}
+$message = $failed[0]->envelope?->message;
+if (!$message instanceof FoundationReleaseCarryoverMessage || $message->value !== 'dead-letter') {
     throw new RuntimeException('Retained Omnibus failure store no longer decodes the original failure.');
 }
 if ($transport->size($queue) !== 1) {

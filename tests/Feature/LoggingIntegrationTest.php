@@ -51,6 +51,10 @@ it('writes structured records at the configured level and redacts nested secrets
 
         $records = array_values(array_filter(explode("\n", trim((string) file_get_contents($path)))));
         $record = json_decode($records[0], true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($record)) {
+            throw new \UnexpectedValueException('Expected a JSON log record.');
+        }
+
 
         expect($records)->toHaveCount(1)
             ->and($record['level'])->toBe('error')
@@ -135,6 +139,10 @@ it('resolves relative log paths from the application and includes exception deta
         ]);
 
         $record = json_decode(trim((string) file_get_contents($path)), true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($record)) {
+            throw new \UnexpectedValueException('Expected a JSON log record.');
+        }
+
 
         expect($record['context']['exception']['message'])->toBe('safe-in-this-test')
             ->and($record['context']['exception'])->toHaveKey('trace');

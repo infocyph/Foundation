@@ -57,6 +57,9 @@ it('rejects a real Composer downgrade after a captured feature snapshot and perm
         $process = null;
         expect($exit)->toBe(0)->and($error)->toBe('');
         $result = json_decode((string) file_get_contents($directory . '/activation-result.json'), true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($result)) {
+            throw new \UnexpectedValueException('Expected a decoded JSON object.');
+        }
         expect($result)->toHaveKey('rejected')
             ->and($result['rejected'])->toContain('Composer metadata changed')
             ->and(file_get_contents($directory . '/config/modules.php'))->toBe($original)

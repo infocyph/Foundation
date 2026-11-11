@@ -8,6 +8,9 @@ use Infocyph\Foundation\Tests\Fixtures\AuthContentionFixture;
 
 [$directory, $kind, $worker, $now] = array_slice($argv, 1);
 $connection = json_decode((string) file_get_contents($directory . '/connection.json'), true, flags: JSON_THROW_ON_ERROR);
+if (!is_array($connection)) {
+    throw new \UnexpectedValueException('Expected a decoded JSON object.');
+}
 try {
     $fixture = new AuthContentionFixture($connection);
     $result = $fixture->compete($kind, $directory, $worker, (int) $now);

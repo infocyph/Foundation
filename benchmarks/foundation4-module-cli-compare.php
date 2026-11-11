@@ -10,7 +10,13 @@ if ($argc !== 4) {
     throw new InvalidArgumentException('Usage: php foundation4-module-cli-compare.php BASELINE.json CANDIDATE.json OUTPUT.json');
 }
 $baseline = json_decode((string) file_get_contents($argv[1]), true, flags: JSON_THROW_ON_ERROR);
+if (!is_array($baseline)) {
+    throw new \UnexpectedValueException('Expected a decoded JSON object.');
+}
 $candidate = json_decode((string) file_get_contents($argv[2]), true, flags: JSON_THROW_ON_ERROR);
+if (!is_array($candidate)) {
+    throw new \UnexpectedValueException('Expected a decoded JSON object.');
+}
 if (!is_array($baseline) || !is_array($candidate)) {
     throw new InvalidArgumentException('Module CLI benchmark reports must be JSON objects.');
 }

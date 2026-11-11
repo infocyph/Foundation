@@ -767,6 +767,10 @@ function browserSessionCookieId(Response $response): string
 function browserSessionJson(Response $response): array
 {
     $decoded = json_decode((string) $response->getBody(), true, flags: JSON_THROW_ON_ERROR);
+    if (!is_array($decoded)) {
+        throw new \UnexpectedValueException('Expected a session JSON response.');
+    }
+
     return is_array($decoded) ? $decoded : [];
 }
 

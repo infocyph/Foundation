@@ -123,6 +123,9 @@ it('keeps Webrick and HTTP adapters out of non-web compilation and execution', f
         expect($result->successful())->toBeTrue($result->stderr)
             ->and($result->stderr)->toBe('');
         $probe = json_decode($result->stdout, true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($probe)) {
+            throw new \UnexpectedValueException('Expected a decoded JSON object.');
+        }
         expect($probe['runtime'])->toBe($mode)
             ->and($probe['webrick'])->toBe([])
             ->and($probe['executions'])->toHaveCount(2)

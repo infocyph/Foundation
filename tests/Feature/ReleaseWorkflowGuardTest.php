@@ -70,6 +70,9 @@ it('captures benchmark configuration using only options supported by its PHP ver
             ->and(file_exists($directory . '/evidence/php-ini-files.txt'))->toBeTrue()
             ->and(file_exists($directory . '/evidence/php-ini-diff.txt'))->toBe($php85);
         $settings = json_decode((string) file_get_contents($directory . '/evidence/php-runtime-settings.json'), true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($settings)) {
+            throw new \UnexpectedValueException('Expected a decoded JSON object.');
+        }
         expect($settings)->toHaveKeys(['opcache.enable_cli', 'opcache.validate_timestamps', 'memory_limit']);
         $digests = (string) file_get_contents($directory . '/evidence/composer-lock.sha256');
         expect($digests)->toContain('locked-dependencies/baseline.lock', 'locked-dependencies/candidate.lock');

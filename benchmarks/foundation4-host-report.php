@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * @return array{requests:int,successful:int,failed:int,rpm:float,duration_seconds:float,p50_ms:float,p95_ms:float,p99_ms:float}
+ * @return array{requests:int,connection_warmup:array<array-key,mixed>,measured_new_connections:int,load_cpu_percent:float|int,worker_requests:array<array-key,mixed>,database_queries:int,application_cache_hits:int,authenticated:bool,successful:int,failed:int,rpm:float,duration_seconds:float,p50_ms:float,p95_ms:float,p99_ms:float}
  * @throws \RuntimeException
  */
 function f4HostLoad(string $path, int $expectedRequests): array
