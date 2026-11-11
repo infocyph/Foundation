@@ -56,19 +56,24 @@ it('keeps scoped TalkingBytes client graphs Fiber-local under interleaving', fun
 
     $run = static function () use ($app): Fiber {
         return new Fiber(static function () use ($app): array {
-            return $app->container()->withinScope('webrick.request', static function () use ($app): array {
+            $scoped = $app->container()->withinScope('webrick.request', static function () use ($app): array {
                 $before = [
                     spl_object_id($app->make(HttpClient::class)),
                     spl_object_id($app->make(Emailer::class)),
                 ];
 
-                Fiber::suspend($before);
+                expect(Fiber::suspend($before))->toBeNull();
 
                 return [
                     spl_object_id($app->make(HttpClient::class)),
                     spl_object_id($app->make(Emailer::class)),
                 ];
             });
+            if (!is_array($scoped)) {
+                throw new \UnexpectedValueException('Fiber-local TalkingBytes scope must preserve its identity pair.');
+            }
+
+            return $scoped;
         });
     };
 

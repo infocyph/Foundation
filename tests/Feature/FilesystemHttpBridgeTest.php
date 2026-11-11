@@ -537,6 +537,7 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
 
         /**
          * @throws \LogicException
+         * @throws \RuntimeException
          */
         #[\Override]
         public function scan(MalwareScanRequest $request): MalwareScanVerdict

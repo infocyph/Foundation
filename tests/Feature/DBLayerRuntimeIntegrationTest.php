@@ -130,12 +130,12 @@ it('never exposes one active pooled connection to two interleaved Foundation exe
 
     $firstFiber = new Fiber(static function () use ($firstState, $manager): void {
         $connection = $firstState->leasedConnection('default', $manager);
-        Fiber::suspend(spl_object_id($connection));
+        expect(Fiber::suspend(spl_object_id($connection)))->toBeNull();
         $firstState->cleanup();
     });
     $secondFiber = new Fiber(static function () use ($secondState, $manager): void {
         $connection = $secondState->leasedConnection('default', $manager);
-        Fiber::suspend(spl_object_id($connection));
+        expect(Fiber::suspend(spl_object_id($connection)))->toBeNull();
         $secondState->cleanup();
     });
 

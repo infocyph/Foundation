@@ -31,7 +31,7 @@ it('boots with Foundation core dependencies while optional packages remain unava
         ->and($probe['base']['created_and_booted'] ?? false)->toBeTrue()
         ->and($probe['base']['base_path'] ?? null)->toBe($root)
         ->and($probe['warm_base_path'] ?? null)->toBe($root)
-        ->and(array_filter($probe['loaded_before_isolation'] ?? []))->toBe([]);
+        ->and(array_filter($probe['loaded_before_isolation']))->toBe([]);
 
     $services = $probe['services'];
     foreach ($services as $service => $state) {

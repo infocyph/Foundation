@@ -90,7 +90,7 @@ it('does not resurrect a session revoked while manager rotation is in flight', f
         public function rotate(AuthSession $current, AuthSession $replacement, int $now): bool
         {
             $this->replacement = $replacement;
-            Fiber::suspend();
+            expect(Fiber::suspend())->toBeNull();
 
             return $this->store->rotate($current, $replacement, $now);
         }

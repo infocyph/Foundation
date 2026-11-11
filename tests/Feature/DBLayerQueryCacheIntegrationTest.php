@@ -16,6 +16,7 @@ use Psr\Container\ContainerInterface;
 /**
  * @param array<string,mixed> $config
  * @return array{DBLayerFactory,RuntimeExecutionState,object,ConfigRepository,CacheManager}
+ * @throws \UnexpectedValueException
  */
 function foundationDbLayerQueryRuntime(array $config): array
 {

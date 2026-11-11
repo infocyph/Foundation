@@ -103,8 +103,15 @@ PHP);
             ->and(ULID::isValid($executionId))->toBeTrue();
 
         $records = $history->find($executionId);
+        $recordIds = [];
+        foreach ($records as $record) {
+            if (!is_array($record) || !is_string($record['execution_id'] ?? null)) {
+                throw new \UnexpectedValueException('UID execution history requires string identifiers.');
+            }
+            $recordIds[] = $record['execution_id'];
+        }
         expect(array_column($records, 'status'))->toBe(['pending', 'running', 'succeeded'])
-            ->and(array_values(array_unique(array_column($records, 'execution_id'))))->toBe([$executionId]);
+            ->and(array_values(array_unique($recordIds)))->toBe([$executionId]);
     } finally {
         foundationUidRuntimeRemove($project);
     }
@@ -117,8 +124,6 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
         || !function_exists('pcntl_wexitstatus')
         || !function_exists('pcntl_exec')
     ) {
-        expect(true)->toBeTrue();
-
         return;
     }
 
@@ -148,6 +153,9 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
         $parent = ExecutionId::generate()->value;
         $status = 0;
         pcntl_waitpid($pid, $status);
+        if (!is_int($status)) {
+            throw new \UnexpectedValueException('Forked UID process must provide an integer status.');
+        }
         $child = trim((string) file_get_contents($exchange));
 
         expect(pcntl_wifexited($status))->toBeTrue()
@@ -204,6 +212,9 @@ function foundationUidRuntimeRemove(string $project): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($iterator as $entry) {
+        if (!$entry instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('UID fixture cleanup requires filesystem entries.');
+        }
         if ($entry->isDir()) {
             rmdir($entry->getPathname());
         } else {

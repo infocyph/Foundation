@@ -700,7 +700,7 @@ it('isolates active sessions between concurrent fibers', function (): void {
             $session = $manager->open(null);
             $manager->enter($session);
             try {
-                Fiber::suspend();
+                expect(Fiber::suspend())->toBeNull();
                 return $manager->current() === $session;
             } finally {
                 $manager->leave($session);

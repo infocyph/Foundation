@@ -86,6 +86,9 @@ it('keeps AOTP private keys device-owned and composes native challenges', functi
         if (!$factor instanceof MfaFactor || !is_array($factor->metadata['otp'] ?? null)) {
             throw new \UnexpectedValueException('AOTP enrollment must produce a factor with OTP metadata.');
         }
+        if (isset($enrollment->context['otp']) && !is_array($enrollment->context['otp'])) {
+            throw new \UnexpectedValueException('AOTP enrollment must provide an OTP context.');
+        }
         expect($factor)->toBeInstanceOf(MfaFactor::class)
             ->and($factor->metadata['otp']['public_key'] ?? null)->toBe($keys->publicKey)
             ->and($factor->metadata['otp'])->not->toHaveKey('private_key')

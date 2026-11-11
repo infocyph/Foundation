@@ -138,7 +138,7 @@ it('generates Foundation auth IDs across Runwire coroutine work without retainin
 
         expect(count(array_unique(array_column($results, 0))))->toBe(16)
             ->and(count(array_unique(array_column($results, 1))))->toBe(16)
-            ->and($results[0][2])->toBeInt();
+            ->and($results[0][2])->toBeGreaterThan(0);
         foreach ($results as [$account, $correlation]) {
             expect(UUID::isValid($account))->toBeTrue()
                 ->and(ULID::isValid($correlation))->toBeTrue();

@@ -295,7 +295,7 @@ it('keeps frozen compiled validator state isolated across sequential and Fiber r
     $factory = $app->make(ValidatorFactory::class);
     $builder = $factory->make('users.email')->after(
         static function (ValidationContext $context): void {
-            Fiber::suspend($context->get('email'));
+            expect(Fiber::suspend($context->get('email')))->toBeNull();
         },
     );
     $compiled = new CompiledValidator($builder);

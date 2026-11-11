@@ -102,6 +102,9 @@ function phase9HttpChild(string $variant): array
                 postGlobalTags: [],
             );
             $compileNs = hrtime(true) - $compileStarted;
+            if (!is_array($release['intermix'] ?? null)) {
+                throw new RuntimeException('Phase 9 Webrick compilation must report InterMix islands.');
+            }
             $skipped = $release['intermix']['skipped'] ?? null;
             if (!is_array($skipped) || $skipped !== []) {
                 throw new RuntimeException('Standalone Webrick attribution graph was not fully compiled.');

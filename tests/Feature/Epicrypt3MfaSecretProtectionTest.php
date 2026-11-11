@@ -385,13 +385,13 @@ it('isolates MFA plaintext across sequential and Fiber reuse of the protection s
 
     $fiberA = new Fiber(function () use ($protector, $storedA): string {
         $first = $protector->unprotect($storedA)->metadata['otp']['secret'];
-        Fiber::suspend($first);
+        expect(Fiber::suspend($first))->toBeNull();
 
         return $protector->unprotect($storedA)->metadata['otp']['secret'];
     });
     $fiberB = new Fiber(function () use ($protector, $storedB): string {
         $first = $protector->unprotect($storedB)->metadata['otp']['secret'];
-        Fiber::suspend($first);
+        expect(Fiber::suspend($first))->toBeNull();
 
         return $protector->unprotect($storedB)->metadata['otp']['secret'];
     });

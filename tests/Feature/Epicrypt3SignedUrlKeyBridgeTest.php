@@ -102,6 +102,9 @@ it('verifies rotated signed URLs with native Webrick and rejects tampering and e
         $aliases = ['download' => ['/download/{id}', null]];
         $previousGenerator = new UrlGenerator('', $aliases, signedConfig: $previous);
         $activeGenerator = new UrlGenerator('', $aliases, signedConfig: $rotated);
+        if (!$previous instanceof SignedUrlConfig || !$rotated instanceof SignedUrlConfig) {
+            throw new \UnexpectedValueException('Signed URL rotation requires both resolved key configurations.');
+        }
         $verifier = new VerifySignedUrlMiddleware($rotated);
         $next = static fn(Request $request): Response => Response::plaintext($request->getMethod());
 
@@ -119,7 +122,12 @@ it('verifies rotated signed URLs with native Webrick and rejects tampering and e
                 throw new RuntimeException('Unable to parse generated signed URL.');
             }
             parse_str($queryString, $query);
-
+            foreach ($query as $key => $value) {
+                if (!is_string($key) || !is_string($value)) {
+                    throw new \UnexpectedValueException('Generated signed URL query must contain scalar string parameters.');
+                }
+            }
+            /** @var array<string,string> $query */
             $request = Request::fake(query: $query, uri: 'https://signed.example.test' . $path);
             expect((string) $verifier($request, $next)->getBody())->toBe('GET');
 

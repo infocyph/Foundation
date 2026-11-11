@@ -93,12 +93,12 @@ it('rechecks OIDC interaction on a valid-CSRF approval POST before issuing a cod
         ])->boot();
         $web->make(Registrar::class)->post(
             '/oauth/authorize',
-            [$controller, 'authorization'],
+            $controller->authorization(...),
             ['name' => 'test.oidc.approval', 'middleware' => [$csrf]],
         );
         $web->make(Registrar::class)->get(
             '/oauth/authorize',
-            [$controller, 'authorization'],
+            $controller->authorization(...),
             ['name' => 'test.oidc.authorization', 'middleware' => [$csrf]],
         );
 

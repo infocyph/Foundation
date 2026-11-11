@@ -32,5 +32,5 @@ it('resolves explicit service bindings and independently makes a native command 
     $application = Foundation::cli([]);
 
     expect($application->make(Application::class))->toBe($application)
-        ->and($application->make(ModuleSystemCommand::class))->toBeInstanceOf(ModuleSystemCommand::class);
+        ->and(get_class($application->make(ModuleSystemCommand::class)))->toBe(ModuleSystemCommand::class);
 });

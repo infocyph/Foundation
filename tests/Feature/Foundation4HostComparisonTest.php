@@ -4,7 +4,33 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Benchmarks\Support\Foundation4HostComparison;
 
-/** @return array<string, mixed> */
+/**
+ * @return array{
+ *     schema:int,
+ *     sha:string,
+ *     hardware_id:string,
+ *     php:string,
+ *     protocol:string,
+ *     workload_profile:string,
+ *     composer_lock_sha256:string,
+ *     request_count:int,
+ *     repetitions:int,
+ *     warmup_seconds:int,
+ *     hosts:array<string,list<array{
+ *         workers:int,
+ *         concurrency:int,
+ *         runs:list<array{
+ *             requests:int,
+ *             successful:int,
+ *             failed:int,
+ *             duration_seconds:float,
+ *             rpm:float,
+ *             peak_rss_mb:float,
+ *             samples:int
+ *         }>
+ *     }>>
+ * }
+ */
 function foundationHostFixture(float $rpm = 1000.0, bool $candidate = false): array
 {
     $hosts = [];

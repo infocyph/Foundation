@@ -286,7 +286,11 @@ function arrayKitBenchmarkRuntimeEnvironment(string $arrayKitVersion): array
         'php_sapi' => PHP_SAPI,
         'operating_system' => php_uname(),
         'cpu_model' => $cpuModel,
-        'memory_limit' => (ini_get('memory_limit') ?: 'unknown'),
+        'memory_limit' => (static function (): string {
+            $limit = ini_get('memory_limit');
+
+            return is_string($limit) && $limit !== '' && $limit !== '0' ? $limit : 'unknown';
+        })(),
         'opcache' => extension_loaded('Zend OPcache'),
         'jit' => (($__foundation154_291 = ini_get('opcache.jit')) !== false && $__foundation154_291 !== '' && $__foundation154_291 !== '0' ? $__foundation154_291 : false),
         'xdebug' => extension_loaded('xdebug'),

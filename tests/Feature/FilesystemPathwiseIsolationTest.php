@@ -63,13 +63,13 @@ it('keeps interleaved Fiber storage operations bound to the owning context', fun
     try {
         $fiberA = new Fiber(function () use ($storageA): string {
             $storageA->disk('uploads')->write('fiber.txt', 'A');
-            Fiber::suspend();
+            expect(Fiber::suspend())->toBeNull();
 
             return $storageA->disk('uploads')->read('fiber.txt');
         });
         $fiberB = new Fiber(function () use ($storageB): string {
             $storageB->disk('uploads')->write('fiber.txt', 'B');
-            Fiber::suspend();
+            expect(Fiber::suspend())->toBeNull();
 
             return $storageB->disk('uploads')->read('fiber.txt');
         });

@@ -214,7 +214,7 @@ it('isolates native cache operations through borrowed Fiber contexts and restore
                     $child->start();
                     expect($child->getReturn())->toBe([$request, $key]);
 
-                    Fiber::suspend($key);
+                    expect(Fiber::suspend($key))->toBeNull();
                     CacheRunwire::checkpoint();
 
                     $value = $store->get($key);

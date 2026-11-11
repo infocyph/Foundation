@@ -184,23 +184,33 @@ it('rolls back token rotation instead of overwriting an existing replacement ide
     $tables = new AuthTables();
     new MigrationRunner($factory->connection(), [new AuthSchema($tables)])->run();
     $now = time();
-    $make = static function (string $id, string $account, string $family) use ($kind, $now): mixed {
-        return $kind === 'refresh'
-            ? new RefreshTokenRecord(hash('sha256', $id), null, null, $id, $account, $family, $now, $now + 300)
-            : new \Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenRecord(
+    $state = new RuntimeStateContainer([DBLayerFactory::class => $factory]);
+    $clock = new SystemClock();
+    if ($kind === 'refresh') {
+        $store = new DBLayerRefreshTokenStore($state, $tables, $clock);
+        $make = static fn(string $id, string $account, string $family): RefreshTokenRecord =>
+            new RefreshTokenRecord(hash('sha256', $id), null, null, $id, $account, $family, $now, $now + 300);
+        $current = $make('source', 'owner', 'family');
+        $occupied = $make('occupied', 'other-account', 'other-family');
+        $store->save($current);
+        $store->save($occupied);
+        expect(fn() => $store->rotateIfActive($current, $make('occupied', 'owner', 'family')))
+            ->toThrow(\Infocyph\DBLayer\Exceptions\TransactionException::class)
+            ->and($store->find('source')?->rotatedAt)->toBeNull()
+            ->and($store->find('occupied'))->toEqual($occupied);
+    } else {
+        $store = new \Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerRememberTokenStore($state, $tables, $clock);
+        $make = static fn(string $id, string $account, string $family): \Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenRecord =>
+            new \Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenRecord(
                 'device', $id, hash('sha256', $id), $id, $account, $family, $now, $now + 300,
             );
-    };
-    $store = $kind === 'refresh'
-        ? new DBLayerRefreshTokenStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables, new SystemClock())
-        : new \Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerRememberTokenStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables, new SystemClock());
-    $current = $make('source', 'owner', 'family');
-    $occupied = $make('occupied', 'other-account', 'other-family');
-    $store->save($current);
-    $store->save($occupied);
-
-    expect(fn() => $store->rotateIfActive($current, $make('occupied', 'owner', 'family')))
-        ->toThrow(\Infocyph\DBLayer\Exceptions\TransactionException::class)
-        ->and($store->find('source')?->rotatedAt)->toBeNull()
-        ->and($store->find('occupied'))->toEqual($occupied);
+        $current = $make('source', 'owner', 'family');
+        $occupied = $make('occupied', 'other-account', 'other-family');
+        $store->save($current);
+        $store->save($occupied);
+        expect(fn() => $store->rotateIfActive($current, $make('occupied', 'owner', 'family')))
+            ->toThrow(\Infocyph\DBLayer\Exceptions\TransactionException::class)
+            ->and($store->find('source')?->rotatedAt)->toBeNull()
+            ->and($store->find('occupied'))->toEqual($occupied);
+    }
 })->with(['refresh', 'remember']);

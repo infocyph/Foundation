@@ -28,7 +28,9 @@ if (!extension_loaded('curl')) {
 }
 
 $multi = curl_multi_init();
-curl_multi_setopt($multi, CURLMOPT_MAXCONNECTS, $concurrency);
+if (!curl_multi_setopt($multi, CURLMOPT_MAXCONNECTS, $concurrency)) {
+    throw new RuntimeException('Unable to configure benchmark connection limit.');
+}
 $handles = [];
 $running = 0;
 $sent = 0;
@@ -231,7 +233,7 @@ function f4HostPrimeConnections(CurlMultiHandle $multi, array $handles, bool $au
         $next = hrtime(true) + 5_000_000;
         do {
             $running = $pump();
-            $remaining = ($next - hrtime(true)) / 1_000_000_000;
+            $remaining = (float) ($next - hrtime(true)) / 1_000_000_000.0;
             if ($remaining > 0 && ($running === 0 || curl_multi_select($multi, $remaining) === -1)) {
                 usleep((int) ceil($remaining * 1_000_000.0));
             }

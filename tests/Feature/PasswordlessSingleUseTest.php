@@ -61,7 +61,7 @@ it('fails passwordless issuance and redemption when atomic state is unavailable'
          * @throws \RuntimeException
          */
         #[\Override]
-        public function pull(string $key, mixed $default = null): mixed
+        public function pull(string $key, ?string $default = null): mixed
         {
             if ($this->unavailable) {
                 throw new RuntimeException('Passwordless state unavailable.');

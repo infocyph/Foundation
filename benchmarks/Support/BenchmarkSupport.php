@@ -35,6 +35,9 @@ final class BenchmarkSupport
         }
 
         sort($samples, SORT_NUMERIC);
+        if ($samples === []) {
+            throw new \RuntimeException('Benchmark must produce at least one sample.');
+        }
         $median = $samples[intdiv(count($samples), 2)];
         $minimum = $samples[0];
         $maximum = $samples[count($samples) - 1];
@@ -103,6 +106,9 @@ final class BenchmarkSupport
         }
 
         sort($samples, SORT_NUMERIC);
+        if ($samples === []) {
+            throw new \RuntimeException('Benchmark must produce at least one sample.');
+        }
         $median = $samples[intdiv(count($samples), 2)];
 
         return [

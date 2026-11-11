@@ -71,7 +71,7 @@ it('preserves unique UID 6 generation across interleaved Fibers and borrowed Run
                             $first[] = $ids->accountId();
                         }
 
-                        Fiber::suspend($first);
+                        expect(Fiber::suspend($first))->toBeNull();
 
                         $last = [];
                         for ($n = 0; $n < 16; $n++) {

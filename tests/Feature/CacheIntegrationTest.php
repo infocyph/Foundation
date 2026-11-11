@@ -207,6 +207,7 @@ it('keeps bounded process-local memoizers warm without clearing the shared cache
         ->and($cache->get('persistent'))->toBe('shared');
 });
 
+/** @throws \UnexpectedValueException */
 function foundationCacheOnceValue(OnceMemoizer $memoizer, int &$calls): int
 {
     $value = $memoizer->once(static function () use (&$calls): int {

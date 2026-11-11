@@ -5,17 +5,8 @@ declare(strict_types=1);
 use Symfony\Component\Yaml\Yaml;
 
 it('requires tagged Foundation releases to pass quality and production consumers', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
-    if (!is_array($workflow) || !is_array($workflow['jobs'] ?? null)) {
-        throw new \UnexpectedValueException('Release workflow must define a jobs map.');
-    }
-    $jobs = [];
-    foreach ($workflow['jobs'] as $name => $definition) {
-        if (!is_string($name) || !is_array($definition)) {
-            throw new \UnexpectedValueException('Release workflow jobs must be named mappings.');
-        }
-        $jobs[$name] = $definition;
-    }
+    $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $jobs = $workflow['jobs'];
 
     expect($jobs['release']['needs'] ?? [])->toContain('phpforge', 'production-consumer', 'release-evidence', 'runtime-hosts')
         ->and($jobs['release']['if'])->toContain("startsWith(github.ref, 'refs/tags/')")
@@ -28,14 +19,23 @@ it('requires tagged Foundation releases to pass quality and production consumers
     expect($jobs['phpforge']['uses'])->toBe('infocyph/phpforge/.github/workflows/security-standards.yml@a6232b6aefcc32b84b2fb94b8db8f5ac3b276d5d')
         ->and($jobs['runtime-hosts']['uses'])->toBe('./.github/workflows/foundation4-host-certification.yml')
         ->and($jobs['runtime-hosts']['if'])->toContain("startsWith(github.ref, 'refs/tags/')");
-    $hosts = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/foundation4-host-certification.yml');
+    $hosts = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/foundation4-host-certification.yml');
     expect($hosts['on'])->toHaveKey('workflow_call');
 });
 
 it('enforces independent complete performance batches without mixing their artifacts', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/foundation4-host-certification.yml');
-    $measure = $workflow['jobs']['paired-host'];
-    $compare = $workflow['jobs']['compare-paired-host'];
+    $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/foundation4-host-certification.yml');
+    $measure = $workflow['jobs']['paired-host'] ?? null;
+    $compare = $workflow['jobs']['compare-paired-host'] ?? null;
+    if (!is_array($measure) || !is_array($compare)
+        || !is_array($measure['strategy'] ?? null)
+        || !is_array($measure['strategy']['matrix'] ?? null)
+        || !is_array($measure['env'] ?? null)
+        || !is_array($compare['strategy'] ?? null)
+        || !is_array($compare['strategy']['matrix'] ?? null)
+        || !is_array($compare['steps'] ?? null)) {
+        throw new \UnexpectedValueException('Host workflow must define complete paired measurement and comparison jobs.');
+    }
 
     expect($measure['strategy']['matrix']['batch'])->toBe(['primary', 'confirmation'])
         ->and($compare['strategy']['matrix']['batch'])->toBe(['primary', 'confirmation'])
@@ -45,19 +45,33 @@ it('enforces independent complete performance batches without mixing their artif
         ->and((int) $measure['env']['FOUNDATION_HOST_MIN_SECONDS'])->toBeGreaterThanOrEqual(120)
         ->and((int) $measure['env']['FOUNDATION_HOST_WARMUP_SECONDS'])->toBeGreaterThanOrEqual(30);
 
-    $download = array_values(array_filter($compare['steps'], static fn(array $step): bool => isset($step['with']['pattern'])));
-    expect($download)->toHaveCount(1)
-        ->and($download[0]['with']['pattern'])->toBe('foundation4-pair-${{ matrix.batch }}-*');
+    $download = [];
+    $runScripts = [];
+    foreach ($compare['steps'] as $step) {
+        if (!is_array($step)) {
+            throw new \UnexpectedValueException('Comparison steps must be YAML mappings.');
+        }
+        if (is_array($step['with'] ?? null) && isset($step['with']['pattern'])) {
+            $download[] = $step['with']['pattern'];
+        }
+        if (isset($step['run'])) {
+            if (!is_string($step['run'])) {
+                throw new \UnexpectedValueException('Comparison shell steps must contain string commands.');
+            }
+            $runScripts[] = $step['run'];
+        }
+    }
+    expect($download)->toBe(['foundation4-pair-${{ matrix.batch }}-*']);
 
-    $run = implode("\n", array_column($compare['steps'], 'run'));
+    $run = implode("\n", $runScripts);
     expect($run)->toContain('foundation4-host-merge.php', 'foundation4-module-cli-compare.php')
         ->not->toContain('|| true', 'continue-on-error');
 });
 
 it('captures benchmark configuration using only options supported by its PHP version', function (bool $php85): void {
     $root = dirname(__DIR__, 2);
-    $workflow = Yaml::parseFile($root . '/.github/workflows/foundation4-host-certification.yml');
-    $steps = array_column($workflow['jobs']['paired-host']['steps'], 'run', 'name');
+    $workflow = foundationReleaseWorkflow($root . '/.github/workflows/foundation4-host-certification.yml');
+    $steps = foundationReleaseWorkflowSteps($workflow, 'paired-host');
     $directory = sys_get_temp_dir() . '/foundation-ini-capture-' . bin2hex(random_bytes(8));
     mkdir($directory . '/bin', 0700, true);
     mkdir($directory . '/locked-dependencies', 0700);
@@ -92,6 +106,9 @@ it('captures benchmark configuration using only options supported by its PHP ver
             RecursiveIteratorIterator::CHILD_FIRST,
         );
         foreach ($files as $file) {
+            if (!$file instanceof \SplFileInfo) {
+                throw new \UnexpectedValueException('Workflow fixture cleanup requires filesystem entries.');
+            }
             $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
         }
         rmdir($directory);
@@ -100,10 +117,13 @@ it('captures benchmark configuration using only options supported by its PHP ver
 
 it('keeps the benchmark controller and its telemetry children on the load CPU', function (): void {
     $root = dirname(__DIR__, 2);
-    $workflow = Yaml::parseFile($root . '/.github/workflows/foundation4-host-certification.yml');
-    $steps = array_column($workflow['jobs']['paired-host']['steps'], 'run', 'name');
+    $workflow = foundationReleaseWorkflow($root . '/.github/workflows/foundation4-host-certification.yml');
+    $steps = foundationReleaseWorkflowSteps($workflow, 'paired-host');
     expect(preg_match('/^Cpus_allowed_list:\s*(\d+)/m', (string) file_get_contents('/proc/self/status'), $matches))->toBe(1);
-    $cpu = $matches[1];
+    $cpu = $matches[1] ?? null;
+    if (!is_string($cpu)) {
+        throw new \UnexpectedValueException('Controller CPU affinity must be reported.');
+    }
     $directory = sys_get_temp_dir() . '/foundation-controller-affinity-' . bin2hex(random_bytes(8));
     $probe = <<<'SH'
     set -euo pipefail
@@ -140,3 +160,55 @@ it('keeps the benchmark controller and its telemetry children on the load CPU', 
         (new \Symfony\Component\Process\Process(['rm', '-rf', '--', $directory]))->mustRun();
     }
 });
+
+/**
+ * Validate the actual workflow structure before inspecting typed job contracts.
+ *
+ * @return array{on:array<string,mixed>,jobs:array<string,array<string,mixed>>}
+ * @throws \UnexpectedValueException
+ */
+function foundationReleaseWorkflow(string $path): array
+{
+    $document = Yaml::parseFile($path);
+    if (!is_array($document) || !is_array($document['on'] ?? null) || !is_array($document['jobs'] ?? null)) {
+        throw new \UnexpectedValueException('Release workflow must define event triggers and a jobs map.');
+    }
+
+    $jobs = [];
+    foreach ($document['jobs'] as $name => $job) {
+        if (!is_string($name) || !is_array($job)) {
+            throw new \UnexpectedValueException('Release workflow jobs must be named mappings.');
+        }
+        $jobs[$name] = $job;
+    }
+
+    return ['on' => $document['on'], 'jobs' => $jobs];
+}
+
+/**
+ * @param array{on:array<string,mixed>,jobs:array<string,array<string,mixed>>} $workflow
+ * @return array<string,string>
+ * @throws \UnexpectedValueException
+ */
+function foundationReleaseWorkflowSteps(array $workflow, string $jobName): array
+{
+    $steps = $workflow['jobs'][$jobName]['steps'] ?? null;
+    if (!is_array($steps)) {
+        throw new \UnexpectedValueException('Paired host workflow must define ordered steps.');
+    }
+    $commands = [];
+    foreach ($steps as $step) {
+        if (!is_array($step)) {
+            throw new \UnexpectedValueException('Paired host steps must be YAML mappings.');
+        }
+        if (!array_key_exists('run', $step)) {
+            continue;
+        }
+        if (!is_string($step['name'] ?? null) || !is_string($step['run'])) {
+            throw new \UnexpectedValueException('Paired host command steps require names and shell scripts.');
+        }
+        $commands[$step['name']] = $step['run'];
+    }
+
+    return $commands;
+}

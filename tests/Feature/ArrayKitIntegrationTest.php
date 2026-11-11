@@ -73,14 +73,13 @@ return [
 ];
 PHP);
 
-    $collection = ArrayKit::collection([
+    $collection = array_values(ArrayKit::collection([
         ['name' => 'Ada', 'score' => 10],
         ['name' => 'Linus', 'score' => 25],
     ])
         ->process()
         ->where('score', '>=', 20)
-        ->values()
-        ->all();
+        ->all());
 
     expect($collection)->toBe([
         ['name' => 'Linus', 'score' => 25],

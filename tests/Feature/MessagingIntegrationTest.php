@@ -111,7 +111,7 @@ final class FoundationFiberMessageHandler
     public function __invoke(FoundationFiberMessage $message): void
     {
         $before = $this->application->make(FoundationMessageProbe::class)->sequence;
-        Fiber::suspend($before);
+        expect(Fiber::suspend($before))->toBeNull();
         $after = $this->application->make(FoundationMessageProbe::class)->sequence;
         self::$handled[] = ['value' => $message->value, 'before' => $before, 'after' => $after];
     }

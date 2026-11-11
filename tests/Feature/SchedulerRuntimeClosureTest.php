@@ -643,6 +643,7 @@ function foundationSchedulerLines(string $path): array
     return is_array($lines) ? $lines : [];
 }
 
+/** @throws \UnexpectedValueException */
 function foundationSchedulerRemove(string $directory): void
 {
     if (!is_dir($directory)) {

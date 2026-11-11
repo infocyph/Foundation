@@ -15,7 +15,7 @@ use Psr\Log\LoggerInterface;
 
 final class FoundationCollectingLogger extends AbstractLogger
 {
-    /** @var list<array{level:mixed,message:string,context:array<string,mixed>}> */
+    /** @var list<array{level:mixed,message:string,context:array<array-key,mixed>}> */
     public array $records = [];
 
     #[\Override]

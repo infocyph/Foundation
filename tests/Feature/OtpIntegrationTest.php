@@ -71,8 +71,10 @@ it('exposes the otp enrollment lifecycle through foundation', function (): void 
             throw new \RuntimeException('OTP enrollment did not create a factor.');
         }
 
+        if (!is_array($enrollment->factorMetadata['otp'] ?? null)) {
+            throw new \UnexpectedValueException('OTP enrollment must provide structured factor metadata.');
+        }
         expect($enrollment->successful())->toBeTrue()
-            ->and($factor)->toBeInstanceOf(MfaFactor::class)
             ->and($factor->enabled)->toBeFalse()
             ->and($enrollment->payload->issuer)->toBe('Infbyte Test')
             ->and($enrollment->payload->label)->toBe('ada@example.com')

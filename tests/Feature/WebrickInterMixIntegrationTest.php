@@ -363,7 +363,7 @@ it('isolates current principals between concurrent fibers and restores failed re
         return $app->container()->withinScope('webrick.request', static function () use ($app): string {
             $context = $app->make(CurrentPrincipalContext::class);
             $context->set(new Principal('first'));
-            Fiber::suspend($context->require()->id());
+            expect(Fiber::suspend($context->require()->id()))->toBeNull();
 
             return $context->require()->id();
         });
@@ -372,7 +372,7 @@ it('isolates current principals between concurrent fibers and restores failed re
         return $app->container()->withinScope('webrick.request', static function () use ($app): ?string {
             $context = $app->make(CurrentPrincipalContext::class);
             $context->set(new Principal('second'));
-            Fiber::suspend($context->require()->id());
+            expect(Fiber::suspend($context->require()->id()))->toBeNull();
             $context->clear();
 
             return $context->get()?->id();

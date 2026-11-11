@@ -551,7 +551,7 @@ final class ModuleCatalog
     }
 
     /**
-     * @phpstan-param ModuleDefinition $definition
+     * @phpstan-param ModuleDefinition|ResolvedModule $definition
      * @param list<string> $features
      * @return array<string,string>
      * @throws \InvalidArgumentException
@@ -568,7 +568,7 @@ final class ModuleCatalog
     }
 
     /**
-     * @phpstan-param ModuleDefinition $definition
+     * @phpstan-param ModuleDefinition|ResolvedModule $definition
      * @return array<string,string>
      * @throws \InvalidArgumentException
      */
@@ -584,7 +584,7 @@ final class ModuleCatalog
     }
 
     /**
-     * @phpstan-param ModuleDefinition $definition
+     * @phpstan-param ModuleDefinition|ResolvedModule $definition
      * @return array<string,string>
      */
     public function requiredPackages(array $definition): array

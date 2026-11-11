@@ -138,6 +138,7 @@ it('keeps Webrick and HTTP adapters out of non-web compilation and execution', f
     }
 })->with(['cli', 'worker', 'scheduler'])->with(['development', 'validated', 'prevalidated']);
 
+/** @throws \UnexpectedValueException */
 function runtimeModeRemoveDirectory(string $directory): void
 {
     if (!is_dir($directory)) {

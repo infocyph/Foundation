@@ -225,7 +225,7 @@ it('closes maintenance runtime control and process registry operations through r
         $activeStatus = foundationOperationsPayload(
             foundationOperationsRun($dispatcher, ['infbyte', 'worker:status', 'jobs']),
         );
-        if (!is_array($activeStatus) || !is_array($activeStatus['configured'] ?? null)) {
+        if (!is_array($activeStatus['configured'] ?? null)) {
             throw new \UnexpectedValueException('Worker status must provide a structured configuration.');
         }
         if (!is_array($activeStatus['configured']['jobs'] ?? null)

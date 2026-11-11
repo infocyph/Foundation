@@ -140,6 +140,7 @@ it('keeps mailbox instances caller-owned and spool receivers execution-scoped', 
     }
 });
 
+/** @throws \UnexpectedValueException */
 function foundationTalkingBytesEmailRemove(string $directory): void
 {
     if (!is_dir($directory)) {

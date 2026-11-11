@@ -147,7 +147,7 @@ it('isolates providers across overlapping Foundation executions and preserves ex
             $connection = $app->make(DBLayerFactory::class)->connection();
             expect(($connection->runwireBinding()['request'] ?? null))->toBe($request)
                 ->and($bus->runwireBinding()->request())->toBe($request);
-            Fiber::suspend($connection);
+            expect(Fiber::suspend($connection))->toBeNull();
             if ($request->cancelled()) {
                 expect(fn(): mixed => $connection->scalar('SELECT 1'))
                     ->toThrow(CancelledException::class)

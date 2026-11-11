@@ -70,7 +70,7 @@ it('isolates same-label CLI scopes across interleaved Fibers and sequential exec
                         'probe' => spl_object_id($first),
                     ];
 
-                    Fiber::suspend($before);
+                    expect(Fiber::suspend($before))->toBeNull();
 
                     $second = $app->make(FoundationExecutionScopeProbe::class);
 
@@ -143,7 +143,7 @@ it('cleans a suspended Fiber execution when it is aborted by an injected excepti
         $app->execution()->run(
             static function () use ($app): never {
                 $app->make(FoundationExecutionScopeProbe::class);
-                Fiber::suspend();
+                expect(Fiber::suspend())->toBeNull();
 
                 throw new LogicException('unreachable');
             },
@@ -204,7 +204,7 @@ it('forwards one host-owned InterMix scope through a child Fiber without taking 
                     throw new LogicException('Expected an InterMix runtime scope container.');
                 }
                 $context = $container->captureScopeContext();
-                Fiber::suspend([$context, $state, $executionId]);
+                expect(Fiber::suspend([$context, $state, $executionId]))->toBeNull();
 
                 return [
                     $app->make(FoundationExecutionScopeProbe::class),
@@ -255,7 +255,7 @@ it('preserves thrown child failures without closing the borrowed owner scope', f
                     throw new LogicException('Expected an InterMix runtime scope container.');
                 }
                 $context = $container->captureScopeContext();
-                Fiber::suspend([$context, $state, $id]);
+                expect(Fiber::suspend([$context, $state, $id]))->toBeNull();
 
                 return [$app->make(FoundationExecutionScopeProbe::class), $app->make(ExecutionId::class)];
             },

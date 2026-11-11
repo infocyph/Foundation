@@ -101,9 +101,6 @@ it('gracefully replaces a release worker when the active Foundation generation c
         );
         $trustedA = hash_file('sha256', $releaseA['manifest']);
         expect($trustedA)->toBeString()->toMatch('/^[a-f0-9]{64}$/D');
-        if (!is_string($trustedA)) {
-            throw new RuntimeException('Unable to hash generation A Foundation manifest.');
-        }
 
         $runtime = new FoundationReleaseRuntime()->nonWebPrevalidated(
             $config,
@@ -172,9 +169,6 @@ it('keeps an unbooted release-selected pool supervisor generation-aware', functi
         );
         $trustedA = hash_file('sha256', $releaseA['manifest']);
         expect($trustedA)->toBeString()->toMatch('/^[a-f0-9]{64}$/D');
-        if (!is_string($trustedA)) {
-            throw new RuntimeException('Unable to hash pool supervisor generation A manifest.');
-        }
 
         foundationReleaseReplacementSetEnvironment(FoundationReleaseBootstrap::RELEASE_ROOT_ENV, $releaseRoot);
         foundationReleaseReplacementSetEnvironment(FoundationReleaseBootstrap::MANIFEST_SHA256_ENV, $trustedA);

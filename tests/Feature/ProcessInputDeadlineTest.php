@@ -205,7 +205,7 @@ it('reaps a noninteractive child when an output callback fails with pending stdi
 
 it('retries deterministic zero and partial stdin writes without skipping bytes', function (): void {
     $wrapper = new class {
-        public mixed $context;
+        public mixed $context = null;
 
         public static string $captured = '';
 

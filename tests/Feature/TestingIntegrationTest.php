@@ -34,8 +34,7 @@ it('composes package fakes without replacing their implementations', function ()
     $http->assert()->assertRequestCount(1);
     $notifications->assertable()->assertNothingSent();
 
-    expect($cache)->toBeInstanceOf(CacheInterface::class)
-        ->and($testing->cache()->store())->toBe($cache)
+    expect($testing->cache()->store())->toBe($cache)
         ->and($cache->get('answer'))->toBe(42)
         ->and($app->make(HttpClient::class))->toBe($http)
         ->and($result->successful)->toBeTrue()
@@ -65,6 +64,5 @@ it('exposes the configured filesystem operator through the testing boundary', fu
     ]);
     $testing = $app->make(TestKit::class);
 
-    expect($testing->files())->toBeInstanceOf(FilesystemOperator::class)
-        ->and($testing->files())->toBe($app->make(FilesystemOperator::class));
+    expect($testing->files())->toBe($app->make(FilesystemOperator::class));
 });

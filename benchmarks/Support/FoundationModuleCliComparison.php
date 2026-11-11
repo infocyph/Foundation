@@ -49,7 +49,7 @@ final class FoundationModuleCliComparison
                 $metrics[$field] = [
                     'baseline_ms' => $oldMs,
                     'candidate_ms' => $newMs,
-                    'delta_percent' => round(($newMs / $oldMs - 1.0) * 100, 3),
+                    'delta_percent' => round(((float) $newMs / (float) $oldMs - 1.0) * 100, 3),
                 ];
             }
             $commands[] = ['command' => $name, 'metrics' => $metrics];

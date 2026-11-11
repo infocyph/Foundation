@@ -28,7 +28,7 @@ it('accepts DBLayer 6 SQL Server connection configuration', function (): void {
         'application_intent' => 'ReadWrite',
     ]);
 
-    expect($config)->toBeInstanceOf(ConnectionConfig::class);
+    expect($config::class)->toBe(ConnectionConfig::class);
 });
 
 it('targets DBLayer 6 bind sizing and monitoring surfaces', function (): void {
