@@ -227,6 +227,7 @@ function oauth21RejectRewriteHeader(string $token, array $changes): string
         . '.' . $payload . '.' . $signature;
 }
 
+/** @throws \RuntimeException */
 function oauth21RejectCorruptSignature(string $token): string
 {
     $segments = explode('.', $token, 3);

@@ -211,7 +211,11 @@ function foundationServeBurst(string $address): array
         foreach ($handles as $handle) {
             expect(curl_errno($handle))->toBe(0)
                 ->and(curl_getinfo($handle, CURLINFO_RESPONSE_CODE))->toBe(200);
-            $responses[] = json_decode(curl_multi_getcontent($handle), true, flags: JSON_THROW_ON_ERROR);
+            $body = curl_multi_getcontent($handle);
+            if (!is_string($body)) {
+                throw new RuntimeException('HTTP serving probe returned no response body.');
+            }
+            $responses[] = json_decode($body, true, flags: JSON_THROW_ON_ERROR);
         }
 
         return $responses;

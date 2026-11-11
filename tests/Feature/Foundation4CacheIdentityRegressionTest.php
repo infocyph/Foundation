@@ -129,6 +129,5 @@ it('does not instantiate the cache backend for a separately configured native lo
 
     $provider = $manager->lock();
 
-    expect($provider)->toBeInstanceOf(LockProviderInterface::class)
-        ->and($manager->lock('pdo-store'))->toBe($provider);
+    expect($manager->lock('pdo-store'))->toBe($provider);
 });

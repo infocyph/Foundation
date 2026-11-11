@@ -212,6 +212,9 @@ it('projects OIDC prompt interaction and provider metadata through the Epicrypt 
         expect($request->openIdPrompts)->toBe(['consent'])
             ->and($request->openIdProtocol)->not->toBeNull();
 
+        if ($request->openIdProtocol === null) {
+            throw new RuntimeException('Expected a parsed OpenID interaction request.');
+        }
         $policy = new OpenIdInteractionPolicy(new EpicryptClockAdapter($fixture->clock));
         $decision = $policy->evaluate(
             $request->openIdProtocol,
@@ -238,6 +241,9 @@ it('projects OIDC prompt interaction and provider metadata through the Epicrypt 
             'prompt' => 'none',
             'max_age' => '1',
         ]);
+        if ($silent->openIdProtocol === null) {
+            throw new RuntimeException('Expected a parsed silent OpenID interaction request.');
+        }
         $silentDecision = $policy->evaluate(
             $silent->openIdProtocol,
             new OpenIdInteractionState(

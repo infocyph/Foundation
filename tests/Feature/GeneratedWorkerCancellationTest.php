@@ -119,6 +119,7 @@ function foundationGeneratedWorkerCancellationProject(): string
     return $project;
 }
 
+/** @throws \UnexpectedValueException */
 function foundationGeneratedWorkerCancellationRemove(string $directory): void
 {
     if (!is_dir($directory)) {

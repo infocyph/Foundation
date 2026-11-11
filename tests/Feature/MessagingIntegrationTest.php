@@ -212,9 +212,10 @@ it('keeps Omnibus deferred until messaging is selected', function (): void {
 
     expect($observer->resolved)->toBeFalse()
         ->and($app->has(MessageBus::class))->toBeTrue()
-        ->and($observer->resolved)->toBeFalse()
-        ->and($app->make(MessageBus::class))->toBeInstanceOf(MessageBus::class)
-        ->and($observer->resolved)->toBeTrue();
+        ->and($observer->resolved)->toBeFalse();
+
+    $app->make(MessageBus::class);
+    expect($observer->resolved)->toBeTrue();
 });
 
 it('wires explicit event listeners and Foundation messaging fakes', function (): void {

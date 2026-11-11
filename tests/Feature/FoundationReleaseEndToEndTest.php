@@ -781,7 +781,10 @@ it('keeps worker run dispatcher parents unbooted before pooled-worker validation
     }
 });
 
-/** @return array<string,mixed> */
+/**
+ * @return array<string,mixed>
+ * @throws \InvalidArgumentException
+ */
 function foundationPhase8ReleaseConfig(string $project): array
 {
     $tokenEnvironment = 'FOUNDATION_TEST_PHASE8_TOKEN_SECRET';

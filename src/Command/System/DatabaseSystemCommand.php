@@ -242,9 +242,8 @@ final class DatabaseSystemCommand extends SystemCommand
     /**
      * @return list<array<string,mixed>>|null
      *
-     * @psalm-param array<int<0, max>|string, mixed> $data
      */
-    private function recordList(array $data): ?array
+    private function recordList(mixed $data): ?array
     {
         if (!is_array($data) || !array_is_list($data)) {
             return null;

@@ -38,8 +38,7 @@ it('registers native filesystem factories directly on the owning provider', func
             throw new RuntimeException('Native factory was not registered: ' . $id);
         }
 
-        expect($definition)->toBeInstanceOf(FactoryDefinition::class)
-            ->and($definition->signature()['class'])->toBe(FilesystemServiceProvider::class)
+        expect($definition->signature()['class'])->toBe(FilesystemServiceProvider::class)
             ->and($definition->signature()['method'])->toBe($method);
     }
 
@@ -79,8 +78,7 @@ it('binds the development Webrick router identities on the routing provider', fu
             throw new RuntimeException('Native factory was not registered: ' . $id);
         }
 
-        expect($definition)->toBeInstanceOf(FactoryDefinition::class)
-            ->and($definition->signature()['class'])->toBe(RoutingServiceProvider::class)
+        expect($definition->signature()['class'])->toBe(RoutingServiceProvider::class)
             ->and($definition->signature()['method'])->toBe($method);
     }
 

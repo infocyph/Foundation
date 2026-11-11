@@ -34,8 +34,7 @@ it('exports native TalkingBytes notifications without another Foundation graph f
             throw new RuntimeException('Native notification factory was not registered: ' . $id);
         }
 
-        expect($definition)->toBeInstanceOf(FactoryDefinition::class)
-            ->and($definition->signature()['class'])->toBe(NotificationServiceProvider::class)
+        expect($definition->signature()['class'])->toBe(NotificationServiceProvider::class)
             ->and($definition->signature()['method'])->toBe($method);
     }
 

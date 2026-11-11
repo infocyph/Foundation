@@ -95,14 +95,14 @@ PHP);
             for ($i = 0; $i < $operations; ++$i) {
                 $runtime->server->handle();
             }
-            $samples[] = (hrtime(true) - $started) / $operations;
+            $samples[] = (float) (hrtime(true) - $started) / (float) $operations;
         }
     } finally {
         \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($project);
     }
 
     sort($samples);
-    $medianNs = $samples[(int) floor((count($samples) - 1) / 2)];
+    $medianNs = (float) $samples[(int) floor((count($samples) - 1) / 2)];
 
     return [
         'mode' => $mode,

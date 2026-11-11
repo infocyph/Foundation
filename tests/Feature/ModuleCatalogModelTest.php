@@ -52,8 +52,6 @@ it('keeps Composer core and specialist module floors on one supported generation
     if (!is_array($manifest)) {
         throw new \UnexpectedValueException('Expected a decoded JSON object.');
     }
-    expect($manifest)->toBeArray();
-
     $core = [
         'infocyph/arraykit' => '^5.3.2',
         'infocyph/cachelayer' => '^4.0.2',

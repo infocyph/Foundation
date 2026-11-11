@@ -45,8 +45,6 @@ it('does not make core, PHPForge, or external developer packages installable mod
     if (!is_array($manifest)) {
         throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
     }
-    expect($manifest)->toBeArray();
-
     $owned = [];
     foreach ($catalog->all() as $module) {
         foreach ($module['features'] as $feature) {

@@ -763,7 +763,10 @@ function browserSessionCookieId(Response $response): string
     return $matches[1] ?? throw new RuntimeException('The response did not contain a session cookie.');
 }
 
-/** @return array<string,mixed> */
+/**
+ * @return array<string,mixed>
+ * @throws \UnexpectedValueException
+ */
 function browserSessionJson(Response $response): array
 {
     $decoded = json_decode((string) $response->getBody(), true, flags: JSON_THROW_ON_ERROR);
@@ -771,7 +774,7 @@ function browserSessionJson(Response $response): array
         throw new \UnexpectedValueException('Expected a session JSON response.');
     }
 
-    return is_array($decoded) ? $decoded : [];
+    return $decoded;
 }
 
 /** @param array<string,string> $files */

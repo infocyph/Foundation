@@ -124,10 +124,10 @@ it('composes current Omnibus DBLayer transport, failure store and schema only wh
 
         $schema->install();
 
-        expect($schema->readiness()['installed'])->toBeTrue()
-            ->and($app->make(DBLayerTransport::class))->toBeInstanceOf(DBLayerTransport::class)
-            ->and($app->make(DBLayerFailureStore::class))->toBeInstanceOf(DBLayerFailureStore::class)
-            ->and($app->make(EnvelopeSerializer::class))->toBeInstanceOf(EnvelopeSerializer::class);
+        expect($schema->readiness()['installed'])->toBeTrue();
+        $app->make(DBLayerTransport::class);
+        $app->make(DBLayerFailureStore::class);
+        $app->make(EnvelopeSerializer::class);
 
         $bus = $app->make(MessageBus::class);
         $transport = $app->make(DBLayerTransport::class);

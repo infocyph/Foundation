@@ -201,6 +201,9 @@ it('forwards exact Runwire identities through native intermediary and borrowed c
             ->and($omnibus->runtime())->toBeNull()
             ->and($connection->runwireBinding())->toBeNull();
 
+        if ($captured === null) {
+            throw new RuntimeException('Expected a captured scope context before cancellation.');
+        }
         expect(fn(): mixed => $bridge->withinScopeContext(
             $captured,
             $request,

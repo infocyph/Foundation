@@ -95,6 +95,7 @@ function f4ComposerCommands(string $root): array
     );
 }
 
+/** @throws \UnexpectedValueException */
 function f4ComposerRemoveFixture(string $root): void
 {
     if (!is_dir($root)) {

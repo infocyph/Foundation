@@ -50,6 +50,8 @@ it('allows browser database sessions with the database provider declared before 
         ],
     ]);
 
-    expect($app->make(SessionDatabaseSchema::class))->toBeInstanceOf(SessionDatabaseSchema::class)
-        ->and($app->make(SessionManager::class))->toBeInstanceOf(SessionManager::class);
+    $app->make(SessionDatabaseSchema::class);
+    $app->make(SessionManager::class);
+    expect($app->has(SessionDatabaseSchema::class))->toBeTrue()
+        ->and($app->has(SessionManager::class))->toBeTrue();
 });

@@ -479,6 +479,7 @@ function foundationGeneratedRuntimeProject(): string
     return $project;
 }
 
+/** @throws \UnexpectedValueException */
 function foundationGeneratedRuntimeRemove(string $directory): void
 {
     if (!is_dir($directory)) {

@@ -92,10 +92,11 @@ it('owns and resolves the complete opt-in OAuth HTTP surface', function (): void
                 'auth',
             ])->and($routes['POST /oauth/token']->getHandler())->toBe([OAuthHttpHandler::class, 'token'])
             ->and($routes['POST /oauth/token']->getMiddlewares())->toBe(['oauth-throttle:token'])
-            ->and($app->make(OAuthHttpHandler::class))->toBeInstanceOf(OAuthHttpHandler::class)
-            ->and($app->make(OAuthAuthorizationController::class))->toBeInstanceOf(OAuthAuthorizationController::class)
             ->and(MiddlewareAliases::resolveString('oauth-throttle:token'))
             ->toBeInstanceOf(Closure::class);
+
+        $app->make(OAuthHttpHandler::class);
+        $app->make(OAuthAuthorizationController::class);
     } finally {
         DB::purge();
         foundationOAuthHttpRemoveProject($root);

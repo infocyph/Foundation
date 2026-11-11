@@ -31,19 +31,19 @@ final class BenchmarkSupport
             for ($iteration = 0; $iteration < $operations; ++$iteration) {
                 $operation();
             }
-            $samples[] = max(1, hrtime(true) - $started) / $operations;
+            $samples[] = (float) max(1, hrtime(true) - $started) / (float) $operations;
         }
 
         sort($samples, SORT_NUMERIC);
-        $median = $samples[intdiv(count($samples), 2)];
-        $minimum = $samples[0];
-        $maximum = $samples[array_key_last($samples) ?? throw new \RuntimeException('Benchmark samples are empty.')];
+        $median = (float) $samples[intdiv(count($samples), 2)];
+        $minimum = (float) $samples[0];
+        $maximum = (float) $samples[array_key_last($samples) ?? throw new \RuntimeException('Benchmark samples are empty.')];
 
         return [
             'median_ns' => round($median, 2),
             'min_ns' => round($minimum, 2),
             'max_ns' => round($maximum, 2),
-            'spread_percent' => round((($maximum - $minimum) / max(1.0, $median)) * 100, 2),
+            'spread_percent' => round((($maximum - $minimum) / max(1.0, $median)) * 100.0, 2),
         ];
     }
 

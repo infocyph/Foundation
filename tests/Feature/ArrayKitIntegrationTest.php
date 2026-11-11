@@ -92,8 +92,7 @@ PHP);
         coerce: true,
     );
 
-    expect($dto)->toBeInstanceOf(ArrayKitProfileDto::class)
-        ->and($dto->age)->toBe(36)
+    expect($dto->age)->toBe(36)
         ->and($dto->address->city)->toBe('Dhaka');
 
     expect(ArrayKit::dot()->get([

@@ -138,6 +138,7 @@ it('keeps native notifications config outside communication publication failures
     }
 });
 
+/** @throws \UnexpectedValueException */
 function moduleConfigRemoveDirectory(string $directory): void
 {
     if (!is_dir($directory)) {

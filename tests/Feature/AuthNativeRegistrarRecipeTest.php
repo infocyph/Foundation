@@ -23,8 +23,7 @@ it('keeps the native authentication and audit-service recipes on their owning re
         throw new RuntimeException('Authentication runtime factory was not registered.');
     }
 
-    expect($runtime)->toBeInstanceOf(FactoryDefinition::class)
-        ->and($runtime->signature()['class'])->toBe(AuthRuntimeRegistrar::class)
+    expect($runtime->signature()['class'])->toBe(AuthRuntimeRegistrar::class)
         ->and($runtime->signature()['method'])->toBe('manager');
 
     $storeBuilder = new ContainerBuilder();
@@ -34,8 +33,7 @@ it('keeps the native authentication and audit-service recipes on their owning re
         throw new RuntimeException('Authentication audit factory was not registered.');
     }
 
-    expect($audit)->toBeInstanceOf(FactoryDefinition::class)
-        ->and($audit->signature()['class'])->toBe(AuthStoreRegistrar::class)
+    expect($audit->signature()['class'])->toBe(AuthStoreRegistrar::class)
         ->and($audit->signature()['method'])->toBe('forwardingAuditStore')
         ->and(class_exists('Infocyph\\Foundation\\Auth\\Internal\\AuthRuntimeGraphFactory'))->toBeFalse()
         ->and(class_exists('Infocyph\\Foundation\\Auth\\Internal\\AuthStoreGraphFactory'))->toBeFalse();

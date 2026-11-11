@@ -37,6 +37,7 @@ function moduleB3Context(): array
     ];
 }
 
+/** @throws \UnexpectedValueException */
 function moduleB3Cleanup(string $path): void
 {
     $files = new RecursiveIteratorIterator(

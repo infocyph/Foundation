@@ -102,6 +102,9 @@ it('delegates remember-me signatures and account-device binding to native Epicry
         $issued = $app->make(AuthServices::class)->rememberMe()->issue('owner', 'device-1');
         $value = $issued->token?->value ?? '';
         $parts = explode('.', $value, 2);
+        if (!isset($parts[1])) {
+            throw new RuntimeException('Expected a signed remember-me token.');
+        }
         expect($parts)->toHaveCount(2);
 
         $secrets = $app->make(AuthSecretResolver::class);

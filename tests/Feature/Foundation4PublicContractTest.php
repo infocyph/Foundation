@@ -47,8 +47,6 @@ final class Foundation4PublicContractProvider extends ServiceProvider
 }
 
 it('publishes the Foundation 4 provider graph contract as native InterMix builder input', function (): void {
-    expect(is_subclass_of(Foundation4PublicContractProvider::class, ServiceProviderInterface::class))->toBeTrue();
-
     $method = new ReflectionMethod(ServiceProviderInterface::class, 'contribute');
     $parameters = $method->getParameters();
     $types = array_map(
@@ -66,9 +64,8 @@ it('publishes the Foundation 4 provider graph contract as native InterMix builde
         'providers' => ['common' => [Foundation4PublicContractProvider::class]],
     ])->boot();
 
+    $app->make(Foundation4PublicGraphProbe::class);
     expect($app->runtimeMode())->toBe(RuntimeMode::Cli)
-        ->and($app->make(Foundation4PublicGraphProbe::class))
-        ->toBeInstanceOf(Foundation4PublicGraphProbe::class)
         ->and(Foundation4PublicContractProvider::$booted)->toBe(1);
 });
 

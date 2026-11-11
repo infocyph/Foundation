@@ -208,8 +208,7 @@ it('exports the scoped DBLayer native recipe from the owning provider without a 
     if (!$definition instanceof FactoryDefinition) {
         throw new RuntimeException('DBLayer connection factory was not registered.');
     }
-    expect($definition)->toBeInstanceOf(FactoryDefinition::class)
-        ->and($definition->signature()['class'])->toBe(DatabaseServiceProvider::class)
+    expect($definition->signature()['class'])->toBe(DatabaseServiceProvider::class)
         ->and($definition->signature()['method'])->toBe('scopedConnection')
         ->and($definition->signature()['arguments'])->toBe([
             ['service' => DBLayerFactory::class],

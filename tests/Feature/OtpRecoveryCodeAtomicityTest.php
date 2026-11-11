@@ -149,6 +149,9 @@ it('preserves single-use recovery-code semantics through the selected Foundation
         expect($enrolled->successful())->toBeTrue()
             ->and($enrolled->recoveryCodes)->toHaveCount(2);
 
+        if (!isset($enrolled->recoveryCodes[0], $enrolled->recoveryCodes[1])) {
+            throw new RuntimeException('Expected two recovery codes from enrollment.');
+        }
         [$first, $second] = $enrolled->recoveryCodes;
         expect($mfa->verifyRecoveryCode('recovery-owner', $first)->successful())->toBeTrue()
             ->and($mfa->verifyRecoveryCode('recovery-owner', $first)->successful())->toBeFalse()

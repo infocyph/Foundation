@@ -63,9 +63,6 @@ final readonly class CacheLayerTtlStore implements TtlStoreInterface
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
-     *
-     *
-     * @param null|string $default
      */
     #[\Override]
     public function pull(string $key, ?string $default = null): mixed

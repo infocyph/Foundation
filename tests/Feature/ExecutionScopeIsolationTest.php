@@ -308,8 +308,7 @@ it('keeps scoped module runtime state separate across selected CLI worker schedu
             );
 
             expect($observed['id'])->toBe($mode->value . '-' . $label)
-                ->and($observed['same'])->toBeTrue()
-                ->and($observed['state'])->toBeInstanceOf(RuntimeExecutionState::class);
+                ->and($observed['same'])->toBeTrue();
             if ($previous instanceof RuntimeExecutionState) {
                 expect($observed['state'])->not->toBe($previous);
             }

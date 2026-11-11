@@ -218,10 +218,10 @@ function arrayKitBenchmarkMeasure(string $name, int $iterations, Closure $operat
     }
 
     $durationNanoseconds = max(1, hrtime(true) - $started);
-    $durationSeconds = $durationNanoseconds / 1_000_000_000;
+    $durationSeconds = (float) $durationNanoseconds / 1_000_000_000.0;
     $attempted = $successful + $failed;
     $averageLatencyMilliseconds = $attempted > 0
-        ? (float) $durationNanoseconds / $attempted / 1_000_000.0
+        ? (float) $durationNanoseconds / (float) $attempted / 1_000_000.0
         : 0.0;
 
     return [

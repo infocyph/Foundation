@@ -536,6 +536,7 @@ function moduleStateBasePath(string $name): string
     return $basePath;
 }
 
+/** @throws \UnexpectedValueException */
 function moduleStateRemoveDirectory(string $directory): void
 {
     if (!is_dir($directory)) {

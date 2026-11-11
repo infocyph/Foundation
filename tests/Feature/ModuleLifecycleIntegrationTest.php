@@ -406,6 +406,7 @@ function moduleLifecycleTableExists(string $databasePath, string $table): bool
     return $statement->fetchColumn() !== false;
 }
 
+/** @throws \UnexpectedValueException */
 function moduleLifecycleRemoveDirectory(string $directory): void
 {
     if (!is_dir($directory)) {

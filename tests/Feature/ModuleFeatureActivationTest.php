@@ -42,6 +42,7 @@ function featureActivationBasePath(): string
     return $path;
 }
 
+/** @throws \UnexpectedValueException */
 function featureActivationCleanup(string $path): void
 {
     $iterator = new RecursiveIteratorIterator(

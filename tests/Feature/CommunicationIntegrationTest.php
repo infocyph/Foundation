@@ -95,15 +95,23 @@ it('applies TalkingBytes webhook profiles through Foundation composition', funct
 
     $request = $transport->sentRequests()[0];
     $payload = $request->body?->toCurlPayload();
-    $event = $profiles->webhookReceiver()->receive((string) $payload, [
-        WebhookHeaders::SIGNATURE => (string) $request->headers->get(WebhookHeaders::SIGNATURE),
-        WebhookHeaders::TIMESTAMP => (string) $request->headers->get(WebhookHeaders::TIMESTAMP),
-        WebhookHeaders::EVENT => (string) $request->headers->get(WebhookHeaders::EVENT),
-        WebhookHeaders::DELIVERY => (string) $request->headers->get(WebhookHeaders::DELIVERY),
-    ]);
+    if (!is_string($payload)) {
+        throw new RuntimeException('Expected a serialized webhook request payload.');
+    }
+    $headers = [];
+    foreach ([WebhookHeaders::SIGNATURE, WebhookHeaders::TIMESTAMP, WebhookHeaders::EVENT, WebhookHeaders::DELIVERY] as $name) {
+        $value = $request->headers->get($name);
+        if (!is_string($value)) {
+            throw new RuntimeException('Expected a string webhook header: ' . $name);
+        }
+        $headers[$name] = $value;
+    }
+    $event = $profiles->webhookReceiver()->receive($payload, $headers);
+    if ($delivery->delivery === null) {
+        throw new RuntimeException('Webhook delivery was unexpectedly absent.');
+    }
 
-    expect($profiles->webhookSender())->toBeObject()
-        ->and((string) $request->headers->get(WebhookHeaders::SIGNATURE))->toContain('v2=')
+    expect($headers[WebhookHeaders::SIGNATURE])->toContain('v2=')
         ->and($delivery->delivery->delivered)->toBeTrue()
         ->and($event->event)->toBe('orders.created')
         ->and($event->payload)->toBe(['order_id' => 1001]);

@@ -25,6 +25,7 @@ function foundationB6Project(): string
     return $path;
 }
 
+/** @throws \UnexpectedValueException */
 function foundationB6Clean(string $path): void
 {
     $files = new RecursiveIteratorIterator(

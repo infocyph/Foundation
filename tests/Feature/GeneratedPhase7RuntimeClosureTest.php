@@ -507,6 +507,7 @@ function foundationPhase7Lines(string $path): array
     return is_array($lines) ? array_values($lines) : [];
 }
 
+/** @throws \UnexpectedValueException */
 function foundationPhase7GeneratedRemove(string $directory): void
 {
     if (!is_dir($directory)) {

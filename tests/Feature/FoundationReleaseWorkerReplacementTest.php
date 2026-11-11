@@ -222,7 +222,10 @@ it('keeps an unbooted release-selected pool supervisor generation-aware', functi
     }
 });
 
-/** @return array<string,mixed> */
+/**
+ * @return array<string,mixed>
+ * @throws \InvalidArgumentException
+ */
 function foundationReleaseReplacementConfig(string $project): array
 {
     $tokenEnvironment = 'FOUNDATION_TEST_RELEASE_WORKER_TOKEN_SECRET';

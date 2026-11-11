@@ -45,14 +45,14 @@ function uidRuntimeMeasure(
         }
         $durationNanoseconds = max(1, hrtime(true) - $started);
         $totalNanoseconds += $durationNanoseconds;
-        $samples[] = $durationNanoseconds / $operations;
+        $samples[] = (float) $durationNanoseconds / (float) $operations;
     }
 
     sort($samples, SORT_NUMERIC);
-    $median = $samples[intdiv(count($samples), 2)];
-    $minimum = $samples[0];
-    $maximum = $samples[array_key_last($samples) ?? throw new RuntimeException('UID benchmark has no samples.')];
-    $spread = (($maximum - $minimum) / max(0.000001, $median)) * 100;
+    $median = (float) $samples[intdiv(count($samples), 2)];
+    $minimum = (float) $samples[0];
+    $maximum = (float) $samples[array_key_last($samples) ?? throw new RuntimeException('UID benchmark has no samples.')];
+    $spread = (($maximum - $minimum) / max(0.000001, $median)) * 100.0;
     $attempted = $operations * $repetitions;
 
     return [

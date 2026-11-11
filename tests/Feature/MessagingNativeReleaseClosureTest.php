@@ -348,6 +348,7 @@ function foundationMessagingReleaseProject(string $name): string
     return $project;
 }
 
+/** @throws \UnexpectedValueException */
 function foundationMessagingReleaseRemove(string $directory): void
 {
     if (!is_dir($directory)) {

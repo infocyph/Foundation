@@ -37,6 +37,7 @@ function featureConfigContext(): array
     ];
 }
 
+/** @throws \UnexpectedValueException */
 function featureConfigCleanup(string $path): void
 {
     $iterator = new RecursiveIteratorIterator(

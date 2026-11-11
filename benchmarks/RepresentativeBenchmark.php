@@ -324,16 +324,19 @@ PHP);
             $sampleRpms[] = ((float) $sampleSuccessful / $sampleDuration) * 60.0;
             $memoryAfter = memory_get_usage(true);
             $memoryTotal += ((float) $memoryBefore + (float) $memoryAfter) / 2.0 / 1_048_576.0;
-            $memoryPeak = max($memoryPeak, memory_get_peak_usage(true) / 1_048_576);
-            $memoryGrowth = max($memoryGrowth, max(0, $memoryAfter - $memoryBefore) / 1_048_576);
+            $memoryPeak = max($memoryPeak, (float) memory_get_peak_usage(true) / 1_048_576.0);
+            $memoryGrowth = max($memoryGrowth, max(0.0, (float) ($memoryAfter - $memoryBefore)) / 1_048_576.0);
         }
 
         sort($latencies);
         $attempted = $this->operations * $this->repetitions;
         sort($sampleRpms);
+        if ($sampleRpms === []) {
+            throw new RuntimeException('Expected at least one representative benchmark repetition.');
+        }
         $medianRpm = $this->percentile($sampleRpms, 0.50) ?? 0.0;
         $spread = $medianRpm > 0.0
-            ? (((float) max($sampleRpms) - (float) min($sampleRpms)) / $medianRpm) * 100.0
+            ? ((max($sampleRpms) - min($sampleRpms)) / $medianRpm) * 100.0
             : 0.0;
         $stableEnvironment = getenv('FOUNDATION_BENCHMARK_STABLE') === '1';
 
