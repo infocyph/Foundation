@@ -193,6 +193,9 @@ it('creates reports and removes only configured matching storage links', functio
 
     try {
         $created = foundationEnvironmentStorageRun($dispatcher, ['infbyte', 'storage:link']);
+        if (!is_array($created['io']->json[0][0] ?? null)) {
+            throw new \UnexpectedValueException('Storage link creation must return structured JSON evidence.');
+        }
         expect($created['exit'])->toBe(ExitCode::SUCCESS)
             ->and($created['io']->json[0][0]['created'] ?? null)->toBeTrue()
             ->and(is_link($link))->toBeTrue()

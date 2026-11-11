@@ -45,6 +45,9 @@ it('does not make core, PHPForge, or external developer packages installable mod
     if (!is_array($manifest)) {
         throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
     }
+    if (!is_array($manifest['require'] ?? null) || !is_array($manifest['require-dev'] ?? null)) {
+        throw new \UnexpectedValueException('Module catalog must be backed by structured Composer requirements.');
+    }
     $owned = [];
     foreach ($catalog->all() as $module) {
         foreach ($module['features'] as $feature) {

@@ -36,6 +36,9 @@ it('uses CacheLayer native claim consume CAS and TTL semantics', function (): vo
     );
     $atomic = $cache->atomic();
 
+    if ($atomic === null) {
+        throw new \UnexpectedValueException('Memory cache requires an atomic counter store.');
+    }
     expect($atomic)->not->toBeNull();
 
     $replay = new CacheLayerWebhookReplayStore($cache);

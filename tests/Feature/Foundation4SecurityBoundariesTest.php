@@ -291,6 +291,9 @@ it('redacts arbitrarily cased nested credentials for login, reset, MFA and passk
             ->and($metadata['CREDENTIAL_ID'])->toBe('safe-credential-id')
             ->and($metadata['context']['nested']['device'])->toBe('browser');
 
+        if (!is_array($metadata['context'] ?? null) || !is_array($metadata['context']['nested'] ?? null)) {
+            throw new \UnexpectedValueException('Audit metadata must preserve the nested redaction context.');
+        }
         $context = $metadata['context'];
         foreach (['PASSWORD', 'pAsSwOrD', 'TOKEN', 'API_KEY', 'AUTHORIZATION', 'PRIVATE_KEY', 'mFaSeEd'] as $key) {
             expect($context[$key])->toBe('[REDACTED]');

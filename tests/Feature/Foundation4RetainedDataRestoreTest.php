@@ -190,6 +190,12 @@ it('restores independently created Foundation 4 auth and OAuth state from a veri
             throw new \UnexpectedValueException('Restored authentication state has invalid scalar or record types.');
         }
 
+        if (!is_array($savedMfa) || !is_array($savedPasskey)
+            || !is_numeric($savedMfa['revision'] ?? null)
+            || !is_numeric($savedPasskey['sign_count'] ?? null)
+            || !is_numeric($savedPasskey['revision'] ?? null)) {
+            throw new \UnexpectedValueException('Restored MFA and passkey revisions must be numeric.');
+        }
         expect(password_verify('foundation-4-password', $savedHash))->toBeTrue()
             ->and((int) $savedSession)->toBe($now + 3600)
             ->and($savedFamily)->toBe('f4-family')

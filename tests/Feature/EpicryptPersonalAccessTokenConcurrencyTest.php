@@ -80,6 +80,9 @@ it('serializes PAT issue against concurrent revoke-all for the same subject', fu
             sprintf('SELECT revision FROM %s WHERE subject_hash = ?', $tables->personalAccessTokenSubjects()),
             [hash('sha3-256', "foundation.personal-access-token.subject\0account-1")],
         )[0] ?? null;
+        if (!is_array($row) || !is_numeric($row['revision'] ?? null)) {
+            throw new \UnexpectedValueException('Concurrent PAT subject revision must be numeric.');
+        }
         expect($row)->toBeArray()
             ->and((int) ($row['revision'] ?? 0))->toBe(3)
             ->and($record->revokedAt === null || $record->revokedAt === 1_700_000_100)->toBeTrue();

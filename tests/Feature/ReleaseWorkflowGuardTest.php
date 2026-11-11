@@ -6,6 +6,9 @@ use Symfony\Component\Yaml\Yaml;
 
 it('requires tagged Foundation releases to pass quality and production consumers', function (): void {
     $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    if (!is_array($workflow) || !is_array($workflow['jobs'] ?? null)) {
+        throw new \UnexpectedValueException('Release workflow must define a jobs map.');
+    }
     $jobs = $workflow['jobs'];
 
     expect($jobs['release']['needs'] ?? [])->toContain('phpforge', 'production-consumer', 'release-evidence', 'runtime-hosts')

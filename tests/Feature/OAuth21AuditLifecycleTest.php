@@ -98,7 +98,9 @@ it('audits authorization code consumption at the authoritative Epicrypt outcome'
 
 it('audits OAuth endpoint throttling only when a request is rejected', function (): void {
     $config = AuthDefaults::all();
-    if (!is_array($config['auth']['oauth']['rate_limits'] ?? null)) {
+    if (!is_array($config['auth'] ?? null)
+        || !is_array($config['auth']['oauth'] ?? null)
+        || !is_array($config['auth']['oauth']['rate_limits'] ?? null)) {
         throw new \UnexpectedValueException('OAuth rate-limit defaults must be an array.');
     }
     $config['auth']['oauth']['rate_limits']['token'] = ['max' => 1, 'window' => 60];

@@ -73,6 +73,9 @@ it('rejects a real Composer downgrade after a captured feature snapshot and perm
         $context = new \Infocyph\Foundation\Module\ModuleFeatureCommandSnapshot($app)->capture();
         new \Infocyph\Foundation\Module\ModuleActivationManager($app)->applyFeatures('enable', ['data.database'], $context);
         $config = require $directory . '/config/modules.php';
+        if (!is_array($config)) {
+            throw new \UnexpectedValueException('Published module configuration must be an array.');
+        }
         expect($config['features'])->toBe(['data.database' => true])
             ->and($config['application_policy'])->toBe(str_repeat('x', 16 * 1024 * 1024));
         // A removal plan read in another process must not survive a later enable.

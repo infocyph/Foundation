@@ -52,6 +52,9 @@ it('keeps optional InterMix class auto-binding disabled in every native Foundati
         }
 
         $consumer = $runtime->get('foundation.native.binding.consumer');
+        if (!$consumer instanceof FoundationNativeBindingConsumer) {
+            throw new \UnexpectedValueException('Expected a native binding consumer.');
+        }
         expect($consumer)->toBeInstanceOf(FoundationNativeBindingConsumer::class)
             ->and($consumer->probe->value)->toBe('unbound')
             ->and($runtime->invoke(static fn(int $probe): int => $probe, ['probe' => 0]))->toBe(0)

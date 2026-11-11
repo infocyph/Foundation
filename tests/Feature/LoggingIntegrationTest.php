@@ -210,6 +210,9 @@ it('reopens a rotated log before relinquishing the original descriptor', functio
         expect(is_resource($original))->toBeFalse()
             ->and(is_resource($replacement))->toBeTrue();
 
+        if (!is_resource($replacement)) {
+            throw new \UnexpectedValueException('Log stream refresh must return an open stream.');
+        }
         expect(fgets($replacement))->toBe("replacement\n");
     } finally {
         if (is_resource($replacement)) {

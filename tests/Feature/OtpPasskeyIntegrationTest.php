@@ -99,7 +99,8 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
             throw new RuntimeException('Unable to create the disposable authenticator key.');
         }
         $details = openssl_pkey_get_details($key);
-        if (!is_array($details) || !isset($details['ec']['x'], $details['ec']['y'])) {
+        if (!is_array($details) || !is_array($details['ec'] ?? null)
+            || !is_string($details['ec']['x'] ?? null) || !is_string($details['ec']['y'] ?? null)) {
             throw new RuntimeException('Authenticator key coordinates are missing.');
         }
         // COSE EC2/P-256/ES256 map: protocol fixture bytes, consumed by native WebAuthn.

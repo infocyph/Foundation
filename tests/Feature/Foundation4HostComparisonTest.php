@@ -66,6 +66,9 @@ it('accepts a stable throughput change inside the strict 2 percent budget', func
 it('rejects a throughput regression exceeding 2 percent', function (): void {
     $result = Foundation4HostComparison::compare(foundationHostFixture(), foundationHostFixture(979.0, true));
 
+    if (!is_array($result['cases'] ?? null) || !is_array($result['cases'][0] ?? null)) {
+        throw new \UnexpectedValueException('Expected a structured host regression case.');
+    }
     expect($result['passed'])->toBeFalse()
         ->and($result['cases'][0]['status'])->toBe('regression');
 });

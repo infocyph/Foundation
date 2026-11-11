@@ -547,8 +547,11 @@ it('uses the native selector for every installed runtime enum case', function ()
 
             expect(foundationCliRuntimeDispatcher($project)->run([
                 'infbyte', 'serve', '--runtime=' . $driver->value, '--dry-run', '--json',
-            ], $io))->toBe(ExitCode::SUCCESS)
-                ->and($io->payloads[0]['requested_runtime'])->toBe($driver->value)
+            ], $io))->toBe(ExitCode::SUCCESS);
+            if (!is_array($io->payloads[0] ?? null)) {
+                throw new \UnexpectedValueException('Serve dry-run must return a structured payload.');
+            }
+            expect($io->payloads[0]['requested_runtime'])->toBe($driver->value)
                 ->and($io->payloads[0]['runtime'])->toBe($selected->driver->value);
         }
         expect(is_dir($project . '/storage/releases'))->toBeFalse();

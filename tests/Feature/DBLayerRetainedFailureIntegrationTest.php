@@ -100,8 +100,12 @@ it('rolls back failed statements while retaining the error and reuses native DBL
 
             $database->rollbackTransaction();
 
+            $rolledBackCount = $database->scalar("SELECT COUNT(*) FROM {$table}");
+            if (!is_numeric($rolledBackCount)) {
+                throw new \UnexpectedValueException('Rollback must provide a numeric row count.');
+            }
             expect($database->transactionLevel())->toBe(0)
-                ->and((int) $database->scalar("SELECT COUNT(*) FROM {$table}"))->toBe(0)
+                ->and((int) $rolledBackCount)->toBe(0)
                 ->and($factory->connection())->toBe($database)
                 ->and($database->getPdo())->toBe($pdo);
 

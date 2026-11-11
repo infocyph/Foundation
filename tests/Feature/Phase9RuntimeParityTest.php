@@ -200,6 +200,9 @@ PHP);
             $manifest,
             [],
         );
+        if (!is_array($release['intermix'] ?? null)) {
+            throw new \UnexpectedValueException('Compiled release must provide InterMix evidence.');
+        }
         expect($release['intermix']['skipped'] ?? null)->toBe([]);
 
         $productionRuntime = WebReleaseRuntime::loadPrevalidated(

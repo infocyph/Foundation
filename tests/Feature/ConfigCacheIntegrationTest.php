@@ -408,7 +408,11 @@ it('keeps production requirements limited to the Foundation runtime core', funct
         'infocyph/uid' => '^6.0.1',
         'infocyph/webrick' => '^6.0.4',
         'psr/log' => '^3.0.2',
-    ])->and($composer['minimum-stability'] ?? null)->toBe('stable')
+    ]);
+    if (!is_array($composer['require-dev'] ?? null) || !is_array($composer['suggest'] ?? null)) {
+        throw new \UnexpectedValueException('Foundation Composer dev requirements and suggestions must be arrays.');
+    }
+    expect($composer['minimum-stability'] ?? null)->toBe('stable')
         ->and($composer['require-dev'] ?? [])->not->toHaveKey('infocyph/cachelayer')
         ->and($composer['require-dev']['infocyph/dblayer'] ?? null)->toBe('^6.1.4')
         ->and($composer['require-dev']['infocyph/epicrypt'] ?? null)->toBe('^3.3')

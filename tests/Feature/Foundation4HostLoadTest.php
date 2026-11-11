@@ -17,6 +17,9 @@ it('warms distinct reusable connections before counting measured requests', func
             throw new \UnexpectedValueException('Host load worker request counts must be an array.');
         }
 
+        if (!is_array($result['connection_warmup'] ?? null) || !is_array($result['worker_requests'] ?? null)) {
+            throw new \UnexpectedValueException('Expected structured host warmup and worker evidence.');
+        }
         expect($result['requests'])->toBe(100)
             ->and($result['successful'])->toBe(100)
             ->and($result['database_queries'])->toBe($authenticated ? 400 : 0)

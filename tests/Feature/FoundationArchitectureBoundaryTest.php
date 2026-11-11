@@ -160,7 +160,10 @@ it('keeps specialist benchmark commands bound to maintained entrypoint paths', f
         true,
         flags: JSON_THROW_ON_ERROR,
     );
-    $scripts = $composer['scripts'] ?? [];
+    if (!is_array($composer) || !is_array($composer['scripts'] ?? null)) {
+        throw new \UnexpectedValueException('Composer scripts metadata must be an array.');
+    }
+    $scripts = $composer['scripts'];
 
     foreach (['cachelayer', 'dblayer', 'epicrypt', 'omnibus', 'otp', 'pathwise', 'reqshield', 'talkingbytes'] as $package) {
         $path = 'benchmarks/' . $package . '-utilization.php';

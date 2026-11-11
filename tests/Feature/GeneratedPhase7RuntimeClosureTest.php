@@ -322,9 +322,13 @@ it('keeps trusted worker and scheduler production containers bounded across long
         }
         gc_collect_cycles();
 
+        $countStatement = $pdo->query('SELECT COUNT(*) FROM phase7_runtime');
+        if (!$countStatement instanceof \PDOStatement) {
+            throw new \UnexpectedValueException('Phase 7 state-count query failed.');
+        }
         expect($workerFailures)->toBe(intdiv(512, 23))
             ->and(array_unique($messageSequences))->toHaveCount(128)
-            ->and((int) $pdo->query('SELECT COUNT(*) FROM phase7_runtime')->fetchColumn())->toBe(0)
+            ->and((int) $countStatement->fetchColumn())->toBe(0)
             ->and(array_filter($workerTemps, 'is_file'))->toBe([])
             ->and(fn(): mixed => $workerRuntime->application->make('foundation.phase7.worker.item'))
             ->toThrow(ServiceResolutionException::class)

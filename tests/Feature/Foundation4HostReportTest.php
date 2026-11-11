@@ -46,6 +46,13 @@ it('distinguishes CPU used within the sample window from lifetime CPU gauges', f
         if (!is_array($report)) {
             throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
         }
+        if (!is_array($report['hosts'] ?? null)
+            || !is_array($report['hosts']['fpm'] ?? null)
+            || !is_array($report['hosts']['fpm'][0] ?? null)
+            || !is_array($report['hosts']['fpm'][0]['runs'] ?? null)
+        ) {
+            throw new \UnexpectedValueException('Expected structured FPM host evidence.');
+        }
         $run = $report['hosts']['fpm'][0]['runs'][0] ?? null;
         if (!is_array($run)) {
             throw new \UnexpectedValueException('Expected a measured FPM host run.');

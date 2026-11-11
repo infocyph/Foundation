@@ -169,6 +169,9 @@ it('manages database-backed CacheLayer schemas through core cache commands', fun
         if (!is_array($beforePayload)) {
             throw new \UnexpectedValueException('Expected cache schema status payload.');
         }
+        if (!is_array($beforePayload['schemas'] ?? null) || !is_array($beforePayload['schemas'][0] ?? null)) {
+            throw new \UnexpectedValueException('Cache schema status must contain a schema record.');
+        }
         expect($beforePayload['schemas'][0]['name'] ?? null)->toBe('cache:store:sqlite')
             ->and($beforePayload['schemas'][0]['state'] ?? null)->toBe('pending')
             ->and($beforePayload['schemas'][0]['installed'] ?? null)->toBeFalse();

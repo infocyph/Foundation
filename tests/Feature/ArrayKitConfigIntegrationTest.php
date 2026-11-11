@@ -84,8 +84,8 @@ PHP,
             ->and($repository->get(0))->toBe(['flags' => ['original', 'second']]);
 
         $allConfiguration = $repository->get();
-        if (!is_array($allConfiguration)) {
-            throw new \UnexpectedValueException('Lazy configuration root must be an array.');
+        if (!is_array($allConfiguration) || !is_array($allConfiguration['app'] ?? null)) {
+            throw new \UnexpectedValueException('Lazy configuration root and application section must be arrays.');
         }
         expect($allConfiguration['app']['name'] ?? null)->toBe('source')
             ->and($repository->all())->not->toHaveKey(0);

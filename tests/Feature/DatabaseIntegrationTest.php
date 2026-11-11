@@ -255,6 +255,9 @@ it('exposes scoped DBLayer connections while Foundation keeps composition policy
                 throw new \UnexpectedValueException('Expected a database result row.');
             }
 
+            if (!is_string($fetched[0]['email'] ?? null)) {
+                throw new \UnexpectedValueException('Database read must retain an email string.');
+            }
             expect($fetched[0]['email'] ?? null)->toBe('ada@example.test')
                 ->and($plan)->not->toBeEmpty()
                 ->and($connection->getDriverName())->toBe('sqlite')

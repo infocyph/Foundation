@@ -34,6 +34,9 @@ it('boots with Foundation core dependencies while optional packages remain unava
         ->and(array_filter($probe['loaded_before_isolation'] ?? []))->toBe([]);
 
     $services = $probe['services'] ?? [];
+    if (!is_array($services) || !is_array($probe['loaded_before_isolation'] ?? null)) {
+        throw new \UnexpectedValueException('Optional capabilities must provide structured isolation evidence.');
+    }
     expect($services)->toBeArray();
     foreach ($services as $service => $state) {
         expect($state)->toBeArray()

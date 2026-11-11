@@ -15,7 +15,8 @@ it('keeps OAuth validation dormant while OAuth is disabled', function (): void {
 
 it('fails closed when enabled OAuth is missing issuer keys or database state', function (): void {
     $config = AuthDefaults::all();
-    if (!is_array($config['auth']['oauth'] ?? null)) {
+    if (!is_array($config['auth'] ?? null)
+        || !is_array($config['auth']['oauth'] ?? null)) {
         throw new \UnexpectedValueException('OAuth default configuration must be an array.');
     }
     $config['auth']['oauth']['enabled'] = true;

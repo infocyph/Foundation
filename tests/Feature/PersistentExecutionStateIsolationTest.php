@@ -179,7 +179,7 @@ it('isolates execution state while preserving bounded process-local memoizers', 
         expect($app->execution()->run(static fn(): ?PrincipalInterface => $principal->get()))->toBeNull()
             ->and(fn() => $sessions->current())->toThrow(ContainerException::class, 'requires an active scope')
             ->and($database->transactionLevel())->toBe(0)
-            ->and((int) $database->getPdo()->query('SELECT COUNT(*) FROM runtime_state')->fetchColumn())->toBe(0)
+            ->and((int) ($database->getPdo()->query('SELECT COUNT(*) FROM runtime_state') ?: throw new \UnexpectedValueException('Execution-state query failed.'))->fetchColumn())->toBe(0)
             ->and(Memoizer::instance()->stats())->toBe(['hits' => 0, 'misses' => 1, 'total' => 1]);
 
         $secondScoped = null;

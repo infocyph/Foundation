@@ -116,6 +116,13 @@ it('keeps Composer publication metadata and optional package roles consistent wi
         'psr/log' => '^3.0.2',
     ];
 
+    if (!is_array($manifest) || !is_array($manifest['autoload'] ?? null)
+        || !is_array($manifest['autoload']['psr-4'] ?? null)
+        || !is_array($manifest['require'] ?? null)
+        || !is_array($manifest['require-dev'] ?? null)
+        || !is_array($manifest['suggest'] ?? null)) {
+        throw new \UnexpectedValueException('Foundation Composer manifest must have structured package metadata.');
+    }
     expect($manifest['name'])->toBe('infocyph/foundation')
         ->and($manifest['type'])->toBe('library')
         ->and($manifest['license'])->toBe('MIT')

@@ -228,6 +228,11 @@ it('closes maintenance runtime control and process registry operations through r
         if (!is_array($activeStatus) || !is_array($activeStatus['configured'] ?? null)) {
             throw new \UnexpectedValueException('Worker status must provide a structured configuration.');
         }
+        if (!is_array($activeStatus['configured']['jobs'] ?? null)
+            || !is_array($activeStatus['processes'] ?? null)
+            || !is_array($activeStatus['processes'][0] ?? null)) {
+            throw new \UnexpectedValueException('Worker status must contain configured job and process records.');
+        }
         expect($activeStatus['worker'] ?? null)->toBe('jobs')
             ->and($activeStatus['registry_visibility'] ?? null)->toBe('host')
             ->and($activeStatus['configured']['jobs']['type'] ?? null)->toBe('messaging')

@@ -52,6 +52,9 @@ it('keeps Composer core and specialist module floors on one supported generation
     if (!is_array($manifest)) {
         throw new \UnexpectedValueException('Expected a decoded JSON object.');
     }
+    if (!is_array($manifest['require'] ?? null) || !is_array($manifest['require-dev'] ?? null)) {
+        throw new \UnexpectedValueException('Module catalog requires structured Composer dependency maps.');
+    }
     $core = [
         'infocyph/arraykit' => '^5.3.2',
         'infocyph/cachelayer' => '^4.0.2',

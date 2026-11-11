@@ -94,7 +94,11 @@ it('owns a DBLayer lease per Foundation execution and delegates rollback sanitat
         $second = new RuntimeExecutionState();
         $secondConnection = $second->leasedConnection('default', $manager);
 
-        expect((int) $secondConnection->scalar('SELECT COUNT(*) FROM lease_items'))->toBe(0)
+        $leaseCount = $secondConnection->scalar('SELECT COUNT(*) FROM lease_items');
+        if (!is_numeric($leaseCount)) {
+            throw new \UnexpectedValueException('Leased connection must return a numeric row count.');
+        }
+        expect((int) $leaseCount)->toBe(0)
             ->and($pool->getStats()['active_connections'])->toBe(1)
             ->and($pool->getStats()['total_connections'])->toBeLessThanOrEqual(1);
 

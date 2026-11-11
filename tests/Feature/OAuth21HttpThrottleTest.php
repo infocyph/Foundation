@@ -45,7 +45,10 @@ it('rejects unknown OAuth throttle endpoints', function (): void {
 
 it('keeps OAuth rate-limit validation inert while OAuth is disabled', function (): void {
     $defaults = AuthDefaults::all();
-    if (!is_array($defaults['auth']['oauth']['rate_limits']['token'] ?? null)) {
+    if (!is_array($defaults['auth'] ?? null)
+        || !is_array($defaults['auth']['oauth'] ?? null)
+        || !is_array($defaults['auth']['oauth']['rate_limits'] ?? null)
+        || !is_array($defaults['auth']['oauth']['rate_limits']['token'] ?? null)) {
         throw new \UnexpectedValueException('OAuth token throttle defaults must be an array.');
     }
     $defaults['auth']['oauth']['rate_limits']['token']['max'] = 0;

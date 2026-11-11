@@ -202,6 +202,10 @@ PHP);
         $readinessPayload = $readiness->json[0] ?? null;
         $optimizePayload = $optimize->json[0] ?? null;
 
+        if (!is_array($showPayload) || !is_array($showPayload['states'] ?? null)
+            || !is_array($showPayload['states']['data.database'] ?? null)) {
+            throw new \UnexpectedValueException('Optimized module status must contain a database state.');
+        }
         expect($showPayload)->toBeArray()
             ->and($doctorPayload)->toBeArray()
             ->and($planPayload)->toBeArray()

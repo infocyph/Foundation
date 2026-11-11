@@ -80,6 +80,9 @@ it('evaluates captured authenticated bytes from a cleaned private copy', functio
     try {
         file_put_contents($path, $trusted);
         $loaded = \Infocyph\Foundation\Release\FoundationReleaseManifest::loadTrustedArray($path, $sha256);
+        if (!is_string($loaded['source_file'] ?? null)) {
+            throw new \UnexpectedValueException('Trusted release metadata must contain its source path.');
+        }
         expect($loaded['source_file'])->not->toBe($path)
             ->and(is_file($loaded['source_file']))->toBeFalse();
 

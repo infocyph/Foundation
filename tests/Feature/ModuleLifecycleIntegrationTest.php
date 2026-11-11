@@ -145,6 +145,11 @@ it('publishes the three-group eight-feature public command inventory in version 
         if (!is_array($payload) || !is_array($payload['modules'] ?? null)) {
             throw new \UnexpectedValueException('Module inventory response requires an array of modules.');
         }
+        foreach ($payload['modules'] as $module) {
+            if (!is_array($module) || !is_array($module['features'] ?? null)) {
+                throw new \UnexpectedValueException('Each inventory module must contain a feature list.');
+            }
+        }
         expect($payload['schema_version'])->toBe(2)
             ->and(array_column($payload['modules'], 'name'))->toBe(['data', 'security', 'execution'])
             ->and(array_merge(...array_column($payload['modules'], 'features')))->toBe([

@@ -201,6 +201,9 @@ it('rejects host-cancelled native HOTP mutation and retains the unconsumed count
         }
 
         $before = $store->findForAccount('account-cancelled-hotp')[0] ?? null;
+        if ($before === null || !is_array($before->metadata['otp'] ?? null)) {
+            throw new \UnexpectedValueException('Cancelled HOTP verification must preserve a factor record.');
+        }
         expect($before?->revision)->toBe(0)
             ->and($before?->metadata['otp']['counter'] ?? null)->toBe(0)
             ->and(CacheRunwire::current())->toBeNull();

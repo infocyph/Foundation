@@ -21,7 +21,8 @@ use Infocyph\Foundation\Config\ConfigRepository;
 
 it('publishes bounded authorization server metadata', function (): void {
     $config = AuthDefaults::all();
-    if (!is_array($config['auth']['oauth'] ?? null)) {
+    if (!is_array($config['auth'] ?? null)
+        || !is_array($config['auth']['oauth'] ?? null)) {
         throw new \UnexpectedValueException('OAuth default configuration must be an array.');
     }
     $config['auth']['oauth']['issuer'] = 'https://issuer.example.test';

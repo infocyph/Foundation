@@ -209,6 +209,9 @@ it('serializes overlapping feature plans without silently losing changes', funct
         $processes = [];
 
         $config = require $path . '/config/modules.php';
+        if (!is_array($config) || !is_array($config['features'] ?? null)) {
+            throw new \UnexpectedValueException('Published feature configuration must provide a feature map.');
+        }
         expect($successes)->toBe(1)
             ->and(count($config['features']))->toBe(1)
             ->and(in_array(array_keys($config['features']), [['security.passkey'], ['security.mfa']], true))->toBeTrue();

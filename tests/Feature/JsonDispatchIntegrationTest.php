@@ -16,7 +16,10 @@ it('emits JsonDispatch 3 success envelopes and resource transformations', functi
         #[\Override]
         public function resolve(): mixed
         {
-            return ['id' => $this->resource['id']];
+            if (!is_array($this->resource)) {
+                throw new \UnexpectedValueException('JSON resource must contain structured data.');
+            }
+            return ['id' => $this->resource['id'] ?? null];
         }
     };
 
