@@ -155,7 +155,7 @@ it('cleans a suspended Fiber execution when it is aborted by an injected excepti
 
     $fiber->start();
 
-    expect(fn() => $fiber->throw(new RuntimeException('fiber aborted')))
+    expect(fn(): mixed => $fiber->throw(new RuntimeException('fiber aborted')))
         ->toThrow(RuntimeException::class, 'fiber aborted');
 
     $after = $app->execution()->run(

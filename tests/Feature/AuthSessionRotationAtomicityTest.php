@@ -106,7 +106,7 @@ it('does not resurrect a session revoked while manager rotation is in flight', f
         $rotation = new Fiber(static fn(): AuthSession => $manager->rotate('race'));
         $rotation->start();
         $store->revokeAllForAccount('owner');
-        expect(fn() => $rotation->resume())->toThrow(SessionException::class, 'revoked during rotation')
+        expect(fn(): mixed => $rotation->resume())->toThrow(SessionException::class, 'revoked during rotation')
             ->and($store->find('race'))->toBeNull()
             ->and($barrier->replacement)->not->toBeNull()
             ->and($store->find($barrier->replacement?->id ?? 'missing'))->toBeNull();

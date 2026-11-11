@@ -50,7 +50,7 @@ it('enforces Foundation production ownership boundaries', function (): void {
 
 it('keeps optional specialist packages out of the Foundation runtime requirement set', function (): void {
     $composer = json_decode(
-        file_get_contents(dirname(__DIR__, 2) . '/composer.json') ?: '',
+        (($__foundation154_53 = file_get_contents(dirname(__DIR__, 2) . '/composer.json')) !== false && $__foundation154_53 !== '' && $__foundation154_53 !== '0' ? $__foundation154_53 : ''),
         true,
         flags: JSON_THROW_ON_ERROR,
     );
@@ -153,7 +153,7 @@ it('keeps TalkingBytes typed HTTP composition on the native 2.3 path', function 
 it('keeps specialist benchmark commands bound to maintained entrypoint paths', function (): void {
     $root = dirname(__DIR__, 2);
     $composer = json_decode(
-        file_get_contents($root . '/composer.json') ?: '',
+        (($__foundation154_156 = file_get_contents($root . '/composer.json')) !== false && $__foundation154_156 !== '' && $__foundation154_156 !== '0' ? $__foundation154_156 : ''),
         true,
         flags: JSON_THROW_ON_ERROR,
     );

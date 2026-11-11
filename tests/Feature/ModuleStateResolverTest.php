@@ -88,7 +88,7 @@ it('rejects direct root constraints that can fall below the supported module flo
 it('accepts exact supported pins and fails closed on unsupported consumer constraint syntax', function (): void {
     $version = InstalledVersions::getVersion('infocyph/dblayer');
     expect($version)->toBeString();
-    preg_match('/^(\d+\.\d+\.\d+)/', (string) $version, $match);
+    preg_match('/^(\d+\.\d+\.\d+)/', $version, $match);
     $exact = $match[1] ?? throw new RuntimeException('Unable to derive the installed DBLayer release.');
 
     $cases = [
@@ -470,7 +470,7 @@ it('reports runtime platform readiness and hard-blocks missing required extensio
 
 it('keeps specialist catalog package floors aligned with the tested dependency set', function (): void {
     $composer = json_decode(
-        file_get_contents(dirname(__DIR__, 2) . '/composer.json') ?: '',
+        (($__foundation154_473 = file_get_contents(dirname(__DIR__, 2) . '/composer.json')) !== false && $__foundation154_473 !== '' && $__foundation154_473 !== '0' ? $__foundation154_473 : ''),
         true,
         flags: JSON_THROW_ON_ERROR,
     );

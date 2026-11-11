@@ -9,7 +9,7 @@ use Infocyph\Foundation\Routing\WebReleaseCompiler;
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 $repository = dirname(__DIR__);
-$profile = getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') ?: 'json-minimal';
+$profile = (($__foundation154_12 = getenv('FOUNDATION_HOST_WORKLOAD_PROFILE')) !== false && $__foundation154_12 !== '' && $__foundation154_12 !== '0' ? $__foundation154_12 : 'json-minimal');
 $runwireEnabled = getenv('FOUNDATION_HOST_RUNWIRE') === '1';
 $selectedCapabilities = $runwireEnabled ? ['runwire'] : [];
 if ($profile === 'authenticated-read') {

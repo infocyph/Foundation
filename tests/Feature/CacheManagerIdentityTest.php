@@ -230,7 +230,7 @@ it('isolates native cache operations through borrowed Fiber contexts and restore
             ->and($store->get('second'))->toBe('second');
 
         $first->cancel(CancellationReason::HOST_CANCELLED);
-        expect(fn() => $left->resume())->toThrow(CancelledException::class)
+        expect(fn(): mixed => $left->resume())->toThrow(CancelledException::class)
             ->and($first->cancelled())->toBeTrue()
             ->and($second->cancelled())->toBeFalse();
         $right->resume();

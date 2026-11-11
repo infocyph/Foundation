@@ -57,7 +57,7 @@ it('keeps optional InterMix class auto-binding disabled in every native Foundati
             ->and($runtime->invoke(static fn(int $probe): int => $probe, ['probe' => 0]))->toBe(0)
             ->and($runtime->invoke(static fn(bool $probe): bool => $probe, ['probe' => false]))->toBeFalse()
             ->and($runtime->invoke(static fn(?int $probe): ?int => $probe, ['probe' => null]))->toBeNull()
-            ->and(fn() => $runtime->invoke(
+            ->and(fn(): mixed => $runtime->invoke(
                 static fn(FoundationNativeBindingValue $probe): FoundationNativeBindingValue => $probe,
                 ['probe' => 7],
             ))->toThrow(TypeError::class);

@@ -175,7 +175,7 @@ it('honors original Runwire cancellation during nonlocal lazy response advanceme
             $producer = $response->getProducer();
             expect($producer)->not->toBeNull();
             $request->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
-            expect(fn() => $producer()->current())->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
+            expect(fn(): mixed => $producer()->current())->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
         } finally {
             $request->complete();
         }
@@ -196,7 +196,7 @@ it('honors original Runwire cancellation during nonlocal lazy response advanceme
             $chunks = $producer();
             expect($chunks->current())->toBeString()->not->toBe('');
             $request->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
-            expect(fn() => $chunks->next())->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
+            expect(fn(): mixed => $chunks->next())->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
             unset($chunks);
         } finally {
             $request->complete();
@@ -257,7 +257,7 @@ it('isolates lazy streamed downloads across Fibers and rejects an abandoned comp
         $fiberOne->start();
         $fiberTwo->start();
         $first->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
-        expect(fn() => $fiberOne->resume())->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
+        expect(fn(): mixed => $fiberOne->resume())->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
         $fiberTwo->resume();
         expect($fiberTwo->isTerminated())->toBeTrue()
             ->and(\Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::current())->toBe($initialBinding);
@@ -265,7 +265,7 @@ it('isolates lazy streamed downloads across Fibers and rejects an abandoned comp
         $dead = $responseFor($abandoned)->getProducer();
         expect($dead)->not->toBeNull();
         $abandoned->complete();
-        expect(fn() => $dead()->current())->toThrow(LogicException::class, 'Runwire request is completed');
+        expect(fn(): mixed => $dead()->current())->toThrow(LogicException::class, 'Runwire request is completed');
         unset($firstStream, $secondStream, $dead);
     } finally {
         $first->complete();
@@ -346,7 +346,7 @@ it('handles normal and chunked upload requests through Pathwise UploadSource', f
         $uploadRequest = Request::fake(headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload')
             ->withUploadedFiles(['file' => [
                 'tmp_name' => $uploadTemp,
-                'size' => filesize($uploadTemp) ?: 0,
+                'size' => ((int) filesize($uploadTemp)),
                 'error' => UPLOAD_ERR_OK,
                 'name' => 'single.txt',
                 'type' => 'text/plain',
@@ -360,14 +360,14 @@ it('handles normal and chunked upload requests through Pathwise UploadSource', f
             post: ['uploadId' => 'bridge-upload', 'chunk_index' => '0', 'chunkIndex' => 0, 'totalChunks' => 2, 'originalFilename' => 'chunked.txt'],
             headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload/chunk',
         )->withUploadedFiles(['file' => [
-            'tmp_name' => $chunkOne, 'size' => filesize($chunkOne) ?: 0, 'error' => UPLOAD_ERR_OK,
+            'tmp_name' => $chunkOne, 'size' => ((int) filesize($chunkOne)), 'error' => UPLOAD_ERR_OK,
             'name' => 'chunked.txt', 'type' => 'text/plain',
         ]]);
         $second = Request::fake(
             post: ['upload_id' => 'bridge-upload', 'chunk_index' => 1, 'total_chunks' => 2, 'original_filename' => 'chunked.txt'],
             headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload/chunk',
         )->withUploadedFiles(['file' => [
-            'tmp_name' => $chunkTwo, 'size' => filesize($chunkTwo) ?: 0, 'error' => UPLOAD_ERR_OK,
+            'tmp_name' => $chunkTwo, 'size' => ((int) filesize($chunkTwo)), 'error' => UPLOAD_ERR_OK,
             'name' => 'chunked.txt', 'type' => 'text/plain',
         ]]);
 
@@ -386,7 +386,7 @@ it('handles normal and chunked upload requests through Pathwise UploadSource', f
                 uri: 'http://localhost/upload/chunk',
             )->withUploadedFiles(['file' => [
                 'tmp_name' => $chunkOne,
-                'size' => filesize($chunkOne) ?: 0,
+                'size' => ((int) filesize($chunkOne)),
                 'error' => UPLOAD_ERR_OK,
                 'name' => 'chunked.txt',
                 'type' => 'text/plain',
@@ -412,7 +412,7 @@ it('handles normal and chunked upload requests through Pathwise UploadSource', f
                 uri: 'http://localhost/upload/chunk',
             )->withUploadedFiles(['file' => [
                 'tmp_name' => $chunkOne,
-                'size' => filesize($chunkOne) ?: 0,
+                'size' => ((int) filesize($chunkOne)),
                 'error' => UPLOAD_ERR_OK,
                 'name' => 'chunked.txt',
                 'type' => 'text/plain',
@@ -438,7 +438,7 @@ it('handles normal and chunked upload requests through Pathwise UploadSource', f
             uri: 'http://localhost/upload/chunk',
         )->withUploadedFiles(['file' => [
             'tmp_name' => $chunkConflict,
-            'size' => filesize($chunkConflict) ?: 0,
+            'size' => ((int) filesize($chunkConflict)),
             'error' => UPLOAD_ERR_OK,
             'name' => 'different.txt',
             'type' => 'text/plain',
@@ -483,7 +483,7 @@ it('blocks HTTP upload directory traversal before moving the source and permits 
         $request = Request::fake(headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload')
             ->withUploadedFiles(['file' => [
                 'tmp_name' => $source,
-                'size' => filesize($source) ?: 0,
+                'size' => ((int) filesize($source)),
                 'error' => UPLOAD_ERR_OK,
                 'name' => 'safe.txt',
                 'type' => 'text/plain',
@@ -596,7 +596,7 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
         $request = Request::fake(headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload')
             ->withUploadedFiles(['file' => [
                 'tmp_name' => $temporary,
-                'size' => filesize($temporary) ?: 0,
+                'size' => ((int) filesize($temporary)),
                 'error' => UPLOAD_ERR_OK,
                 'name' => 'malicious.txt',
                 'type' => 'text/plain',
@@ -623,7 +623,7 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
         $cancelledRequest = Request::fake(headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload')
             ->withUploadedFiles(['file' => [
                 'tmp_name' => $cancelledTemp,
-                'size' => filesize($cancelledTemp) ?: 0,
+                'size' => ((int) filesize($cancelledTemp)),
                 'error' => UPLOAD_ERR_OK,
                 'name' => 'cancelled.txt',
                 'type' => 'text/plain',
@@ -868,7 +868,7 @@ it('rejects cancelled Runwire uploads and downloads before Pathwise file side ef
     file_put_contents($temp, 'must-not-upload');
     $request = Request::fake(headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload')
         ->withUploadedFiles(['file' => [
-            'tmp_name' => $temp, 'size' => filesize($temp) ?: 0, 'error' => UPLOAD_ERR_OK,
+            'tmp_name' => $temp, 'size' => ((int) filesize($temp)), 'error' => UPLOAD_ERR_OK,
             'name' => 'blocked.txt', 'type' => 'text/plain',
         ]]);
 

@@ -106,8 +106,8 @@ function cacheLayer33RedisDsn(): string
         return $explicit;
     }
 
-    $host = getenv('IC_REDIS_HOST') ?: '127.0.0.1';
-    $port = getenv('IC_REDIS_PORT') ?: '6379';
+    $host = (($__foundation154_109 = getenv('IC_REDIS_HOST')) !== false && $__foundation154_109 !== '' && $__foundation154_109 !== '0' ? $__foundation154_109 : '127.0.0.1');
+    $port = (($__foundation154_110 = getenv('IC_REDIS_PORT')) !== false && $__foundation154_110 !== '' && $__foundation154_110 !== '0' ? $__foundation154_110 : '6379');
     $password = getenv('IC_REDIS_PASSWORD');
     $credentials = is_string($password) && $password !== ''
         ? ':' . rawurlencode($password) . '@'
@@ -130,9 +130,9 @@ function cacheLayer33RedisCounters(string $namespace): array
     }
 }
 
-$operations = max(1_000, (int) (getenv('CACHELAYER_BENCH_OPERATIONS') ?: 10_000));
-$repetitions = max(3, (int) (getenv('CACHELAYER_BENCH_REPETITIONS') ?: 7));
-$warmup = max(100, (int) (getenv('CACHELAYER_BENCH_WARMUP') ?: 500));
+$operations = max(1_000, (int) ((($__foundation154_133 = getenv('CACHELAYER_BENCH_OPERATIONS')) !== false && $__foundation154_133 !== '' && $__foundation154_133 !== '0' ? $__foundation154_133 : 10_000)));
+$repetitions = max(3, (int) ((($__foundation154_134 = getenv('CACHELAYER_BENCH_REPETITIONS')) !== false && $__foundation154_134 !== '' && $__foundation154_134 !== '0' ? $__foundation154_134 : 7)));
+$warmup = max(100, (int) ((($__foundation154_135 = getenv('CACHELAYER_BENCH_WARMUP')) !== false && $__foundation154_135 !== '' && $__foundation154_135 !== '0' ? $__foundation154_135 : 500)));
 $options = new CacheOptions(
     integrityKey: 'foundation-cachelayer-33-benchmark-integrity',
     allowClosures: false,
@@ -359,7 +359,7 @@ $workloads = [
             $cache->setMultiple($batch, 60);
             $result = [];
             foreach ($cache->getMultiple($batchKeys) as $key => $value) {
-                $result[(string) $key] = $value;
+                $result[$key] = $value;
             }
 
             return $result;
@@ -481,9 +481,9 @@ $runtime = [
     'php_sapi' => PHP_SAPI,
     'operating_system' => php_uname(),
     'cpu_model' => $cpuModel,
-    'memory_limit' => ini_get('memory_limit') ?: 'unknown',
+    'memory_limit' => (($__foundation154_484 = ini_get('memory_limit')) !== false && $__foundation154_484 !== '' && $__foundation154_484 !== '0' ? $__foundation154_484 : 'unknown'),
     'opcache' => extension_loaded('Zend OPcache'),
-    'jit' => ini_get('opcache.jit') ?: false,
+    'jit' => (($__foundation154_486 = ini_get('opcache.jit')) !== false && $__foundation154_486 !== '' && $__foundation154_486 !== '0' ? $__foundation154_486 : false),
     'xdebug' => extension_loaded('xdebug'),
     'extensions' => $extensions,
     'runner' => getenv('GITHUB_ACTIONS') === 'true' ? 'github-actions' : 'local-cli',
@@ -503,7 +503,7 @@ $result = [
         'suite' => 'foundation-cachelayer-33-utilization',
         'cachelayer' => $cacheLayerVersion,
         'cachelayer_reference' => InstalledVersions::getReference('infocyph/cachelayer'),
-        'foundation_commit' => getenv('GITHUB_SHA') ?: 'working-tree',
+        'foundation_commit' => (($__foundation154_506 = getenv('GITHUB_SHA')) !== false && $__foundation154_506 !== '' && $__foundation154_506 !== '0' ? $__foundation154_506 : 'working-tree'),
         'boundary' => 'Foundation logical state/key policy over CacheLayer 3.3 native atomic and bulk capabilities',
         'key_policy' => 'SHA3-256/Base64URL is used for security-sensitive physical keys; XXH128 is used for non-security fingerprinting and compaction.',
         'redis_counter_workloads' => $redisCounterSkipReason === null

@@ -8,7 +8,7 @@ use Infocyph\Foundation\Command\CompletionGenerator;
 
 it('keeps documented infbyte command examples dispatchable', function (): void {
     $root = dirname(__DIR__, 2);
-    $documents = [$root . '/README.md', ...glob($root . '/docs/*.md') ?: []];
+    $documents = [$root . '/README.md', ...((array) glob($root . '/docs/*.md'))];
     $documented = [];
 
     foreach ($documents as $path) {

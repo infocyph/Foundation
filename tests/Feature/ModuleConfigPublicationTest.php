@@ -103,8 +103,8 @@ it('force-publishes atomically and removes Foundation-owned backups after commit
         $result = $manager->publishConfig('db', true);
 
         expect($result['published'])->toBe([$basePath . '/config/database.php'])
-            ->and(glob($basePath . '/config/*.foundation-*.bak') ?: [])->toBe([])
-            ->and(glob($basePath . '/config/.foundation-config-*') ?: [])->toBe([])
+            ->and(((array) glob($basePath . '/config/*.foundation-*.bak')))->toBe([])
+            ->and(((array) glob($basePath . '/config/.foundation-config-*')))->toBe([])
             ->and(require $basePath . '/config/database.php')->toHaveKey('connections');
     } finally {
         moduleConfigRemoveDirectory($basePath);
@@ -131,8 +131,8 @@ it('keeps native notifications config outside communication publication failures
         expect($basePath . '/config/communication.php')->toBeDirectory()
             ->and(file_get_contents($basePath . '/config/notifications.php'))
             ->toBe("<?php\nreturn ['native' => true];\n")
-            ->and(glob($basePath . '/config/.foundation-config-*') ?: [])->toBe([])
-            ->and(glob($basePath . '/config/*.foundation-*.bak') ?: [])->toBe([]);
+            ->and(((array) glob($basePath . '/config/.foundation-config-*')))->toBe([])
+            ->and(((array) glob($basePath . '/config/*.foundation-*.bak')))->toBe([]);
     } finally {
         moduleConfigRemoveDirectory($basePath);
     }

@@ -14,9 +14,9 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 if (!extension_loaded('pdo_sqlite')) {
     throw new RuntimeException('DBLayer 5.1 utilization benchmark requires pdo_sqlite.');
 }
-$operations = max(100, (int) (getenv('DBLAYER_RUNTIME_OPERATIONS') ?: 1_000));
-$repetitions = max(3, (int) (getenv('DBLAYER_RUNTIME_REPETITIONS') ?: 7));
-$warmup = max(20, (int) (getenv('DBLAYER_RUNTIME_WARMUP') ?: 100));
+$operations = max(100, (int) ((($__foundation154_17 = getenv('DBLAYER_RUNTIME_OPERATIONS')) !== false && $__foundation154_17 !== '' && $__foundation154_17 !== '0' ? $__foundation154_17 : 1_000)));
+$repetitions = max(3, (int) ((($__foundation154_18 = getenv('DBLAYER_RUNTIME_REPETITIONS')) !== false && $__foundation154_18 !== '' && $__foundation154_18 !== '0' ? $__foundation154_18 : 7)));
+$warmup = max(20, (int) ((($__foundation154_19 = getenv('DBLAYER_RUNTIME_WARMUP')) !== false && $__foundation154_19 !== '' && $__foundation154_19 !== '0' ? $__foundation154_19 : 100)));
 
 $config = ConnectionConfig::fromArray([
     'driver' => 'sqlite',
@@ -70,7 +70,7 @@ $subjects['pool_checkout_select_release'] = \Infocyph\Foundation\Benchmarks\Supp
     $warmup,
 );
 $subjects['warm_dedicated_prepared_select'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
-    static fn() => $dedicated->scalar('select ? as value', [42]),
+    static fn(): mixed => $dedicated->scalar('select ? as value', [42]),
     $operations,
     $repetitions,
     $warmup,
@@ -106,10 +106,10 @@ $subjects['foundation_execution_leased'] = \Infocyph\Foundation\Benchmarks\Suppo
     $warmup,
 );
 
-$dedicatedNs = (float) $subjects['foundation_execution_dedicated']['median_ns'];
-$leasedNs = (float) $subjects['foundation_execution_leased']['median_ns'];
-$openNs = (float) $subjects['open_select_disconnect']['median_ns'];
-$poolNs = (float) $subjects['pool_checkout_select_release']['median_ns'];
+$dedicatedNs = $subjects['foundation_execution_dedicated']['median_ns'];
+$leasedNs = $subjects['foundation_execution_leased']['median_ns'];
+$openNs = $subjects['open_select_disconnect']['median_ns'];
+$poolNs = $subjects['pool_checkout_select_release']['median_ns'];
 
 $report = [
     'benchmark' => 'foundation-dblayer-5.1-utilization',

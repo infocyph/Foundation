@@ -12,10 +12,10 @@ use Infocyph\ReqShield\Schema\SchemaRegistry;
 use Infocyph\ReqShield\Validator;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-$operations = max(100, (int) (getenv('REQSHIELD_RUNTIME_OPERATIONS') ?: 1_000));
-$dbOperations = max(20, (int) (getenv('REQSHIELD_DATABASE_OPERATIONS') ?: 100));
-$repetitions = max(3, (int) (getenv('REQSHIELD_RUNTIME_REPETITIONS') ?: 5));
-$warmup = max(10, (int) (getenv('REQSHIELD_RUNTIME_WARMUP') ?: 50));
+$operations = max(100, (int) ((($__foundation154_15 = getenv('REQSHIELD_RUNTIME_OPERATIONS')) !== false && $__foundation154_15 !== '' && $__foundation154_15 !== '0' ? $__foundation154_15 : 1_000)));
+$dbOperations = max(20, (int) ((($__foundation154_16 = getenv('REQSHIELD_DATABASE_OPERATIONS')) !== false && $__foundation154_16 !== '' && $__foundation154_16 !== '0' ? $__foundation154_16 : 100)));
+$repetitions = max(3, (int) ((($__foundation154_17 = getenv('REQSHIELD_RUNTIME_REPETITIONS')) !== false && $__foundation154_17 !== '' && $__foundation154_17 !== '0' ? $__foundation154_17 : 5)));
+$warmup = max(10, (int) ((($__foundation154_18 = getenv('REQSHIELD_RUNTIME_WARMUP')) !== false && $__foundation154_18 !== '' && $__foundation154_18 !== '0' ? $__foundation154_18 : 50)));
 
 $flatRules = [
     'email' => [

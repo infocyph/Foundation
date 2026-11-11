@@ -101,7 +101,7 @@ it('finalizes abandoned browser sessions when their native request scope is disc
         return $session;
     });
 
-    expect(fn() => $session->put('after_scope', true))
+    expect(fn(): mixed => $session->put('after_scope', true))
         ->toThrow(LogicException::class, 'finalized for this request');
 });
 
@@ -494,7 +494,7 @@ it('reports cleanup failures without replacing the primary session failure', fun
     );
     $middleware = new SessionMiddleware($manager, $config, new ExceptionReporter($logger));
 
-    expect(fn() => browserSessionWithinScope(
+    expect(fn(): mixed => browserSessionWithinScope(
         $container,
         static fn(): Response => $middleware(
             Request::fake(uri: 'https://example.test/failure')
@@ -538,7 +538,7 @@ it('reports cleanup failures without replacing the primary session failure', fun
     expect($caught)->toBe($primary)
         ->and($locks->releases)->toBe(2)
         ->and($logger->records)->toHaveCount(1);
-    expect(fn() => browserSessionWithinScope($container, static fn(): BrowserSession => $manager->current()))
+    expect(fn(): mixed => browserSessionWithinScope($container, static fn(): BrowserSession => $manager->current()))
         ->toThrow(LogicException::class, 'No browser session is active');
 });
 
@@ -610,7 +610,7 @@ it('releases CacheLayer session locks when request handling fails', function ():
     ))->toThrow(RuntimeException::class, 'handler failed')
         ->and($locks->acquired)->toBe(1)
         ->and($locks->released)->toBe(1);
-    expect(fn() => browserSessionWithinScope($container, static fn(): BrowserSession => $manager->current()))
+    expect(fn(): mixed => browserSessionWithinScope($container, static fn(): BrowserSession => $manager->current()))
         ->toThrow(LogicException::class);
 
     $locks->owned = false;
@@ -639,7 +639,7 @@ it('releases CacheLayer session locks when request handling fails', function ():
                 return Response::json(['ok' => true]);
             },
         ))->toThrow(RuntimeException::class, $handlerFails ? 'primary handler failed' : 'lock lease was lost');
-        expect(fn() => browserSessionWithinScope($container, static fn(): BrowserSession => $manager->current()))
+        expect(fn(): mixed => browserSessionWithinScope($container, static fn(): BrowserSession => $manager->current()))
             ->toThrow(LogicException::class, 'No browser session is active');
     }
 
@@ -670,7 +670,7 @@ it('releases CacheLayer session locks when request handling fails', function ():
             $session->get('value');
             $locks->owned = false;
             try {
-                expect(fn() => $session->{$operation}())->toThrow(RuntimeException::class, 'lock lease was lost');
+                expect(fn(): mixed => $session->{$operation}())->toThrow(RuntimeException::class, 'lock lease was lost');
                 expect($store->load($id, time())?->data['value'])->toBe(1);
             } finally {
                 $session->release();
@@ -703,7 +703,7 @@ it('isolates active sessions between concurrent fibers', function (): void {
     $second->resume();
     expect($first->getReturn())->toBeTrue()
         ->and($second->getReturn())->toBeTrue()
-        ->and(fn() => browserSessionWithinScope($container, static fn(): BrowserSession => $manager->current()))
+        ->and(fn(): mixed => browserSessionWithinScope($container, static fn(): BrowserSession => $manager->current()))
         ->toThrow(LogicException::class);
 });
 

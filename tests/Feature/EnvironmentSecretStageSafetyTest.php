@@ -30,7 +30,7 @@ it('protects .env stage before first plaintext write and retains old file on rej
             ->and(EnvironmentSecretStageObserver::$writes)->toBeGreaterThan(0)
             ->and(fileperms($path) & 0777)->toBe(0600)
             ->and(file_get_contents($path))->toContain('SECRET_VALUE=existing-private-secret')
-            ->and(glob($root . '/.env.*.tmp') ?: [])->toBe([]);
+            ->and(((array) glob($root . '/.env.*.tmp')))->toBe([]);
 
         $saved = file_get_contents($path);
         EnvironmentSecretStageObserver::$failChmod = true;
@@ -40,7 +40,7 @@ it('protects .env stage before first plaintext write and retains old file on rej
             ->toThrow(RuntimeException::class, 'Unable to secure the generated environment file.');
         expect(EnvironmentSecretStageObserver::$writes)->toBe(0)
             ->and(file_get_contents($path))->toBe($saved)
-            ->and(glob($root . '/.env.*.tmp') ?: [])->toBe([]);
+            ->and(((array) glob($root . '/.env.*.tmp')))->toBe([]);
     } finally {
         EnvironmentSecretStageObserver::$active = false;
         EnvironmentSecretStageObserver::$failChmod = false;

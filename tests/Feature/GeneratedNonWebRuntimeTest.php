@@ -134,7 +134,7 @@ it('compiles and reuses minimal generated CLI and scheduler runtimes', function 
                 ->and($report['skipped'])->toBe([])
                 ->and($report['capabilities'])->toBe([])
                 ->and(is_file($artifact))->toBeTrue()
-                ->and(is_file(dirname((string) $runtimeFile) . '/manifest.json'))->toBeTrue()
+                ->and(is_file(dirname($runtimeFile) . '/manifest.json'))->toBeTrue()
                 ->and(is_file($artifact . '.foundation.json'))->toBeTrue();
 
             $runtime = GeneratedRuntime::load($config, $mode, $artifact);
@@ -225,7 +225,7 @@ it('leaves InterMix manifest validation to the InterMix production loader', func
         $report = new GeneratedRuntimeCompiler()->compile($config, RuntimeMode::Cli, $artifact);
         $runtimeFile = realpath($artifact);
         expect($runtimeFile)->toBeString();
-        $manifestPath = dirname((string) $runtimeFile) . '/manifest.json';
+        $manifestPath = dirname($runtimeFile) . '/manifest.json';
         $manifest = json_decode(
             (string) file_get_contents($manifestPath),
             true,
@@ -406,7 +406,7 @@ it('keeps the last good artifact when a new build contains skipped definitions',
         $compiler->compile($config, RuntimeMode::Cli, $artifact);
         $runtimeFile = realpath($artifact);
         expect($runtimeFile)->toBeString();
-        $manifestPath = dirname((string) $runtimeFile) . '/manifest.json';
+        $manifestPath = dirname($runtimeFile) . '/manifest.json';
         $before = [
             hash_file('sha256', $artifact),
             hash_file('sha256', $manifestPath),

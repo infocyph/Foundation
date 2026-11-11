@@ -28,7 +28,7 @@ function foundationModuleBaselineCleanup(string $folder): void
     rmdir($folder);
 }
 
-$repetitions = (int) (getenv('FOUNDATION_MODULE_BASELINE_REPETITIONS') ?: 15);
+$repetitions = (int) ((($__foundation154_31 = getenv('FOUNDATION_MODULE_BASELINE_REPETITIONS')) !== false && $__foundation154_31 !== '' && $__foundation154_31 !== '0' ? $__foundation154_31 : 15));
 
 if ($repetitions < 5 || $repetitions > 100) {
     throw new InvalidArgumentException('Module CLI baseline requires 5-100 repetitions.');
@@ -150,7 +150,7 @@ try {
     $result = [
         'schema_version' => 2,
         'classification' => 'Foundation 4 public v2 CLI microbenchmark, synthetic local Composer fixture, not host RPM certification',
-        'source_sha' => getenv('FOUNDATION_MODULE_SOURCE_SHA') ?: (getenv('GITHUB_SHA') ?: 'working-tree'),
+        'source_sha' => getenv('FOUNDATION_MODULE_SOURCE_SHA') ?: ((($__foundation154_153 = getenv('GITHUB_SHA')) !== false && $__foundation154_153 !== '' && $__foundation154_153 !== '0' ? $__foundation154_153 : 'working-tree')),
         'source_composer_sha256' => hash_file('sha256', $source . '/composer.json'),
         'php' => PHP_VERSION,
         'php_sapi' => PHP_SAPI,

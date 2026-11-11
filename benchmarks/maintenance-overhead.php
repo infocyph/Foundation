@@ -24,9 +24,9 @@ function foundationMaintenanceBenchmarkMode(string $mode): array
         throw new InvalidArgumentException('Benchmark mode must be enabled or disabled.');
     }
 
-    $operations = max(1, (int) (getenv('FOUNDATION_MAINTENANCE_BENCHMARK_OPERATIONS') ?: 25_000));
-    $warmup = max(0, (int) (getenv('FOUNDATION_MAINTENANCE_BENCHMARK_WARMUP') ?: 2_500));
-    $repetitions = max(1, (int) (getenv('FOUNDATION_MAINTENANCE_BENCHMARK_REPETITIONS') ?: 5));
+    $operations = max(1, (int) ((($__foundation154_27 = getenv('FOUNDATION_MAINTENANCE_BENCHMARK_OPERATIONS')) !== false && $__foundation154_27 !== '' && $__foundation154_27 !== '0' ? $__foundation154_27 : 25_000)));
+    $warmup = max(0, (int) ((($__foundation154_28 = getenv('FOUNDATION_MAINTENANCE_BENCHMARK_WARMUP')) !== false && $__foundation154_28 !== '' && $__foundation154_28 !== '0' ? $__foundation154_28 : 2_500)));
+    $repetitions = max(1, (int) ((($__foundation154_29 = getenv('FOUNDATION_MAINTENANCE_BENCHMARK_REPETITIONS')) !== false && $__foundation154_29 !== '' && $__foundation154_29 !== '0' ? $__foundation154_29 : 5)));
     $project = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR
         . 'foundation-maintenance-benchmark-' . $mode . '-' . bin2hex(random_bytes(5));
     mkdir($project . '/routes', 0777, true);

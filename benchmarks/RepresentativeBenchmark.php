@@ -263,13 +263,13 @@ PHP);
             'php_sapi' => PHP_SAPI,
             'operating_system' => php_uname('s') . ' ' . php_uname('r'),
             'cpu_model' => $cpuModel,
-            'memory_limit' => ini_get('memory_limit') ?: '-1',
+            'memory_limit' => (($__foundation154_266 = ini_get('memory_limit')) !== false && $__foundation154_266 !== '' && $__foundation154_266 !== '0' ? $__foundation154_266 : '-1'),
             'opcache' => extension_loaded('Zend OPcache') && (bool) ini_get('opcache.enable_cli'),
             'jit' => (string) ini_get('opcache.jit') !== '' && (string) ini_get('opcache.jit') !== '0',
             'xdebug' => extension_loaded('xdebug'),
             'extensions' => $extensions,
             'runner' => 'foundation-representative 2',
-            'release' => getenv('GITHUB_SHA') ?: 'working-tree',
+            'release' => (($__foundation154_272 = getenv('GITHUB_SHA')) !== false && $__foundation154_272 !== '' && $__foundation154_272 !== '0' ? $__foundation154_272 : 'working-tree'),
         ];
     }
 

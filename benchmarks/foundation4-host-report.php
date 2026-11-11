@@ -118,17 +118,17 @@ function f4HostMedian(array $values): float
 }
 
 $root = getenv('FOUNDATION_HOST_RESULT_DIR') ?: dirname(__DIR__) . '/build/foundation4-host';
-$requests = (int) (getenv('FOUNDATION_HOST_REQUESTS') ?: 900);
-$repeats = (int) (getenv('FOUNDATION_HOST_REPEATS') ?: 3);
+$requests = (int) ((($__foundation154_121 = getenv('FOUNDATION_HOST_REQUESTS')) !== false && $__foundation154_121 !== '' && $__foundation154_121 !== '0' ? $__foundation154_121 : 900));
+$repeats = (int) ((($__foundation154_122 = getenv('FOUNDATION_HOST_REPEATS')) !== false && $__foundation154_122 !== '' && $__foundation154_122 !== '0' ? $__foundation154_122 : 3));
 $result = [
     'schema' => 2,
     'classification' => 'preliminary GitHub-runner host evidence; no production-equivalent baseline comparison',
-    'sha' => getenv('FOUNDATION_HOST_SOURCE_SHA') ?: (getenv('GITHUB_SHA') ?: 'working-tree'),
+    'sha' => getenv('FOUNDATION_HOST_SOURCE_SHA') ?: ((($__foundation154_126 = getenv('GITHUB_SHA')) !== false && $__foundation154_126 !== '' && $__foundation154_126 !== '0' ? $__foundation154_126 : 'working-tree')),
     // Explicit operator-controlled identity. GitHub-hosted runners remain
     // non-certifiable until a physically matched baseline/candidate exists.
-    'hardware_id' => getenv('FOUNDATION_CERTIFICATION_HOST_ID') ?: null,
-    'workload_profile' => getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') ?: 'json-minimal',
-    'tool_sha' => getenv('FOUNDATION_HOST_TOOL_SHA') ?: null,
+    'hardware_id' => (($__foundation154_129 = getenv('FOUNDATION_CERTIFICATION_HOST_ID')) !== false && $__foundation154_129 !== '' && $__foundation154_129 !== '0' ? $__foundation154_129 : null),
+    'workload_profile' => (($__foundation154_130 = getenv('FOUNDATION_HOST_WORKLOAD_PROFILE')) !== false && $__foundation154_130 !== '' && $__foundation154_130 !== '0' ? $__foundation154_130 : 'json-minimal'),
+    'tool_sha' => (($__foundation154_131 = getenv('FOUNDATION_HOST_TOOL_SHA')) !== false && $__foundation154_131 !== '' && $__foundation154_131 !== '0' ? $__foundation154_131 : null),
     'fixture_id' => getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') === 'authenticated-read' ? 'foundation-auth-postgres-redis-v2-warm-connections' : null,
     'composer_lock_sha256' => is_file(dirname(__DIR__) . '/composer.lock')
         ? hash_file('sha256', dirname(__DIR__) . '/composer.lock')
@@ -136,8 +136,8 @@ $result = [
     'php' => PHP_VERSION,
     'request_count' => $requests,
     'repetitions' => $repeats,
-    'warmup_seconds' => (int) (getenv('FOUNDATION_HOST_WARMUP_SECONDS') ?: 0),
-    'soak_window_seconds' => (int) (getenv('FOUNDATION_HOST_SOAK_SECONDS') ?: 0),
+    'warmup_seconds' => (int) ((($__foundation154_139 = getenv('FOUNDATION_HOST_WARMUP_SECONDS')) !== false && $__foundation154_139 !== '' && $__foundation154_139 !== '0' ? $__foundation154_139 : 0)),
+    'soak_window_seconds' => (int) ((($__foundation154_140 = getenv('FOUNDATION_HOST_SOAK_SECONDS')) !== false && $__foundation154_140 !== '' && $__foundation154_140 !== '0' ? $__foundation154_140 : 0)),
     'endpoint' => match (getenv('FOUNDATION_HOST_WORKLOAD_PROFILE')) {
         'native-read' => '/native',
         'authenticated-read' => '/authenticated',

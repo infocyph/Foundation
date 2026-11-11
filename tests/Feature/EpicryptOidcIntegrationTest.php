@@ -85,7 +85,7 @@ it('completes OIDC authorization code issuance with Epicrypt ID token validation
 
         $idToken = $tokens->additionalParameters['id_token'] ?? null;
         expect($idToken)->toBeString()->not->toBe('');
-        [, , , , $claims] = JwtToken::parse((string) $idToken);
+        [, , , , $claims] = JwtToken::parse($idToken);
         new OpenIdIdTokenValidator(new EpicryptClockAdapter($fixture->clock))->validate(
             $claims,
             AsymmetricJwtAlgorithm::ES256,

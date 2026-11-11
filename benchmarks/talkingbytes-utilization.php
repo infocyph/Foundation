@@ -19,9 +19,9 @@ use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Webhook\Webhook;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-$operations = max(100, (int) (getenv('TALKINGBYTES_RUNTIME_OPERATIONS') ?: 2_000));
-$repetitions = max(3, (int) (getenv('TALKINGBYTES_RUNTIME_REPETITIONS') ?: 7));
-$warmup = max(20, (int) (getenv('TALKINGBYTES_RUNTIME_WARMUP') ?: 100));
+$operations = max(100, (int) ((($__foundation154_22 = getenv('TALKINGBYTES_RUNTIME_OPERATIONS')) !== false && $__foundation154_22 !== '' && $__foundation154_22 !== '0' ? $__foundation154_22 : 2_000)));
+$repetitions = max(3, (int) ((($__foundation154_23 = getenv('TALKINGBYTES_RUNTIME_REPETITIONS')) !== false && $__foundation154_23 !== '' && $__foundation154_23 !== '0' ? $__foundation154_23 : 7)));
+$warmup = max(20, (int) ((($__foundation154_24 = getenv('TALKINGBYTES_RUNTIME_WARMUP')) !== false && $__foundation154_24 !== '' && $__foundation154_24 !== '0' ? $__foundation154_24 : 100)));
 
 $httpConfig = [
     'timeoutSeconds' => 10,

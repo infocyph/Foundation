@@ -8,11 +8,11 @@ if ($argc !== 5) {
 [, $url, $requested, $parallel, $output] = $argv;
 $requests = (int) $requested;
 $concurrency = (int) $parallel;
-$minimumSeconds = (float) (getenv('FOUNDATION_HOST_MIN_SECONDS') ?: 0);
+$minimumSeconds = (float) ((($__foundation154_11 = getenv('FOUNDATION_HOST_MIN_SECONDS')) !== false && $__foundation154_11 !== '' && $__foundation154_11 !== '0' ? $__foundation154_11 : 0));
 if (!is_finite($minimumSeconds) || $minimumSeconds < 0 || $minimumSeconds > 300) {
     throw new InvalidArgumentException('Sustained benchmark duration must be 0-300 seconds.');
 }
-$authorization = getenv('FOUNDATION_HOST_AUTHORIZATION') ?: '';
+$authorization = (($__foundation154_15 = getenv('FOUNDATION_HOST_AUTHORIZATION')) !== false && $__foundation154_15 !== '' && $__foundation154_15 !== '0' ? $__foundation154_15 : '');
 $authenticated = getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') === 'authenticated-read';
 $totalQueries = 0;
 $totalCacheHits = 0;

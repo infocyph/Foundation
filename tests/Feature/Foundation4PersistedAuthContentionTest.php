@@ -159,7 +159,7 @@ it('commits one persisted auth transition across independent competing processes
         $reset = $fixture->store('reset');
         $reset->save(new PasswordResetRequest('rollback', 'owner', $now, $now + 300));
         $before = $db->table($fixture->tables->accounts())->where('id', '=', 'owner')->value('password_hash');
-        expect(fn() => $reset->consumeAndApply('rollback', static function () use ($db, $fixture): void {
+        expect(fn(): mixed => $reset->consumeAndApply('rollback', static function () use ($db, $fixture): void {
             $db->table($fixture->tables->accounts())->where('id', '=', 'owner')->update(['password_hash' => 'uncommitted']);
             throw new RuntimeException('injected account mutation failure');
         }))->toThrow(\Infocyph\DBLayer\Exceptions\TransactionException::class)
@@ -246,7 +246,7 @@ it('commits one persisted auth transition across independent competing processes
             'cas-stale', 'email-cas-stale', 'outdated-cas@example.test', $now, $now + 300,
         ));
         $accounts->updateMetadata('email-cas-stale', ['email' => 'changed-cas@example.test']);
-        expect(fn() => $emailRequests->consumeAndApply('cas-stale', static function () use ($accounts, $now): void {
+        expect(fn(): mixed => $emailRequests->consumeAndApply('cas-stale', static function () use ($accounts, $now): void {
             if (!$accounts->markVerifiedForEmail('email-cas-stale', 'outdated-cas@example.test', $now)) {
                 throw new EmailDestinationChanged('Verification destination changed before account mutation.');
             }

@@ -47,7 +47,7 @@ it('keeps runtime token roots out of generated InterMix artifacts', function (st
         expect($runtimePath)->toBeString();
         foreach ([
             $artifact,
-            dirname((string) $runtimePath) . '/manifest.json',
+            dirname($runtimePath) . '/manifest.json',
             $artifact . '.foundation.json',
         ] as $path) {
             $contents = file_get_contents($path);

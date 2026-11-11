@@ -101,7 +101,7 @@ it('serves real requests with isolated contexts and recovers after a failed requ
                 continue;
             }
             expect($headers[0] ?? '')->toContain('200');
-            $response = json_decode((string) $body, true, flags: JSON_THROW_ON_ERROR);
+            $response = json_decode($body, true, flags: JSON_THROW_ON_ERROR);
             expect($response['pid'])->toBeGreaterThan(0);
             if ($direct) {
                 expect($response['runtime_pid'])->toBeNull()

@@ -79,17 +79,17 @@ function epicrypt31Ratios(array $subjects): array
     $ratios = [];
     foreach ($pairs as $name => [$foundation, $direct]) {
         $ratios[$name] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
-            (float) $subjects[$foundation]['median_ns'],
-            (float) $subjects[$direct]['median_ns'],
+            $subjects[$foundation]['median_ns'],
+            $subjects[$direct]['median_ns'],
         );
     }
 
     return $ratios;
 }
 
-$operations = max(25, (int) (getenv('EPICRYPT_RUNTIME_OPERATIONS') ?: 100));
-$repetitions = max(3, (int) (getenv('EPICRYPT_RUNTIME_REPETITIONS') ?: 5));
-$warmup = max(5, (int) (getenv('EPICRYPT_RUNTIME_WARMUP') ?: 20));
+$operations = max(25, (int) ((($__foundation154_90 = getenv('EPICRYPT_RUNTIME_OPERATIONS')) !== false && $__foundation154_90 !== '' && $__foundation154_90 !== '0' ? $__foundation154_90 : 100)));
+$repetitions = max(3, (int) ((($__foundation154_91 = getenv('EPICRYPT_RUNTIME_REPETITIONS')) !== false && $__foundation154_91 !== '' && $__foundation154_91 !== '0' ? $__foundation154_91 : 5)));
+$warmup = max(5, (int) ((($__foundation154_92 = getenv('EPICRYPT_RUNTIME_WARMUP')) !== false && $__foundation154_92 !== '' && $__foundation154_92 !== '0' ? $__foundation154_92 : 20)));
 $fileOperations = max(5, intdiv($operations, 10));
 $fileWarmup = max(1, intdiv($warmup, 5));
 

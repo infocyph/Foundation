@@ -552,7 +552,7 @@ it('rehearses a trusted four-mode generated-release rollback without losing reta
             $loader = new FoundationReleaseRuntime();
             foundationResetWebrickProductionRegistries();
             $web = $loader->webPrevalidated(
-                $config, $releaseRoot, (string) $selected['manifest_sha256'],
+                $config, $releaseRoot, $selected['manifest_sha256'],
             );
             $response = $web->kernel->handle(Request::fake(
                 headers: ['Host' => 'phase8.test'],
@@ -563,14 +563,14 @@ it('rehearses a trusted four-mode generated-release rollback without losing reta
 
             foreach ([RuntimeMode::Cli, RuntimeMode::Worker, RuntimeMode::Scheduler] as $mode) {
                 $runtime = $loader->nonWebPrevalidated(
-                    $config, $mode, $releaseRoot, (string) $selected['manifest_sha256'],
+                    $config, $mode, $releaseRoot, $selected['manifest_sha256'],
                 );
                 expect($runtime->application->runtimeMode())->toBe($mode);
             }
 
             expect(fn() => $loader->trustedActiveManifest(
                 $releaseRoot,
-                (string) $rejected['manifest_sha256'],
+                $rejected['manifest_sha256'],
             ))->toThrow(RuntimeException::class);
 
             $stored = $connection->select(
@@ -579,8 +579,8 @@ it('rehearses a trusted four-mode generated-release rollback without losing reta
             );
             expect($stored)->toHaveCount(1)
                 ->and(password_verify('retained-release-password', $stored[0]['password_hash']))->toBeTrue()
-                ->and((int) $connection->table($tables->sessions())->count())->toBe(1)
-                ->and((int) $connection->table($tables->refreshTokens())->count())->toBe(1);
+                ->and($connection->table($tables->sessions())->count())->toBe(1)
+                ->and($connection->table($tables->refreshTokens())->count())->toBe(1);
         }
     } finally {
         $connection->disconnect();
@@ -742,7 +742,7 @@ it('lets Webrick validate route shards lazily on native access', function (): vo
 
         expect($matcher)->toBeInstanceOf(ShardedMatcher::class)
             ->and($matcher->canBootFromCache())->toBeTrue()
-            ->and(fn() => $matcher->matchCompiled('GET', 'phase8.test', '/phase8'))
+            ->and(fn(): mixed => $matcher->matchCompiled('GET', 'phase8.test', '/phase8'))
             ->toThrow(RuntimeException::class, 'hash mismatch');
     } finally {
         foundationResetWebrickProductionRegistries();

@@ -203,7 +203,7 @@ it('keeps an unbooted release-selected pool supervisor generation-aware', functi
 
         expect($watch())->toBeTrue()
             ->and($supervisor->booted())->toBeFalse()
-            ->and(fn() => $method->invoke(new WorkerManager($supervisor)))
+            ->and(fn(): mixed => $method->invoke(new WorkerManager($supervisor)))
             ->toThrow(
                 RuntimeException::class,
                 'Trusted Foundation generation manifest does not match the active release selected for the worker supervisor.',

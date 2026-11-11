@@ -11,9 +11,9 @@ use Infocyph\Pathwise\Storage\StorageContext;
 use Infocyph\Pathwise\StreamHandler\PublicFileResolver;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-$operations = max(100, (int) (getenv('PATHWISE_RUNTIME_OPERATIONS') ?: 2_000));
-$repetitions = max(3, (int) (getenv('PATHWISE_RUNTIME_REPETITIONS') ?: 7));
-$warmup = max(20, (int) (getenv('PATHWISE_RUNTIME_WARMUP') ?: 100));
+$operations = max(100, (int) ((($__foundation154_14 = getenv('PATHWISE_RUNTIME_OPERATIONS')) !== false && $__foundation154_14 !== '' && $__foundation154_14 !== '0' ? $__foundation154_14 : 2_000)));
+$repetitions = max(3, (int) ((($__foundation154_15 = getenv('PATHWISE_RUNTIME_REPETITIONS')) !== false && $__foundation154_15 !== '' && $__foundation154_15 !== '0' ? $__foundation154_15 : 7)));
+$warmup = max(20, (int) ((($__foundation154_16 = getenv('PATHWISE_RUNTIME_WARMUP')) !== false && $__foundation154_16 !== '' && $__foundation154_16 !== '0' ? $__foundation154_16 : 100)));
 $base = sys_get_temp_dir() . '/foundation-pathwise41-bench-' . bin2hex(random_bytes(5));
 mkdir($base . '/storage/uploads', 0775, true);
 mkdir($base . '/storage/public', 0775, true);
@@ -118,24 +118,24 @@ try {
         'subjects' => $subjects,
         'ratios' => [
             'registry_construct_vs_context' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
-                (float) $subjects['foundation_registry_construct_two_disks']['median_ns'],
-                (float) $subjects['direct_context_construct_two_disks']['median_ns'],
+                $subjects['foundation_registry_construct_two_disks']['median_ns'],
+                $subjects['direct_context_construct_two_disks']['median_ns'],
             ),
             'registry_path_vs_context' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
-                (float) $subjects['foundation_registry_path']['median_ns'],
-                (float) $subjects['direct_context_path']['median_ns'],
+                $subjects['foundation_registry_path']['median_ns'],
+                $subjects['direct_context_path']['median_ns'],
             ),
             'registry_local_path_vs_context' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
-                (float) $subjects['foundation_registry_local_path']['median_ns'],
-                (float) $subjects['direct_context_local_path']['median_ns'],
+                $subjects['foundation_registry_local_path']['median_ns'],
+                $subjects['direct_context_local_path']['median_ns'],
             ),
             'registry_warm_disk_vs_context' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
-                (float) $subjects['foundation_registry_warm_disk']['median_ns'],
-                (float) $subjects['direct_context_warm_filesystem']['median_ns'],
+                $subjects['foundation_registry_warm_disk']['median_ns'],
+                $subjects['direct_context_warm_filesystem']['median_ns'],
             ),
             'public_resolution_bridge_vs_direct' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
-                (float) $subjects['foundation_public_file_resolution']['median_ns'],
-                (float) $subjects['direct_public_file_resolution']['median_ns'],
+                $subjects['foundation_public_file_resolution']['median_ns'],
+                $subjects['direct_public_file_resolution']['median_ns'],
             ),
         ],
         'decision_input' => [

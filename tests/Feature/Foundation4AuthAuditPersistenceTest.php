@@ -240,7 +240,7 @@ it('redacts arbitrary uppercase and mixed-case secrets for all auth-purpose audi
         foreach ($rows as $row) {
             $raw = $row['metadata'] ?? null;
             expect($raw)->toBeString();
-            $metadata = json_decode((string) $raw, true, flags: JSON_THROW_ON_ERROR);
+            $metadata = json_decode($raw, true, flags: JSON_THROW_ON_ERROR);
             expect($metadata['request_id'])->toBe('safe-request')
                 ->and($metadata['authorization_id'])->toBe('safe-authorization')
                 ->and($metadata['TokenId'])->toBe('opaque-identifier')
@@ -257,7 +257,7 @@ it('redacts arbitrary uppercase and mixed-case secrets for all auth-purpose audi
                 'uppercase-password-sentinel', 'mixed-password-sentinel', 'uppercase-token-sentinel',
                 'uppercase-api-key-sentinel', 'uppercase-authorization-sentinel', 'uppercase-private-key-sentinel',
             ] as $secret) {
-                expect((string) $raw)->not->toContain($secret);
+                expect($raw)->not->toContain($secret);
             }
         }
     } finally {

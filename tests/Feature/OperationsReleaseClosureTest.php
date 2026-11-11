@@ -304,7 +304,7 @@ function foundationOperationsRemove(string $directory): void
         return;
     }
 
-    foreach (scandir($directory) ?: [] as $entry) {
+    foreach (((array) scandir($directory)) as $entry) {
         if ($entry === '.' || $entry === '..') {
             continue;
         }

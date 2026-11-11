@@ -44,7 +44,7 @@ it('applies the Pathwise 4.2.1 untrusted upload profile to Webrick-facing transf
             uri: 'http://localhost/upload',
         )->withUploadedFiles(['file' => [
             'tmp_name' => $source,
-            'size' => filesize($source) ?: 0,
+            'size' => ((int) filesize($source)),
             'error' => UPLOAD_ERR_OK,
             'name' => '../../client-owned.txt',
             'type' => 'text/plain',

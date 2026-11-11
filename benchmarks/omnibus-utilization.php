@@ -46,11 +46,11 @@ function omnibusCycle(MessageBus $bus, InMemoryTransport|DBLayerTransport $trans
     $transport->acknowledge($reservations[0]);
 }
 
-$operations = max(100, (int) (getenv('OMNIBUS_RUNTIME_OPERATIONS') ?: 1_000));
-$durableOperations = max(20, (int) (getenv('OMNIBUS_DURABLE_OPERATIONS') ?: 100));
-$workerOperations = max(50, (int) (getenv('OMNIBUS_WORKER_OPERATIONS') ?: 500));
-$repetitions = max(3, (int) (getenv('OMNIBUS_RUNTIME_REPETITIONS') ?: 5));
-$warmup = max(10, (int) (getenv('OMNIBUS_RUNTIME_WARMUP') ?: 50));
+$operations = max(100, (int) ((($__foundation154_49 = getenv('OMNIBUS_RUNTIME_OPERATIONS')) !== false && $__foundation154_49 !== '' && $__foundation154_49 !== '0' ? $__foundation154_49 : 1_000)));
+$durableOperations = max(20, (int) ((($__foundation154_50 = getenv('OMNIBUS_DURABLE_OPERATIONS')) !== false && $__foundation154_50 !== '' && $__foundation154_50 !== '0' ? $__foundation154_50 : 100)));
+$workerOperations = max(50, (int) ((($__foundation154_51 = getenv('OMNIBUS_WORKER_OPERATIONS')) !== false && $__foundation154_51 !== '' && $__foundation154_51 !== '0' ? $__foundation154_51 : 500)));
+$repetitions = max(3, (int) ((($__foundation154_52 = getenv('OMNIBUS_RUNTIME_REPETITIONS')) !== false && $__foundation154_52 !== '' && $__foundation154_52 !== '0' ? $__foundation154_52 : 5)));
+$warmup = max(10, (int) ((($__foundation154_53 = getenv('OMNIBUS_RUNTIME_WARMUP')) !== false && $__foundation154_53 !== '' && $__foundation154_53 !== '0' ? $__foundation154_53 : 50)));
 
 $clock = new SystemClock();
 $message = OmnibusBenchmarkMessage::class;

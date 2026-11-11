@@ -76,7 +76,7 @@ it('serializes PAT issue against concurrent revoke-all for the same subject', fu
             ->and((int) ($row['revision'] ?? 0))->toBe(3)
             ->and($record?->revokedAt === null || $record?->revokedAt === 1_700_000_100)->toBeTrue();
     } finally {
-        foreach (glob($root . '/*') ?: [] as $path) {
+        foreach (((array) glob($root . '/*')) as $path) {
             is_file($path) && unlink($path);
         }
         is_dir($root) && rmdir($root);

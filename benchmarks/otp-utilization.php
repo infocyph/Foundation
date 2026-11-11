@@ -21,9 +21,9 @@ use Infocyph\OTP\Stores\InMemoryRecoveryCodeStore;
 use Infocyph\OTP\TOTP;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-$operations = max(100, (int) (getenv('OTP_RUNTIME_OPERATIONS') ?: 1_000));
-$repetitions = max(3, (int) (getenv('OTP_RUNTIME_REPETITIONS') ?: 7));
-$warmup = max(20, (int) (getenv('OTP_RUNTIME_WARMUP') ?: 100));
+$operations = max(100, (int) ((($__foundation154_24 = getenv('OTP_RUNTIME_OPERATIONS')) !== false && $__foundation154_24 !== '' && $__foundation154_24 !== '0' ? $__foundation154_24 : 1_000)));
+$repetitions = max(3, (int) ((($__foundation154_25 = getenv('OTP_RUNTIME_REPETITIONS')) !== false && $__foundation154_25 !== '' && $__foundation154_25 !== '0' ? $__foundation154_25 : 7)));
+$warmup = max(20, (int) ((($__foundation154_26 = getenv('OTP_RUNTIME_WARMUP')) !== false && $__foundation154_26 !== '' && $__foundation154_26 !== '0' ? $__foundation154_26 : 100)));
 
 $metadataSecret = TOTP::generateSecret(20);
 $foundation = new OtpProvisioningService(
@@ -141,12 +141,12 @@ $subjects['foundation_recovery_cas_bridge'] = \Infocyph\Foundation\Benchmarks\Su
     $warmup,
 );
 
-$directNs = (float) $subjects['direct_totp_provisioning']['median_ns'];
-$foundationNs = (float) $subjects['foundation_totp_provisioning']['median_ns'];
-$directProtectionNs = (float) $subjects['direct_epicrypt_mfa_string_protection']['median_ns'];
-$foundationProtectionNs = (float) $subjects['foundation_mfa_secret_protection_bridge']['median_ns'];
-$directRecoveryNs = (float) $subjects['direct_otp_recovery_replace']['median_ns'];
-$foundationRecoveryNs = (float) $subjects['foundation_recovery_cas_bridge']['median_ns'];
+$directNs = $subjects['direct_totp_provisioning']['median_ns'];
+$foundationNs = $subjects['foundation_totp_provisioning']['median_ns'];
+$directProtectionNs = $subjects['direct_epicrypt_mfa_string_protection']['median_ns'];
+$foundationProtectionNs = $subjects['foundation_mfa_secret_protection_bridge']['median_ns'];
+$directRecoveryNs = $subjects['direct_otp_recovery_replace']['median_ns'];
+$foundationRecoveryNs = $subjects['foundation_recovery_cas_bridge']['median_ns'];
 
 $report = [
     'benchmark' => 'foundation-otp-6.1-utilization',

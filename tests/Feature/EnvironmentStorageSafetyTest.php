@@ -193,7 +193,7 @@ it('creates reports and removes only configured matching storage links', functio
             ->and($created['io']->json[0][0]['created'] ?? null)->toBeTrue()
             ->and(is_link($link))->toBeTrue()
             ->and(realpath($link))->toBe(realpath($target));
-        expect(glob($link . '.*.tmp') ?: [])->toBe([]);
+        expect(((array) glob($link . '.*.tmp')))->toBe([]);
 
         $createdAgain = foundationEnvironmentStorageRun($dispatcher, ['infbyte', 'storage:link']);
         expect($createdAgain['exit'])->toBe(ExitCode::SUCCESS)
@@ -276,8 +276,8 @@ function foundationEnvironmentStorageDispatcher(string $basePath, array $links =
 
 function foundationEnvironmentStorageExpectNoStages(string $basePath): void
 {
-    expect(glob($basePath . '/.*.tmp') ?: [])->toBe([])
-        ->and(glob($basePath . '/.*.bak') ?: [])->toBe([]);
+    expect(((array) glob($basePath . '/.*.tmp')))->toBe([])
+        ->and(((array) glob($basePath . '/.*.bak')))->toBe([]);
 }
 
 function foundationEnvironmentStorageKey(): string
@@ -320,7 +320,7 @@ function foundationEnvironmentStorageRemove(string $path): void
         return;
     }
 
-    foreach (scandir($path) ?: [] as $entry) {
+    foreach (((array) scandir($path)) as $entry) {
         if ($entry === '.' || $entry === '..') {
             continue;
         }

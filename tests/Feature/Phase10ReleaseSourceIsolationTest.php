@@ -190,7 +190,7 @@ it('keeps the active generation when a later staged release fails to compile', f
         expect($status['generation'])->toBe('stable')
             ->and($status['manifest_sha256'])->toBe($stable['manifest_sha256'])
             ->and(is_dir($releaseRoot . '/generations/broken'))->toBeFalse()
-            ->and(glob($releaseRoot . '/generations/.staging-broken-*') ?: [])->toBe([]);
+            ->and(((array) glob($releaseRoot . '/generations/.staging-broken-*')))->toBe([]);
     } finally {
         foundationPhase10ReleaseRemove($project);
     }

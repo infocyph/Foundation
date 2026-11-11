@@ -81,7 +81,7 @@ it('forwards published native providers through compiled and borrowed execution 
                     ->and(CacheRunwire::current()?->request)->toBe($request);
 
                 $request->cancel(CancellationReason::HOST_CANCELLED);
-                expect(fn() => $connection->scalar('SELECT 3'))
+                expect(fn(): mixed => $connection->scalar('SELECT 3'))
                     ->toThrow(CancelledException::class)
                     ->and(fn() => $bus->dispatch(new stdClass()))->toThrow(CancelledException::class);
 
@@ -141,7 +141,7 @@ it('isolates providers across overlapping Foundation executions and preserves ex
                 ->and($bus->runwireBinding()->request())->toBe($request);
             Fiber::suspend($connection);
             if ($request->cancelled()) {
-                expect(fn() => $connection->scalar('SELECT 1'))
+                expect(fn(): mixed => $connection->scalar('SELECT 1'))
                     ->toThrow(CancelledException::class)
                     ->and(fn() => $bus->dispatch(new stdClass()))->toThrow(CancelledException::class);
 
@@ -157,7 +157,7 @@ it('isolates providers across overlapping Foundation executions and preserves ex
         $right = $make($second);
         expect($left->start())->not->toBe($right->start());
         $first->cancel(CancellationReason::HOST_CANCELLED);
-        expect(fn() => $left->resume())->toThrow(RuntimeException::class, 'primary execution failure');
+        expect(fn(): mixed => $left->resume())->toThrow(RuntimeException::class, 'primary execution failure');
         $right->resume();
         expect($right->getReturn()[0])->toBe(2)
             ->and($right->getReturn()[1])->toBeInstanceOf(\Infocyph\Omnibus\Envelope\Envelope::class)
@@ -205,7 +205,7 @@ it('keeps the host coroutine scope in a structured child and stops native work a
                             ->and(CacheRunwire::current()?->scope)->toBe($scope)
                             ->and($connection->scalar('SELECT 1'))->toBe(1);
                         $request->cancel(CancellationReason::HOST_CANCELLED);
-                        expect(fn() => $connection->scalar('SELECT 2'))
+                        expect(fn(): mixed => $connection->scalar('SELECT 2'))
                             ->toThrow(CancelledException::class)
                             ->and(fn() => $bus->dispatch(new stdClass()))->toThrow(CancelledException::class);
                         $observed->cancelled = true;
@@ -306,7 +306,7 @@ it('rejects a shared completed or cancelled host request before starting framewo
     };
 
     try {
-        expect(fn() => CacheRunwire::share(
+        expect(fn(): mixed => CacheRunwire::share(
             $request,
             null,
             static fn(): mixed => $app->execution()->run($callback),

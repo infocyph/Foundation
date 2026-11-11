@@ -49,7 +49,7 @@ it('binds ordinary database operations to passed host inputs and restores the sy
                 ->and($factory->connection(fresh: true)->scalar('SELECT 2'))->toBe(2);
 
             $request->cancel(CancellationReason::HOST_CANCELLED);
-            expect(fn() => $connection->scalar('SELECT 1'))
+            expect(fn(): mixed => $connection->scalar('SELECT 1'))
                 ->toThrow(CancelledException::class);
         }, [RuntimeContext::class => $runtime, RequestContext::class => $request]);
 
@@ -87,7 +87,7 @@ it('observes cancellation after entering an ordinary native database query', fun
     try {
         $app->execution()->run(static function () use ($app, $request): void {
             $connection = $app->make(DBLayerFactory::class)->connection();
-            expect(fn() => $connection->scalar('SELECT 42'))
+            expect(fn(): mixed => $connection->scalar('SELECT 42'))
                 ->toThrow(\Infocyph\DBLayer\Exceptions\ConnectionException::class);
             expect($request->cancelled())->toBeTrue();
         }, [RuntimeContext::class => $runtime, RequestContext::class => $request]);
@@ -128,12 +128,12 @@ it('uses native ReqShield and TalkingBytes operation cancellation without retain
         });
 
         $request->cancel(CancellationReason::HOST_CANCELLED);
-        expect(fn() => CacheRunwire::share(
+        expect(fn(): mixed => CacheRunwire::share(
             $request,
             null,
             static fn(): mixed => $validator->validate(Request::fake(['name' => 'Ada'])),
         ))->toThrow(CancelledException::class)
-            ->and(fn() => CacheRunwire::share(
+            ->and(fn(): mixed => CacheRunwire::share(
                 $request,
                 null,
                 static fn(): mixed => $profiles->http(),

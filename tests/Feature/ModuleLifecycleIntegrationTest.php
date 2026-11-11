@@ -341,7 +341,7 @@ function moduleLifecycleCommands(string $commandLog): array
 
             return array_values($decoded);
         },
-        file($commandLog, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [],
+        ((array) file($commandLog, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES)),
     );
 }
 

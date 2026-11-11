@@ -180,7 +180,7 @@ it('redeems one shared passwordless link across independent application processe
             fclose($stderr);
             expect(proc_close($process))->toBe(0);
         }
-        foreach (glob($directory . '/*') ?: [] as $path) {
+        foreach (((array) glob($directory . '/*')) as $path) {
             unlink($path);
         }
         rmdir($directory);

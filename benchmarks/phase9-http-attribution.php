@@ -58,9 +58,9 @@ function phase9HttpScalarTax(int $foundation, int $direct): array
  */
 function phase9HttpChild(string $variant): array
 {
-    $operations = max(1_000, (int) (getenv('PHASE9_HTTP_OPERATIONS') ?: 100_000));
-    $repetitions = max(3, (int) (getenv('PHASE9_HTTP_REPETITIONS') ?: 7));
-    $warmup = max(100, (int) (getenv('PHASE9_HTTP_WARMUP') ?: 1_000));
+    $operations = max(1_000, (int) ((($__foundation154_61 = getenv('PHASE9_HTTP_OPERATIONS')) !== false && $__foundation154_61 !== '' && $__foundation154_61 !== '0' ? $__foundation154_61 : 100_000)));
+    $repetitions = max(3, (int) ((($__foundation154_62 = getenv('PHASE9_HTTP_REPETITIONS')) !== false && $__foundation154_62 !== '' && $__foundation154_62 !== '0' ? $__foundation154_62 : 7)));
+    $warmup = max(100, (int) ((($__foundation154_63 = getenv('PHASE9_HTTP_WARMUP')) !== false && $__foundation154_63 !== '' && $__foundation154_63 !== '0' ? $__foundation154_63 : 1_000)));
     $root = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR
         . 'foundation-phase9-http-' . $variant . '-' . bin2hex(random_bytes(6));
     mkdir($root . '/bootstrap/cache', 0777, true);
@@ -261,16 +261,16 @@ $result = [
         'opcache_cli' => filter_var(ini_get('opcache.enable_cli'), FILTER_VALIDATE_BOOL),
     ],
     'source' => [
-        'foundation_commit' => getenv('GITHUB_SHA') ?: 'working-tree',
+        'foundation_commit' => (($__foundation154_264 = getenv('GITHUB_SHA')) !== false && $__foundation154_264 !== '' && $__foundation154_264 !== '0' ? $__foundation154_264 : 'working-tree'),
         'webrick_version' => InstalledVersions::getPrettyVersion('infocyph/webrick'),
         'webrick_reference' => InstalledVersions::getReference('infocyph/webrick'),
         'intermix_version' => InstalledVersions::getPrettyVersion('infocyph/intermix'),
         'intermix_reference' => InstalledVersions::getReference('infocyph/intermix'),
     ],
     'configuration' => [
-        'operations' => max(1_000, (int) (getenv('PHASE9_HTTP_OPERATIONS') ?: 100_000)),
-        'repetitions' => max(3, (int) (getenv('PHASE9_HTTP_REPETITIONS') ?: 7)),
-        'warmup' => max(100, (int) (getenv('PHASE9_HTTP_WARMUP') ?: 1_000)),
+        'operations' => max(1_000, (int) ((($__foundation154_271 = getenv('PHASE9_HTTP_OPERATIONS')) !== false && $__foundation154_271 !== '' && $__foundation154_271 !== '0' ? $__foundation154_271 : 100_000))),
+        'repetitions' => max(3, (int) ((($__foundation154_272 = getenv('PHASE9_HTTP_REPETITIONS')) !== false && $__foundation154_272 !== '' && $__foundation154_272 !== '0' ? $__foundation154_272 : 7))),
+        'warmup' => max(100, (int) ((($__foundation154_273 = getenv('PHASE9_HTTP_WARMUP')) !== false && $__foundation154_273 !== '' && $__foundation154_273 !== '0' ? $__foundation154_273 : 1_000))),
         'matcher' => 'fused',
         'route' => 'GET /json -> {"ok":true}',
         'isolation' => 'standalone Webrick and Foundation execute in separate PHP processes',

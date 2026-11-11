@@ -114,8 +114,8 @@ function foundationCacheLayerAtomicRedisDsn(): string
         return $explicit;
     }
 
-    $host = getenv('IC_REDIS_HOST') ?: '127.0.0.1';
-    $port = getenv('IC_REDIS_PORT') ?: '6379';
+    $host = (($__foundation154_117 = getenv('IC_REDIS_HOST')) !== false && $__foundation154_117 !== '' && $__foundation154_117 !== '0' ? $__foundation154_117 : '127.0.0.1');
+    $port = (($__foundation154_118 = getenv('IC_REDIS_PORT')) !== false && $__foundation154_118 !== '' && $__foundation154_118 !== '0' ? $__foundation154_118 : '6379');
     $password = getenv('IC_REDIS_PASSWORD');
     $credentials = is_string($password) && $password !== ''
         ? ':' . rawurlencode($password) . '@'
