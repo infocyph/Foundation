@@ -130,7 +130,7 @@ final readonly class JsonDispatchResponseFactory
      * @throws \InvalidArgumentException
      */
     public function success(
-        mixed $data = null,
+        array|\Infocyph\Foundation\Http\Resource\ResourceCollection|null $data = null,
         int $status = 200,
         ?string $message = null,
     ): Response {

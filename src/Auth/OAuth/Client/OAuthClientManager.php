@@ -325,7 +325,10 @@ final readonly class OAuthClientManager
         return array_keys($normalized);
     }
 
-    /** @param array<string, mixed> $metadata */
+    /**
+     * @param array<string, mixed> $metadata
+     * @param string $uri
+     */
     private function validRedirectUri(mixed $uri, array $metadata): bool
     {
         if (!is_string($uri) || $uri === '' || strlen($uri) > 2048 || str_contains($uri, '*')) {

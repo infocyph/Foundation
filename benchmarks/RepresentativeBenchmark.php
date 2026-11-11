@@ -320,7 +320,7 @@ PHP);
             }
 
             $sampleDuration = max(0.000001, (hrtime(true) - $sampleStarted) / 1_000_000_000);
-            $duration = (float) $duration + $sampleDuration;
+            $duration = $duration + $sampleDuration;
             $sampleRpms[] = ((float) $sampleSuccessful / $sampleDuration) * 60.0;
             $memoryAfter = memory_get_usage(true);
             $memoryTotal += ((float) $memoryBefore + (float) $memoryAfter) / 2.0 / 1_048_576.0;

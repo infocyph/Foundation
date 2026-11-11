@@ -159,7 +159,7 @@ final class Foundation4HostUpgradeEvidence
      * @return array{version:string,source_ref:?string,dist_ref:?string}
      * @throws \InvalidArgumentException
      */
-    private static function identity(mixed $package): array
+    private static function identity(array $package): array
     {
         if (!is_array($package)
             || !is_string($package['name'] ?? null)

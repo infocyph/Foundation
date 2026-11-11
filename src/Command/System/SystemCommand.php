@@ -26,7 +26,10 @@ abstract class SystemCommand extends Command
         return $this->context()->definition()->commandName();
     }
 
-    final protected function emit(mixed $data, ?string $message = null): int
+    /**
+     * @psalm-param array<int<0, max>|string, mixed> $data
+     */
+    final protected function emit(array $data, ?string $message = null): int
     {
         if ($this->io()->machineReadable()) {
             $this->io()->json($data);

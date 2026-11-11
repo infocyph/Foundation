@@ -132,7 +132,7 @@ $report = [
     'decision_input' => [
         'pool_default_enabled' => false,
         'material_speedup_threshold_percent' => 15,
-        'sqlite_lifecycle_speedup_percent' => round((1.0 - ((float) $leasedNs / max(1.0, $dedicatedNs))) * 100.0, 2),
+        'sqlite_lifecycle_speedup_percent' => round((1.0 - ($leasedNs / max(1.0, $dedicatedNs))) * 100.0, 2),
         'note' => 'Pooling remains opt-in until persistent-runtime correctness and representative datastore benchmarks are accepted; SQLite is an attribution baseline, not a network-database proxy.',
     ],
     'pool_stats' => $pool->getStats(),

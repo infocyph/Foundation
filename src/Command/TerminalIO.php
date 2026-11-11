@@ -117,6 +117,11 @@ final readonly class TerminalIO implements CommandIO
         return $this->interactiveMode;
     }
 
+    /**
+     * @param (string|string[])[] $value
+     *
+     * @psalm-param array{0?: array<string, string>, level?: string, message?: string,...} $value
+     */
     #[\Override]
     public function json(mixed $value): void
     {
@@ -255,6 +260,9 @@ final readonly class TerminalIO implements CommandIO
         return strlen($plain);
     }
 
+    /**
+     * @param resource $stream
+     */
     private static function isTty(mixed $stream): bool
     {
         return is_resource($stream)

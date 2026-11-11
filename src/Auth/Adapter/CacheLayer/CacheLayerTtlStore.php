@@ -49,6 +49,10 @@ final readonly class CacheLayerTtlStore implements TtlStoreInterface
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     *
+     * @param null|string $default
+     *
+     * @psalm-param '__expired__'|null $default
      */
     #[\Override]
     public function get(string $key, mixed $default = null): mixed
@@ -59,9 +63,12 @@ final readonly class CacheLayerTtlStore implements TtlStoreInterface
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     *
+     *
+     * @psalm-param '__miss__'|null $default
      */
     #[\Override]
-    public function pull(string $key, mixed $default = null): mixed
+    public function pull(string $key, ?string $default = null): mixed
     {
         return $this->atomic->getAndDelete($this->key($key), $default);
     }
@@ -71,6 +78,10 @@ final readonly class CacheLayerTtlStore implements TtlStoreInterface
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
      * @throws \LogicException
+     *
+     * @param int|string|string[] $value
+     *
+     * @psalm-param 'payload'|'short-lived'|array{id: 'one'}|int<0, max> $value
      */
     #[\Override]
     public function put(string $key, mixed $value, int $ttlSeconds): void

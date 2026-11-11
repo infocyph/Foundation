@@ -53,8 +53,11 @@ final readonly class TestResponse
 
     /**
      * @throws \RuntimeException
+     *
+     *
+     * @psalm-param 'error'|'fail'|0|429|503|array|false|null $expected
      */
-    public function assertJsonPath(string $path, mixed $expected): self
+    public function assertJsonPath(string $path, array|string|int|false|null $expected): self
     {
         $value = $this->json();
         foreach (explode('.', $path) as $segment) {

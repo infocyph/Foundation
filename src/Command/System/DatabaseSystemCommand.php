@@ -239,8 +239,12 @@ final class DatabaseSystemCommand extends SystemCommand
         return $value === null ? $default : $this->positiveInt($name, $value);
     }
 
-    /** @return list<array<string,mixed>>|null */
-    private function recordList(mixed $data): ?array
+    /**
+     * @return list<array<string,mixed>>|null
+     *
+     * @psalm-param array<int<0, max>|string, mixed> $data
+     */
+    private function recordList(array $data): ?array
     {
         if (!is_array($data) || !array_is_list($data)) {
             return null;

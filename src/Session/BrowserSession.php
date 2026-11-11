@@ -132,6 +132,10 @@ final class BrowserSession
      * @throws \InvalidArgumentException
      * @throws \LogicException
      * @throws \RuntimeException
+     *
+     * @param array|string $value
+     *
+     * @psalm-param 'saved'|array<string, mixed> $value
      */
     public function flash(string $key, mixed $value): void
     {
