@@ -187,7 +187,7 @@ $document = [
         ? 'pre-routing-gate-justified'
         : 'retain-compiled-middleware-gate',
 ];
-$output = getenv('FOUNDATION_MAINTENANCE_BENCHMARK_OUTPUT') ?: dirname(__DIR__) . '/build/maintenance-overhead.json';
+$output = (($__foundation157_190 = getenv('FOUNDATION_MAINTENANCE_BENCHMARK_OUTPUT')) !== false && $__foundation157_190 !== '' && $__foundation157_190 !== '0') ? $__foundation157_190 : dirname(__DIR__) . '/build/maintenance-overhead.json';
 $directory = dirname($output);
 if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
     throw new RuntimeException(sprintf('Unable to create benchmark output directory "%s".', $directory));

@@ -190,6 +190,7 @@ it('manages database-backed CacheLayer schemas through core cache commands', fun
     }
 });
 
+/** @throws \UnexpectedValueException */
 function foundationCacheSchemaCommandRemoveDirectory(string $directory): void
 {
     if (!is_dir($directory)) {

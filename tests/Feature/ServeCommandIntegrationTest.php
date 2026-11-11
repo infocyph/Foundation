@@ -43,7 +43,11 @@ it('serves real requests with isolated contexts and recovers after a failed requ
         if (!is_string($address)) {
             throw new RuntimeException('Unable to read serving test address.');
         }
-        $port = substr($address, strrpos($address, ':') + 1);
+        $separator = strrpos($address, ':');
+        if ($separator === false) {
+            throw new RuntimeException('Serving test address has no port.');
+        }
+        $port = substr($address, $separator + 1);
         $command = [PHP_BINARY];
         if ($portable) {
             array_push($command, '-d', 'disable_functions=pcntl_fork,pcntl_waitpid,pcntl_signal,pcntl_async_signals');
@@ -177,6 +181,9 @@ function foundationServeBurst(string $address): array
     try {
         for ($index = 0; $index < 16; ++$index) {
             $handle = curl_init('http://' . $address . '/probe');
+            if ($handle === false) {
+                throw new RuntimeException('Unable to initialize serving burst HTTP client.');
+            }
             curl_setopt_array($handle, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT => 5,
@@ -233,5 +240,5 @@ function foundationServeWait(mixed $process, string $address, string $project): 
     } while (microtime(true) < $deadline);
 
     throw new RuntimeException('Serving did not become ready: '
-        . file_get_contents($project . '/stdout.log') . file_get_contents($project . '/stderr.log'));
+        . (string) file_get_contents($project . '/stdout.log') . (string) file_get_contents($project . '/stderr.log'));
 }

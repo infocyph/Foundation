@@ -15,7 +15,7 @@ $selectedCapabilities = $runwireEnabled ? ['runwire'] : [];
 if ($profile === 'authenticated-read') {
     array_push($selectedCapabilities, 'auth', 'cache', 'notifications', 'database', 'security', 'otp', 'communication');
 }
-$app = getenv('PHASE9_SERVER_APP') ?: $repository . '/build/phase9-server-app';
+$app = (($__foundation157_18 = getenv('PHASE9_SERVER_APP')) !== false && $__foundation157_18 !== '' && $__foundation157_18 !== '0') ? $__foundation157_18 : $repository . '/build/phase9-server-app';
 $app = rtrim($app, DIRECTORY_SEPARATOR);
 \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($app);
 
@@ -192,8 +192,8 @@ file_put_contents(
     LOCK_EX,
 );
 
-$address = getenv('FOUNDATION_HOST_LISTEN') ?: '127.0.0.1:18781';
-$workers = (int) (getenv('FOUNDATION_HOST_WORKERS') ?: 1);
+$address = (($__foundation157_195 = getenv('FOUNDATION_HOST_LISTEN')) !== false && $__foundation157_195 !== '' && $__foundation157_195 !== '0') ? $__foundation157_195 : '127.0.0.1:18781';
+$workers = (int) ((($__foundation157_196 = getenv('FOUNDATION_HOST_WORKERS')) !== false && $__foundation157_196 !== '' && $__foundation157_196 !== '0') ? $__foundation157_196 : 1);
 $factory = new class implements RuntimeApplicationFactoryInterface {
     public function create(RuntimeContext $runtime): RuntimeApplicationInterface
     {
@@ -262,7 +262,7 @@ $result = [
     'workload_profile' => $profile,
 ];
 
-$output = getenv('PHASE9_SERVER_COMPILE_OUTPUT') ?: $repository . '/build/phase9-server-compile.json';
+$output = (($__foundation157_265 = getenv('PHASE9_SERVER_COMPILE_OUTPUT')) !== false && $__foundation157_265 !== '' && $__foundation157_265 !== '0') ? $__foundation157_265 : $repository . '/build/phase9-server-compile.json';
 file_put_contents(
     $output,
     json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL,

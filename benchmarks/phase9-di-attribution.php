@@ -149,7 +149,7 @@ try {
         ],
     ];
 
-    $output = getenv('PHASE9_DI_OUTPUT') ?: dirname(__DIR__) . '/build/phase9-di-attribution.json';
+    $output = (($__foundation157_152 = getenv('PHASE9_DI_OUTPUT')) !== false && $__foundation157_152 !== '' && $__foundation157_152 !== '0') ? $__foundation157_152 : dirname(__DIR__) . '/build/phase9-di-attribution.json';
     $directory = dirname($output);
     if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
         throw new RuntimeException(sprintf('Unable to create benchmark output directory "%s".', $directory));

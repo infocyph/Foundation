@@ -8,11 +8,18 @@ use Infocyph\Foundation\Command\CompletionGenerator;
 
 it('keeps documented infbyte command examples dispatchable', function (): void {
     $root = dirname(__DIR__, 2);
-    $documents = [$root . '/README.md', ...((array) glob($root . '/docs/*.md'))];
+    $paths = glob($root . '/docs/*.md');
+    if ($paths === false) {
+        throw new RuntimeException('Unable to list documentation files.');
+    }
+    $documents = [$root . '/README.md', ...$paths];
     $documented = [];
 
     foreach ($documents as $path) {
         $contents = file_get_contents($path);
+        if ($contents === false) {
+            throw new RuntimeException('Unable to read documentation file: ' . $path);
+        }
         expect($contents)->toBeString();
 
         preg_match_all('/\bphp\s+infbyte\s+([a-z][a-z0-9:_-]*)/i', $contents, $matches);

@@ -150,7 +150,7 @@ try {
     $result = [
         'schema_version' => 2,
         'classification' => 'Foundation 4 public v2 CLI microbenchmark, synthetic local Composer fixture, not host RPM certification',
-        'source_sha' => getenv('FOUNDATION_MODULE_SOURCE_SHA') ?: ((($__foundation154_153 = getenv('GITHUB_SHA')) !== false && $__foundation154_153 !== '' && $__foundation154_153 !== '0' ? $__foundation154_153 : 'working-tree')),
+        'source_sha' => (($__foundation157_153 = getenv('FOUNDATION_MODULE_SOURCE_SHA')) !== false && $__foundation157_153 !== '' && $__foundation157_153 !== '0') ? $__foundation157_153 : ((($__foundation154_153 = getenv('GITHUB_SHA')) !== false && $__foundation154_153 !== '' && $__foundation154_153 !== '0' ? $__foundation154_153 : 'working-tree')),
         'source_composer_sha256' => hash_file('sha256', $source . '/composer.json'),
         'php' => PHP_VERSION,
         'php_sapi' => PHP_SAPI,

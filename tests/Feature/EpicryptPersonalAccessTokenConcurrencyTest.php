@@ -54,6 +54,9 @@ it('serializes PAT issue against concurrent revoke-all for the same subject', fu
             fclose($pipes[0]);
             $stdout = stream_get_contents($pipes[1]);
             $stderr = stream_get_contents($pipes[2]);
+            if ($stdout === false || $stderr === false) {
+                throw new RuntimeException('Unable to read PAT concurrency worker output.');
+            }
             fclose($pipes[1]);
             fclose($pipes[2]);
             $exitCode = proc_close($process);
@@ -76,7 +79,11 @@ it('serializes PAT issue against concurrent revoke-all for the same subject', fu
             ->and((int) ($row['revision'] ?? 0))->toBe(3)
             ->and($record?->revokedAt === null || $record?->revokedAt === 1_700_000_100)->toBeTrue();
     } finally {
-        foreach (((array) glob($root . '/*')) as $path) {
+        $files = glob($root . '/*');
+        if ($files === false) {
+            throw new RuntimeException('Unable to list PAT concurrency fixture files.');
+        }
+        foreach ($files as $path) {
             is_file($path) && unlink($path);
         }
         is_dir($root) && rmdir($root);

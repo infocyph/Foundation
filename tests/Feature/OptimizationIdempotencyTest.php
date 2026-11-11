@@ -315,6 +315,9 @@ function foundationOptimizationRemove(string $directory): void
         if ($entry === '.' || $entry === '..') {
             continue;
         }
+        if (!is_string($entry)) {
+            throw new \UnexpectedValueException('Directory listing contains an invalid entry.');
+        }
 
         $path = $directory . DIRECTORY_SEPARATOR . $entry;
         if (is_dir($path)) {

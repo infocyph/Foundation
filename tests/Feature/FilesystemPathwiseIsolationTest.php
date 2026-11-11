@@ -99,6 +99,7 @@ it('rejects an invalid default disk while constructing the application storage c
     ))->toThrow(InvalidArgumentException::class, "Default filesystem 'missing' is not configured");
 });
 
+/** @throws \UnexpectedValueException */
 function foundationPathwiseIsolationRemove(string $directory): void
 {
     if (!is_dir($directory)) {

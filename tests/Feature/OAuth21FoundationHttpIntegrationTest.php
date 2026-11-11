@@ -184,7 +184,8 @@ function foundationOAuthHttpRoutes(Registrar $registrar): array
 {
     $routes = [];
     foreach ($registrar->compile()->all() as $route) {
-        if (str_starts_with($route->getName(), 'oauth.')) {
+        $name = $route->getName();
+        if ($name !== null && str_starts_with($name, 'oauth.')) {
             $routes[$route->getMethod() . ' ' . $route->getPath()] = $route;
         }
     }

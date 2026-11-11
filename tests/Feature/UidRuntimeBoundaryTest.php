@@ -94,6 +94,9 @@ PHP);
         $history = new ExecutionHistory($app);
         $latest = $history->latestByMetadata('schedule', 'schedule_identity', 'uid-success');
         $executionId = $latest['execution_id'] ?? null;
+        if (!is_string($executionId)) {
+            throw new RuntimeException('Scheduled execution history lacks an execution identifier.');
+        }
 
         expect($run->successful())->toBeTrue()
             ->and($latest['status'] ?? null)->toBe('succeeded')

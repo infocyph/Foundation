@@ -74,15 +74,15 @@ function uidRuntimeMeasure(
             'successful_operations' => $attempted,
             'failed_operations' => 0,
             'timeouts' => 0,
-            'successful_rpm' => 60_000_000_000 / max(0.000001, $median),
+            'successful_rpm' => 60_000_000_000.0 / max(0.000001, $median),
             'error_rate' => 0.0,
             'latency_ms' => [
-                'minimum' => $minimum / 1_000_000,
-                'average' => $median / 1_000_000,
-                'p50' => $median / 1_000_000,
-                'p95' => uidRuntimePercentile($samples, 0.95) / 1_000_000,
-                'p99' => uidRuntimePercentile($samples, 0.99) / 1_000_000,
-                'maximum' => $maximum / 1_000_000,
+                'minimum' => $minimum / 1_000_000.0,
+                'average' => $median / 1_000_000.0,
+                'p50' => $median / 1_000_000.0,
+                'p95' => uidRuntimePercentile($samples, 0.95) / 1_000_000.0,
+                'p99' => uidRuntimePercentile($samples, 0.99) / 1_000_000.0,
+                'maximum' => $maximum / 1_000_000.0,
             ],
             'cpu' => [
                 'average_percent' => null,
@@ -104,7 +104,7 @@ function uidRuntimeMeasure(
 /** @param list<float> $samples */
 function uidRuntimePercentile(array $samples, float $percentile): float
 {
-    $index = (int) ceil($percentile * count($samples)) - 1;
+    $index = (int) ceil($percentile * (float) count($samples)) - 1;
     $lastIndex = count($samples) - 1;
 
     return $samples[max(0, min($lastIndex, $index))];

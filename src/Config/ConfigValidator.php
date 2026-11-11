@@ -24,6 +24,7 @@ final readonly class ConfigValidator
     /**
      * @throws \UnexpectedValueException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function validate(): ConfigValidationResult
     {
@@ -33,6 +34,7 @@ final readonly class ConfigValidator
     /**
      * @throws \UnexpectedValueException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function validateForProduction(): ConfigValidationResult
     {

@@ -341,7 +341,9 @@ function moduleLifecycleCommands(string $commandLog): array
 
             return array_values($decoded);
         },
-        ((array) file($commandLog, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES)),
+        (($commands = file($commandLog, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES)) === false
+            ? throw new RuntimeException('Unable to read module lifecycle command log.')
+            : $commands),
     );
 }
 

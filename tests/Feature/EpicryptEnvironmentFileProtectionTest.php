@@ -65,6 +65,7 @@ it('round trips protected environment files and preserves an existing target on 
     }
 });
 
+/** @throws \UnexpectedValueException */
 function foundationEnvironmentProtectionRemove(string $directory): void
 {
     if (!is_dir($directory)) {

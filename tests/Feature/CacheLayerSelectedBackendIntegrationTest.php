@@ -192,6 +192,7 @@ it('rejects mismatched integrity keys and object payloads in configured native S
         return $factory->make('secure');
     };
 
+    $producer = $consumer = $untrusted = null;
     try {
         $producer = $make(str_repeat('a', 32));
         $consumer = $make(str_repeat('a', 32));

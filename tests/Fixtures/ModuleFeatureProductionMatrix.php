@@ -22,7 +22,11 @@ error_reporting(E_ALL);
 set_error_handler(static function (int $severity, string $message, string $file, int $line): never {
     throw new ErrorException($message, 0, $severity, $file, $line);
 }, E_DEPRECATED | E_USER_DEPRECATED);
-require getcwd() . '/vendor/autoload.php';
+$workingDirectory = getcwd();
+if ($workingDirectory === false) {
+    throw new RuntimeException('Unable to locate the production fixture working directory.');
+}
+require $workingDirectory . '/vendor/autoload.php';
 
 if (!class_exists(\Infocyph\Runwire\RuntimeContext::class)) {
     throw new RuntimeException('Runwire must be available in every Foundation production installation.');

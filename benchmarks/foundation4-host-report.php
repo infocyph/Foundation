@@ -117,13 +117,13 @@ function f4HostMedian(array $values): float
         : ($values[intdiv($n, 2) - 1] + $values[intdiv($n, 2)]) / 2;
 }
 
-$root = getenv('FOUNDATION_HOST_RESULT_DIR') ?: dirname(__DIR__) . '/build/foundation4-host';
+$root = (($__foundation157_120 = getenv('FOUNDATION_HOST_RESULT_DIR')) !== false && $__foundation157_120 !== '' && $__foundation157_120 !== '0') ? $__foundation157_120 : dirname(__DIR__) . '/build/foundation4-host';
 $requests = (int) ((($__foundation154_121 = getenv('FOUNDATION_HOST_REQUESTS')) !== false && $__foundation154_121 !== '' && $__foundation154_121 !== '0' ? $__foundation154_121 : 900));
 $repeats = (int) ((($__foundation154_122 = getenv('FOUNDATION_HOST_REPEATS')) !== false && $__foundation154_122 !== '' && $__foundation154_122 !== '0' ? $__foundation154_122 : 3));
 $result = [
     'schema' => 2,
     'classification' => 'preliminary GitHub-runner host evidence; no production-equivalent baseline comparison',
-    'sha' => getenv('FOUNDATION_HOST_SOURCE_SHA') ?: ((($__foundation154_126 = getenv('GITHUB_SHA')) !== false && $__foundation154_126 !== '' && $__foundation154_126 !== '0' ? $__foundation154_126 : 'working-tree')),
+    'sha' => (($__foundation157_126 = getenv('FOUNDATION_HOST_SOURCE_SHA')) !== false && $__foundation157_126 !== '' && $__foundation157_126 !== '0') ? $__foundation157_126 : ((($__foundation154_126 = getenv('GITHUB_SHA')) !== false && $__foundation154_126 !== '' && $__foundation154_126 !== '0' ? $__foundation154_126 : 'working-tree')),
     // Explicit operator-controlled identity. GitHub-hosted runners remain
     // non-certifiable until a physically matched baseline/candidate exists.
     'hardware_id' => (($__foundation154_129 = getenv('FOUNDATION_CERTIFICATION_HOST_ID')) !== false && $__foundation154_129 !== '' && $__foundation154_129 !== '0' ? $__foundation154_129 : null),
@@ -147,9 +147,9 @@ $result = [
     'hosts' => [],
 ];
 
-foreach (getenv('FOUNDATION_HOST_FILTER_HOST') ? [getenv('FOUNDATION_HOST_FILTER_HOST')] : ['fpm', 'runwire'] as $host) {
-    foreach (getenv('FOUNDATION_HOST_FILTER_WORKERS') ? [(int) getenv('FOUNDATION_HOST_FILTER_WORKERS')] : [1, 4] as $workers) {
-        foreach (getenv('FOUNDATION_HOST_FILTER_CONCURRENCY') ? [(int) getenv('FOUNDATION_HOST_FILTER_CONCURRENCY')] : [1, 10, 50] as $concurrency) {
+foreach ((($__foundation157_150 = getenv('FOUNDATION_HOST_FILTER_HOST')) !== false && $__foundation157_150 !== '' && $__foundation157_150 !== '0') ? [$__foundation157_150] : ['fpm', 'runwire'] as $host) {
+    foreach ((($__foundation157_151 = getenv('FOUNDATION_HOST_FILTER_WORKERS')) !== false && $__foundation157_151 !== '' && $__foundation157_151 !== '0') ? [(int) $__foundation157_151] : [1, 4] as $workers) {
+        foreach ((($__foundation157_152 = getenv('FOUNDATION_HOST_FILTER_CONCURRENCY')) !== false && $__foundation157_152 !== '' && $__foundation157_152 !== '0') ? [(int) $__foundation157_152] : [1, 10, 50] as $concurrency) {
             $runs = [];
             $rpms = [];
             for ($i = 1; $i <= $repeats; $i++) {
@@ -176,7 +176,7 @@ if ($soakSeconds > 0) {
     }
 
     $result['soak'] = [];
-    foreach (getenv('FOUNDATION_HOST_FILTER_HOST') ? [getenv('FOUNDATION_HOST_FILTER_HOST')] : ['fpm', 'runwire'] as $host) {
+    foreach ((($__foundation157_179 = getenv('FOUNDATION_HOST_FILTER_HOST')) !== false && $__foundation157_179 !== '' && $__foundation157_179 !== '0') ? [$__foundation157_179] : ['fpm', 'runwire'] as $host) {
         $windows = [];
         foreach ([1, 2] as $period) {
             $prefix = sprintf('%s-soak-w4-c10-p%d', $host, $period);

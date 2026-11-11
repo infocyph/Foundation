@@ -20,7 +20,11 @@ if (!is_string($address) || !str_contains($address, ':')) {
     fclose($listener);
     throw new RuntimeException('Unable to resolve loopback HTTP endpoint.');
 }
-$port = (int) substr(strrchr($address, ':'), 1);
+$delimiter = strrchr($address, ':');
+if ($delimiter === false) {
+    throw new RuntimeException('Loopback endpoint has no port delimiter.');
+}
+$port = (int) substr($delimiter, 1);
 file_put_contents($readyPath, json_encode(['port' => $port], JSON_THROW_ON_ERROR));
 
 $attempts = 0;

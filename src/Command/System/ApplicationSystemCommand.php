@@ -325,6 +325,7 @@ final class ApplicationSystemCommand extends SystemCommand
      * @throws \UnexpectedValueException
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     private function ready(): int
     {

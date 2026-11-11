@@ -119,6 +119,7 @@ function foundationPathwiseBase(string $suffix): string
     return $base;
 }
 
+/** @throws \UnexpectedValueException */
 function foundationPathwiseRemove(string $directory): void
 {
     if (!is_dir($directory)) {

@@ -46,6 +46,7 @@ it('keeps module inspection and schema commands observational without forcing da
     }
 });
 
+/** @throws \UnexpectedValueException */
 function foundationCoreInstallRemove(string $directory): void
 {
     if (!is_dir($directory)) {

@@ -221,7 +221,7 @@ function arrayKitBenchmarkMeasure(string $name, int $iterations, Closure $operat
     $durationSeconds = $durationNanoseconds / 1_000_000_000;
     $attempted = $successful + $failed;
     $averageLatencyMilliseconds = $attempted > 0
-        ? $durationNanoseconds / $attempted / 1_000_000
+        ? (float) $durationNanoseconds / $attempted / 1_000_000.0
         : 0.0;
 
     return [
@@ -240,7 +240,7 @@ function arrayKitBenchmarkMeasure(string $name, int $iterations, Closure $operat
             'successful_operations' => $successful,
             'failed_operations' => $failed,
             'timeouts' => 0,
-            'successful_rpm' => $durationSeconds > 0.0 ? $successful * 60 / $durationSeconds : 0.0,
+            'successful_rpm' => $durationSeconds > 0.0 ? (float) $successful * 60.0 / $durationSeconds : 0.0,
             'error_rate' => $attempted > 0 ? $failed / $attempted : 0.0,
             'latency_ms' => [
                 'minimum' => null,

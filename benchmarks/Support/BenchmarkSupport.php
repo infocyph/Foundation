@@ -107,7 +107,7 @@ final class BenchmarkSupport
 
         return [
             'median_ns' => round($median, 2),
-            'ops_per_second' => round(1_000_000_000 / $median, 2),
+            'ops_per_second' => round(1_000_000_000.0 / $median, 2),
             'min_ns' => round($samples[0], 2),
             'max_ns' => round($samples[count($samples) - 1], 2),
             'samples_ns' => array_map(static fn(float $sample): float => round($sample, 2), $samples),

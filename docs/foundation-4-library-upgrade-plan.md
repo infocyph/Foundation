@@ -1,6 +1,13 @@
 # Foundation 4: latest-library integration and full-library audit plan
 
-Date: 2026-11-10 (Asia/Dhaka). Status: **93/95 implementation criteria checked; Runwire 3.0.1 minimum selected in Batch 136 (exact-head QA pending); both P6 sustained certifications remain open.**
+Date: 2026-11-11 (Asia/Dhaka). Status: **93/95 implementation criteria checked; Runwire 3.0.1 minimum selected in Batch 136 (exact-head QA pending); both P6 sustained certifications remain open.**
+
+## Batch 157 — 50-file strict dual-analyzer remediation (one commit; exact-head QA required)
+
+- Baseline: exact-head Security & Standards [42950571499](https://github.com/infocyph/Foundation/actions/runs/42950571499) at `2eaf07ea0bcdd6864e64a5ed1835886934b34de6` reports **940 Psalm errors on both PHP 8.4 and 8.5** across 190 PHP files: 200 in production, 140 in benchmarks, and 600 in tests. PHPStan is still failing with **at least 1,000 diagnostics**, truncated by the reporting cap. All four stable/lowest Pest QA lanes, representative benchmarks, production consumers, Redis/gRPC/SMTP operations, current retained-state cutover and native host smoke passed on that preceding source revision. Sustained host P6 remains unqualified.
+- This batch changes **exactly 50 distinct PHP files** plus this tracker: seven production exception propagation sites in six files; nine test cleanup exception contracts; seven benchmark environment-value normalization files preserving `false`, empty-string and `'0'` fallback behavior; eight benchmark numeric type boundary files; and twenty test/fixture files with file/stream/iterator/cURL boundary guards, command-record decoding, and narrow null/false handling. The reported contract errors are the targets, but **diagnostic elimination is not claimed without the new commit's exact SHA CI**.
+- All checks remain strict: Psalm/PHPStan on PHP 8.4 and 8.5, Pint, PHPCS, four Pest stable/lowest combinations, benchmarks, production consumers, native serving/side-effect probes and both sustained P6 comparator verdicts. No changed analyzer baselines, suppressions, exclusions, Composer lock policy, dependency versions, benchmark budgets, public APIs or certification thresholds. PHPForge remains `dev-main@dev` and `composer.lock` stays ignored.
+- **Acceptance pending:** wait for the official exact-head CI results before claiming any Psalm/PHPStan reduction, qualifying the batch, or promoting release readiness. Keep implementation 93/95 and both P6 gates open. This is not a release approval; PR #20 remains draft/unmerged without tags or releases.
 
 ## Batch 156 — 50-file source-contract and strict-analysis cohort (one commit; QA pending)
 

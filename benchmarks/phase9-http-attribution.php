@@ -284,7 +284,7 @@ $result = [
     ],
 ];
 
-$output = getenv('PHASE9_HTTP_OUTPUT') ?: dirname(__DIR__) . '/build/phase9-http-attribution.json';
+$output = (($__foundation157_287 = getenv('PHASE9_HTTP_OUTPUT')) !== false && $__foundation157_287 !== '' && $__foundation157_287 !== '0') ? $__foundation157_287 : dirname(__DIR__) . '/build/phase9-http-attribution.json';
 $directory = dirname($output);
 if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
     throw new RuntimeException(sprintf('Unable to create benchmark output directory "%s".', $directory));

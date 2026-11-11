@@ -28,7 +28,7 @@ it('protects .env stage before first plaintext write and retains old file on rej
         $manager->generate(force: true);
         expect(EnvironmentSecretStageObserver::$modeAtFirstWrite)->toBe(0600)
             ->and(EnvironmentSecretStageObserver::$writes)->toBeGreaterThan(0)
-            ->and(fileperms($path) & 0777)->toBe(0600)
+            ->and((fileperms($path) ?: throw new \RuntimeException('Unable to read staged secret permissions.')) & 0777)->toBe(0600)
             ->and(file_get_contents($path))->toContain('SECRET_VALUE=existing-private-secret')
             ->and(((array) glob($root . '/.env.*.tmp')))->toBe([]);
 

@@ -80,6 +80,7 @@ it('keeps runtime token roots out of generated InterMix artifacts', function (st
     }
 })->with(['simple', 'security']);
 
+/** @throws \UnexpectedValueException */
 function foundationEpicryptArtifactRemove(string $directory): void
 {
     if (!is_dir($directory)) {

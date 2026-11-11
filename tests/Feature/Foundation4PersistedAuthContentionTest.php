@@ -114,6 +114,9 @@ it('commits one persisted auth transition across independent competing processes
                 unset($processes[$index]);
                 $resultPath = $directory . '/result-' . ($index === 0 ? 'first' : 'second');
                 $diagnostic = is_file($resultPath) ? file_get_contents($resultPath) : '';
+                if ($output === false || $error === false || $diagnostic === false) {
+                    throw new RuntimeException('Unable to read persisted-auth worker diagnostics.');
+                }
                 if ($exit !== 0) {
                     throw new RuntimeException($kind . ': ' . $error . $output . $diagnostic);
                 }
@@ -151,7 +154,12 @@ it('commits one persisted auth transition across independent competing processes
         $sessions->revokeAllForAccount('owner');
         touch($directory . '/start');
         [$process, $stdout, $stderr] = array_shift($processes);
-        $output = stream_get_contents($stdout) . stream_get_contents($stderr);
+        $standardOutput = stream_get_contents($stdout);
+        $standardError = stream_get_contents($stderr);
+        if ($standardOutput === false || $standardError === false) {
+            throw new RuntimeException('Unable to read persisted-auth worker output.');
+        }
+        $output = $standardOutput . $standardError;
         fclose($stdout);
         fclose($stderr);
         expect(proc_close($process))->toBe(0)

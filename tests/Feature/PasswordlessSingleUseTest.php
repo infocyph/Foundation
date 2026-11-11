@@ -180,7 +180,11 @@ it('redeems one shared passwordless link across independent application processe
             fclose($stderr);
             expect(proc_close($process))->toBe(0);
         }
-        foreach (((array) glob($directory . '/*')) as $path) {
+        $files = glob($directory . '/*');
+        if ($files === false) {
+            throw new RuntimeException('Unable to list passwordless fixture files.');
+        }
+        foreach ($files as $path) {
             unlink($path);
         }
         rmdir($directory);

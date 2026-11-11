@@ -105,6 +105,7 @@ it('uses Epicrypt PATs with authoritative serialized DB state and never persists
     }
 });
 
+/** @throws \UnexpectedValueException */
 function foundationPatRemove(string $directory): void
 {
     if (!is_dir($directory)) {

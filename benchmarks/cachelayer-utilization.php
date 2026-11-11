@@ -67,15 +67,15 @@ function cacheLayer33Measure(
             'successful_operations' => $attempted,
             'failed_operations' => 0,
             'timeouts' => 0,
-            'successful_rpm' => 60_000_000_000 / max(0.000001, $median),
+            'successful_rpm' => 60_000_000_000.0 / max(0.000001, $median),
             'error_rate' => 0.0,
             'latency_ms' => [
-                'minimum' => $minimum / 1_000_000,
-                'average' => $median / 1_000_000,
-                'p50' => $median / 1_000_000,
-                'p95' => cacheLayer33Percentile($samples, 0.95) / 1_000_000,
-                'p99' => cacheLayer33Percentile($samples, 0.99) / 1_000_000,
-                'maximum' => $maximum / 1_000_000,
+                'minimum' => $minimum / 1_000_000.0,
+                'average' => $median / 1_000_000.0,
+                'p50' => $median / 1_000_000.0,
+                'p95' => cacheLayer33Percentile($samples, 0.95) / 1_000_000.0,
+                'p99' => cacheLayer33Percentile($samples, 0.99) / 1_000_000.0,
+                'maximum' => $maximum / 1_000_000.0,
             ],
             'cpu' => ['average_percent' => null, 'peak_percent' => null],
             'memory' => [
@@ -94,7 +94,7 @@ function cacheLayer33Measure(
 /** @param list<float> $samples */
 function cacheLayer33Percentile(array $samples, float $percentile): float
 {
-    $index = (int) ceil($percentile * count($samples)) - 1;
+    $index = (int) ceil($percentile * (float) count($samples)) - 1;
 
     return $samples[max(0, min(count($samples) - 1, $index))];
 }
@@ -424,7 +424,7 @@ for ($i = 0; $i < $soakOperations; ++$i) {
     $ttl->pull($key);
 }
 $soakSeconds = max(1, hrtime(true) - $soakStarted) / 1_000_000_000;
-$soakLatencyMs = ($soakSeconds * 1_000) / $soakOperations;
+$soakLatencyMs = ($soakSeconds * 1_000.0) / $soakOperations;
 $after = memory_get_usage(true);
 $workloads[] = [
     'name' => 'persistent-auth-state-memory-soak',

@@ -62,7 +62,7 @@ it('captures benchmark configuration using only options supported by its PHP ver
     chmod($directory . '/bin/php', 0700);
     $process = new \Symfony\Component\Process\Process([
         'bash', '-e', '-o', 'pipefail', '-c', $steps['Capture exact runtime and dependency identity'],
-    ], $directory, ['PATH' => $directory . '/bin:' . getenv('PATH')]);
+    ], $directory, ['PATH' => $directory . '/bin:' . (($__foundation157_path = getenv('PATH')) === false ? '' : $__foundation157_path)]);
 
     try {
         $process->run();

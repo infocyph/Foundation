@@ -667,6 +667,7 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
     }
 });
 
+/** @throws \UnexpectedValueException */
 function foundationFilesystemRemoveDirectory(string $directory): void
 {
     if (!is_dir($directory)) {

@@ -26,6 +26,7 @@ final readonly class ModuleManager
      * @throws \UnexpectedValueException
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function all(): array
     {

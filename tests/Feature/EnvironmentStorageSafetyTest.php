@@ -123,7 +123,7 @@ it('protects environment files atomically with restrictive permissions and safe 
             ->and($encryptedIO['io']->json[0]['operation'] ?? null)->toBe('encrypt')
             ->and(is_file($encrypted))->toBeTrue()
             ->and(file_get_contents($encrypted))->not->toBe($plaintext)
-            ->and(fileperms($encrypted) & 0777)->toBe(0600);
+            ->and((fileperms($encrypted) ?: throw new \RuntimeException('Unable to read encrypted file permissions.')) & 0777)->toBe(0600);
         foundationEnvironmentStorageExpectNoStages($basePath);
 
         $decryptedIO = foundationEnvironmentStorageRun($dispatcher, [
@@ -132,7 +132,7 @@ it('protects environment files atomically with restrictive permissions and safe 
         expect($decryptedIO['exit'])->toBe(ExitCode::SUCCESS)
             ->and($decryptedIO['io']->json[0]['operation'] ?? null)->toBe('decrypt')
             ->and(file_get_contents($restored))->toBe($plaintext)
-            ->and(fileperms($restored) & 0777)->toBe(0600);
+            ->and((fileperms($restored) ?: throw new \RuntimeException('Unable to read restored file permissions.')) & 0777)->toBe(0600);
         foundationEnvironmentStorageExpectNoStages($basePath);
 
         file_put_contents($restored, 'preserve-without-force');
@@ -149,7 +149,7 @@ it('protects environment files atomically with restrictive permissions and safe 
         ]);
         expect($forced['exit'])->toBe(ExitCode::SUCCESS)
             ->and(file_get_contents($restored))->toBe($plaintext)
-            ->and(fileperms($restored) & 0777)->toBe(0600);
+            ->and((fileperms($restored) ?: throw new \RuntimeException('Unable to read restored file permissions.')) & 0777)->toBe(0600);
         foundationEnvironmentStorageExpectNoStages($basePath);
 
         file_put_contents($restored, 'must-survive-failed-decryption');
@@ -323,6 +323,9 @@ function foundationEnvironmentStorageRemove(string $path): void
     foreach (((array) scandir($path)) as $entry) {
         if ($entry === '.' || $entry === '..') {
             continue;
+        }
+        if (!is_string($entry)) {
+            throw new \UnexpectedValueException('Directory listing contains an invalid entry.');
         }
         foundationEnvironmentStorageRemove($path . DIRECTORY_SEPARATOR . $entry);
     }

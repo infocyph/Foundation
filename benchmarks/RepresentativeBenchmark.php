@@ -320,10 +320,10 @@ PHP);
             }
 
             $sampleDuration = max(0.000001, (hrtime(true) - $sampleStarted) / 1_000_000_000);
-            $duration += $sampleDuration;
-            $sampleRpms[] = ($sampleSuccessful / $sampleDuration) * 60;
+            $duration = (float) $duration + $sampleDuration;
+            $sampleRpms[] = ((float) $sampleSuccessful / $sampleDuration) * 60.0;
             $memoryAfter = memory_get_usage(true);
-            $memoryTotal += ($memoryBefore + $memoryAfter) / 2 / 1_048_576;
+            $memoryTotal += ((float) $memoryBefore + (float) $memoryAfter) / 2.0 / 1_048_576.0;
             $memoryPeak = max($memoryPeak, memory_get_peak_usage(true) / 1_048_576);
             $memoryGrowth = max($memoryGrowth, max(0, $memoryAfter - $memoryBefore) / 1_048_576);
         }
@@ -356,7 +356,7 @@ PHP);
                 'successful_operations' => $successful,
                 'failed_operations' => $failed,
                 'timeouts' => 0,
-                'successful_rpm' => $duration > 0 ? ($successful / $duration) * 60 : 0.0,
+                'successful_rpm' => $duration > 0 ? ((float) $successful / $duration) * 60.0 : 0.0,
                 'error_rate' => $attempted > 0 ? $failed / $attempted : 0.0,
                 'latency_ms' => [
                     'minimum' => $latencies[0] ?? null,

@@ -78,6 +78,9 @@ function foundationHostLoadProbe(string $mode, callable $assert, bool $authentic
     try {
         $ready = false;
         $probe = curl_init('http://' . $address . '/');
+        if ($probe === false) {
+            throw new RuntimeException('Unable to initialize host-load readiness probe.');
+        }
         curl_setopt_array($probe, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT_MS => 100,

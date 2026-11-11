@@ -784,6 +784,7 @@ function browserSessionProject(array $files): string
     return $root;
 }
 
+/** @throws \UnexpectedValueException */
 function browserSessionRemoveDirectory(string $directory): void
 {
     if (!is_dir($directory)) {

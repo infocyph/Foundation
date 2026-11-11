@@ -71,6 +71,7 @@ final readonly class ReadinessReport
      * @throws \UnexpectedValueException
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     private function appendLegacyModuleChecks(array &$checks): void
     {

@@ -16,7 +16,7 @@ $authorization = (($__foundation154_15 = getenv('FOUNDATION_HOST_AUTHORIZATION')
 $authenticated = getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') === 'authenticated-read';
 $totalQueries = 0;
 $totalCacheHits = 0;
-$minimumNanoseconds = (int) ($minimumSeconds * 1_000_000_000);
+$minimumNanoseconds = (int) ($minimumSeconds * 1_000_000_000.0);
 if ($requests < 100 || $concurrency < 1 || $concurrency > 100 || !str_starts_with($url, 'http://127.0.0.1:')) {
     throw new InvalidArgumentException('Invalid local HTTP load parameters.');
 }
@@ -119,7 +119,7 @@ $cpuSeconds = ($cpuFinished['ru_utime.tv_sec'] - $cpuStarted['ru_utime.tv_sec'])
     + ($cpuFinished['ru_stime.tv_usec'] - $cpuStarted['ru_stime.tv_usec']) / 1_000_000;
 sort($latencies, SORT_NUMERIC);
 $percentile = static function (float $fraction) use ($latencies): float {
-    $index = max(0, min(count($latencies) - 1, (int) ceil(count($latencies) * $fraction) - 1));
+    $index = max(0, min(count($latencies) - 1, (int) ceil((float) count($latencies) * $fraction) - 1));
 
     return round($latencies[$index] ?? 0.0, 3);
 };
@@ -140,7 +140,7 @@ $record = [
     'failed' => $errors,
     'concurrency' => $concurrency,
     'duration_seconds' => round($duration, 6),
-    'rpm' => round(count($latencies) * 60 / $duration, 2),
+    'rpm' => round(count($latencies) * 60.0 / $duration, 2),
     'p50_ms' => $percentile(0.5),
     'p95_ms' => $percentile(0.95),
     'p99_ms' => $percentile(0.99),
@@ -180,7 +180,7 @@ function f4HostResponse(CurlHandle $handle, int $result, bool $authenticated): a
         'error' => $result === CURLE_OK && $status === 200 && $body === '{"ok":true}'
             ? null
             : sprintf('status=%d curl=%d body=%s', $status, $result, substr($body, 0, 120)),
-        'latency_ms' => (float) curl_getinfo($handle, CURLINFO_TOTAL_TIME) * 1000,
+        'latency_ms' => (float) curl_getinfo($handle, CURLINFO_TOTAL_TIME) * 1000.0,
         'queries' => $queries,
         'cache_hits' => $cacheHits,
         'worker' => $worker,
@@ -227,7 +227,7 @@ function f4HostPrimeConnections(CurlMultiHandle $multi, array $handles, bool $au
             $running = $pump();
             $remaining = ($next - hrtime(true)) / 1_000_000_000;
             if ($remaining > 0 && ($running === 0 || curl_multi_select($multi, $remaining) === -1)) {
-                usleep((int) ceil($remaining * 1_000_000));
+                usleep((int) ceil($remaining * 1_000_000.0));
             }
         } while (hrtime(true) < $next);
     }
