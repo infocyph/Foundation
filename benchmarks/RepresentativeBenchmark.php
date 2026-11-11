@@ -333,7 +333,7 @@ PHP);
         sort($sampleRpms);
         $medianRpm = $this->percentile($sampleRpms, 0.50) ?? 0.0;
         $spread = $medianRpm > 0.0
-            ? ((max($sampleRpms) - min($sampleRpms)) / $medianRpm) * 100
+            ? (((float) max($sampleRpms) - (float) min($sampleRpms)) / $medianRpm) * 100.0
             : 0.0;
         $stableEnvironment = getenv('FOUNDATION_BENCHMARK_STABLE') === '1';
 
@@ -360,7 +360,7 @@ PHP);
                 'error_rate' => $attempted > 0 ? $failed / $attempted : 0.0,
                 'latency_ms' => [
                     'minimum' => $latencies[0] ?? null,
-                    'average' => $latencies === [] ? null : array_sum($latencies) / count($latencies),
+                    'average' => $latencies === [] ? null : (float) array_sum($latencies) / (float) count($latencies),
                     'p50' => $this->percentile($latencies, 0.50),
                     'p95' => $this->percentile($latencies, 0.95),
                     'p99' => $this->percentile($latencies, 0.99),
@@ -371,7 +371,7 @@ PHP);
                     'peak_percent' => null,
                 ],
                 'memory' => [
-                    'average_mb' => $memoryTotal / $this->repetitions,
+                    'average_mb' => $memoryTotal / (float) $this->repetitions,
                     'peak_mb' => $memoryPeak,
                     'growth_mb' => $memoryGrowth,
                 ],
@@ -452,7 +452,7 @@ PHP);
             return null;
         }
 
-        $index = max(0, min(count($values) - 1, (int) ceil(count($values) * $percentile) - 1));
+        $index = max(0, min(count($values) - 1, (int) ceil((float) count($values) * $percentile) - 1));
 
         return $values[$index];
     }

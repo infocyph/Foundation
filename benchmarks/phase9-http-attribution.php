@@ -43,7 +43,7 @@ function phase9HttpScalarTax(int $foundation, int $direct): array
 
     return [
         'delta_ns' => $delta,
-        'percent' => round(($delta / max(1, $direct)) * 100, 2),
+        'percent' => round(((float) $delta / (float) max(1, $direct)) * 100.0, 2),
     ];
 }
 

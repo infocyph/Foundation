@@ -43,6 +43,9 @@ it('pins the selected published native Runwire APIs across all Foundation librar
     }
 
     $dbRuntime = (new ReflectionMethod(Connection::class, 'withRunwire'))->getParameters()[0]->getType();
+    if (!$dbRuntime instanceof ReflectionNamedType) {
+        throw new RuntimeException('Runwire binding parameter must have a named runtime type.');
+    }
     expect($dbRuntime)->toBeInstanceOf(ReflectionNamedType::class)
         ->and($dbRuntime->getName())->toBe(RuntimeContext::class);
 });

@@ -45,7 +45,7 @@ function cacheLayer33Measure(
     sort($samples, SORT_NUMERIC);
     $median = $samples[intdiv(count($samples), 2)];
     $minimum = $samples[0];
-    $maximum = $samples[count($samples) - 1];
+    $maximum = $samples[array_key_last($samples) ?? throw new RuntimeException('CacheLayer benchmark has no samples.')];
     $attempted = $operations * $repetitions;
 
     return [
@@ -443,7 +443,7 @@ $workloads[] = [
         'successful_operations' => $soakOperations,
         'failed_operations' => 0,
         'timeouts' => 0,
-        'successful_rpm' => ($soakOperations / $soakSeconds) * 60,
+        'successful_rpm' => ((float) $soakOperations / $soakSeconds) * 60.0,
         'error_rate' => 0.0,
         'latency_ms' => [
             'minimum' => $soakLatencyMs,

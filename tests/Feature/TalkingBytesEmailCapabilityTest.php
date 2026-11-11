@@ -19,24 +19,20 @@ it('keeps TalkingBytes communication and email graphs cold until their Foundatio
         '_config_cache' => false,
     ];
 
-    $communication = Foundation::worker([
-        ...$base,
-        'app' => [
-            ...$base['app'],
+    $communication = Foundation::worker(array_replace($base, [
+        'app' => array_replace($base['app'], [
             'capabilities' => ['communication'],
-        ],
-    ]);
+        ]),
+    ]));
 
     $communicationProviders = $communication->providers()->classes();
     expect($communicationProviders)->toContain(CommunicationServiceProvider::class)
         ->not->toContain(NotificationServiceProvider::class);
 
-    $notifications = Foundation::worker([
-        ...$base,
-        'app' => [
-            ...$base['app'],
+    $notifications = Foundation::worker(array_replace($base, [
+        'app' => array_replace($base['app'], [
             'capabilities' => ['notifications'],
-        ],
+        ]),
         'notifications' => [
             'email' => [
                 'default_sender' => 'default',
@@ -48,7 +44,7 @@ it('keeps TalkingBytes communication and email graphs cold until their Foundatio
                 ],
             ],
         ],
-    ])->boot();
+    ]))->boot();
 
     $notificationProviders = $notifications->providers()->classes();
     expect($notificationProviders)->toContain(NotificationServiceProvider::class)

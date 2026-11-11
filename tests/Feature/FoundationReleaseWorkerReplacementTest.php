@@ -390,8 +390,12 @@ function foundationReleaseReplacementRemove(string $directory): void
     rmdir($directory);
 }
 
+/** @throws \InvalidArgumentException */
 function foundationReleaseReplacementSetEnvironment(string $name, ?string $value): void
 {
+    if ($name === '') {
+        throw new \InvalidArgumentException('Environment keys must not be empty.');
+    }
     if ($value === null) {
         unset($_ENV[$name], $_SERVER[$name]);
         putenv($name);

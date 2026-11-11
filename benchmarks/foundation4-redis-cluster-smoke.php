@@ -61,6 +61,9 @@ try {
 
     $atomic = $writer->atomic();
     $assert($atomic instanceof AtomicCacheInterface, 'Native Redis Cluster atomic API is unavailable.');
+    if (!$atomic instanceof AtomicCacheInterface) {
+        throw new RuntimeException('Native Redis Cluster atomic API is unavailable.');
+    }
     $assert($atomic->setIfAbsent('claim', 'original', 90), 'First Redis Cluster claim failed.');
     $assert(!$atomic->setIfAbsent('claim', 'duplicate', 90), 'Duplicate Redis Cluster claim was accepted.');
     $assert($atomic->compareAndSet('claim', 'original', 'updated', 90), 'Redis Cluster conditional update failed.');

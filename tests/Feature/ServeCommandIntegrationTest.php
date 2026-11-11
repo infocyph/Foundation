@@ -173,7 +173,10 @@ it('serves real requests with isolated contexts and recovers after a failed requ
     ] : []),
 ]);
 
-/** @return list<array<string, mixed>> */
+/**
+ * @return list<array<string, mixed>>
+ * @throws \RuntimeException
+ */
 function foundationServeBurst(string $address): array
 {
     $multi = curl_multi_init();

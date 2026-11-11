@@ -34,6 +34,9 @@ it('registers native filesystem factories directly on the owning provider', func
         DownloadProcessor::class => 'download',
     ] as $id => $method) {
         $definition = $definitions[$id] ?? null;
+        if (!$definition instanceof FactoryDefinition) {
+            throw new RuntimeException('Native factory was not registered: ' . $id);
+        }
 
         expect($definition)->toBeInstanceOf(FactoryDefinition::class)
             ->and($definition->signature()['class'])->toBe(FilesystemServiceProvider::class)
@@ -50,6 +53,9 @@ it('registers native auth-notification factory on the owning registrar', functio
     $builder = new ContainerBuilder();
     new AuthNotificationRegistrar($config, $builder)->register(new AuthDriverResolver($config));
     $definition = $builder->definitionGraph()->definitions()[AuthNotifierInterface::class] ?? null;
+    if (!$definition instanceof FactoryDefinition) {
+        throw new RuntimeException('Native authentication notification factory was not registered.');
+    }
 
     expect($definition)->toBeInstanceOf(FactoryDefinition::class)
         ->and($definition->signature()['class'])->toBe(AuthNotificationRegistrar::class)
@@ -69,6 +75,9 @@ it('binds the development Webrick router identities on the routing provider', fu
 
     foreach ([Registrar::class => 'registrar', Collection::class => 'routes'] as $id => $method) {
         $definition = $definitions[$id] ?? null;
+        if (!$definition instanceof FactoryDefinition) {
+            throw new RuntimeException('Native factory was not registered: ' . $id);
+        }
 
         expect($definition)->toBeInstanceOf(FactoryDefinition::class)
             ->and($definition->signature()['class'])->toBe(RoutingServiceProvider::class)

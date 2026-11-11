@@ -39,7 +39,7 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 function omnibusCycle(MessageBus $bus, InMemoryTransport|DBLayerTransport $transport): void
 {
     $bus->dispatch(new OmnibusBenchmarkMessage('bench'));
-    $reservations = [...$transport->receive('benchmark')];
+    $reservations = iterator_to_array($transport->receive('benchmark'), false);
     if (count($reservations) !== 1) {
         throw new RuntimeException('Omnibus benchmark expected exactly one reservation.');
     }

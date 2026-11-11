@@ -105,7 +105,7 @@ if ($phase === 'old-seed') {
 }
 
 if (in_array($phase, ['new-probe', 'old-rollback', 'new-rollforward'], true)) {
-    $reservations = [...$transport->receive($queue)];
+    $reservations = iterator_to_array($transport->receive($queue), false);
     if (count($reservations) !== 1
         || !$reservations[0]->envelope()->message instanceof FoundationReleaseCarryoverMessage
         || $reservations[0]->envelope()->message->value !== 'pending'

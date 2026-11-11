@@ -30,6 +30,9 @@ it('exports native TalkingBytes notifications without another Foundation graph f
         SpoolEmailReceiver::class => 'spoolReceiver',
     ] as $id => $method) {
         $definition = $definitions[$id] ?? null;
+        if (!$definition instanceof FactoryDefinition) {
+            throw new RuntimeException('Native notification factory was not registered: ' . $id);
+        }
 
         expect($definition)->toBeInstanceOf(FactoryDefinition::class)
             ->and($definition->signature()['class'])->toBe(NotificationServiceProvider::class)

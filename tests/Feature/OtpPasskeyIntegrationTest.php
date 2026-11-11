@@ -43,6 +43,12 @@ function foundationOtpPasskeyConfig(string $storeDriver = 'memory'): array
     ];
 }
 
+/** Encode disposable authenticator bytes without internal OTP APIs. */
+function foundationWebauthnBase64Url(string $bytes): string
+{
+    return rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=');
+}
+
 /**
  * OpenSSL's P-256 coordinate buffers can omit leading zero bytes; COSE EC2
  * requires each coordinate to occupy exactly 32 bytes.
@@ -101,7 +107,7 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
             . foundationCoseP256Coordinate($details['ec']['x'])
             . "\x22\x58\x20" . foundationCoseP256Coordinate($details['ec']['y']);
         $rawId = random_bytes(32);
-        $credentialId = \Infocyph\OTP\Support\Base64Url::encode($rawId);
+        $credentialId = foundationWebauthnBase64Url($rawId);
         $userHandle = hash('sha3-256', "foundation:passkey:user:v1\0owner", true);
         $record = \Webauthn\CredentialRecord::create(
             $rawId, 'public-key', [], 'none', \Webauthn\TrustPath\EmptyTrustPath::create(),
@@ -128,10 +134,10 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
         $payload = json_encode([
             'id' => $credentialId, 'rawId' => $credentialId, 'type' => 'public-key',
             'response' => [
-                'authenticatorData' => \Infocyph\OTP\Support\Base64Url::encode($authenticatorData),
-                'clientDataJSON' => \Infocyph\OTP\Support\Base64Url::encode($clientData),
-                'signature' => \Infocyph\OTP\Support\Base64Url::encode($signature),
-                'userHandle' => \Infocyph\OTP\Support\Base64Url::encode($userHandle),
+                'authenticatorData' => foundationWebauthnBase64Url($authenticatorData),
+                'clientDataJSON' => foundationWebauthnBase64Url($clientData),
+                'signature' => foundationWebauthnBase64Url($signature),
+                'userHandle' => foundationWebauthnBase64Url($userHandle),
             ],
         ], JSON_THROW_ON_ERROR);
         $result = new \Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationResult(
@@ -174,9 +180,9 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
             throw new RuntimeException('Unable to sign the wrong-origin authenticator fixture.');
         }
         $wrongOriginPayload = json_decode($payload, true, flags: JSON_THROW_ON_ERROR);
-        $wrongOriginPayload['response']['authenticatorData'] = \Infocyph\OTP\Support\Base64Url::encode($wrongOriginAuthenticatorData);
-        $wrongOriginPayload['response']['clientDataJSON'] = \Infocyph\OTP\Support\Base64Url::encode($wrongOriginClientData);
-        $wrongOriginPayload['response']['signature'] = \Infocyph\OTP\Support\Base64Url::encode($wrongOriginSignature);
+        $wrongOriginPayload['response']['authenticatorData'] = foundationWebauthnBase64Url($wrongOriginAuthenticatorData);
+        $wrongOriginPayload['response']['clientDataJSON'] = foundationWebauthnBase64Url($wrongOriginClientData);
+        $wrongOriginPayload['response']['signature'] = foundationWebauthnBase64Url($wrongOriginSignature);
         $wrongOriginResult = new \Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationResult(
             $wrongOriginChallenge->id,
             $credentialId,
@@ -208,9 +214,9 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
         }
 
         $wrongRpPayload = json_decode($payload, true, flags: JSON_THROW_ON_ERROR);
-        $wrongRpPayload['response']['authenticatorData'] = \Infocyph\OTP\Support\Base64Url::encode($wrongRpAuthenticatorData);
-        $wrongRpPayload['response']['clientDataJSON'] = \Infocyph\OTP\Support\Base64Url::encode($wrongRpClientData);
-        $wrongRpPayload['response']['signature'] = \Infocyph\OTP\Support\Base64Url::encode($wrongRpSignature);
+        $wrongRpPayload['response']['authenticatorData'] = foundationWebauthnBase64Url($wrongRpAuthenticatorData);
+        $wrongRpPayload['response']['clientDataJSON'] = foundationWebauthnBase64Url($wrongRpClientData);
+        $wrongRpPayload['response']['signature'] = foundationWebauthnBase64Url($wrongRpSignature);
         $wrongRpResult = new \Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationResult(
             $wrongRpChallenge->id,
             $credentialId,
@@ -249,7 +255,7 @@ it('registers an actual none-attested WebAuthn credential and signs its first as
             . foundationCoseP256Coordinate($details['ec']['x'])
             . "\x22\x58\x20" . foundationCoseP256Coordinate($details['ec']['y']);
         $credentialIdBytes = random_bytes(32);
-        $credentialId = \Infocyph\OTP\Support\Base64Url::encode($credentialIdBytes);
+        $credentialId = foundationWebauthnBase64Url($credentialIdBytes);
         $registration = $services->passkeys()->startRegistration($account->id())->challenge;
         if (!$registration instanceof \Infocyph\Foundation\Auth\Passkey\PasskeyChallenge) {
             throw new RuntimeException('Native WebAuthn registration ceremony was not issued.');
@@ -278,8 +284,8 @@ it('registers an actual none-attested WebAuthn credential and signs its first as
             'rawId' => $credentialId,
             'type' => 'public-key',
             'response' => [
-                'clientDataJSON' => \Infocyph\OTP\Support\Base64Url::encode($clientData),
-                'attestationObject' => \Infocyph\OTP\Support\Base64Url::encode($attestation),
+                'clientDataJSON' => foundationWebauthnBase64Url($clientData),
+                'attestationObject' => foundationWebauthnBase64Url($attestation),
                 'transports' => ['internal'],
             ],
         ], JSON_THROW_ON_ERROR);
@@ -328,10 +334,10 @@ it('registers an actual none-attested WebAuthn credential and signs its first as
             'rawId' => $credentialId,
             'type' => 'public-key',
             'response' => [
-                'authenticatorData' => \Infocyph\OTP\Support\Base64Url::encode($authenticatorData),
-                'clientDataJSON' => \Infocyph\OTP\Support\Base64Url::encode($assertionClientData),
-                'signature' => \Infocyph\OTP\Support\Base64Url::encode($signature),
-                'userHandle' => \Infocyph\OTP\Support\Base64Url::encode(
+                'authenticatorData' => foundationWebauthnBase64Url($authenticatorData),
+                'clientDataJSON' => foundationWebauthnBase64Url($assertionClientData),
+                'signature' => foundationWebauthnBase64Url($signature),
+                'userHandle' => foundationWebauthnBase64Url(
                     hash('sha3-256', "foundation:passkey:user:v1\0" . $account->id(), true),
                 ),
             ],

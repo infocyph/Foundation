@@ -63,6 +63,7 @@ final class ApplicationSystemCommand extends SystemCommand
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \UnexpectedValueException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     private function about(): int
     {

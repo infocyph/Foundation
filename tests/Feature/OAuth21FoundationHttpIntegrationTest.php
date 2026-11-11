@@ -274,10 +274,16 @@ function foundationOAuthHttpEnvironmentSnapshot(array $keys): array
     return $snapshot;
 }
 
-/** @param array<string, array{env:mixed,server:mixed,process:string|false,env_exists:bool,server_exists:bool}> $snapshot */
+/**
+ * @param array<string, array{env:mixed,server:mixed,process:string|false,env_exists:bool,server_exists:bool}> $snapshot
+ * @throws \InvalidArgumentException
+ */
 function foundationOAuthHttpRestoreEnvironment(array $snapshot): void
 {
     foreach ($snapshot as $key => $state) {
+        if ($key === '') {
+            throw new \InvalidArgumentException('Environment keys must not be empty.');
+        }
         if ($state['env_exists']) {
             $_ENV[$key] = $state['env'];
         } else {

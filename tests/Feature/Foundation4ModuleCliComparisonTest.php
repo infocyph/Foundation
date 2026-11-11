@@ -10,8 +10,8 @@ function b7ModuleCliReport(float $duration = 5.0): array
     $commands = [];
     foreach (['list', 'show', 'doctor', 'plan', 'install_dry_run', 'remove_dry_run', 'enable'] as $name) {
         $commands[$name] = [
-            'cold_ms' => $duration * 2, 'warm_p50_ms' => $duration,
-            'warm_p95_ms' => $duration * 1.5, 'warm_p99_ms' => $duration * 2,
+            'cold_ms' => $duration * 2.0, 'warm_p50_ms' => $duration,
+            'warm_p95_ms' => $duration * 1.5, 'warm_p99_ms' => $duration * 2.0,
             'warm_samples' => 15,
         ];
     }

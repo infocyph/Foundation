@@ -110,7 +110,7 @@ PHP);
         'warmup_operations' => $warmup,
         'repetitions' => $repetitions,
         'median_ns_per_operation' => $medianNs,
-        'median_rpm' => 60_000_000_000 / $medianNs,
+        'median_rpm' => 60_000_000_000.0 / $medianNs,
         'request_materializations' => $adapter->requestMaterializations,
         'samples_ns_per_operation' => $samples,
     ];

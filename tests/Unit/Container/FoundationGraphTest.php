@@ -17,6 +17,9 @@ it('creates a fresh deterministic builder for each runtime composition', functio
     $first = FoundationGraph::compose($context);
     $second = FoundationGraph::compose($context);
     $runtimeFactory = $first->definitionGraph()->definitions()[RuntimeMode::class] ?? null;
+    if (!$runtimeFactory instanceof FactoryDefinition) {
+        throw new RuntimeException('Runtime factory definition is missing from Foundation graph.');
+    }
 
     expect($runtimeFactory)->toBeInstanceOf(FactoryDefinition::class)
         ->and($runtimeFactory->signature()['class'])->toBe(RuntimeMode::class)

@@ -46,6 +46,9 @@ it('serializes PAT issue against concurrent revoke-all for the same subject', fu
                 dirname(__DIR__, 2),
             );
             expect($commands[$operation])->toBeResource();
+            if (!is_resource($commands[$operation])) {
+                throw new RuntimeException('Unable to start PAT concurrency worker.');
+            }
             $commands[$operation] = [$commands[$operation], $pipes];
         }
 
@@ -70,6 +73,9 @@ it('serializes PAT issue against concurrent revoke-all for the same subject', fu
 
         $record = $store->find(PatConcurrentWorker::TOKEN_ID);
         expect($record)->not->toBeNull();
+        if ($record === null) {
+            throw new RuntimeException('Concurrent PAT record was not found.');
+        }
 
         $row = $dbFactory->connection()->select(
             sprintf('SELECT revision FROM %s WHERE subject_hash = ?', $tables->personalAccessTokenSubjects()),
@@ -77,7 +83,7 @@ it('serializes PAT issue against concurrent revoke-all for the same subject', fu
         )[0] ?? null;
         expect($row)->toBeArray()
             ->and((int) ($row['revision'] ?? 0))->toBe(3)
-            ->and($record?->revokedAt === null || $record?->revokedAt === 1_700_000_100)->toBeTrue();
+            ->and($record->revokedAt === null || $record->revokedAt === 1_700_000_100)->toBeTrue();
     } finally {
         $files = glob($root . '/*');
         if ($files === false) {

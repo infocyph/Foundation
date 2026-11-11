@@ -70,7 +70,10 @@ it('rejects direct root constraints that can fall below the supported module flo
         );
         $package = $database['packages']['infocyph/dblayer'] ?? null;
 
-        expect($package)->toBeArray()
+        if (!is_array($package)) {
+                throw new RuntimeException('Expected native DBLayer package status.');
+            }
+            expect($package)->toBeArray()
             ->and($package['available'] ?? null)->toBeTrue()
             ->and($package['direct'] ?? null)->toBeTrue()
             ->and($package['catalog_compatible'] ?? null)->toBeTrue()
@@ -115,6 +118,9 @@ it('accepts exact supported pins and fails closed on unsupported consumer constr
             );
             $package = $database['packages']['infocyph/dblayer'] ?? null;
 
+            if (!is_array($package)) {
+                throw new RuntimeException('Expected native DBLayer package status.');
+            }
             expect($package)->toBeArray()
                 ->and(array_key_exists('direct_constraint_compatible', $package))->toBeTrue()
                 ->and($package['direct_constraint_compatible'])->toBe($expected);

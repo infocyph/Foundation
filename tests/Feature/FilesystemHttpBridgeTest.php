@@ -548,7 +548,7 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
 
             if ($this->cancelDuringScan) {
                 $borrowed = \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::current();
-                if ($borrowed === null) {
+                if ($borrowed === null || $borrowed->request === null) {
                     throw new LogicException('Expected a live borrowed Runwire request in the malware scanner.');
                 }
                 $borrowed->request->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);

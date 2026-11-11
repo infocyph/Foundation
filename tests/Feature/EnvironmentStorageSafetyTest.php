@@ -309,6 +309,7 @@ function foundationEnvironmentStorageRun(CommandDispatcher $dispatcher, array $a
     return ['exit' => $dispatcher->run($argv, $io), 'io' => $io];
 }
 
+/** @throws \UnexpectedValueException */
 function foundationEnvironmentStorageRemove(string $path): void
 {
     if (is_link($path) || is_file($path)) {

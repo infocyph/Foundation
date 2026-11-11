@@ -355,7 +355,7 @@ it('rejects a stale durable lease receipt after a newer consumer reclaims the me
         $connection = $app->make(DBLayerFactory::class)->infrastructureConnection('main');
 
         $app->make(MessageBus::class)->dispatch(new FoundationOmnibusDurableMessage('reclaimed'));
-        $stale = [...$transport->receive('work')][0];
+        $stale = iterator_to_array($transport->receive('work'), false)[0];
         expect($transport->size('work'))->toBe(0);
 
         // Model lease expiration deterministically without sleeping or altering the receipt.
@@ -364,7 +364,7 @@ it('rejects a stale durable lease receipt after a newer consumer reclaims the me
             'UPDATE omnibus_messages SET reserved_until = 0 WHERE receipt = ?',
             [$staleToken],
         );
-        $current = [...$transport->receive('work')][0];
+        $current = iterator_to_array($transport->receive('work'), false)[0];
 
         expect($current->receipt)->not->toBe($stale->receipt)
             ->and($current->attempt)->toBe($stale->attempt + 1)
@@ -421,13 +421,13 @@ it('preserves durable receipts and retries on selected production SQL engines', 
         $consumer = $app->make(ConsumerFactory::class)->make('database');
 
         $bus->dispatch(new FoundationOmnibusDurableMessage('reclaimed'));
-        $stale = [...$transport->receive('work')][0];
+        $stale = iterator_to_array($transport->receive('work'), false)[0];
         [, $staleToken] = ReservationReceipt::decode($stale->receipt);
         $connection->update(
             "UPDATE {$tables['messages']} SET reserved_until = 0 WHERE receipt = ?",
             [$staleToken],
         );
-        $current = [...$transport->receive('work')][0];
+        $current = iterator_to_array($transport->receive('work'), false)[0];
 
         expect($current->attempt)->toBe(2)
             ->and($current->receipt)->not->toBe($stale->receipt)
@@ -487,7 +487,7 @@ it('reads existing serialized queue rows through the current DB transport', func
             ],
         );
 
-        $reservation = [...$app->make(DBLayerTransport::class)->receive('work')][0];
+        $reservation = iterator_to_array($app->make(DBLayerTransport::class)->receive('work'), false)[0];
 
         expect($reservation->envelope()->message)->toEqual(
             new FoundationOmnibusDurableMessage('legacy'),

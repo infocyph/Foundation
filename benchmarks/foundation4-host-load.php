@@ -39,6 +39,9 @@ $newConnections = 0;
 try {
     for ($i = 0; $i < min($concurrency, $requests); $i++) {
         $handle = curl_init($url);
+        if ($handle === false) {
+            throw new RuntimeException('Unable to initialize benchmark HTTP client.');
+        }
         curl_setopt_array($handle, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HEADER => $authenticated,
@@ -140,7 +143,7 @@ $record = [
     'failed' => $errors,
     'concurrency' => $concurrency,
     'duration_seconds' => round($duration, 6),
-    'rpm' => round(count($latencies) * 60.0 / $duration, 2),
+    'rpm' => round((float) count($latencies) * 60.0 / $duration, 2),
     'p50_ms' => $percentile(0.5),
     'p95_ms' => $percentile(0.95),
     'p99_ms' => $percentile(0.99),

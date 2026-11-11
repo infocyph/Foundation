@@ -298,6 +298,7 @@ function foundationOperationsRun(CommandDispatcher $dispatcher, array $argv): Fo
     return $io;
 }
 
+/** @throws \UnexpectedValueException */
 function foundationOperationsRemove(string $directory): void
 {
     if (!is_dir($directory)) {

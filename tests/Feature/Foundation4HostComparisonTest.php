@@ -136,12 +136,13 @@ it('rejects short runs, invalid responses and missing benchmark scenarios', func
 it('requires two sustained minutes in every baseline and candidate measured trial', function (bool $candidateRun, float $seconds): void {
     $base = foundationHostFixture();
     $candidate = foundationHostFixture(candidate: true);
-    $run = &$base['hosts']['fpm'][0]['runs'][0];
     if ($candidateRun) {
-        $run = &$candidate['hosts']['fpm'][0]['runs'][0];
+        $candidate['hosts']['fpm'][0]['runs'][0]['duration_seconds'] = $seconds;
+        $candidate['hosts']['fpm'][0]['runs'][0]['rpm'] = $candidate['hosts']['fpm'][0]['runs'][0]['successful'] * 60.0 / $seconds;
+    } else {
+        $base['hosts']['fpm'][0]['runs'][0]['duration_seconds'] = $seconds;
+        $base['hosts']['fpm'][0]['runs'][0]['rpm'] = $base['hosts']['fpm'][0]['runs'][0]['successful'] * 60.0 / $seconds;
     }
-    $run['duration_seconds'] = $seconds;
-    $run['rpm'] = $run['successful'] * 60.0 / $seconds;
 
     expect(fn() => Foundation4HostComparison::compare($base, $candidate))
         ->toThrow(InvalidArgumentException::class, 'Invalid or unsustained evidence');

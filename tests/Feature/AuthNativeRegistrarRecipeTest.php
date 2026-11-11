@@ -19,6 +19,9 @@ it('keeps the native authentication and audit-service recipes on their owning re
     $runtimeBuilder = new ContainerBuilder();
     new AuthRuntimeRegistrar($config, $runtimeBuilder)->register();
     $runtime = $runtimeBuilder->definitionGraph()->definitions()[AuthManager::class] ?? null;
+    if (!$runtime instanceof FactoryDefinition) {
+        throw new RuntimeException('Authentication runtime factory was not registered.');
+    }
 
     expect($runtime)->toBeInstanceOf(FactoryDefinition::class)
         ->and($runtime->signature()['class'])->toBe(AuthRuntimeRegistrar::class)
@@ -27,6 +30,9 @@ it('keeps the native authentication and audit-service recipes on their owning re
     $storeBuilder = new ContainerBuilder();
     new AuthStoreRegistrar($config, $storeBuilder)->register(new AuthDriverResolver($config));
     $audit = $storeBuilder->definitionGraph()->definitions()[AuditEventStoreInterface::class] ?? null;
+    if (!$audit instanceof FactoryDefinition) {
+        throw new RuntimeException('Authentication audit factory was not registered.');
+    }
 
     expect($audit)->toBeInstanceOf(FactoryDefinition::class)
         ->and($audit->signature()['class'])->toBe(AuthStoreRegistrar::class)

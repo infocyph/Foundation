@@ -140,6 +140,9 @@ it('commits one persisted auth transition across independent competing processes
                 expect($store->find((string) $winner))->not->toBeNull();
             }
             foreach (new FilesystemIterator($directory) as $file) {
+                if (!$file instanceof \SplFileInfo) {
+                    throw new \UnexpectedValueException('Unexpected authentication contention fixture entry.');
+                }
                 if (str_starts_with($file->getFilename(), 'ready-') || str_starts_with($file->getFilename(), 'result-') || $file->getFilename() === 'start') {
                     unlink($file->getPathname());
                 }
@@ -281,6 +284,9 @@ it('commits one persisted auth transition across independent competing processes
         }
         $db->disconnect();
         foreach (new FilesystemIterator($directory) as $file) {
+                if (!$file instanceof \SplFileInfo) {
+                    throw new \UnexpectedValueException('Unexpected authentication contention fixture entry.');
+                }
             unlink($file->getPathname());
         }
         rmdir($directory);
@@ -418,6 +424,9 @@ it('restores retained auth records through independent SQLite/MySQL/PostgreSQL c
         }
         $database->disconnect();
         foreach (new FilesystemIterator($directory) as $file) {
+                if (!$file instanceof \SplFileInfo) {
+                    throw new \UnexpectedValueException('Unexpected authentication contention fixture entry.');
+                }
             unlink($file->getPathname());
         }
         rmdir($directory);
@@ -517,6 +526,9 @@ it('backfills actual legacy passkey identities before Foundation 4 hash lookups 
         }
         $database->disconnect();
         foreach (new FilesystemIterator($directory) as $file) {
+                if (!$file instanceof \SplFileInfo) {
+                    throw new \UnexpectedValueException('Unexpected authentication contention fixture entry.');
+                }
             unlink($file->getPathname());
         }
         rmdir($directory);

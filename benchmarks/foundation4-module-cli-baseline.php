@@ -12,7 +12,7 @@ function foundationModuleBaselinePercentile(array $samples, float $quantile): fl
 {
     sort($samples, SORT_NUMERIC);
 
-    return round($samples[max(0, min(count($samples) - 1, (int) ceil(count($samples) * $quantile) - 1))], 3);
+    return round($samples[max(0, min(count($samples) - 1, (int) ceil((float) count($samples) * $quantile) - 1))], 3);
 }
 
 function foundationModuleBaselineCleanup(string $folder): void

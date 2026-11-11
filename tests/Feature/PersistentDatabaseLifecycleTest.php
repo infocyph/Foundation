@@ -34,6 +34,9 @@ it('resets shared and fresh DBLayer connections at execution boundaries', functi
                 ->and($fresh->transactionLevel())->toBe(1);
         });
 
+        if (!$shared instanceof Connection || !$fresh instanceof Connection) {
+            throw new RuntimeException('Persistent runtime did not resolve both DBLayer connections.');
+        }
         expect($shared)->toBeInstanceOf(Connection::class)
             ->and($shared->transactionLevel())->toBe(0)
             ->and($fresh)->toBeInstanceOf(Connection::class)

@@ -69,7 +69,7 @@ final readonly class AuthContentionFixture
      */
     public static function waitFor(string $path): void
     {
-        $until = microtime(true) + 15;
+        $until = microtime(true) + 15.0;
         do {
             clearstatcache(true, $path);
             if (is_file($path)) {

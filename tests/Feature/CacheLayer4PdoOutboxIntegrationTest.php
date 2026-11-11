@@ -166,6 +166,9 @@ it('keeps native PDO outbox events inside the same DBLayer transaction across no
                 continue;
             }
             foreach (new FilesystemIterator($directory, FilesystemIterator::SKIP_DOTS) as $entry) {
+                if (!$entry instanceof \SplFileInfo) {
+                    throw new \UnexpectedValueException('Unexpected cache outbox directory entry.');
+                }
                 if ($entry->isFile() && !$entry->isLink()) {
                     unlink($entry->getPathname());
                 }

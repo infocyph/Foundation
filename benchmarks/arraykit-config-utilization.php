@@ -314,15 +314,25 @@ function arrayKitBenchmarkEnvironmentSnapshot(string $key): array
     ];
 }
 
+/** @throws \InvalidArgumentException */
 function arrayKitBenchmarkEnvironmentUnset(string $key): void
 {
+    if ($key === '') {
+        throw new \InvalidArgumentException('Environment keys must not be empty.');
+    }
     unset($_ENV[$key], $_SERVER[$key]);
     putenv($key);
 }
 
-/** @param array{env_exists:bool,env:mixed,server_exists:bool,server:mixed,process:string|false} $snapshot */
+/**
+ * @param array{env_exists:bool,env:mixed,server_exists:bool,server:mixed,process:string|false} $snapshot
+ * @throws \InvalidArgumentException
+ */
 function arrayKitBenchmarkEnvironmentRestore(string $key, array $snapshot): void
 {
+    if ($key === '') {
+        throw new \InvalidArgumentException('Environment keys must not be empty.');
+    }
     if ($snapshot['env_exists']) {
         $_ENV[$key] = $snapshot['env'];
     } else {

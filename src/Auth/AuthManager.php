@@ -64,6 +64,7 @@ final readonly class AuthManager
     /**
      * @throws \UnexpectedValueException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function isProductionReady(): bool
     {
@@ -88,6 +89,7 @@ final readonly class AuthManager
      * }
      * @throws \UnexpectedValueException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function readinessReport(): array
     {

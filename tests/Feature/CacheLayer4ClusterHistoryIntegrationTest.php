@@ -108,6 +108,9 @@ it('preserves native CacheLayer 4 history across two nodes and fails closed when
             $directory = $root . '/' . $node . '/storage/cache';
             if (is_dir($directory)) {
                 foreach (new FilesystemIterator($directory, FilesystemIterator::SKIP_DOTS) as $entry) {
+                    if (!$entry instanceof \SplFileInfo) {
+                        throw new \UnexpectedValueException('Unexpected cluster cache directory entry.');
+                    }
                     if ($entry->isFile() && !$entry->isLink()) {
                         unlink($entry->getPathname());
                     }

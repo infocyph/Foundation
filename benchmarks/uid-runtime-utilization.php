@@ -51,7 +51,7 @@ function uidRuntimeMeasure(
     sort($samples, SORT_NUMERIC);
     $median = $samples[intdiv(count($samples), 2)];
     $minimum = $samples[0];
-    $maximum = $samples[count($samples) - 1];
+    $maximum = $samples[array_key_last($samples) ?? throw new RuntimeException('UID benchmark has no samples.')];
     $spread = (($maximum - $minimum) / max(0.000001, $median)) * 100;
     $attempted = $operations * $repetitions;
 

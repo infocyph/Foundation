@@ -179,10 +179,14 @@ function foundationSnapshotEnvironment(array $keys): array
 
 /**
  * @param array<string, array{exists: bool, value: mixed, server_exists: bool, server_value: mixed, getenv_exists: bool, getenv_value: string}> $snapshot
+ * @throws \InvalidArgumentException
  */
 function foundationRestoreEnvironment(array $snapshot): void
 {
     foreach ($snapshot as $key => $state) {
+        if ($key === '') {
+            throw new \InvalidArgumentException('Environment keys must not be empty.');
+        }
         if ($state['exists']) {
             $_ENV[$key] = $state['value'];
         } else {

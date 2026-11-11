@@ -246,19 +246,31 @@ function arrayKitEnvironmentSnapshot(array $keys): array
     return $snapshot;
 }
 
-/** @param list<string> $keys */
+/**
+ * @param list<string> $keys
+ * @throws \InvalidArgumentException
+ */
 function arrayKitEnvironmentUnset(array $keys): void
 {
     foreach ($keys as $key) {
+        if ($key === '') {
+            throw new \InvalidArgumentException('Environment keys must not be empty.');
+        }
         unset($_ENV[$key], $_SERVER[$key]);
         putenv($key);
     }
 }
 
-/** @param array<string, array{env_exists:bool,env:mixed,server_exists:bool,server:mixed,process:string|false}> $snapshot */
+/**
+ * @param array<string, array{env_exists:bool,env:mixed,server_exists:bool,server:mixed,process:string|false}> $snapshot
+ * @throws \InvalidArgumentException
+ */
 function arrayKitEnvironmentRestore(array $snapshot): void
 {
     foreach ($snapshot as $key => $state) {
+        if ($key === '') {
+            throw new \InvalidArgumentException('Environment keys must not be empty.');
+        }
         if ($state['env_exists']) {
             $_ENV[$key] = $state['env'];
         } else {
@@ -275,6 +287,7 @@ function arrayKitEnvironmentRestore(array $snapshot): void
     }
 }
 
+/** @throws \UnexpectedValueException */
 function arrayKitConfigRemove(string $directory): void
 {
     if (!is_dir($directory)) {

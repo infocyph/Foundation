@@ -996,8 +996,12 @@ it('uses only process environment to select a trusted release generation', funct
     }
 });
 
+/** @throws \InvalidArgumentException */
 function foundationPhase8ReleaseSetEnvironment(string $name, ?string $value): void
 {
+    if ($name === '') {
+        throw new \InvalidArgumentException('Environment keys must not be empty.');
+    }
     if ($value === null) {
         unset($_ENV[$name], $_SERVER[$name]);
         putenv($name);

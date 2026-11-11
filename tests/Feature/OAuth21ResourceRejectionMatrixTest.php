@@ -213,7 +213,11 @@ it('rejects disabled accounts disabled clients and revoked authorizations', func
  */
 function oauth21RejectRewriteHeader(string $token, array $changes): string
 {
-    [$encodedHeader, $payload, $signature] = explode('.', $token, 3);
+    $segments = explode('.', $token, 3);
+    if (count($segments) !== 3) {
+        throw new RuntimeException('JWT must have three segments.');
+    }
+    [$encodedHeader, $payload, $signature] = $segments;
     $header = json_decode(oauth21RejectBase64UrlDecode($encodedHeader), true, flags: JSON_THROW_ON_ERROR);
     if (!is_array($header)) {
         throw new RuntimeException('JWT header must decode to an array.');
@@ -225,7 +229,11 @@ function oauth21RejectRewriteHeader(string $token, array $changes): string
 
 function oauth21RejectCorruptSignature(string $token): string
 {
-    [$header, $payload, $signature] = explode('.', $token, 3);
+    $segments = explode('.', $token, 3);
+    if (count($segments) !== 3) {
+        throw new RuntimeException('JWT must have three segments.');
+    }
+    [$header, $payload, $signature] = $segments;
     $replacement = str_ends_with($signature, 'A') ? 'B' : 'A';
 
     return $header . '.' . $payload . '.' . substr($signature, 0, -1) . $replacement;

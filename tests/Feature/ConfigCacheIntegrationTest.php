@@ -111,8 +111,8 @@ it('boots from a sharded lazy cache without loading environment or scanning conf
         $manifest = $project . '/bootstrap/cache/config/__manifest.php';
         $namespace = configCacheNamespaceArtifact($project . '/bootstrap/cache/config', 'app');
         $flat = configCacheFlatIndexArtifact($project . '/bootstrap/cache/config');
-        expect((fileperms($manifest) ?: throw new \RuntimeException('Unable to read manifest permissions.')) & 0777)->toBe(0664)
-            ->and((fileperms($namespace) ?: throw new \RuntimeException('Unable to read namespace permissions.')) & 0777)->toBe(0664)
+        expect((($__f158_manifestMode = fileperms($manifest)) === false ? throw new \RuntimeException('Unable to read manifest permissions.') : $__f158_manifestMode) & 0777)->toBe(0664)
+            ->and((($__f158_namespaceMode = fileperms($namespace)) === false ? throw new \RuntimeException('Unable to read namespace permissions.') : $__f158_namespaceMode) & 0777)->toBe(0664)
             ->and($flat)->toBeFile();
 
         unlink($project . '/.env');
@@ -176,7 +176,7 @@ PHP,
             ->and($manifest['_type'] ?? null)->toBe(ConfigLoader::TYPE_SINGLE)
             ->and($manifest['_file'] ?? null)->toBe('config.php')
             ->and($manifest)->not->toHaveKey('_data')
-            ->and((fileperms($compiledFile) ?: throw new \RuntimeException('Unable to read compiled file permissions.')) & 0777)->toBe(0664);
+            ->and((($__f158_compiledMode = fileperms($compiledFile)) === false ? throw new \RuntimeException('Unable to read compiled file permissions.') : $__f158_compiledMode) & 0777)->toBe(0664);
 
         unlink($project . '/config/app.php');
 

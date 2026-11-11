@@ -305,6 +305,7 @@ function foundationOptimizationRun(CommandDispatcher $dispatcher, string $comman
     return $io;
 }
 
+/** @throws \UnexpectedValueException */
 function foundationOptimizationRemove(string $directory): void
 {
     if (!is_dir($directory)) {

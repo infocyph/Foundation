@@ -60,7 +60,7 @@ it('forwards published native providers through compiled and borrowed execution 
                 expect($app->make(RuntimeContext::class))->toBe($runtime)
                     ->and($app->make(RequestContext::class))->toBe($request)
                     ->and($connection->scalar('SELECT 1'))->toBe(1)
-                    ->and($connection->runwireBinding()['request'])->toBe($request)
+                    ->and(($connection->runwireBinding()['request'] ?? null))->toBe($request)
                     ->and($bus->runwireBinding()->request())->toBe($request);
                 $captured = $app->runtime()->captureScopeContext();
                 $child = new Fiber(static fn(): mixed => $execution->withinBorrowedScope(
@@ -140,7 +140,7 @@ it('isolates providers across overlapping Foundation executions and preserves ex
     $make = static fn(RequestContext $request): Fiber => new Fiber(static function () use ($app, $bus, $runtime, $request): mixed {
         return $app->execution()->run(static function () use ($app, $bus, $request): mixed {
             $connection = $app->make(DBLayerFactory::class)->connection();
-            expect($connection->runwireBinding()['request'])->toBe($request)
+            expect(($connection->runwireBinding()['request'] ?? null))->toBe($request)
                 ->and($bus->runwireBinding()->request())->toBe($request);
             Fiber::suspend($connection);
             if ($request->cancelled()) {
@@ -203,7 +203,7 @@ it('keeps the host coroutine scope in a structured child and stops native work a
                         $connection = $app->make(DBLayerFactory::class)->connection();
                         $bus = $app->make(MessageBus::class);
                         expect($app->make(\Infocyph\Runwire\Coroutine\CoroutineScope::class))->toBe($scope)
-                            ->and($connection->runwireBinding()['scope'])->toBe($scope)
+                            ->and(($connection->runwireBinding()['scope'] ?? null))->toBe($scope)
                             ->and($bus->runwireBinding()->scope())->toBe($scope)
                             ->and(CacheRunwire::current()?->scope)->toBe($scope)
                             ->and($connection->scalar('SELECT 1'))->toBe(1);
@@ -260,7 +260,7 @@ it('cancels only a child task while consuming a native cursor and keeps its host
                             $connection = $app->make(DBLayerFactory::class)->connection();
                             foreach ($connection->stream('SELECT 314') as $row) {
                                 expect(array_values($row))->toBe([314])
-                                    ->and($connection->runwireBinding()['scope'])->toBe($scope)
+                                    ->and(($connection->runwireBinding()['scope'] ?? null))->toBe($scope)
                                     ->and(CacheRunwire::current()?->request)->toBe($request);
                                 $state->entered = true;
                                 $scope->sleep(30);
@@ -268,7 +268,7 @@ it('cancels only a child task while consuming a native cursor and keeps its host
                             }
                         },
                     ));
-                    $until = microtime(true) + 5;
+                    $until = microtime(true) + 5.0;
                     while (!$state->entered && microtime(true) < $until) {
                         $scope->yieldNow();
                     }

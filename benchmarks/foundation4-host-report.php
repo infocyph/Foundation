@@ -87,12 +87,12 @@ function f4HostSamples(string $path): array
     }
 
     return [
-        'first_rss_mb' => round((float) $firstRssKb / 1024, 2),
-        'last_rss_mb' => round($lastRssKb / 1024, 2),
-        'peak_rss_mb' => round($maxRssKb / 1024, 2),
+        'first_rss_mb' => round((float) $firstRssKb / 1024.0, 2),
+        'last_rss_mb' => round($lastRssKb / 1024.0, 2),
+        'peak_rss_mb' => round($maxRssKb / 1024.0, 2),
         'peak_lifetime_process_cpu_percent' => round($maxCpu, 2),
         'mean_process_cpu_percent' => $lastTime > $firstTime
-            ? round(($lastCpuSeconds - $firstCpuSeconds) / ($lastTime - $firstTime) * 100, 2)
+            ? round(($lastCpuSeconds - $firstCpuSeconds) / ($lastTime - $firstTime) * 100.0, 2)
             : null,
         'cpu_counter_resolution_seconds' => 1,
         'peak_processes' => $maxProcesses,
@@ -114,7 +114,7 @@ function f4HostMedian(array $values): float
 
     return $n % 2 === 1
         ? $values[intdiv($n, 2)]
-        : ($values[intdiv($n, 2) - 1] + $values[intdiv($n, 2)]) / 2;
+        : ((float) $values[intdiv($n, 2) - 1] + (float) $values[intdiv($n, 2)]) / 2.0;
 }
 
 $root = (($__foundation157_120 = getenv('FOUNDATION_HOST_RESULT_DIR')) !== false && $__foundation157_120 !== '' && $__foundation157_120 !== '0') ? $__foundation157_120 : dirname(__DIR__) . '/build/foundation4-host';
