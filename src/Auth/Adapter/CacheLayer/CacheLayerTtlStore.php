@@ -65,7 +65,7 @@ final readonly class CacheLayerTtlStore implements TtlStoreInterface
      * @throws \LogicException
      *
      *
-     * @psalm-param '__miss__'|null $default
+     * @param null|string $default
      */
     #[\Override]
     public function pull(string $key, ?string $default = null): mixed

@@ -37,7 +37,7 @@ final class ArrayTtlStore implements TtlStoreInterface
     }
 
     #[\Override]
-    public function pull(string $key, mixed $default = null): mixed
+    public function pull(string $key, ?string $default = null): mixed
     {
         $value = $this->get($key, $default);
         unset($this->items[$key]);

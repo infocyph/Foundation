@@ -7,7 +7,27 @@ use Infocyph\CacheLayer\Cache\CacheOptions;
 use Infocyph\CacheLayer\Counter\AtomicCounters;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerTtlStore;
+use Infocyph\Foundation\Auth\Support\ArrayTtlStore;
 use Infocyph\Foundation\Communication\CacheLayerWebhookReplayStore;
+
+it('aligns nullable string pull defaults across memory and atomic TTL stores', function (): void {
+    $stores = [
+        new ArrayTtlStore(),
+        new CacheLayerTtlStore(Cache::memory(
+            namespace: 'foundation-ttl-pull-contract-' . bin2hex(random_bytes(6)),
+            options: new CacheOptions(failOpen: false),
+        )),
+    ];
+
+    foreach ($stores as $store) {
+        expect($store->pull('absent'))->toBeNull()
+            ->and($store->pull('absent', '__miss__'))->toBe('__miss__');
+
+        $store->put('payload', ['id' => 'one'], 30);
+        expect($store->pull('payload', '__miss__'))->toBe(['id' => 'one'])
+            ->and($store->pull('payload', '__miss__'))->toBe('__miss__');
+    }
+});
 
 it('uses CacheLayer native claim consume CAS and TTL semantics', function (): void {
     $cache = Cache::memory(

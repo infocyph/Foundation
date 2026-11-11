@@ -3,6 +3,13 @@
 Date: 2026-11-11 (Asia/Dhaka). Status: **93/95 implementation criteria checked; Runwire 3.0.1 minimum selected in Batch 136 (exact-head QA pending); both P6 sustained certifications remain open.**
 
 
+## Batch 159b — nullable-string TTL contract repair (P0 CI regression, exact-head QA pending)
+
+- **Cause:** commit `b8083fd8d665f48c2ebeaacca96ed6e667feb7bb` narrowed `CacheLayerTtlStore::pull()` to `?string` while `TtlStoreInterface` still declared `mixed`. PHP method incompatibility causes fatal errors in Pest, benchmarks and source-only paired-host setup, independently of throughput. PHPStan also aborts one analysis subprocess; strict Psalm reports 739 findings per PHP 8.4/8.5 at the broken head, versus 724 at Batch 159a.
+- **Owner decision:** `pull(string $key, ?string $default = null): mixed` is the contract. Change both the interface and its two implementations (`CacheLayerTtlStore`, `ArrayTtlStore`), and relax the over-specific Psalm sentinel annotation to allow any nullable string. Add a real integration regression for both backends: missing key, custom string sentinel, and consuming stored array values only once. `get()` and `put()` retain their mixed value contracts.
+- **Exception to batch sizing:** This is a targeted high-priority compatibility repair rather than a 50–100-file static-analysis cohort; keep it in one commit and do not represent it as a complete batch. No dependency changes, performance budget changes, suppressions, exclusions, baseline changes, lock-file policy changes, merge, tag or release.
+- **Acceptance:** Exact-commit PHP 8.4/8.5 QA and analyses, benchmarks, production consumers, native hosts and paired-host setup must be rechecked. Correcting fatal declaration incompatibility does not qualify either outstanding P6 sustained comparison.
+
 ## Batch 159a — focused strict-analysis correction cohort (35 PHP files; partial target, exact-head QA pending)
 
 - **Verified pre-change baseline:** Batch 158 source `7dfb896ad65dcc49e0d10f1dce0dec7cd1681256`, Security & Standards [42964379394](https://github.com/infocyph/Foundation/actions/runs/42964379394), reported **709 Psalm errors** on both PHP 8.4 and 8.5 (151 fewer than Batch 157's verified 860); PHPStan remained failed with **at least 1,000 displayed errors**, output truncated. Four stable/lowest functional QA lanes, clean install, both benchmarks, four production consumers, retained-state cutover and native service/host smoke passed. The source-only paired-host runs are not a qualified two-batch P6 verdict.
