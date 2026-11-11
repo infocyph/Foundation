@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
 use Infocyph\Epicrypt\Auth\Oidc\OpenIdInteractionErrorCode;
 use Infocyph\Epicrypt\Auth\Oidc\OpenIdInteractionPolicy;
+
 use Infocyph\Epicrypt\Auth\Oidc\OpenIdInteractionRequirement;
 use Infocyph\Epicrypt\Auth\Oidc\OpenIdInteractionState;
 use Infocyph\Epicrypt\Auth\Oidc\OpenIdUserInfoProjector;
@@ -15,9 +18,9 @@ use Infocyph\Foundation\Auth\Adapter\Epicrypt\Oidc\FoundationOpenIdClaimsProvide
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\Oidc\FoundationOpenIdSubjectProvider;
 use Infocyph\Foundation\Auth\OAuth\Contract\JwkSetProviderInterface;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
-use Infocyph\Foundation\Auth\OAuth\OAuthManager;
 use Infocyph\Foundation\Auth\OAuth\Metadata\AuthorizationServerMetadata;
 use Infocyph\Foundation\Auth\OAuth\Metadata\OpenIdMetadataProvider;
+use Infocyph\Foundation\Auth\OAuth\OAuthManager;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
@@ -25,6 +28,8 @@ use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
+use LogicException;
+use RuntimeException;
 
 it('completes OIDC authorization code issuance with Epicrypt ID token validation and UserInfo projection', function (): void {
     $now = 1_700_000_000;
@@ -84,7 +89,8 @@ it('completes OIDC authorization code issuance with Epicrypt ID token validation
         ], $authentication);
 
         $idToken = $tokens->additionalParameters['id_token'] ?? null;
-        expect($idToken)->toBeString()->not->toBe('');
+        \PHPUnit\Framework\Assert::assertIsString($idToken);
+        expect($idToken)->not->toBe('');
         [, , , , $claims] = JwtToken::parse($idToken);
         new OpenIdIdTokenValidator(new EpicryptClockAdapter($fixture->clock))->validate(
             $claims,
@@ -116,7 +122,6 @@ it('completes OIDC authorization code issuance with Epicrypt ID token validation
         $fixture->close();
     }
 });
-
 
 it('requires verified OIDC auth time rather than fabricating issuance-time authentication', function (): void {
     $now = 1_700_000_000;
@@ -165,8 +170,10 @@ it('requires verified OIDC auth time rather than fabricating issuance-time authe
 
         foreach ([[], ['auth_time' => 0], ['auth_time' => 'unknown'], ['auth_time' => $now + 60], ['auth_time' => $now - 7200]] as $metadata) {
             $principal = new Principal('account-1', accountId: 'account-1', metadata: $metadata);
+
             try {
                 $manager->openIdInteraction($request, $principal);
+
                 throw new LogicException('OIDC accepted missing or stale authentication proof.');
             } catch (OAuthProtocolException $exception) {
                 expect($exception->error)->toBe('login_required');

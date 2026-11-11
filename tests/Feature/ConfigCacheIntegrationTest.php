@@ -168,10 +168,7 @@ PHP,
         $cacheDirectory = $project . '/bootstrap/cache/config';
         $compiledFile = $cacheDirectory . '/config.php';
         $manifestFile = $cacheDirectory . '/__manifest.php';
-        $manifest = require $manifestFile;
-        if (!is_array($manifest)) {
-            throw new \UnexpectedValueException('Compiled configuration manifest must be an array.');
-        }
+        $manifest = \foundationReadPhpFixtureArray($manifestFile);
         $native = new ArrayKitConfig();
 
         expect($native->loadCache($compiledFile))->toBeTrue()
@@ -413,7 +410,7 @@ it('keeps production requirements limited to the Foundation runtime core', funct
         throw new \UnexpectedValueException('Foundation Composer dev requirements and suggestions must be arrays.');
     }
     expect($composer['minimum-stability'] ?? null)->toBe('stable')
-        ->and($composer['require-dev'] ?? [])->not->toHaveKey('infocyph/cachelayer')
+        ->and($composer['require-dev'])->not->toHaveKey('infocyph/cachelayer')
         ->and($composer['require-dev']['infocyph/dblayer'] ?? null)->toBe('^6.1.4')
         ->and($composer['require-dev']['infocyph/epicrypt'] ?? null)->toBe('^3.3')
         ->and($composer['require-dev']['infocyph/omnibus'] ?? null)->toBe('^3.0.3')

@@ -75,9 +75,6 @@ it('accepts a stable throughput change inside the strict 2 percent budget', func
     $candidate['sha'] = str_repeat('c', 40);
 
     $result = Foundation4HostComparison::compare($base, $candidate);
-    if (!is_array($result['cases'] ?? null)) {
-        throw new \UnexpectedValueException('Host comparison cases must be an array.');
-    }
 
     $firstCase = $result['cases'][0] ?? null;
     if (!is_array($firstCase)) {
@@ -92,7 +89,7 @@ it('accepts a stable throughput change inside the strict 2 percent budget', func
 it('rejects a throughput regression exceeding 2 percent', function (): void {
     $result = Foundation4HostComparison::compare(foundationHostFixture(), foundationHostFixture(979.0, true));
 
-    if (!is_array($result['cases'] ?? null) || !is_array($result['cases'][0] ?? null)) {
+    if (!isset($result['cases'][0])) {
         throw new \UnexpectedValueException('Expected a structured host regression case.');
     }
     expect($result['passed'])->toBeFalse()
@@ -105,6 +102,8 @@ it('rejects noisy evidence instead of silently waiving the throughput budget', f
     $candidate['hosts']['fpm'][0]['runs'][0]['duration_seconds'] = 240.0;
 
     $result = Foundation4HostComparison::compare(foundationHostFixture(), $candidate);
+
+    \PHPUnit\Framework\Assert::assertIsArray(($result['cases'][0] ?? null));
 
     expect($result['passed'])->toBeFalse()
         ->and($result['cases'][0]['status'])->toBe('inconclusive_variance')
@@ -122,8 +121,9 @@ it('attributes baseline-only measurement noise without reclassifying it as a pas
     $result = Foundation4HostComparison::compare($baseline, $candidate);
     $noisy = array_find($result['cases'], static fn(array $case): bool => $case['scenario'] === 'runwire-w4-c50');
 
+    \PHPUnit\Framework\Assert::assertIsArray($noisy);
     expect($result['passed'])->toBeFalse()
-        ->and($noisy)->toBeArray()
+
         ->and($noisy['status'])->toBe('inconclusive_variance')
         ->and($noisy['baseline_cv_percent'])->toBeGreaterThan(2.5)
         ->and($noisy['candidate_cv_percent'])->toBe(0.0)
@@ -173,11 +173,15 @@ it('requires two sustained minutes in every baseline and candidate measured tria
     $base = foundationHostFixture();
     $candidate = foundationHostFixture(candidate: true);
     if ($candidateRun) {
-        $candidate['hosts']['fpm'][0]['runs'][0]['duration_seconds'] = $seconds;
-        $candidate['hosts']['fpm'][0]['runs'][0]['rpm'] = $candidate['hosts']['fpm'][0]['runs'][0]['successful'] * 60.0 / $seconds;
+        $run = $candidate['hosts']['fpm'][0]['runs'][0];
+        $run['duration_seconds'] = $seconds;
+        $run['rpm'] = (float) $run['successful'] * 60.0 / $seconds;
+        $candidate['hosts']['fpm'][0]['runs'][0] = $run;
     } else {
-        $base['hosts']['fpm'][0]['runs'][0]['duration_seconds'] = $seconds;
-        $base['hosts']['fpm'][0]['runs'][0]['rpm'] = $base['hosts']['fpm'][0]['runs'][0]['successful'] * 60.0 / $seconds;
+        $run = $base['hosts']['fpm'][0]['runs'][0];
+        $run['duration_seconds'] = $seconds;
+        $run['rpm'] = (float) $run['successful'] * 60.0 / $seconds;
+        $base['hosts']['fpm'][0]['runs'][0] = $run;
     }
 
     expect(fn() => Foundation4HostComparison::compare($base, $candidate))
@@ -251,6 +255,7 @@ it('requires authenticated query and cache evidence from every successful respon
 it('retains both required host soaks when aggregating separately paired scenario artifacts', function (): void {
     $directory = sys_get_temp_dir() . '/foundation-host-merge-' . bin2hex(random_bytes(6));
     mkdir($directory, 0700);
+
     try {
         foreach (['baseline', 'candidate'] as $variant) {
             $report = foundationHostFixture(candidate: $variant === 'candidate');
@@ -283,6 +288,9 @@ it('retains both required host soaks when aggregating separately paired scenario
             if (!is_array($merged)) {
                 throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
             }
+            \PHPUnit\Framework\Assert::assertIsArray(($merged['soak'] ?? null));
+            \PHPUnit\Framework\Assert::assertIsArray(($merged['soak']['runwire'] ?? null));
+
             expect($merged['soak'])->toHaveKeys(['fpm', 'runwire'])
                 ->and($merged['soak']['runwire']['windows'])->toHaveCount(2);
         }
@@ -298,7 +306,6 @@ it('retains both required host soaks when aggregating separately paired scenario
         \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($directory);
     }
 });
-
 
 /** @return array<string,mixed> */
 function foundationUpgradeEvidence(): array
@@ -330,11 +337,15 @@ it('accepts only explicitly reviewed whole-upgrade dependency identities', funct
         ->toThrow(InvalidArgumentException::class, 'composer_lock_sha256 differs.');
 
     $evidence = foundationUpgradeEvidence();
+    \PHPUnit\Framework\Assert::assertIsArray($evidence['allowed_changes'] ?? null);
+    \PHPUnit\Framework\Assert::assertIsArray($evidence['allowed_changes']['infocyph/runwire'] ?? null);
+    \PHPUnit\Framework\Assert::assertIsArray($evidence['allowed_changes']['infocyph/runwire']['after'] ?? null);
     $evidence['allowed_changes']['infocyph/runwire']['after']['version'] = '3.0.1';
     expect(fn() => Foundation4HostComparison::compare($baseline, $candidate, $evidence))
         ->toThrow(InvalidArgumentException::class, 'Unreviewed or mismatched');
 
     $evidence = foundationUpgradeEvidence();
+    \PHPUnit\Framework\Assert::assertIsArray(($evidence['candidate'] ?? null));
     $evidence['candidate']['sha256'] = str_repeat('e', 64);
     expect(fn() => Foundation4HostComparison::compare($baseline, $candidate, $evidence))
         ->toThrow(InvalidArgumentException::class, 'does not match candidate');
@@ -351,6 +362,9 @@ it('rejects unreviewed extra package changes in dependency upgrade reports', fun
     $baseline['tool_sha'] = $candidate['tool_sha'] = str_repeat('d', 40);
     $baseline['fixture_id'] = $candidate['fixture_id'] = 'auth-postgres-redis';
     $evidence = foundationUpgradeEvidence();
+    \PHPUnit\Framework\Assert::assertIsArray(($evidence['candidate'] ?? null));
+    \PHPUnit\Framework\Assert::assertIsArray(($evidence['candidate']['packages'] ?? null));
+
     $evidence['candidate']['packages']['psr/log'] = [
         'version' => '3.0.2',
         'source_ref' => str_repeat('d', 40),
@@ -361,10 +375,9 @@ it('rejects unreviewed extra package changes in dependency upgrade reports', fun
         ->toThrow(InvalidArgumentException::class, 'Unreviewed or mismatched');
 });
 
-
 it('derives deterministic Composer package/reference identities from a real lock file', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'foundation-lock-evidence-');
-    expect($file)->toBeString();
+    \PHPUnit\Framework\Assert::assertIsString($file);
     $lock = [
         'packages' => [[
             'name' => 'infocyph/runwire',

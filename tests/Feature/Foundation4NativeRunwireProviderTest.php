@@ -2,11 +2,16 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
+use Fiber;
+use FilesystemIterator;
 use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
+
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\InterMix\DI\RuntimeContainerInterface;
 use Infocyph\Omnibus\MessageBus;
@@ -14,6 +19,11 @@ use Infocyph\Runwire\Exception\CancelledException;
 use Infocyph\Runwire\RequestContext;
 use Infocyph\Runwire\Runtime\Enum\CancellationReason;
 use Infocyph\Runwire\RuntimeContext;
+use LogicException;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RuntimeException;
+use stdClass;
 
 it('forwards published native providers through compiled and borrowed execution scopes and recycled leases', function (RuntimeMode $mode, bool $pooled, bool $throughLibrary, bool $compiled): void {
     $project = sys_get_temp_dir() . '/foundation-native-provider-' . bin2hex(random_bytes(6));
@@ -37,7 +47,12 @@ it('forwards published native providers through compiled and borrowed execution 
         if ($compiled) {
             $report = new GeneratedRuntimeCompiler()->compile($config, $mode, $artifact, $capabilities);
             $generated = GeneratedRuntime::loadPrevalidated(
-                $config, $mode, $artifact, $report['metadata_sha256'], $report['digest'], $capabilities,
+                $config,
+                $mode,
+                $artifact,
+                $report['metadata_sha256'],
+                $report['digest'],
+                $capabilities,
             );
             $app = $generated->application;
         } else {
@@ -96,6 +111,7 @@ it('forwards published native providers through compiled and borrowed execution 
                 ? CacheRunwire::share($request, null, static fn(): mixed => $execution->run($callback), $runtime)
                 : $execution->run($callback, [RuntimeContext::class => $runtime, RequestContext::class => $request]);
 
+            \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\DBLayer\Connection\Connection::class, $connection);
             expect(CacheRunwire::current())->toBeNull()
                 ->and(CacheRunwire::runtime())->toBeNull()
                 ->and($bus->runwireBinding()->request())->toBeNull()
@@ -109,7 +125,7 @@ it('forwards published native providers through compiled and borrowed execution 
         $execution->run(static function () use ($factory, $bus): void {
             expect($factory->connection()->scalar('SELECT 4'))->toBe(4)
                 ->and($factory->connection()->runwireBinding())->toBeNull()
-                ->and($bus->dispatch(new stdClass()))->toBeInstanceOf(\Infocyph\Omnibus\Envelope\Envelope::class);
+                ->and($bus->dispatch(new stdClass())->message)->toEqual(new stdClass());
         });
     } finally {
         foreach ($requests as $request) {
@@ -167,8 +183,10 @@ it('isolates providers across overlapping Foundation executions and preserves ex
         $first->cancel(CancellationReason::HOST_CANCELLED);
         expect(fn(): mixed => $left->resume())->toThrow(RuntimeException::class, 'primary execution failure');
         $right->resume();
-        expect($right->getReturn()[0])->toBe(2)
-            ->and($right->getReturn()[1])->toBeInstanceOf(\Infocyph\Omnibus\Envelope\Envelope::class)
+        $returned = $right->getReturn();
+        \PHPUnit\Framework\Assert::assertIsArray($returned);
+        expect($returned[0])->toBe(2)
+            ->and($returned[1])->toBeInstanceOf(\Infocyph\Omnibus\Envelope\Envelope::class)
             ->and(CacheRunwire::current())->toBeNull()
             ->and(CacheRunwire::runtime())->toBeNull()
             ->and($bus->runwireBinding()->request())->toBeNull();
@@ -196,7 +214,7 @@ it('keeps the host coroutine scope in a structured child and stops native work a
         'foundation-native-provider-child',
     );
     $request = RequestContext::create($runtime);
-    $observed = (object) ['cancelled' => false];
+    $observed = new \Infocyph\Foundation\Tests\Fixtures\ExecutionFlag();
     $work = static fn(): mixed => new \Infocyph\Runwire\Coroutine\CoroutineRuntime()->runRequest(
         $request,
         static function (\Infocyph\Runwire\Coroutine\CoroutineScope $scope) use ($app, $runtime, $request, $observed, $throughLibrary): mixed {
@@ -206,25 +224,20 @@ it('keeps the host coroutine scope in a structured child and stops native work a
                     throw new LogicException('Expected an InterMix scoped runtime container.');
                 }
                 $captured = $container->captureScopeContext();
-                $child = $scope->spawn(static fn(): mixed => $app->execution()->withinBorrowedScope(
-                    $captured,
-                    static function () use ($app, $scope, $request, $observed): void {
+                $child = $scope->spawn(static function () use ($app, $captured, $scope, $request, $observed): void {
+                    $app->execution()->withinBorrowedScope($captured, static function () use ($app, $scope, $request, $observed): void {
                         $connection = $app->make(DBLayerFactory::class)->connection();
                         $bus = $app->make(MessageBus::class);
-                        expect($app->make(\Infocyph\Runwire\Coroutine\CoroutineScope::class))->toBe($scope)
-                            ->and(($connection->runwireBinding()['scope'] ?? null))->toBe($scope)
-                            ->and($bus->runwireBinding()->scope())->toBe($scope)
-                            ->and(CacheRunwire::current()?->scope)->toBe($scope)
-                            ->and($connection->scalar('SELECT 1'))->toBe(1);
+                        expect($app->make(\Infocyph\Runwire\Coroutine\CoroutineScope::class))->toBe($scope)->and($connection->runwireBinding()['scope'] ?? null)->toBe($scope)->and($bus->runwireBinding()->scope())->toBe($scope)->and(CacheRunwire::current()?->scope)->toBe($scope)->and($connection->scalar('SELECT 1'))->toBe(1);
                         $request->cancel(CancellationReason::HOST_CANCELLED);
-                        expect(fn(): mixed => $connection->scalar('SELECT 2'))
-                            ->toThrow(CancelledException::class)
-                            ->and(fn() => $bus->dispatch(new stdClass()))->toThrow(CancelledException::class);
-                        $observed->cancelled = true;
-                    },
-                ));
+                        expect(fn(): mixed => $connection->scalar('SELECT 2'))->toThrow(CancelledException::class)->and(fn() => $bus->dispatch(new stdClass()))->toThrow(CancelledException::class);
+                        $observed->set();
+                    });
+                });
 
-                return $child->await();
+                $child->await();
+
+                return null;
             };
 
             return $throughLibrary
@@ -235,7 +248,7 @@ it('keeps the host coroutine scope in a structured child and stops native work a
 
     try {
         expect($work)->toThrow(CancelledException::class)
-            ->and($observed->cancelled)->toBeTrue()
+            ->and($observed->value())->toBeTrue()
             ->and(CacheRunwire::current())->toBeNull()
             ->and(CacheRunwire::runtime())->toBeNull();
     } finally {
@@ -255,47 +268,57 @@ it('cancels only a child task while consuming a native cursor and keeps its host
         supportsRunwireCoroutines: true,
     ), 'foundation-child-cancellation');
     $request = RequestContext::create($runtime);
-    $state = (object) ['entered' => false, 'continued' => false];
+    $state = (object) [
+        'entered' => new \Infocyph\Foundation\Tests\Fixtures\ExecutionFlag(),
+        'continued' => new \Infocyph\Foundation\Tests\Fixtures\ExecutionFlag(),
+    ];
 
     try {
         new \Infocyph\Runwire\Coroutine\CoroutineRuntime()->runRequest(
             $request,
-            static function (\Infocyph\Runwire\Coroutine\CoroutineScope $scope) use ($app, $runtime, $request, $state): void {
-                $app->execution()->run(static function () use ($app, $scope, $request, $state): void {
+            static function (\Infocyph\Runwire\Coroutine\CoroutineScope $scope) use ($app, $runtime, $request, $state): null {
+                $app->execution()->run(static function () use ($app, $scope, $request, $state): null {
                     $container = $app->runtime();
                     if (!$container instanceof RuntimeContainerInterface) {
                         throw new LogicException('Expected an InterMix scoped runtime container.');
                     }
                     $captured = $container->captureScopeContext();
-                    $child = $scope->spawn(static fn(): mixed => $app->execution()->withinBorrowedScope(
-                        $captured,
-                        static function () use ($app, $scope, $state, $request): void {
+                    $child = $scope->spawn(static function () use ($app, $captured, $scope, $state, $request): null {
+                        $app->execution()->withinBorrowedScope($captured, static function () use ($app, $scope, $state, $request): null {
                             $connection = $app->make(DBLayerFactory::class)->connection();
                             foreach ($connection->stream('SELECT 314') as $row) {
-                                expect(array_values($row))->toBe([314])
-                                    ->and(($connection->runwireBinding()['scope'] ?? null))->toBe($scope)
-                                    ->and(CacheRunwire::current()?->request)->toBe($request);
-                                $state->entered = true;
+                                \PHPUnit\Framework\Assert::assertIsArray($row);
+                                expect(array_values($row))->toBe([314])->and($connection->runwireBinding()['scope'] ?? null)->toBe($scope)->and(CacheRunwire::current()?->request)->toBe($request);
+                                $state->entered->set();
                                 $scope->sleep(30);
-                                $state->continued = true;
+                                $state->continued->set();
                             }
-                        },
-                    ));
+
+                            return null;
+                        });
+                        return null;
+                    });
                     $until = microtime(true) + 5.0;
-                    while (!$state->entered && microtime(true) < $until) {
+                    while (!$state->entered->value() && microtime(true) < $until) {
                         $scope->yieldNow();
                     }
-                    expect($state->entered)->toBeTrue()
+                    expect($state->entered->value())->toBeTrue()
                         ->and($child->cancel(CancellationReason::HOST_CANCELLED))->toBeTrue()
-                        ->and(fn() => $child->await())->toThrow(CancelledException::class)
-                        ->and($state->continued)->toBeFalse()
+                        ->and(function () use ($child): void {
+                            $child->await();
+                        })->toThrow(CancelledException::class)
+                        ->and($state->continued->value())->toBeFalse()
                         ->and($request->cancelled())->toBeFalse()
                         ->and($scope->cancellation()->isCancelled())->toBeFalse()
                         ->and(CacheRunwire::current()?->request)->toBe($request)
                         ->and($app->make(DBLayerFactory::class)->connection()->scalar('SELECT 1'))->toBe(1)
-                        ->and($app->make(MessageBus::class)->dispatch(new stdClass()))
-                        ->toBeInstanceOf(\Infocyph\Omnibus\Envelope\Envelope::class);
+                        ->and($app->make(MessageBus::class)->dispatch(new stdClass())->message)
+                        ->toEqual(new stdClass());
+
+                    return null;
                 }, [RuntimeContext::class => $runtime, RequestContext::class => $request, \Infocyph\Runwire\Coroutine\CoroutineScope::class => $scope]);
+
+                return null;
             },
         );
         expect($request->completed())->toBeFalse()
@@ -325,7 +348,9 @@ it('rejects a shared completed or cancelled host request before starting framewo
         expect(fn(): mixed => CacheRunwire::share(
             $request,
             null,
-            static fn(): mixed => $app->execution()->run($callback),
+            static function () use ($app, $callback): void {
+                $app->execution()->run($callback);
+            },
             $runtime,
         ))->toThrow($expected);
         expect($called)->toBeFalse()

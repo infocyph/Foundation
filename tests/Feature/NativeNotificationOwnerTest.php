@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
+use FilesystemIterator;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Config\ConfigRepository;
+
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
@@ -12,6 +16,9 @@ use Infocyph\TalkingBytes\Email\Config\EmailLimits;
 use Infocyph\TalkingBytes\Email\Emailer;
 use Infocyph\TalkingBytes\Email\Parser\RawEmailParser;
 use Infocyph\TalkingBytes\Email\Receiver\SpoolEmailReceiver;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RuntimeException;
 
 it('exports native TalkingBytes notifications without another Foundation graph factory class', function (): void {
     $context = FoundationBuildContext::fromConfig(
@@ -63,11 +70,19 @@ it('compiles native email defaults and forwards a passed host request without re
     try {
         $artifact = $directory . '/runtime.php';
         $report = new \Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler()->compile(
-            $configuration, RuntimeMode::Worker, $artifact, $capabilities,
+            $configuration,
+            RuntimeMode::Worker,
+            $artifact,
+            $capabilities,
         );
         expect($report['skipped'])->toBe([]);
         $loaded = \Infocyph\Foundation\Runtime\GeneratedRuntime::loadPrevalidated(
-            $configuration, RuntimeMode::Worker, $artifact, $report['metadata_sha256'], $report['digest'], $capabilities,
+            $configuration,
+            RuntimeMode::Worker,
+            $artifact,
+            $report['metadata_sha256'],
+            $report['digest'],
+            $capabilities,
         );
         $app = $loaded->application;
         $app->execution()->run(static function () use ($app, $request, $message): void {

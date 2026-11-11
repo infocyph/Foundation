@@ -203,22 +203,26 @@ it('creates reports and removes only configured matching storage links', functio
         expect(((array) glob($link . '.*.tmp')))->toBe([]);
 
         $createdAgain = foundationEnvironmentStorageRun($dispatcher, ['infbyte', 'storage:link']);
+        \PHPUnit\Framework\Assert::assertIsArray(($createdAgain['io']->json[0][0] ?? null));
         expect($createdAgain['exit'])->toBe(ExitCode::SUCCESS)
             ->and($createdAgain['io']->json[0][0]['created'] ?? null)->toBeFalse();
 
         $status = foundationEnvironmentStorageRun($dispatcher, ['infbyte', 'storage:status']);
+        \PHPUnit\Framework\Assert::assertIsArray(($status['io']->json[0][0] ?? null));
         expect($status['exit'])->toBe(ExitCode::SUCCESS)
             ->and($status['io']->json[0][0]['exists'] ?? null)->toBeTrue()
             ->and($status['io']->json[0][0]['linked'] ?? null)->toBeTrue()
             ->and($status['io']->json[0][0]['matches'] ?? null)->toBeTrue();
 
         $removed = foundationEnvironmentStorageRun($dispatcher, ['infbyte', 'storage:unlink']);
+        \PHPUnit\Framework\Assert::assertIsArray(($removed['io']->json[0][0] ?? null));
         expect($removed['exit'])->toBe(ExitCode::SUCCESS)
             ->and($removed['io']->json[0][0]['removed'] ?? null)->toBeTrue()
             ->and(is_link($link))->toBeFalse()
             ->and(is_dir($target))->toBeTrue();
 
         $removedAgain = foundationEnvironmentStorageRun($dispatcher, ['infbyte', 'storage:unlink']);
+        \PHPUnit\Framework\Assert::assertIsArray(($removedAgain['io']->json[0][0] ?? null));
         expect($removedAgain['exit'])->toBe(ExitCode::SUCCESS)
             ->and($removedAgain['io']->json[0][0]['removed'] ?? null)->toBeFalse();
 

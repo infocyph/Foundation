@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/ProbeInput.php';
+$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::arguments($_SERVER['argv'] ?? []);
+
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Auth\AuthManager;
 use Infocyph\Foundation\Cache\CacheManager;
@@ -20,7 +23,7 @@ spl_autoload_register(static function (string $class): void {
 
 $mode = RuntimeMode::from($argv[1]);
 $boot = $argv[2];
-$project = $argv[3];
+$project = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::project($argv[3]);
 $capabilities = ['auth', 'cache', 'database', 'filesystem', 'session'];
 $config = [
     'base_path' => $project,

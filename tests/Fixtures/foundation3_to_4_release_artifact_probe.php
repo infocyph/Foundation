@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/ProbeInput.php';
+$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::arguments($_SERVER['argv'] ?? []);
+
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Release\ActiveGeneration;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
@@ -9,16 +12,21 @@ use Infocyph\Foundation\Release\FoundationReleaseManifest;
 use Infocyph\Foundation\Release\FoundationReleaseRuntime;
 use Infocyph\Webrick\Request\Request;
 
-if ($argc !== 5) {
+if (count($argv) !== 5) {
     throw new InvalidArgumentException('Expected stage, common project, version-specific autoloader, and report directory.');
 }
 
-[$stage, $project, $autoload, $reports] = array_slice($argv, 1);
+$stage = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 1);
+$project = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 2);
+$autoload = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 3);
+$reports = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 4);
 if (!in_array($stage, ['old-build', 'new-build', 'old-rollback', 'new-rollforward'], true)) {
     throw new InvalidArgumentException('Unknown cross-major generated-release stage.');
 }
 
-require $autoload;
+$project = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::project($project);
+$reports = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::path($reports);
+\Infocyph\Foundation\Tests\Fixtures\ProbeInput::autoload($autoload);
 
 $root = $project . '/storage/releases';
 $generation = str_starts_with($stage, 'old-') ? 'original-f3' : 'candidate-f4';
@@ -61,7 +69,7 @@ if ($isBuild) {
         $generation,
     );
 
-    if (($result['generation'] ?? null) !== $generation) {
+    if (($result['generation']) !== $generation) {
         throw new RuntimeException('Compiled release generation is incorrect.');
     }
 } else {
@@ -115,6 +123,9 @@ foreach ([RuntimeMode::Cli, RuntimeMode::Worker, RuntimeMode::Scheduler] as $run
 $referencePath = $reports . '/' . (str_starts_with($stage, 'old-') ? 'old-build' : 'new-build') . '.json';
 if (!$isBuild) {
     $reference = json_decode((string) file_get_contents($referencePath), true, flags: JSON_THROW_ON_ERROR);
+    if (!is_array($reference)) {
+        throw new \UnexpectedValueException('Expected a structured rehearsal record.');
+    }
     if ($reference['dependency_fingerprint'] !== $fingerprint
         || $reference['manifest_sha256'] !== $sha
     ) {
@@ -122,6 +133,9 @@ if (!$isBuild) {
     }
 } elseif ($stage === 'new-build') {
     $prior = json_decode((string) file_get_contents($reports . '/old-build.json'), true, flags: JSON_THROW_ON_ERROR);
+    if (!is_array($prior)) {
+        throw new \UnexpectedValueException('Expected a structured rehearsal record.');
+    }
     if ($prior['dependency_fingerprint'] === $fingerprint) {
         throw new RuntimeException('Old and current dependency graphs did not actually change.');
     }

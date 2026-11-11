@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
+use Exception;
 use Infocyph\Foundation\Application\FoundationBuildContext;
+
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceRegistry;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
@@ -13,7 +17,7 @@ use Infocyph\Foundation\Database\DatabaseServiceProvider;
 use Infocyph\Foundation\Filesystem\FilesystemServiceProvider;
 use Infocyph\Foundation\Messaging\MessagingServiceProvider;
 use Infocyph\Foundation\Module\ModuleArchitectureCatalog;
-use Infocyph\Foundation\Module\ModuleFeatureCapabilityPolicy;
+use LogicException;
 
 it('keeps original capability contracts when module selection is absent', function (): void {
     $context = FoundationBuildContext::fromConfig(

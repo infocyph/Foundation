@@ -12,15 +12,14 @@ use Infocyph\Foundation\Filesystem\FilesystemUploadRequestHandler;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Filesystem\StorageRegistry;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Pathwise\StreamHandler\MalwareScannerInterface;
 use Infocyph\Pathwise\StreamHandler\MalwareScanRequest;
 use Infocyph\Pathwise\StreamHandler\MalwareScanVerdict;
-use Infocyph\Pathwise\StreamHandler\MalwareScannerInterface;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Body\FileBody;
 use League\Flysystem\Filesystem;
 use League\Flysystem\Local\LocalFilesystemAdapter;
 use Psr\Container\ContainerInterface;
-
 
 /**
  * @return array{Application,string}
@@ -67,10 +66,10 @@ it('preserves conditional and ranged local files as native Webrick file bodies',
             ->and($rangeResponse->getProducer())->toBeNull();
 
         $rangeBody = $rangeResponse->getFileBody();
-        expect($rangeBody)->toBeInstanceOf(FileBody::class)
-            ->and($rangeBody?->offset())->toBe(11)
-            ->and($rangeBody?->length())->toBe(6)
-            ->and($rangeBody?->read(6))->toBe(substr($contents, 11, 6));
+        \PHPUnit\Framework\Assert::assertInstanceOf(FileBody::class, $rangeBody);
+        expect($rangeBody->offset())->toBe(11)
+            ->and($rangeBody->length())->toBe(6)
+            ->and($rangeBody->read(6))->toBe(substr($contents, 11, 6));
 
         $inlineResponse = $responses->inline(
             Request::fake(headers: ['Host' => 'localhost'], uri: 'http://localhost/inline'),
@@ -134,7 +133,7 @@ it('exposes context-routed Pathwise responses as Webrick chunk iterables without
             ->and($response->isStreaming())->toBeTrue();
 
         $producer = $response->getProducer();
-        expect($producer)->not->toBeNull();
+        \PHPUnit\Framework\Assert::assertNotNull($producer);
         $body = '';
         foreach ($producer() as $chunk) {
             $body .= $chunk;
@@ -158,8 +157,10 @@ it('honors original Runwire cancellation during nonlocal lazy response advanceme
 
     $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
     \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::bind($runtime);
+
     try {
         $request = \Infocyph\Runwire\RequestContext::create($runtime);
+
         try {
             $response = \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
                 $request,
@@ -171,16 +172,22 @@ it('honors original Runwire cancellation during nonlocal lazy response advanceme
                 ),
                 $runtime,
             );
+            \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\Webrick\Response\Response::class, $response);
             expect($response->isStreaming())->toBeTrue();
             $producer = $response->getProducer();
-            expect($producer)->not->toBeNull();
+            \PHPUnit\Framework\Assert::assertNotNull($producer);
             $request->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
-            expect(fn(): mixed => $producer()->current())->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
+            expect(function () use ($producer): void {
+                $chunks = $producer();
+                \PHPUnit\Framework\Assert::assertInstanceOf(\Iterator::class, $chunks);
+                $chunks->current();
+            })->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
         } finally {
             $request->complete();
         }
 
         $request = \Infocyph\Runwire\RequestContext::create($runtime);
+
         try {
             $response = \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
                 $request,
@@ -192,11 +199,16 @@ it('honors original Runwire cancellation during nonlocal lazy response advanceme
                 ),
                 $runtime,
             );
+            \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\Webrick\Response\Response::class, $response);
             $producer = $response->getProducer();
+            \PHPUnit\Framework\Assert::assertNotNull($producer);
             $chunks = $producer();
+            \PHPUnit\Framework\Assert::assertInstanceOf(\Iterator::class, $chunks);
             expect($chunks->current())->toBeString()->not->toBe('');
             $request->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
-            expect(fn(): mixed => $chunks->next())->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
+            expect(function () use ($chunks): void {
+                $chunks->next();
+            })->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
             unset($chunks);
         } finally {
             $request->complete();
@@ -224,17 +236,23 @@ it('isolates lazy streamed downloads across Fibers and rejects an abandoned comp
     $first = \Infocyph\Runwire\RequestContext::create($runtime);
     $second = \Infocyph\Runwire\RequestContext::create($runtime);
     $abandoned = \Infocyph\Runwire\RequestContext::create($runtime);
+
     try {
-        $responseFor = static fn(\Infocyph\Runwire\RequestContext $owner): mixed => \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
-            $owner,
-            null,
-            static fn() => $responses->download(
-                Request::fake(headers: ['Host' => 'localhost'], uri: 'http://localhost/transfer'),
-                $storage->path($file, 'uploads'),
-                disk: 'uploads',
-            ),
-            $runtime,
-        );
+        $responseFor = static function (\Infocyph\Runwire\RequestContext $owner) use ($responses, $storage, $file, $runtime): \Infocyph\Webrick\Response\Response {
+            $response = \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
+                $owner,
+                null,
+                static fn() => $responses->download(
+                    Request::fake(headers: ['Host' => 'localhost'], uri: 'http://localhost/transfer'),
+                    $storage->path($file, 'uploads'),
+                    disk: 'uploads',
+                ),
+                $runtime,
+            );
+            \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\Webrick\Response\Response::class, $response);
+
+            return $response;
+        };
         $one = $responseFor($first)->getProducer();
         $two = $responseFor($second)->getProducer();
         if ($one === null || $two === null) {
@@ -243,14 +261,16 @@ it('isolates lazy streamed downloads across Fibers and rejects an abandoned comp
 
         $firstStream = $one();
         $secondStream = $two();
+        \PHPUnit\Framework\Assert::assertInstanceOf(\Iterator::class, $firstStream);
+        \PHPUnit\Framework\Assert::assertInstanceOf(\Iterator::class, $secondStream);
         $fiberOne = new Fiber(static function () use ($firstStream): void {
             expect($firstStream->current())->toBeString()->not->toBe('');
-            Fiber::suspend();
+            \PHPUnit\Framework\Assert::assertNull(Fiber::suspend());
             $firstStream->next();
         });
         $fiberTwo = new Fiber(static function () use ($secondStream): void {
             expect($secondStream->current())->toBeString()->not->toBe('');
-            Fiber::suspend();
+            \PHPUnit\Framework\Assert::assertNull(Fiber::suspend());
             $secondStream->next();
             expect($secondStream->current())->toBeString()->not->toBe('');
         });
@@ -264,9 +284,13 @@ it('isolates lazy streamed downloads across Fibers and rejects an abandoned comp
             ->and(\Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::current())->toBe($initialBinding);
 
         $dead = $responseFor($abandoned)->getProducer();
-        expect($dead)->not->toBeNull();
+        \PHPUnit\Framework\Assert::assertNotNull($dead);
         $abandoned->complete();
-        expect(fn(): mixed => $dead()->current())->toThrow(LogicException::class, 'Runwire request is completed');
+        expect(function () use ($dead): void {
+            $chunks = $dead();
+            \PHPUnit\Framework\Assert::assertInstanceOf(\Iterator::class, $chunks);
+            $chunks->current();
+        })->toThrow(LogicException::class, 'Runwire request is completed');
         unset($firstStream, $secondStream, $dead);
     } finally {
         $first->complete();
@@ -291,6 +315,7 @@ it('restores the original borrowed Runwire context after a lazy stream read fail
     \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::bind($runtime);
     $outer = \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::current();
     $request = \Infocyph\Runwire\RequestContext::create($runtime);
+
     try {
         $response = \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
             $request,
@@ -302,9 +327,11 @@ it('restores the original borrowed Runwire context after a lazy stream read fail
             ),
             $runtime,
         );
+        \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\Webrick\Response\Response::class, $response);
         $producer = $response->getProducer();
-        expect($producer)->not->toBeNull();
+        \PHPUnit\Framework\Assert::assertNotNull($producer);
         $chunks = $producer();
+        \PHPUnit\Framework\Assert::assertInstanceOf(\Iterator::class, $chunks);
         expect($chunks->current())->toBeString()->not->toBe('');
 
         // The response producer has opened the source. Shorten that same
@@ -359,14 +386,18 @@ it('handles normal and chunked upload requests through Pathwise UploadSource', f
 
         $first = Request::fake(
             post: ['uploadId' => 'bridge-upload', 'chunk_index' => '0', 'chunkIndex' => 0, 'totalChunks' => 2, 'originalFilename' => 'chunked.txt'],
-            headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload/chunk',
+            headers: ['Host' => 'localhost'],
+            method: 'POST',
+            uri: 'http://localhost/upload/chunk',
         )->withUploadedFiles(['file' => [
             'tmp_name' => $chunkOne, 'size' => ((int) filesize($chunkOne)), 'error' => UPLOAD_ERR_OK,
             'name' => 'chunked.txt', 'type' => 'text/plain',
         ]]);
         $second = Request::fake(
             post: ['upload_id' => 'bridge-upload', 'chunk_index' => 1, 'total_chunks' => 2, 'original_filename' => 'chunked.txt'],
-            headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload/chunk',
+            headers: ['Host' => 'localhost'],
+            method: 'POST',
+            uri: 'http://localhost/upload/chunk',
         )->withUploadedFiles(['file' => [
             'tmp_name' => $chunkTwo, 'size' => ((int) filesize($chunkTwo)), 'error' => UPLOAD_ERR_OK,
             'name' => 'chunked.txt', 'type' => 'text/plain',
@@ -527,13 +558,13 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
 
         public bool $cancelDuringScan = false;
 
-        public ?string $stagedPath = null;
+        public ?string $clientFilename = null;
 
         public ?string $stagedContents = null;
 
-        public ?int $stagedSize = null;
+        public ?string $stagedPath = null;
 
-        public ?string $clientFilename = null;
+        public ?int $stagedSize = null;
 
         /**
          * @throws \LogicException
@@ -638,6 +669,7 @@ it('fails closed on a malicious HTTP upload before publishing a Pathwise storage
         $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
         $hostRequest = \Infocyph\Runwire\RequestContext::create($runtime);
         \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::bind($runtime);
+
         try {
             \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
                 $hostRequest,
@@ -863,7 +895,6 @@ final class FoundationFilesystemMetadataProbe extends Filesystem
     }
 }
 
-
 it('rejects cancelled Runwire uploads and downloads before Pathwise file side effects', function (): void {
     [$app, $root] = foundationFilesystemApp();
     $app->boot();
@@ -875,7 +906,7 @@ it('rejects cancelled Runwire uploads and downloads before Pathwise file side ef
     $path = $directory . '/exists.txt';
     $disk->write($path, 'unchanged');
     $temp = tempnam(sys_get_temp_dir(), 'foundation-runwire-upload-');
-    expect($temp)->toBeString();
+    \PHPUnit\Framework\Assert::assertIsString($temp);
     file_put_contents($temp, 'must-not-upload');
     $request = Request::fake(headers: ['Host' => 'localhost'], method: 'POST', uri: 'http://localhost/upload')
         ->withUploadedFiles(['file' => [

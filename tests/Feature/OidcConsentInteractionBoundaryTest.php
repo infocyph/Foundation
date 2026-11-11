@@ -25,8 +25,8 @@ use Infocyph\Foundation\Session\Store\ArraySessionStore;
 use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
 use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 use Infocyph\Webrick\Request\Request;
-use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Response\Response;
+use Infocyph\Webrick\Router\Definition\Registrar;
 
 it('rechecks OIDC interaction on a valid-CSRF approval POST before issuing a code or consent', function (): void {
     $now = 1_700_000_000;
@@ -91,16 +91,16 @@ it('rechecks OIDC interaction on a valid-CSRF approval POST before issuing a cod
             '_config_cache' => false,
             'router' => ['cache' => false, 'files' => []],
         ])->boot();
-        $web->make(Registrar::class)->post(
+        $web->make(Registrar::class)->__call('post', [
             '/oauth/authorize',
             $controller->authorization(...),
             ['name' => 'test.oidc.approval', 'middleware' => [$csrf]],
-        );
-        $web->make(Registrar::class)->get(
+        ]);
+        $web->make(Registrar::class)->__call('get', [
             '/oauth/authorize',
             $controller->authorization(...),
             ['name' => 'test.oidc.authorization', 'middleware' => [$csrf]],
-        );
+        ]);
 
         $client = $fixture->clients->register(
             OAuthClientType::Public,
@@ -123,7 +123,7 @@ it('rechecks OIDC interaction on a valid-CSRF approval POST before issuing a cod
             $principals->set($principal);
             $uri = 'https://issuer.example.test/oauth/authorize?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986);
             $request = Request::fake(
-                query: $params,
+                query: foundationStringMap($params),
                 post: ['decision' => 'approve', '_token' => $csrfToken],
                 headers: ['Host' => 'issuer.example.test', 'Origin' => 'https://issuer.example.test'],
                 method: 'POST',

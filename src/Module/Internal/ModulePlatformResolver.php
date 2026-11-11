@@ -143,7 +143,7 @@ final readonly class ModulePlatformResolver
     }
 
     /**
-     * @phpstan-param ModuleDefinition $definition
+     * @phpstan-param ModuleDefinition|ResolvedModule $definition
      * @return list<string>
      */
     private function requiredExtensions(string $module, array $definition): array

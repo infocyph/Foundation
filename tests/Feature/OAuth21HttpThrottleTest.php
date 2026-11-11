@@ -59,7 +59,13 @@ it('keeps OAuth rate-limit validation inert while OAuth is disabled', function (
 
 it('rejects non-positive OAuth endpoint rate limits when OAuth is enabled', function (): void {
     $defaults = AuthDefaults::all();
+    \PHPUnit\Framework\Assert::assertIsArray(($defaults['auth'] ?? null));
+    \PHPUnit\Framework\Assert::assertIsArray(($defaults['auth']['oauth'] ?? null));
+
     $defaults['auth']['oauth']['enabled'] = true;
+    \PHPUnit\Framework\Assert::assertIsArray(($defaults['auth']['oauth']['rate_limits'] ?? null));
+    \PHPUnit\Framework\Assert::assertIsArray(($defaults['auth']['oauth']['rate_limits']['token'] ?? null));
+
     $defaults['auth']['oauth']['rate_limits']['token']['max'] = 0;
     $issues = new OAuthConfigValidator(new ConfigRepository($defaults))->validate(false);
     $keys = array_map(static fn($issue): string => $issue->key, $issues);

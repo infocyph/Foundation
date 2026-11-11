@@ -5,11 +5,10 @@ declare(strict_types=1);
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Account\Account;
 use Infocyph\Foundation\Auth\Account\AccountStatus;
+use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\Authentication\Session\AuthSession;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenRecord;
-use Infocyph\Foundation\Auth\AuthServices;
-use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\Authorization\Decision\AuthorizationDecision;
 use Infocyph\Foundation\Auth\Authorization\Gate\PermissionAuthorizer;
 use Infocyph\Foundation\Auth\Authorization\Grant\GrantResolver;
@@ -18,6 +17,7 @@ use Infocyph\Foundation\Auth\Authorization\Permission\PermissionResolver;
 use Infocyph\Foundation\Auth\Authorization\Role\Role;
 use Infocyph\Foundation\Auth\Authorization\Role\RolePermissionResolver;
 use Infocyph\Foundation\Auth\Authorization\Role\RoleStoreInterface;
+use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\SessionStoreInterface;
@@ -67,10 +67,7 @@ it('composes the complete credential and token lifecycle without eager sibling s
         );
         $account = $created->account;
 
-        expect($account)->toBeInstanceOf(Account::class);
-        if (!$account instanceof Account) {
-            throw new LogicException('Expected an account.');
-        }
+        \PHPUnit\Framework\Assert::assertInstanceOf(Account::class, $account);
 
         expect($actions->login([
             'identifier' => 'person@example.test',
@@ -81,8 +78,8 @@ it('composes the complete credential and token lifecycle without eager sibling s
             $account->id(),
             $account->identifier(),
         );
-        expect($verification->token)->not->toBeNull()
-            ->and($services->emailVerification()->verify($verification->token ?? '')->verified())->toBeTrue();
+        \PHPUnit\Framework\Assert::assertNotNull($verification->token);
+        expect($services->emailVerification()->verify($verification->token)->verified())->toBeTrue();
 
         $login = $actions->login([
             'identifier' => 'person@example.test',
@@ -120,25 +117,25 @@ it('composes the complete credential and token lifecycle without eager sibling s
             ->and($sessionStore->find($rotated->id))->toBeNull();
 
         $reset = $services->passwordResets()->issue($account->id());
-        expect($reset->token)->not->toBeNull()
-            ->and($services->passwordResets()->completeWithPlainPassword(
-                $reset->token ?? '',
-                'reset-secret',
-                $hasher,
-                $services->passwordPolicy(),
-            )->completed())->toBeTrue()
+        \PHPUnit\Framework\Assert::assertNotNull($reset->token);
+        expect($services->passwordResets()->completeWithPlainPassword(
+            $reset->token,
+            'reset-secret',
+            $hasher,
+            $services->passwordPolicy(),
+        )->completed())->toBeTrue()
             ->and($services->passwordResets()->complete(
-                $reset->token ?? '',
+                $reset->token,
                 $hasher->hash('replayed-secret'),
             )->failed())->toBeTrue();
 
         $passwordless = $services->passwordless()->issue($account->identifier());
-        expect($passwordless->token)->not->toBeNull()
-            ->and($services->passwordless()->verify($passwordless->token ?? '')->successful())->toBeTrue();
+        \PHPUnit\Framework\Assert::assertNotNull($passwordless->token);
+        expect($services->passwordless()->verify($passwordless->token)->successful())->toBeTrue();
 
         $remember = $services->rememberMe()->issue($account->id(), 'device-1');
-        expect($remember->token)->not->toBeNull()
-            ->and($services->rememberMe()->verify($remember->token->value)->verified())->toBeTrue();
+        \PHPUnit\Framework\Assert::assertNotNull($remember->token);
+        expect($services->rememberMe()->verify($remember->token->value)->verified())->toBeTrue();
 
         $now = time();
         $access = $services->tokens()->issueAccessToken(new AccessTokenClaims(
@@ -150,8 +147,8 @@ it('composes the complete credential and token lifecycle without eager sibling s
         ));
         $refresh = $services->tokens()->issueRefreshToken($account->id(), 'web', 'device-1');
 
-        expect($access->token)->not->toBeNull()
-            ->and($services->tokens()->verifyAccessToken($access->token ?? '')->successful())->toBeTrue()
+        \PHPUnit\Framework\Assert::assertNotNull($access->token);
+        expect($services->tokens()->verifyAccessToken($access->token)->successful())->toBeTrue()
             ->and($refresh->token)->not->toBeNull()
             ->and($refresh->refreshToken)->not->toBeNull()
             ->and($services->tokens()->verifyRefreshToken($refresh->token ?? '')->successful())->toBeTrue();
@@ -210,7 +207,7 @@ it('composes permissions roles grants gates and denial auditing', function (): v
     $created = $services->accounts()->create('authorizer@example.test');
     $account = $created->account;
 
-    expect($account)->not->toBeNull();
+    \PHPUnit\Framework\Assert::assertNotNull($account);
     if (!$account instanceof Account) {
         throw new LogicException('Expected an account.');
     }
@@ -248,7 +245,7 @@ it('refuses forged audit identity in denied authorization delegation and unsucce
     $app = foundationAuthApplication();
     $services = $app->make(AuthServices::class);
     $account = $services->accounts()->create('provenance@example.test')->account;
-    expect($account)->not->toBeNull();
+    \PHPUnit\Framework\Assert::assertNotNull($account);
     if (!$account instanceof Account) {
         throw new LogicException('Expected a stored account.');
     }
@@ -261,10 +258,7 @@ it('refuses forged audit identity in denied authorization delegation and unsucce
 
     expect($services->authorizer()->can($principal, 'invoice.not-allowed', context: $context)->allowed)->toBeFalse();
     $grant = $services->delegation()->grant($principal->id(), 'invoice.read', metadata: $context);
-    expect($grant->grant)->not->toBeNull();
-    if ($grant->grant === null) {
-        throw new LogicException('Expected a stored delegation grant.');
-    }
+    \PHPUnit\Framework\Assert::assertNotNull($grant->grant);
     $services->delegation()->revoke($grant->grant->id, $principal->id(), $context);
     expect($app->make(AuthActions::class)->login([
         'identifier' => 'missing-provenance@example.test',
@@ -273,10 +267,8 @@ it('refuses forged audit identity in denied authorization delegation and unsucce
     ])->failed())->toBeTrue();
 
     $audit = $app->make(AuditEventStoreInterface::class);
-    expect($audit)->toBeInstanceOf(InMemoryAuditEventStore::class);
-    if (!$audit instanceof InMemoryAuditEventStore) {
-        throw new \UnexpectedValueException('Domain integration requires the in-memory audit fixture.');
-    }
+    \PHPUnit\Framework\Assert::assertInstanceOf(InMemoryAuditEventStore::class, $audit);
+
     $types = [
         AuthEventType::AUTHORIZATION_DENIED,
         AuthEventType::DELEGATED_ACCESS_GRANTED,
@@ -303,16 +295,13 @@ it('composes MFA passkeys devices impersonation and step-up state', function ():
         $created = $services->accounts()->create('secure@example.test');
         $target = $created->account;
 
-        expect($target)->not->toBeNull();
+        \PHPUnit\Framework\Assert::assertNotNull($target);
         if (!$target instanceof Account) {
             throw new LogicException('Expected an account.');
         }
 
         $device = $services->devices()->register($target->id(), 'Laptop', 'fingerprint')->device;
-        expect($device)->not->toBeNull();
-        if (!$device instanceof DeviceRecord) {
-            throw new LogicException('Expected a device.');
-        }
+        \PHPUnit\Framework\Assert::assertNotNull($device);
 
         expect($services->devices()->trust($device->id)->successful())->toBeTrue()
             ->and($services->devices()->touch($device->id)->successful())->toBeTrue()

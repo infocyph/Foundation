@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/ProbeInput.php';
+$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::arguments($_SERVER['argv'] ?? []);
+
 use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Foundation;
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
-$configuration = json_decode((string) file_get_contents($argv[1]), true, flags: JSON_THROW_ON_ERROR);
-$app = Foundation::web($configuration);
+$configuration = json_decode((string) file_get_contents(\Infocyph\Foundation\Tests\Fixtures\ProbeInput::path($argv[1])), true, flags: JSON_THROW_ON_ERROR);
+$app = Foundation::web(\Infocyph\Foundation\Tests\Fixtures\ProbeInput::map($configuration));
 $app->container()->withinScope('webrick.request', static function () use ($app): void {
     $actions = $app->make(AuthActions::class);
     fwrite(STDOUT, 'READY' . PHP_EOL);

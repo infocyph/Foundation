@@ -99,11 +99,11 @@ PHP);
     expect($dto->age)->toBe(36)
         ->and($dto->address->city)->toBe('Dhaka');
 
-    expect(ArrayKit::dot()->get([
+    expect(ArrayKit::dot()->__call('get', [[
         'profile' => [
             'name' => 'Ada',
         ],
-    ], 'profile.name'))->toBe('Ada');
+    ], 'profile.name']))->toBe('Ada');
 
     $lazyConfig = ArrayKit::lazyConfig(
         directory: $basePath . '/config',
@@ -122,7 +122,6 @@ PHP);
         ->and($activeDirectory . '/data.php')->toBeFile()
         ->and($flatIndex)->toBeFile();
 });
-
 
 function foundationArrayKitActiveCacheDirectory(string $directory): string
 {

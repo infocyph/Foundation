@@ -72,10 +72,7 @@ it('rejects a real Composer downgrade after a captured feature snapshot and perm
         $app = \Infocyph\Foundation\Foundation::cli(['base_path' => $directory, '_config_cache' => false]);
         $context = new \Infocyph\Foundation\Module\ModuleFeatureCommandSnapshot($app)->capture();
         new \Infocyph\Foundation\Module\ModuleActivationManager($app)->applyFeatures('enable', ['data.database'], $context);
-        $config = require $directory . '/config/modules.php';
-        if (!is_array($config)) {
-            throw new \UnexpectedValueException('Published module configuration must be an array.');
-        }
+        $config = \foundationReadPhpFixtureArray($directory . '/config/modules.php');
         expect($config['features'])->toBe(['data.database' => true])
             ->and($config['application_policy'])->toBe(str_repeat('x', 16 * 1024 * 1024));
         // A removal plan read in another process must not survive a later enable.
@@ -105,20 +102,13 @@ it('rejects a real Composer downgrade after a captured feature snapshot and perm
         $exit = proc_close($process);
         $process = null;
         $result = json_decode((string) file_get_contents($directory . '/activation-result.json'), true, flags: JSON_THROW_ON_ERROR);
+        \PHPUnit\Framework\Assert::assertIsArray($result);
         expect($exit)->toBe(0)->and($error)->toBe('')
             ->and($result['rejected'] ?? '')->toContain('Feature configuration changed')
             ->and(file_get_contents($directory . '/composer.json'))->toBe($composerBefore)
-            ->and((require $directory . '/config/modules.php')['features'])->toBe(['data.database' => true]);
+            ->and((\foundationReadPhpFixtureArray($directory . '/config/modules.php'))['features'])->toBe(['data.database' => true]);
     } finally {
-        if (is_resource($process)) {
-            proc_terminate($process, SIGKILL);
-            proc_close($process);
-        }
-        foreach ($pipes as $pipe) {
-            if (is_resource($pipe)) {
-                fclose($pipe);
-            }
-        }
+        foundationClosePublicationProcess($process, $pipes);
         $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
         foreach ($files as $file) {
             if (!($file instanceof \SplFileInfo)) {
@@ -129,3 +119,17 @@ it('rejects a real Composer downgrade after a captured feature snapshot and perm
         rmdir($directory);
     }
 });
+
+/** @param array<array-key,mixed> $pipes */
+function foundationClosePublicationProcess(mixed $process, array $pipes): void
+{
+    if (is_resource($process)) {
+        proc_terminate($process, SIGKILL);
+        proc_close($process);
+    }
+    foreach ($pipes as $pipe) {
+        if (is_resource($pipe)) {
+            fclose($pipe);
+        }
+    }
+}

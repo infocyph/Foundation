@@ -18,6 +18,7 @@ final class Foundation4HostUpgradeEvidence
      */
     public static function fromLock(string $path): array
     {
+        $path = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::path($path);
         if (!is_file($path) || !is_readable($path)) {
             throw new InvalidArgumentException('Required Composer lock evidence is not readable.');
         }
@@ -32,25 +33,7 @@ final class Foundation4HostUpgradeEvidence
             throw new InvalidArgumentException('Composer lock evidence must contain an object.');
         }
 
-        $packages = [];
-        foreach (['packages', 'packages-dev'] as $group) {
-            $entries = $decoded[$group] ?? [];
-            if (!is_array($entries)) {
-                throw new InvalidArgumentException('Composer lock package listing is malformed.');
-            }
-
-            foreach ($entries as $package) {
-                if (!is_array($package) || !is_string($package['name'] ?? null)) {
-                    throw new InvalidArgumentException('Composer lock package name is invalid.');
-                }
-                $identity = self::identity($package);
-                $name = $package['name'];
-                if (isset($packages[$name])) {
-                    throw new InvalidArgumentException('Duplicate Composer package in lock evidence: ' . $name);
-                }
-                $packages[$name] = $identity;
-            }
-        }
+        $packages = self::packages($decoded);
 
         if ($packages === []) {
             throw new InvalidArgumentException('Composer lock evidence has no resolved packages.');
@@ -130,7 +113,7 @@ final class Foundation4HostUpgradeEvidence
             throw new InvalidArgumentException('Reviewed dependency changes are required.');
         }
 
-        return self::review($before, $after, $allowed);
+        return self::review($before, $after, BenchmarkSupport::objectMap($allowed));
     }
 
     /**
@@ -156,6 +139,7 @@ final class Foundation4HostUpgradeEvidence
     }
 
     /**
+     * @param array<array-key,mixed> $package
      * @return array{version:string,source_ref:?string,dist_ref:?string}
      * @throws \InvalidArgumentException
      */
@@ -197,5 +181,35 @@ final class Foundation4HostUpgradeEvidence
         $packages = $manifest['packages'];
 
         return ['sha256' => $manifest['sha256'], 'packages' => $packages];
+    }
+
+    /**
+     * @param array<array-key,mixed> $decoded
+     * @return array<string,array{version:string,source_ref:?string,dist_ref:?string}>
+     * @throws InvalidArgumentException
+     */
+    private static function packages(array $decoded): array
+    {
+        $packages = [];
+        foreach (['packages', 'packages-dev'] as $group) {
+            $entries = $decoded[$group] ?? [];
+            if (!is_array($entries)) {
+                throw new InvalidArgumentException('Composer lock package listing is malformed.');
+            }
+
+            foreach ($entries as $package) {
+                if (!is_array($package) || !is_string($package['name'] ?? null)) {
+                    throw new InvalidArgumentException('Composer lock package name is invalid.');
+                }
+                $identity = self::identity($package);
+                $name = $package['name'];
+                if (isset($packages[$name])) {
+                    throw new InvalidArgumentException('Duplicate Composer package in lock evidence: ' . $name);
+                }
+                $packages[$name] = $identity;
+            }
+        }
+
+        return $packages;
     }
 }

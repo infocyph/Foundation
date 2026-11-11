@@ -105,7 +105,7 @@ PHP);
         $records = $history->find($executionId);
         $recordIds = [];
         foreach ($records as $record) {
-            if (!is_array($record) || !is_string($record['execution_id'] ?? null)) {
+            if (!is_string($record['execution_id'] ?? null)) {
                 throw new \UnexpectedValueException('UID execution history requires string identifiers.');
             }
             $recordIds[] = $record['execution_id'];
@@ -136,6 +136,7 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
     $pid = pcntl_fork();
     if ($pid === -1) {
         unlink($exchange);
+
         throw new RuntimeException('Unable to fork UID runtime test process.');
     }
 
@@ -146,6 +147,7 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
         }
 
         pcntl_exec(PHP_BINARY, ['-r', '']);
+
         throw new RuntimeException('Unable to replace forked UID test process.');
     }
 
@@ -153,9 +155,7 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
         $parent = ExecutionId::generate()->value;
         $status = 0;
         pcntl_waitpid($pid, $status);
-        if (!is_int($status)) {
-            throw new \UnexpectedValueException('Forked UID process must provide an integer status.');
-        }
+        $status = foundationFixtureInteger($status);
         $child = trim((string) file_get_contents($exchange));
 
         expect(pcntl_wifexited($status))->toBeTrue()
@@ -201,6 +201,9 @@ function foundationUidRuntimeProject(): string
     return $project;
 }
 
+/**
+ * @throws \UnexpectedValueException
+ */
 function foundationUidRuntimeRemove(string $project): void
 {
     if (!is_dir($project)) {

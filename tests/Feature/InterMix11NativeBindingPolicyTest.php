@@ -2,13 +2,20 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
+use FilesystemIterator;
 use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
+
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\InterMix\DI\Build\StaticRuntimeGenerator;
 use Infocyph\InterMix\DI\ContainerBuilder;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use TypeError;
 
 final readonly class FoundationNativeBindingValue
 {
@@ -55,8 +62,7 @@ it('keeps optional InterMix class auto-binding disabled in every native Foundati
         if (!$consumer instanceof FoundationNativeBindingConsumer) {
             throw new \UnexpectedValueException('Expected a native binding consumer.');
         }
-        expect($consumer)->toBeInstanceOf(FoundationNativeBindingConsumer::class)
-            ->and($consumer->probe->value)->toBe('unbound')
+        expect($consumer->probe->value)->toBe('unbound')
             ->and($runtime->invoke(static fn(int $probe): int => $probe, ['probe' => 0]))->toBe(0)
             ->and($runtime->invoke(static fn(bool $probe): bool => $probe, ['probe' => false]))->toBeFalse()
             ->and($runtime->invoke(static fn(?int $probe): ?int => $probe, ['probe' => null]))->toBeNull()

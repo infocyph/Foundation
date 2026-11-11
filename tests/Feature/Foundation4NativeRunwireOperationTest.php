@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
 use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Communication\CommunicationProfiles;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -103,7 +105,7 @@ it('uses native ReqShield and TalkingBytes operation cancellation without retain
     $runtime = RuntimeContext::standalone();
     $request = RequestContext::create($runtime);
     CacheRunwire::bind($runtime);
-    $validator = new class(new ValidatorFactory(new ConfigRepository(), new SchemaRegistry())) extends FormRequest {
+    $validator = new class (new ValidatorFactory(new ConfigRepository(), new SchemaRegistry())) extends FormRequest {
         #[\Override]
         protected function rules(Request $request): array
         {
@@ -118,13 +120,14 @@ it('uses native ReqShield and TalkingBytes operation cancellation without retain
             'grpc' => ['profiles' => ['default' => []]],
         ],
     ]));
+
     try {
         expect($validator->validate(Request::fake(['name' => 'Ada']))->passes())->toBeTrue()
-            ->and($profiles->http())->toBeInstanceOf(\Infocyph\TalkingBytes\Http\HttpClient::class);
+            ->and($profiles->http())->not->toBe($profiles->http());
 
         CacheRunwire::share($request, null, static function () use ($validator, $profiles): void {
             expect($validator->validate(Request::fake(['name' => 'Ada']))->passes())->toBeTrue()
-                ->and($profiles->http())->toBeInstanceOf(\Infocyph\TalkingBytes\Http\HttpClient::class);
+                ->and($profiles->http())->not->toBe($profiles->http());
         });
 
         $request->cancel(CancellationReason::HOST_CANCELLED);
@@ -164,15 +167,13 @@ it('propagates passed native context to ordinary bus consumer and worker operati
     $worker = $app->make(\Infocyph\Foundation\Messaging\OmnibusWorkerFactory::class)->make('test');
 
     try {
-        expect($bus->dispatch(new FoundationNativeOperationMessage('plain')))
-            ->toBeInstanceOf(\Infocyph\Omnibus\Envelope\Envelope::class);
+        expect($bus->dispatch(new FoundationNativeOperationMessage('plain'))->message)->toEqual(new FoundationNativeOperationMessage('plain'));
         $app->execution()->run(static function () use ($bus, $consumer, $worker, $runtime, $request): void {
             foreach ([$bus, $consumer, $worker] as $service) {
                 expect($service->runwireBinding()->runtime())->toBe($runtime)
                     ->and($service->runwireBinding()->request())->toBe($request);
             }
-            expect($bus->dispatch(new FoundationNativeOperationMessage('bound')))
-                ->toBeInstanceOf(\Infocyph\Omnibus\Envelope\Envelope::class);
+            expect($bus->dispatch(new FoundationNativeOperationMessage('bound'))->message)->toEqual(new FoundationNativeOperationMessage('bound'));
             $request->cancel(CancellationReason::HOST_CANCELLED);
             expect(fn() => $bus->dispatch(new FoundationNativeOperationMessage('cancelled')))
                 ->toThrow(CancelledException::class)
@@ -183,8 +184,7 @@ it('propagates passed native context to ordinary bus consumer and worker operati
             ->and($consumer->runwireBinding()->request())->toBeNull()
             ->and(CacheRunwire::runtime())->toBeNull()
             ->and($request->completed())->toBeFalse()
-            ->and($bus->dispatch(new FoundationNativeOperationMessage('fallback')))
-            ->toBeInstanceOf(\Infocyph\Omnibus\Envelope\Envelope::class);
+            ->and($bus->dispatch(new FoundationNativeOperationMessage('fallback'))->message)->toEqual(new FoundationNativeOperationMessage('fallback'));
     } finally {
         $request->complete();
     }

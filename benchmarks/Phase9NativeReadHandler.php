@@ -14,6 +14,11 @@ use RuntimeException;
  * Selected native storage and credential workload, using an isolated fixture.
  * This is not a full application authentication or authorization transaction.
  */
+/**
+ * Runtime entry point discovered through native provider, route or benchmark metadata.
+ *
+ * @api
+ */
 final readonly class Phase9NativeReadHandler
 {
     /**

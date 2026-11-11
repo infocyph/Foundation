@@ -2,14 +2,18 @@
 
 declare(strict_types=1);
 
-use Infocyph\CacheLayer\Cache\CacheInterface;
+namespace Infocyph\Foundation\Tests\Feature;
+
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Foundation;
+
 use Infocyph\Foundation\Testing\TestKit;
 use Infocyph\TalkingBytes\Email\Emailer;
 use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Http\Testing\FakeHttpTransport;
+use InvalidArgumentException;
 use League\Flysystem\FilesystemOperator;
+use stdClass;
 
 it('composes package fakes without replacing their implementations', function (): void {
     $app = Foundation::cli([

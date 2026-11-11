@@ -77,7 +77,7 @@ it('encodes P-256 coordinates as fixed-width COSE bytes even with leading zeroes
 it('routes the selected WebAuthn driver through OTP Passkey', function (): void {
     $app = Foundation::web(foundationOtpPasskeyConfig())->boot();
 
-    expect($app->make(Passkey::class))->toBeInstanceOf(Passkey::class)
+    expect($app->make(Passkey::class))->toBe($app->make(Passkey::class))
         ->and($app->make(PasskeyServiceInterface::class))->toBeInstanceOf(OtpPasskeyService::class);
 });
 
@@ -111,16 +111,29 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
         $credentialId = foundationWebauthnBase64Url($rawId);
         $userHandle = hash('sha3-256', "foundation:passkey:user:v1\0owner", true);
         $record = \Webauthn\CredentialRecord::create(
-            $rawId, 'public-key', [], 'none', \Webauthn\TrustPath\EmptyTrustPath::create(),
+            $rawId,
+            'public-key',
+            [],
+            'none',
+            \Webauthn\TrustPath\EmptyTrustPath::create(),
             \Symfony\Component\Uid\Uuid::fromString('00000000-0000-0000-0000-000000000000'),
-            $publicKey, $userHandle, 0,
+            $publicKey,
+            $userHandle,
+            0,
         );
         $serializer = new \Webauthn\Denormalizer\WebauthnSerializerFactory(
             \Webauthn\AttestationStatement\AttestationStatementSupportManager::create(),
         )->create();
         $store = $app->make(\Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface::class);
         $store->save(new \Infocyph\Foundation\Auth\Passkey\PasskeyCredential(
-            'stored-passkey', 'owner', $credentialId, $serializer->serialize($record, 'json'), '', 0, [], time(),
+            'stored-passkey',
+            'owner',
+            $credentialId,
+            $serializer->serialize($record, 'json'),
+            '',
+            0,
+            [],
+            time(),
         ));
         $service = $app->make(PasskeyServiceInterface::class);
         $challenge = $service->startAuthentication('owner');
@@ -137,12 +150,17 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
             'response' => [
                 'authenticatorData' => foundationWebauthnBase64Url($authenticatorData),
                 'clientDataJSON' => foundationWebauthnBase64Url($clientData),
-                'signature' => foundationWebauthnBase64Url($signature),
+                'signature' => foundationWebauthnBase64Url(foundationFixtureString($signature)),
                 'userHandle' => foundationWebauthnBase64Url($userHandle),
             ],
         ], JSON_THROW_ON_ERROR);
         $result = new \Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationResult(
-            $challenge->id, $credentialId, '', '', '', metadata: ['credential_json' => $payload],
+            $challenge->id,
+            $credentialId,
+            '',
+            '',
+            '',
+            metadata: ['credential_json' => $payload],
         );
         $services = $app->make(\Infocyph\Foundation\Auth\AuthServices::class);
         $outcome = $services->passkeys()->finishAuthentication($result);
@@ -150,7 +168,13 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
             ->and($store->findByCredentialId($credentialId)?->revision)->toBe(1);
         $now = time();
         $session = new \Infocyph\Foundation\Auth\Authentication\Session\AuthSession(
-            'passkey-session', 'owner', null, $now, $now, $now + 300, $now,
+            'passkey-session',
+            'owner',
+            null,
+            $now,
+            $now,
+            $now + 300,
+            $now,
         );
         $stepUp = $services->stepUp();
         expect($stepUp->requiresStepUp($session, 'payment', ['method' => 'passkey']))->toBeTrue();
@@ -158,7 +182,13 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
         expect($stepUp->requiresStepUp($session, 'payment', ['method' => 'passkey']))->toBeFalse()
             ->and($stepUp->requiresStepUp($session, 'payment', ['method' => 'mfa']))->toBeTrue()
             ->and($stepUp->requiresStepUp(new \Infocyph\Foundation\Auth\Authentication\Session\AuthSession(
-                'other-session', 'owner', null, $now, $now, $now + 300, $now,
+                'other-session',
+                'owner',
+                null,
+                $now,
+                $now,
+                $now + 300,
+                $now,
             ), 'payment', ['method' => 'passkey']))->toBeTrue()
             ->and($services->passkeys()->finishAuthentication($result)->successful())->toBeFalse();
 
@@ -184,9 +214,10 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
         if (!is_array($wrongOriginPayload)) {
             throw new \UnexpectedValueException('Expected a decoded JSON object.');
         }
+        \PHPUnit\Framework\Assert::assertIsArray(($wrongOriginPayload['response'] ?? null));
         $wrongOriginPayload['response']['authenticatorData'] = foundationWebauthnBase64Url($wrongOriginAuthenticatorData);
         $wrongOriginPayload['response']['clientDataJSON'] = foundationWebauthnBase64Url($wrongOriginClientData);
-        $wrongOriginPayload['response']['signature'] = foundationWebauthnBase64Url($wrongOriginSignature);
+        $wrongOriginPayload['response']['signature'] = foundationWebauthnBase64Url(foundationFixtureString($wrongOriginSignature));
         $wrongOriginResult = new \Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationResult(
             $wrongOriginChallenge->id,
             $credentialId,
@@ -218,9 +249,12 @@ it('verifies a signed native WebAuthn assertion before accepting method-bound st
         }
 
         $wrongRpPayload = json_decode($payload, true, flags: JSON_THROW_ON_ERROR);
+        \PHPUnit\Framework\Assert::assertIsArray($wrongRpPayload);
+        \PHPUnit\Framework\Assert::assertIsArray(($wrongRpPayload['response'] ?? null));
+
         $wrongRpPayload['response']['authenticatorData'] = foundationWebauthnBase64Url($wrongRpAuthenticatorData);
         $wrongRpPayload['response']['clientDataJSON'] = foundationWebauthnBase64Url($wrongRpClientData);
-        $wrongRpPayload['response']['signature'] = foundationWebauthnBase64Url($wrongRpSignature);
+        $wrongRpPayload['response']['signature'] = foundationWebauthnBase64Url(foundationFixtureString($wrongRpSignature));
         $wrongRpResult = new \Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationResult(
             $wrongRpChallenge->id,
             $credentialId,
@@ -249,15 +283,16 @@ it('registers an actual none-attested WebAuthn credential and signs its first as
             throw new RuntimeException('Unable to generate the test authenticator key.');
         }
         $details = openssl_pkey_get_details($key);
-        if (!is_array($details) || !isset($details['ec']['x'], $details['ec']['y'])) {
+        \PHPUnit\Framework\Assert::assertIsArray(($details['ec'] ?? null));
+        if (!isset($details['ec']['x'], $details['ec']['y'])) {
             throw new RuntimeException('Authenticator EC coordinates are unavailable.');
         }
 
         // Actual COSE EC2/P-256 public key with user presence, verification,
         // and attested-credential-data flags. No production CBOR engine is added.
         $coseKey = "\xa5\x01\x02\x03\x26\x20\x01\x21\x58\x20"
-            . foundationCoseP256Coordinate($details['ec']['x'])
-            . "\x22\x58\x20" . foundationCoseP256Coordinate($details['ec']['y']);
+            . foundationCoseP256Coordinate(foundationFixtureString($details['ec']['x']))
+            . "\x22\x58\x20" . foundationCoseP256Coordinate(foundationFixtureString($details['ec']['y']));
         $credentialIdBytes = random_bytes(32);
         $credentialId = foundationWebauthnBase64Url($credentialIdBytes);
         $registration = $services->passkeys()->startRegistration($account->id())->challenge;
@@ -340,7 +375,7 @@ it('registers an actual none-attested WebAuthn credential and signs its first as
             'response' => [
                 'authenticatorData' => foundationWebauthnBase64Url($authenticatorData),
                 'clientDataJSON' => foundationWebauthnBase64Url($assertionClientData),
-                'signature' => foundationWebauthnBase64Url($signature),
+                'signature' => foundationWebauthnBase64Url(foundationFixtureString($signature)),
                 'userHandle' => foundationWebauthnBase64Url(
                     hash('sha3-256', "foundation:passkey:user:v1\0" . $account->id(), true),
                 ),

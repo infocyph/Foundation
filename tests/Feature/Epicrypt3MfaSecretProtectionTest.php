@@ -50,7 +50,7 @@ function foundationEpicrypt3MfaRing(string $activeId, string $activeKey, ?string
 function foundationEpicrypt3MfaDbFactory(): array
 {
     $state = new RuntimeExecutionState();
-    $container = new class($state) implements ContainerInterface {
+    $container = new class ($state) implements ContainerInterface {
         public function __construct(private RuntimeExecutionState $state) {}
 
         /**
@@ -171,17 +171,19 @@ it('reads a bounded fallback key and reprotects only on an explicit write bounda
     );
     $fallbackRead = $rotatedProtector->unprotectResult($oldStored);
 
+    \PHPUnit\Framework\Assert::assertIsArray(($fallbackRead->factor->metadata['otp'] ?? null));
     expect($fallbackRead->usedFallbackKey)->toBeTrue()
         ->and($fallbackRead->factor->revision)->toBe($factor->revision)
-        ->and($fallbackRead->factor->metadata['otp']['secret'])->toBe('JBSWY3DPEHPK3PXP');
+        ->and(foundationStringMap($fallbackRead->factor->metadata['otp'])['secret'])->toBe('JBSWY3DPEHPK3PXP');
 
     $reprotected = $rotatedProtector->protect($fallbackRead->factor);
     $activeRead = $rotatedProtector->unprotectResult($reprotected);
 
+    \PHPUnit\Framework\Assert::assertIsArray(($activeRead->factor->metadata['otp'] ?? null));
     expect($reprotected->revision)->toBe($factor->revision)
         ->and($activeRead->usedFallbackKey)->toBeFalse()
         ->and($activeRead->factor->revision)->toBe($factor->revision)
-        ->and($activeRead->factor->metadata['otp']['secret'])->toBe('JBSWY3DPEHPK3PXP');
+        ->and(foundationStringMap($activeRead->factor->metadata['otp'])['secret'])->toBe('JBSWY3DPEHPK3PXP');
 });
 
 it('permits legacy plaintext only under the explicit migration policy', function (): void {
@@ -195,7 +197,7 @@ it('permits legacy plaintext only under the explicit migration policy', function
 
     $rewritten = $migrationProtector->protect($migrationRead->factor);
     $strict = new MfaSecretProtector($ring);
-    expect($strict->unprotect($rewritten)->metadata['otp']['secret'])->toBe('JBSWY3DPEHPK3PXP')
+    expect(foundationStringMap($strict->unprotect($rewritten)->metadata['otp'])['secret'])->toBe('JBSWY3DPEHPK3PXP')
         ->and(fn() => $strict->unprotect($factor))
         ->toThrow(DecryptionException::class);
 });
@@ -217,7 +219,7 @@ it('persists only protected MFA secrets while preserving revision based DB CAS',
         sprintf('SELECT metadata FROM %s WHERE id = ?', $tables->mfaFactors()),
         [$factor->id],
     )[0] ?? null;
-    expect($row)->toBeArray();
+    \PHPUnit\Framework\Assert::assertIsArray($row);
 
     $raw = is_string($row['metadata'] ?? null) ? $row['metadata'] : '';
     expect($raw)->not->toContain('JBSWY3DPEHPK3PXP')
@@ -228,18 +230,18 @@ it('persists only protected MFA secrets while preserving revision based DB CAS',
     if (!$loaded instanceof MfaFactor) {
         throw new RuntimeException('Expected a decrypted MFA factor.');
     }
-    expect($loaded->metadata['otp']['secret'])->toBe('JBSWY3DPEHPK3PXP')
+    \PHPUnit\Framework\Assert::assertIsArray(($loaded->metadata['otp'] ?? null));
+    expect(foundationStringMap($loaded->metadata['otp'])['secret'])->toBe('JBSWY3DPEHPK3PXP')
         ->and($loaded->revision)->toBe(0);
 
-    $updated = $loaded->withMetadata(array_replace_recursive(
+    $updated = $loaded->withMetadata(foundationStringMap(array_replace_recursive(
         $loaded->metadata,
         ['otp' => ['counter' => 7]],
-    ));
-    expect($updated)->toBeInstanceOf(MfaFactor::class)
-        ->and($store->compareAndSwap($loaded, $updated))->toBeTrue()
+    )));
+    expect($store->compareAndSwap($loaded, $updated))->toBeTrue()
         ->and($store->compareAndSwap($loaded, $updated))->toBeFalse()
-        ->and(($store->findForAccount('account-1')[0] ?? null)?->revision)->toBe(1)
-        ->and(($store->findForAccount('account-1')[0] ?? null)?->metadata['otp']['counter'])->toBe(7);
+        ->and(($store->findForAccount('account-1')[0])->revision)->toBe(1)
+        ->and(foundationStringMap(($store->findForAccount('account-1')[0])->metadata['otp'])['counter'])->toBe(7);
 
     $state->cleanup();
 });
@@ -252,11 +254,13 @@ it('does not let stale fallback-key reprotection overwrite a newer OTP counter r
     $generator = new KeyMaterialGenerator();
     $oldKey = $generator->forAead();
     $newKey = $generator->forAead();
-    $oldStore = new DBLayerMfaFactorStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]),
+    $oldStore = new DBLayerMfaFactorStore(
+        new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]),
         $tables,
         secretProtector: new MfaSecretProtector(foundationEpicrypt3MfaRing('old', $oldKey)),
     );
-    $rotatedStore = new DBLayerMfaFactorStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]),
+    $rotatedStore = new DBLayerMfaFactorStore(
+        new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]),
         $tables,
         secretProtector: new MfaSecretProtector(foundationEpicrypt3MfaRing('new', $newKey, 'old', $oldKey)),
     );
@@ -268,31 +272,27 @@ it('does not let stale fallback-key reprotection overwrite a newer OTP counter r
     if (!$stale instanceof MfaFactor || !$current instanceof MfaFactor) {
         throw new RuntimeException('Rotation test failed to load MFA factors.');
     }
-    expect($stale)->toBeInstanceOf(MfaFactor::class)
-        ->and($current)->toBeInstanceOf(MfaFactor::class);
+    expect($stale->revision)->toBe($current->revision);
 
-    $counterUpdate = $current->withMetadata(array_replace_recursive(
+    $counterUpdate = $current->withMetadata(foundationStringMap(array_replace_recursive(
         $current->metadata,
         ['otp' => ['counter' => 11]],
-    ));
+    )));
     expect($rotatedStore->compareAndSwap($current, $counterUpdate))->toBeTrue();
 
-    $staleReprotection = $stale->withMetadata(array_replace_recursive(
+    $staleReprotection = $stale->withMetadata(foundationStringMap(array_replace_recursive(
         $stale->metadata,
         ['otp' => ['counter' => 5]],
-    ));
+    )));
     expect($rotatedStore->compareAndSwap($stale, $staleReprotection))->toBeFalse();
 
-    $latest = $rotatedStore->findForAccount('account-1')[0] ?? null;
-    expect($latest)->toBeInstanceOf(MfaFactor::class)
-        ->and($latest?->revision)->toBe(1)
-        ->and($latest?->metadata['otp']['counter'])->toBe(11)
-        ->and($latest?->metadata['otp']['secret'])->toBe('JBSWY3DPEHPK3PXP');
+    $latest = $rotatedStore->findForAccount('account-1')[0];
+    expect($latest->revision)->toBe(1)
+        ->and(foundationStringMap($latest->metadata['otp'])['counter'])->toBe(11)
+        ->and(foundationStringMap($latest->metadata['otp'])['secret'])->toBe('JBSWY3DPEHPK3PXP');
 
     $state->cleanup();
 });
-
-
 
 it('fails closed for unknown retired and tampered MFA protection material', function (): void {
     $generator = new KeyMaterialGenerator();
@@ -330,6 +330,7 @@ it('fails closed for unknown retired and tampered MFA protection material', func
         ->toThrow(DecryptionException::class);
 
     $tamperedMetadata = $stored->metadata;
+    \PHPUnit\Framework\Assert::assertIsArray(($tamperedMetadata['otp'] ?? null));
     $ciphertext = $tamperedMetadata['otp']['secret'];
     if (!is_string($ciphertext) || $ciphertext === '') {
         throw new RuntimeException('Expected protected MFA ciphertext.');
@@ -379,21 +380,21 @@ it('isolates MFA plaintext across sequential and Fiber reuse of the protection s
     $storedB = $protector->protect($factorB);
 
     for ($iteration = 0; $iteration < 32; ++$iteration) {
-        expect($protector->unprotect($storedA)->metadata['otp']['secret'])->toBe('JBSWY3DPEHPK3PXP')
-            ->and($protector->unprotect($storedB)->metadata['otp']['secret'])->toBe('KRUGS4ZANFZSAYJA');
+        expect(foundationStringMap($protector->unprotect($storedA)->metadata['otp'])['secret'])->toBe('JBSWY3DPEHPK3PXP')
+            ->and(foundationStringMap($protector->unprotect($storedB)->metadata['otp'])['secret'])->toBe('KRUGS4ZANFZSAYJA');
     }
 
     $fiberA = new Fiber(function () use ($protector, $storedA): string {
-        $first = $protector->unprotect($storedA)->metadata['otp']['secret'];
+        $first = foundationStringMap($protector->unprotect($storedA)->metadata['otp'])['secret'];
         expect(Fiber::suspend($first))->toBeNull();
 
-        return $protector->unprotect($storedA)->metadata['otp']['secret'];
+        return foundationEpicrypt3MfaSecret($protector->unprotect($storedA));
     });
     $fiberB = new Fiber(function () use ($protector, $storedB): string {
-        $first = $protector->unprotect($storedB)->metadata['otp']['secret'];
+        $first = foundationStringMap($protector->unprotect($storedB)->metadata['otp'])['secret'];
         expect(Fiber::suspend($first))->toBeNull();
 
-        return $protector->unprotect($storedB)->metadata['otp']['secret'];
+        return foundationEpicrypt3MfaSecret($protector->unprotect($storedB));
     });
 
     expect($fiberA->start())->toBe('JBSWY3DPEHPK3PXP')
@@ -442,3 +443,15 @@ it('atomically replaces and consumes OTP recovery digests without double consump
 
     $state->cleanup();
 });
+
+/** @throws UnexpectedValueException */
+function foundationEpicrypt3MfaSecret(MfaFactor $factor): string
+{
+    $metadata = foundationStringMap($factor->metadata['otp'] ?? null);
+    $secret = $metadata['secret'] ?? null;
+    if (!is_string($secret)) {
+        throw new UnexpectedValueException('MFA fixture secret must be a string.');
+    }
+
+    return $secret;
+}

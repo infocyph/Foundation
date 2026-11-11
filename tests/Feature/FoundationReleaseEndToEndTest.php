@@ -43,9 +43,11 @@ final class FoundationPhase8ReleaseScopedProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
@@ -237,6 +239,11 @@ final class FoundationPhase8ReleaseIO implements CommandIO
     }
 }
 
+/**
+ * Runtime entry point discovered through native provider, route or benchmark metadata.
+ *
+ * @api
+ */
 final class FoundationPhase8ReleaseProvider extends ServiceProvider
 {
     #[\Override]
@@ -271,6 +278,11 @@ final class FoundationPhase8ReleaseProvider extends ServiceProvider
     }
 }
 
+/**
+ * Runtime entry point discovered through native provider, route or benchmark metadata.
+ *
+ * @api
+ */
 final class FoundationPhase8ReleaseWebHandler
 {
     public function __invoke(): Response
@@ -298,7 +310,8 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         );
 
         $generation = $releaseRoot . '/generations/phase8-e2e';
-        $foundationManifest = require $generation . '/foundation.php';
+        $foundationManifest = \foundationReadPhpFixtureArray($generation . '/foundation.php');
+        \PHPUnit\Framework\Assert::assertIsArray(($foundationManifest['worker'] ?? null));
         expect($release['generation'])->toBe('phase8-e2e')
             ->and(new ActiveGeneration()->current($releaseRoot)['generation'])->toBe('phase8-e2e')
             ->and(is_file($generation . '/foundation.php'))->toBeTrue()
@@ -324,11 +337,8 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         }
 
         $trustedFoundationSha256 = hash_file('sha256', $release['manifest']);
-        expect($trustedFoundationSha256)->toBeString()
-            ->and($trustedFoundationSha256)->toMatch('/^[a-f0-9]{64}$/D');
-        if (!is_string($trustedFoundationSha256)) {
-            throw new RuntimeException('Unable to hash the generated Foundation manifest.');
-        }
+        \PHPUnit\Framework\Assert::assertIsString($trustedFoundationSha256);
+        expect($trustedFoundationSha256)->toMatch('/^[a-f0-9]{64}$/D');
 
         $sourceWorkerSupervisor = Foundation::worker($config);
         expect($sourceWorkerSupervisor->booted())->toBeFalse();
@@ -353,6 +363,7 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         $hostRequest = \Infocyph\Runwire\RequestContext::create($hostRuntime);
         $writer = new \Infocyph\Foundation\Tests\Fixtures\RunwireCollectingWriter();
         $host->start();
+
         try {
             $host->handle(new \Infocyph\Runwire\Http\HttpRequest(
                 method: 'GET',
@@ -362,8 +373,7 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
                 body: new \Infocyph\Foundation\Tests\Fixtures\RunwireEmptyBody(),
                 context: $hostRequest,
             ), $writer, completeResponse: true);
-            expect($bootstrap)->toBeInstanceOf(\Infocyph\Runwire\Runtime\RuntimeApplicationFactoryInterface::class)
-                ->and($writer->status)->toBe(200)
+            expect($writer->status)->toBe(200)
                 ->and($writer->endCalls)->toBe(1)
                 ->and($writer->body)->toBe('{"generation":"phase8-e2e"}')
                 ->and($hostRequest->completed())->toBeTrue();
@@ -445,6 +455,7 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         $previousRoot = getenv(FoundationReleaseBootstrap::RELEASE_ROOT_ENV);
         $previousSha256 = getenv(FoundationReleaseBootstrap::MANIFEST_SHA256_ENV);
         FoundationPhase8ReleaseWorkerProvider::$observedRuntime = null;
+
         try {
             foundationPhase8ReleaseSetEnvironment(FoundationReleaseBootstrap::RELEASE_ROOT_ENV, $releaseRoot);
             foundationPhase8ReleaseSetEnvironment(
@@ -474,6 +485,9 @@ it('rehearses a trusted four-mode generated-release rollback without losing reta
     $project = foundationPhase8ReleaseProject();
     $releaseRoot = $project . '/storage/releases';
     $config = foundationPhase8ReleaseConfig($project);
+    \PHPUnit\Framework\Assert::assertIsArray(($config['database'] ?? null));
+    \PHPUnit\Framework\Assert::assertIsArray(($config['database']['connections'] ?? null));
+
     $config['database']['connections']['primary'] = [
         'driver' => 'sqlite',
         'database' => $project . '/storage/retained-auth.sqlite',
@@ -525,10 +539,16 @@ it('rehearses a trusted four-mode generated-release rollback without losing reta
         $compiler = new FoundationReleaseCompiler();
         $capabilities = ['web' => [], 'cli' => [], 'worker' => [], 'scheduler' => []];
         $previous = $compiler->buildAndActivate(
-            $config, $releaseRoot, capabilities: $capabilities, generation: 'retained-before',
+            $config,
+            $releaseRoot,
+            capabilities: $capabilities,
+            generation: 'retained-before',
         );
         $candidate = $compiler->buildAndActivate(
-            $config, $releaseRoot, capabilities: $capabilities, generation: 'retained-candidate',
+            $config,
+            $releaseRoot,
+            capabilities: $capabilities,
+            generation: 'retained-candidate',
         );
         $active = new ActiveGeneration();
         $expectedFingerprint = \Infocyph\Foundation\Release\FoundationReleaseManifest::dependencyFingerprint();
@@ -552,7 +572,9 @@ it('rehearses a trusted four-mode generated-release rollback without losing reta
             $loader = new FoundationReleaseRuntime();
             foundationResetWebrickProductionRegistries();
             $web = $loader->webPrevalidated(
-                $config, $releaseRoot, $selected['manifest_sha256'],
+                $config,
+                $releaseRoot,
+                $selected['manifest_sha256'],
             );
             $response = $web->kernel->handle(Request::fake(
                 headers: ['Host' => 'phase8.test'],
@@ -563,7 +585,10 @@ it('rehearses a trusted four-mode generated-release rollback without losing reta
 
             foreach ([RuntimeMode::Cli, RuntimeMode::Worker, RuntimeMode::Scheduler] as $mode) {
                 $runtime = $loader->nonWebPrevalidated(
-                    $config, $mode, $releaseRoot, $selected['manifest_sha256'],
+                    $config,
+                    $mode,
+                    $releaseRoot,
+                    $selected['manifest_sha256'],
                 );
                 expect($runtime->application->runtimeMode())->toBe($mode);
             }
@@ -578,7 +603,7 @@ it('rehearses a trusted four-mode generated-release rollback without losing reta
                 ['retained-owner'],
             );
             expect($stored)->toHaveCount(1)
-                ->and(password_verify('retained-release-password', $stored[0]['password_hash']))->toBeTrue()
+                ->and(password_verify('retained-release-password', foundationFixtureString($stored[0]['password_hash'])))->toBeTrue()
                 ->and($connection->table($tables->sessions())->count())->toBe(1)
                 ->and($connection->table($tables->refreshTokens())->count())->toBe(1);
         }
@@ -612,6 +637,7 @@ it('publishes and boots every production matcher from its native Webrick cache',
         $project = foundationPhase8ReleaseProject();
         $releaseRoot = $project . '/storage/releases';
         $config = foundationPhase8ReleaseConfig($project);
+        \PHPUnit\Framework\Assert::assertIsArray(($config['router'] ?? null));
         $config['router']['matcher'] = $name;
 
         try {
@@ -628,10 +654,11 @@ it('publishes and boots every production matcher from its native Webrick cache',
             );
 
             $generation = $releaseRoot . '/generations/phase8-' . $name;
-            $manifest = require $generation . '/foundation.php';
+            $manifest = \foundationReadPhpFixtureArray($generation . '/foundation.php');
+            \PHPUnit\Framework\Assert::assertIsArray(($manifest['web'] ?? null));
             $cachePath = $manifest['web']['matcher_cache_path'] ?? null;
             $absoluteCachePath = $generation . DIRECTORY_SEPARATOR
-                . str_replace('/', DIRECTORY_SEPARATOR, (string) $cachePath);
+                . str_replace('/', DIRECTORY_SEPARATOR, foundationFixtureString($cachePath));
 
             expect($cachePath)->toBe($case['path'])
                 ->and(array_key_exists('matcher_cache_sha256', $manifest['web']))->toBeFalse();
@@ -657,8 +684,8 @@ it('publishes and boots every production matcher from its native Webrick cache',
             $reflection = new ReflectionProperty($runtime->kernel, 'matcher');
             $matcher = $reflection->getValue($runtime->kernel);
 
-            expect($matcher)->toBeInstanceOf($case['class'])
-                ->and($matcher->canBootFromCache())->toBeTrue();
+            \PHPUnit\Framework\Assert::assertInstanceOf($case['class'], $matcher);
+            expect($matcher->canBootFromCache())->toBeTrue();
 
             $response = $runtime->kernel->handle(Request::fake(
                 headers: ['Host' => 'phase8.test'],
@@ -677,6 +704,7 @@ it('lets Webrick validate route shards lazily on native access', function (): vo
     $project = foundationPhase8ReleaseProject();
     $releaseRoot = $project . '/storage/releases';
     $config = foundationPhase8ReleaseConfig($project);
+    \PHPUnit\Framework\Assert::assertIsArray(($config['router'] ?? null));
     $config['router']['matcher'] = 'sharded';
 
     try {
@@ -700,6 +728,7 @@ it('lets Webrick validate route shards lazily on native access', function (): vo
         );
         $tampered = 0;
         foreach ($files as $file) {
+            \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
             if (!$file->isFile()
                 || !str_ends_with($file->getFilename(), '.php')
                 || str_starts_with($file->getFilename(), '__')
@@ -740,8 +769,8 @@ it('lets Webrick validate route shards lazily on native access', function (): vo
         $reflection = new ReflectionProperty($runtime->kernel, 'matcher');
         $matcher = $reflection->getValue($runtime->kernel);
 
-        expect($matcher)->toBeInstanceOf(ShardedMatcher::class)
-            ->and($matcher->canBootFromCache())->toBeTrue()
+        \PHPUnit\Framework\Assert::assertInstanceOf(ShardedMatcher::class, $matcher);
+        expect($matcher->canBootFromCache())->toBeTrue()
             ->and(fn(): mixed => $matcher->matchCompiled('GET', 'phase8.test', '/phase8'))
             ->toThrow(RuntimeException::class, 'hash mismatch');
     } finally {
@@ -942,9 +971,7 @@ function foundationPhase8ReleaseRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
-        if (!$file instanceof \SplFileInfo) {
-            throw new \UnexpectedValueException('Expected a filesystem iterator entry.');
-        }
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
 
         $file->isLink() || !$file->isDir()
             ? unlink($file->getPathname())

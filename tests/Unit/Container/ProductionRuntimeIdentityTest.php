@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Unit\Container;
+
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Runtime\NonWebProductionGraph;
 use Infocyph\InterMix\DI\Container;

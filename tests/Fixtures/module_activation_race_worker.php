@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/ProbeInput.php';
+$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::arguments($_SERVER['argv'] ?? []);
+
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 use Infocyph\Foundation\Foundation;
@@ -9,11 +12,12 @@ use Infocyph\Foundation\Module\ModuleActivationManager;
 use Infocyph\Foundation\Module\ModuleFeatureCommandSnapshot;
 use Infocyph\Foundation\Tests\Fixtures\AuthContentionFixture;
 
-$directory = $argv[1];
+$directory = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::project($argv[1]);
 $app = Foundation::cli(['base_path' => $directory, '_config_cache' => false]);
 $context = new ModuleFeatureCommandSnapshot($app)->capture();
 touch($directory . '/ready');
 AuthContentionFixture::waitFor($directory . '/start');
+
 try {
     if (($argv[2] ?? '') === 'remove') {
         $removed = new \Infocyph\Foundation\Module\ModuleFeatureComposerExecutor($app)->applyPackages('remove', ['data.database'], $context);

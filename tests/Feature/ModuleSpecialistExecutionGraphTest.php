@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
 use Infocyph\Foundation\Application\FoundationBuildContext;
+
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceRegistry;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
@@ -12,6 +15,7 @@ use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\Foundation\Messaging\MessagingServiceProvider;
 use Infocyph\Omnibus\MessageBus;
 use Infocyph\TalkingBytes\Http\HttpClient;
+use LogicException;
 
 /**
  * @param array<string,bool> $features

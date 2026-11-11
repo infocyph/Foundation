@@ -249,7 +249,7 @@ final class Application
     /**
      * @template T of object
      * @param string|class-string<T> $id
-     * @return ($id is class-string<T> ? T : mixed)
+     * @return ($id is class-string<T> ? (T is \Infocyph\Runwire\RequestContext|\Infocyph\Runwire\Coroutine\CoroutineScope ? T|null : T) : mixed)
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     public function make(string $id): mixed

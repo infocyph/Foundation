@@ -2,17 +2,29 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
+use Closure;
+use Fiber;
+use FilesystemIterator;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
-use Infocyph\InterMix\DI\RuntimeContainerInterface;
 use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\RuntimeContainerInterface;
+
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Build\CompiledRouterArtifact;
 use Infocyph\Webrick\Router\Build\RouteCapability;
 use Infocyph\Webrick\Router\Url\UrlGeneratorRegistry;
+use LogicException;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RuntimeException;
+use stdClass;
+use WeakReference;
 
 final class FoundationReleaseCompositionCounter extends ServiceProvider
 {
@@ -39,8 +51,10 @@ final class FoundationReleaseSourceHookProvider extends ServiceProvider
 final class FoundationUnusedBackendProvider extends ServiceProvider
 {
     public static int $activations = 0;
-    public static int $mailActivations = 0;
+
     public static int $filesystemActivations = 0;
+
+    public static int $mailActivations = 0;
 
     /** @var list<string> */
     public static array $unusedActivations = [];
@@ -48,46 +62,11 @@ final class FoundationUnusedBackendProvider extends ServiceProvider
     /**
      * @throws \LogicException
      */
-    public static function http(): \Infocyph\TalkingBytes\Http\HttpClient
-    {
-        self::$unusedActivations[] = 'http';
-        throw new LogicException('Unused HTTP integration was activated.');
-    }
-
-    /**
-     * @throws \LogicException
-     */
-    public static function messaging(): \Infocyph\Omnibus\MessageBus
-    {
-        self::$unusedActivations[] = 'messaging';
-        throw new LogicException('Unused message bus was activated.');
-    }
-
-    /**
-     * @throws \LogicException
-     */
     public static function cache(): \Infocyph\Foundation\Cache\CacheLayerFactory
     {
         self::$unusedActivations[] = 'cache';
+
         throw new LogicException('Unused cache integration was activated.');
-    }
-
-    /**
-     * @throws \LogicException
-     */
-    public static function mail(): \Infocyph\Foundation\Notifications\MailNotificationChannel
-    {
-        ++self::$mailActivations;
-        throw new LogicException('Unused mail integration was activated.');
-    }
-
-    /**
-     * @throws \LogicException
-     */
-    public static function filesystem(): \Infocyph\Foundation\Filesystem\StorageRegistry
-    {
-        ++self::$filesystemActivations;
-        throw new LogicException('Unused filesystem integration was activated.');
     }
 
     /**
@@ -100,10 +79,57 @@ final class FoundationUnusedBackendProvider extends ServiceProvider
         throw new LogicException('Unused database factory was activated.');
     }
 
+    /**
+     * @throws \LogicException
+     */
+    public static function filesystem(): \Infocyph\Foundation\Filesystem\StorageRegistry
+    {
+        ++self::$filesystemActivations;
+
+        throw new LogicException('Unused filesystem integration was activated.');
+    }
+
+    /**
+     * @throws \LogicException
+     */
+    public static function http(): \Infocyph\TalkingBytes\Http\HttpClient
+    {
+        self::$unusedActivations[] = 'http';
+
+        throw new LogicException('Unused HTTP integration was activated.');
+    }
+
+    /**
+     * @throws \LogicException
+     */
+    public static function mail(): \Infocyph\Foundation\Notifications\MailNotificationChannel
+    {
+        ++self::$mailActivations;
+
+        throw new LogicException('Unused mail integration was activated.');
+    }
+
+    /**
+     * @throws \LogicException
+     */
+    public static function messaging(): \Infocyph\Omnibus\MessageBus
+    {
+        self::$unusedActivations[] = 'messaging';
+
+        throw new LogicException('Unused message bus was activated.');
+    }
+
+    /**
+     * @throws \UnexpectedValueException
+     */
     #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        if (($context->config['test']['allow_database'] ?? false) !== true) {
+        $flags = $context->config['test'] ?? [];
+        if (!is_array($flags)) {
+            throw new \UnexpectedValueException('Release test flags must be an array.');
+        }
+        if (($flags['allow_database'] ?? false) !== true) {
             $builder->unbind(\Infocyph\Foundation\Database\DBLayerFactory::class);
             $builder->factory(
                 \Infocyph\Foundation\Database\DBLayerFactory::class,
@@ -118,13 +144,13 @@ final class FoundationUnusedBackendProvider extends ServiceProvider
             $builder->unbind($id);
             $builder->factory($id, \Infocyph\InterMix\DI\Support\FactoryDefinition::staticFactory(self::class, $method));
         }
-        if (($context->config['test']['allow_messaging'] ?? false) !== true) {
+        if (($flags['allow_messaging'] ?? false) !== true) {
             $builder->unbind(\Infocyph\Omnibus\MessageBus::class);
             $builder->factory(\Infocyph\Omnibus\MessageBus::class, \Infocyph\InterMix\DI\Support\FactoryDefinition::staticFactory(self::class, 'messaging'));
         }
         $builder->factory(FoundationColdMessageHandler::class, \Infocyph\InterMix\DI\Support\FactoryDefinition::construct(FoundationColdMessageHandler::class));
         $builder->factory(FoundationColdGrpcHandler::class, \Infocyph\InterMix\DI\Support\FactoryDefinition::construct(FoundationColdGrpcHandler::class));
-        if (($context->config['test']['allow_cache'] ?? false) !== true) {
+        if (($flags['allow_cache'] ?? false) !== true) {
             $builder->unbind(\Infocyph\Foundation\Cache\CacheLayerFactory::class);
             $builder->factory(\Infocyph\Foundation\Cache\CacheLayerFactory::class, \Infocyph\InterMix\DI\Support\FactoryDefinition::staticFactory(self::class, 'cache'));
         }
@@ -138,6 +164,7 @@ final class FoundationColdMessageHandler
     public function __invoke(stdClass $message): string
     {
         unset($message);
+
         return 'handled';
     }
 }
@@ -157,6 +184,7 @@ final class FoundationColdNotification implements \Infocyph\Foundation\Notificat
     public function channels(\Infocyph\Foundation\Notifications\NotificationRecipient $recipient): array
     {
         unset($recipient);
+
         return ['custom' => 'hello'];
     }
 
@@ -164,6 +192,7 @@ final class FoundationColdNotification implements \Infocyph\Foundation\Notificat
     public function routeNotificationFor(string $channel, \Infocyph\Foundation\Notifications\Notification $notification): mixed
     {
         unset($channel, $notification);
+
         return null;
     }
 }
@@ -174,10 +203,16 @@ final class FoundationColdNotificationChannel implements \Infocyph\Foundation\No
     public function send(\Infocyph\Foundation\Notifications\NotificationRecipient $recipient, \Infocyph\Foundation\Notifications\Notification $notification, mixed $payload): mixed
     {
         unset($recipient, $notification, $payload);
+
         return 'custom-ok';
     }
 }
 
+/**
+ * Runtime entry point discovered through native provider, route or benchmark metadata.
+ *
+ * @api
+ */
 final class FoundationCompiledReleaseHandler
 {
     public function __invoke(): Response
@@ -186,6 +221,11 @@ final class FoundationCompiledReleaseHandler
     }
 }
 
+/**
+ * Runtime entry point discovered through native provider, route or benchmark metadata.
+ *
+ * @api
+ */
 final class FoundationCompiledReleaseFailureHandler
 {
     /**
@@ -197,13 +237,21 @@ final class FoundationCompiledReleaseFailureHandler
     }
 }
 
+/**
+ * Runtime entry point discovered through native provider, route or benchmark metadata.
+ *
+ * @api
+ */
 final class FoundationCompiledReleaseMiddleware
 {
     public function __invoke(Request $request, Closure $next): Response
     {
         unset($request);
 
-        return $next();
+        $response = $next();
+        \PHPUnit\Framework\Assert::assertInstanceOf(Response::class, $response);
+
+        return $response;
     }
 }
 
@@ -358,27 +406,27 @@ it('keeps unused backend integrations cold throughout unrelated flows', function
         }
         $container->withinScope('webrick.request', static function (\Psr\Container\ContainerInterface $scope) use ($flow): void {
             match ($flow) {
-                'grpc' => expect($scope->get(\Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher::class)->receive('/cold.Service/Echo', ['ok' => true])->status->value)->toBe(0),
-                'auth-store' => expect($scope->get(\Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface::class))->toBeInstanceOf(\Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface::class),
-                'principal-invalid' => expect($scope->get(\Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver::class)->resolve(Request::fake(headers: ['Authorization' => 'Bearer malformed'])))->toBeNull(),
-                'serializer' => expect($scope->get(\Infocyph\Omnibus\Serialization\EnvelopeSerializer::class))->toBeInstanceOf(\Infocyph\Omnibus\Serialization\EnvelopeSerializer::class),
-                'consumer-empty' => expect($scope->get(\Infocyph\Omnibus\Consumer\Consumer::class)->run()->received)->toBe(0),
-                'webhook-rejected' => expect(fn(): mixed => $scope->get(\Infocyph\TalkingBytes\Webhook\WebhookReceiver::class)->receive('{}', [
+                'grpc' => expect(\foundationService($scope, \Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher::class)->receive('/cold.Service/Echo', ['ok' => true])->status->value)->toBe(0),
+                'auth-store' => expect(\foundationService($scope, \Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface::class))->toBe($scope->get(\Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface::class)),
+                'principal-invalid' => expect(\foundationService($scope, \Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver::class)->resolve(Request::fake(headers: ['Authorization' => 'Bearer malformed'])))->toBeNull(),
+                'serializer' => expect(\foundationService($scope, \Infocyph\Omnibus\Serialization\EnvelopeSerializer::class))->toBe($scope->get(\Infocyph\Omnibus\Serialization\EnvelopeSerializer::class)),
+                'consumer-empty' => expect(\foundationService($scope, \Infocyph\Omnibus\Consumer\Consumer::class)->run()->received)->toBe(0),
+                'webhook-rejected' => expect(fn(): mixed => \foundationService($scope, \Infocyph\TalkingBytes\Webhook\WebhookReceiver::class)->receive('{}', [
                     'X-TB-Event' => 'probe', 'X-TB-Delivery' => 'cold-probe',
                 ]))->toThrow(RuntimeException::class, 'Webhook verification failed'),
-                'database-metadata', 'database-cached-metadata' => expect($scope->get(\Infocyph\DBLayer\Connection\Connection::class)->isConnected())->toBeFalse(),
-                'sync-message' => expect($scope->get(\Infocyph\Omnibus\MessageBus::class)->dispatch(new stdClass())->last(\Infocyph\Omnibus\Envelope\HandledStamp::class)?->result)->toBe('handled'),
-                'notification' => expect($scope->get(\Infocyph\Foundation\Notifications\NotificationDispatcher::class)->send(
+                'database-metadata', 'database-cached-metadata' => expect(\foundationService($scope, \Infocyph\DBLayer\Connection\Connection::class)->isConnected())->toBeFalse(),
+                'sync-message' => expect(\foundationService($scope, \Infocyph\Omnibus\MessageBus::class)->dispatch(new stdClass())->last(\Infocyph\Omnibus\Envelope\HandledStamp::class)?->result)->toBe('handled'),
+                'notification' => expect(\foundationService($scope, \Infocyph\Foundation\Notifications\NotificationDispatcher::class)->send(
                     new FoundationColdNotification(),
                     new FoundationColdNotification(),
                 ))->toBe(['custom' => 'custom-ok']),
-                'cache' => expect($scope->get(\Infocyph\Foundation\Cache\CacheManager::class)->store()->set('probe', 'ok'))->toBeTrue(),
-                'principal' => expect($scope->get(\Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver::class)->resolve(Request::fake()))->toBeNull(),
-                'session' => expect($scope->get(\Infocyph\Foundation\Session\Middleware\SessionMiddleware::class)(
+                'cache' => expect(\foundationService($scope, \Infocyph\Foundation\Cache\CacheManager::class)->store()->set('probe', 'ok'))->toBeTrue(),
+                'principal' => expect(\foundationService($scope, \Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver::class)->resolve(Request::fake()))->toBeNull(),
+                'session' => expect(\foundationService($scope, \Infocyph\Foundation\Session\Middleware\SessionMiddleware::class)(
                     Request::fake(),
                     static fn(): Response => Response::json(['ok' => true]),
                 )->getStatusCode())->toBe(200),
-                'validation' => expect($scope->get(\Infocyph\Foundation\Validation\ValidatorFactory::class)->makeRules([
+                'validation' => expect(\foundationService($scope, \Infocyph\Foundation\Validation\ValidatorFactory::class)->makeRules([
                     'email' => 'required|email',
                 ])->validate(['email' => 'ada@example.test'])->fails())->toBeFalse(),
                 default => expect(Response::json(['ok' => true])->getStatusCode())->toBe(200),
@@ -435,14 +483,15 @@ it('compiles and boots a trusted route-first Webrick release without live router
             $manifest,
             capabilities: [],
         );
-        $trustedSha256 = $release['release_runtime_manifest_sha256'] ?? null;
+        $trustedSha256 = $release['release_runtime_manifest_sha256'];
 
-        expect($trustedSha256)->toBeString()
+        \PHPUnit\Framework\Assert::assertIsArray(($release['intermix'] ?? null));
+        expect($trustedSha256)->toMatch('/^[a-f0-9]{64}$/D')
             ->and($trustedSha256)->toMatch('/^[a-f0-9]{64}$/D')
             ->and($release['intermix']['skipped'] ?? null)->toBe([]);
 
         $compiled = realpath($intermix);
-        expect($compiled)->toBeString();
+        \PHPUnit\Framework\Assert::assertIsString($compiled);
         $metadata = json_decode(
             (string) file_get_contents(dirname($compiled) . '/manifest.json'),
             true,
@@ -451,11 +500,12 @@ it('compiles and boots a trusted route-first Webrick release without live router
         if (!is_array($metadata)) {
             throw new \UnexpectedValueException('Expected a decoded JSON object.');
         }
+        \PHPUnit\Framework\Assert::assertIsArray(($metadata['fallback'] ?? null));
         expect($metadata['fallback']['required'] ?? null)->toBeFalse()
             ->and($metadata['fallback']['identity_required'] ?? null)->toBeFalse();
 
-        $payload = require $router;
-        expect($payload)->toBeArray();
+        $payload = \foundationReadPhpFixtureArray($router);
+
         $artifact = CompiledRouterArtifact::fromPayload($payload);
         $plansByPath = [];
         foreach ($artifact->routes() as $route) {
@@ -517,8 +567,8 @@ it('compiles and boots a trusted route-first Webrick release without live router
             ->and((string) $failure->getBody())->not->toContain('sensitive-foundation-runtime-failure')
             ->and(is_file($log))->toBeTrue();
         $logged = file_get_contents($log);
-        expect($logged)->toBeString()
-            ->and($logged)->toContain(RuntimeException::class)
+        \PHPUnit\Framework\Assert::assertIsString($logged);
+        expect($logged)->toContain(RuntimeException::class)
             ->and($logged)->not->toContain('sensitive-foundation-runtime-failure');
 
         expect(fn() => WebReleaseRuntime::loadPrevalidated(
@@ -580,12 +630,13 @@ it('compiles maintenance as an opt-in Webrick gate with bounded runtime refresh'
             $manifest,
             capabilities: [],
         );
-        $trustedSha256 = $release['release_runtime_manifest_sha256'] ?? null;
-        expect($trustedSha256)->toBeString()
+        $trustedSha256 = $release['release_runtime_manifest_sha256'];
+        \PHPUnit\Framework\Assert::assertIsArray(($release['intermix'] ?? null));
+        expect($trustedSha256)->toMatch('/^[a-f0-9]{64}$/D')
             ->and($release['intermix']['skipped'] ?? null)->toBe([]);
 
-        $payload = require $router;
-        expect($payload)->toBeArray();
+        $payload = \foundationReadPhpFixtureArray($router);
+
         $artifact = CompiledRouterArtifact::fromPayload($payload);
         $plainPlan = null;
         foreach ($artifact->routes() as $route) {
@@ -640,9 +691,14 @@ function foundationWebReleaseProject(): string
 declare(strict_types=1);
 
 use Infocyph\Webrick\Router\Facade\Router;
+use Infocyph\Foundation\Tests\Feature\FoundationCompiledReleaseMiddleware;
+use Infocyph\Foundation\Tests\Feature\FoundationCompiledReleaseHandler;
+use Infocyph\Foundation\Tests\Feature\FoundationCompiledReleaseFailureHandler;
+use Infocyph\Foundation\Tests\Feature\FoundationRunwireReleaseContextHandler;
+use Infocyph\Foundation\Tests\Feature\FoundationRunwireInterleavedHandler;
 
-Router::get('/plain', 'foundationWebReleasePlainHandler', ['name' => 'plain.show']);
-Router::get('/middleware', 'foundationWebReleasePlainHandler', [
+Router::get('/plain', 'Infocyph\\Foundation\\Tests\\Feature\\foundationWebReleasePlainHandler', ['name' => 'plain.show']);
+Router::get('/middleware', 'Infocyph\\Foundation\\Tests\\Feature\\foundationWebReleasePlainHandler', [
     'name' => 'middleware.show',
     'middleware' => [FoundationCompiledReleaseMiddleware::class],
 ]);
@@ -664,6 +720,7 @@ function foundationWebReleaseRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);
@@ -697,12 +754,13 @@ it('boots an explicitly compiled Runwire web host through native Webrick and Int
             $manifest,
             capabilities: $capabilities,
         );
+        \PHPUnit\Framework\Assert::assertIsArray(($release['intermix'] ?? null));
         expect($release['intermix']['skipped'] ?? null)->toBe([]);
 
         $loaded = WebReleaseRuntime::loadPrevalidated(
             $config,
             $manifest,
-            (string) $release['release_runtime_manifest_sha256'],
+            $release['release_runtime_manifest_sha256'],
             foundationCapabilities: $capabilities,
         );
         $staleProcess = \Infocyph\Runwire\RuntimeContext::fromCapabilities(
@@ -718,7 +776,6 @@ it('boots an explicitly compiled Runwire web host through native Webrick and Int
         $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
         $host = $loaded->runwireApplication($runtime);
 
-        expect($host)->toBeInstanceOf(\Infocyph\Webrick\Runtime\Http\RunwireRuntimeApplication::class);
         $host->start();
         expect($host->healthy())->toBeTrue();
         $host->shutdown();
@@ -752,7 +809,7 @@ it('accepts an exact host runtime through Core inputs without an optional runtim
         $loaded = WebReleaseRuntime::loadPrevalidated(
             $config,
             $manifest,
-            (string) $release['release_runtime_manifest_sha256'],
+            $release['release_runtime_manifest_sha256'],
             foundationCapabilities: [],
         );
 
@@ -768,6 +825,11 @@ it('accepts an exact host runtime through Core inputs without an optional runtim
     }
 });
 
+/**
+ * Runtime entry point discovered through native provider, route or benchmark metadata.
+ *
+ * @api
+ */
 final class FoundationRunwireReleaseContextHandler
 {
     public static function identity(\Infocyph\Runwire\RequestContext $runwireRequest): Response
@@ -805,7 +867,8 @@ final class FoundationRunwireReleaseContextHandler
         $connection = $factory->connection();
         $database = $connection->runwireBinding();
         $messageContext = [$bus->runwireBinding()->runtime(), $bus->runwireBinding()->request()];
-        $dispatched = $bus->dispatch(new stdClass());
+        $message = new stdClass();
+        $dispatched = $bus->dispatch($message);
         $queried = $connection->scalar('SELECT 1');
 
         return \Infocyph\Webrick\Response\Response::json([
@@ -823,7 +886,7 @@ final class FoundationRunwireReleaseContextHandler
                     $runtime,
                     $runwireRequest,
                 ))->deadline() === null,
-                'ordinary_calls' => $queried === 1 && $dispatched instanceof \Infocyph\Omnibus\Envelope\Envelope,
+                'ordinary_calls' => $queried === 1 && $dispatched->message === $message,
             ],
         ]);
     }
@@ -869,7 +932,7 @@ it('sends the exact host Runwire request through compiled Webrick and native Int
         $loaded = WebReleaseRuntime::loadPrevalidated(
             $config,
             $manifest,
-            (string) $report['release_runtime_manifest_sha256'],
+            $report['release_runtime_manifest_sha256'],
             foundationCapabilities: ['messaging', 'database', 'runwire'],
         );
         $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
@@ -923,6 +986,7 @@ it('sends the exact host Runwire request through compiled Webrick and native Int
 
 final class FoundationRunwireInterleavedHandler
 {
+    /** @var array<string,array{same_native_request:bool,database_cancelled:bool,bus_cancelled:bool}> */
     public static array $observed = [];
 
     public static function identity(
@@ -931,7 +995,7 @@ final class FoundationRunwireInterleavedHandler
     ): \Infocyph\Webrick\Response\Response {
         $execution = new \Infocyph\UID\Runtime\RunwireBinding($runtime, $runwireRequest);
         $execution->assertActive();
-        Fiber::suspend($runwireRequest->requestId);
+        \PHPUnit\Framework\Assert::assertNull(Fiber::suspend($runwireRequest->requestId));
         $execution->assertActive();
 
         return \Infocyph\Webrick\Response\Response::json([
@@ -955,13 +1019,15 @@ final class FoundationRunwireInterleavedHandler
         $execution = new \Infocyph\UID\Runtime\RunwireBinding($runtime, $runwireRequest);
         $execution->assertActive();
         $connection = $factory->connection();
+        $binding = $connection->runwireBinding();
+        \PHPUnit\Framework\Assert::assertIsArray($binding);
         self::$observed[$runwireRequest->requestId] = [
-            'same_native_request' => $connection->runwireBinding()['request'] === $runwireRequest
+            'same_native_request' => $binding['request'] === $runwireRequest
                 && $bus->runwireBinding()->request() === $runwireRequest,
             'database_cancelled' => false,
             'bus_cancelled' => false,
         ];
-        Fiber::suspend($runwireRequest->requestId);
+        \PHPUnit\Framework\Assert::assertNull(Fiber::suspend($runwireRequest->requestId));
         if ($runwireRequest->cancelled()) {
             try {
                 $connection->scalar('SELECT 1');
@@ -1020,7 +1086,7 @@ it('isolates two interleaved compiled Runwire requests when one host request is 
         $loaded = WebReleaseRuntime::loadPrevalidated(
             $config,
             $manifest,
-            (string) $report['release_runtime_manifest_sha256'],
+            $report['release_runtime_manifest_sha256'],
             foundationCapabilities: ['runwire', 'database', 'messaging'],
         );
         $runtime = \Infocyph\Runwire\RuntimeContext::fromCapabilities(
@@ -1213,7 +1279,7 @@ it('defers Runwire response finalization until native writer drain and completes
         $loaded = WebReleaseRuntime::loadPrevalidated(
             $config,
             $manifest,
-            (string) $compiled['release_runtime_manifest_sha256'],
+            $compiled['release_runtime_manifest_sha256'],
             foundationCapabilities: ['runwire'],
         );
         $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
@@ -1244,7 +1310,7 @@ it('defers Runwire response finalization until native writer drain and completes
             expect($writer->isEnded())->toBeTrue()
                 ->and($writer->endCalls)->toBe(1)
                 ->and($request->completed())->toBeTrue()
-                ->and(json_decode($writer->body, true, flags: JSON_THROW_ON_ERROR)['request'])
+                ->and(foundationStringMap(json_decode($writer->body, true, flags: JSON_THROW_ON_ERROR))['request'])
                 ->toBe('deferred-writer');
 
             $writer->drain();
@@ -1287,7 +1353,7 @@ it('rejects a distinct same-process Runwire generation without poisoning the com
         $loaded = WebReleaseRuntime::loadPrevalidated(
             $config,
             $manifest,
-            (string) $report['release_runtime_manifest_sha256'],
+            $report['release_runtime_manifest_sha256'],
             foundationCapabilities: ['runwire'],
         );
         $capabilities = new \Infocyph\Runwire\RuntimeCapabilities(
@@ -1318,7 +1384,9 @@ it('rejects a distinct same-process Runwire generation without poisoning the com
 
         try {
             $badWriter = new \Infocyph\Foundation\Tests\Fixtures\RunwireCollectingWriter();
-            expect(fn(): mixed => $host->handle($native($wrong), $badWriter, completeResponse: true))
+            expect(function () use ($host, $native, $wrong, $badWriter): void {
+                $host->handle($native($wrong), $badWriter, completeResponse: true);
+            })
                 ->toThrow(LogicException::class, 'different runtime context')
                 ->and($badWriter->endCalls)->toBe(0)
                 ->and($wrong->completed())->toBeFalse();
@@ -1329,7 +1397,7 @@ it('rejects a distinct same-process Runwire generation without poisoning the com
             expect($goodWriter->status)->toBe(200)
                 ->and($goodWriter->endCalls)->toBe(1)
                 ->and($right->completed())->toBeTrue()
-                ->and(json_decode($goodWriter->body, true, flags: JSON_THROW_ON_ERROR)['request'])
+                ->and(foundationStringMap(json_decode($goodWriter->body, true, flags: JSON_THROW_ON_ERROR))['request'])
                 ->toBe($right->requestId);
         } finally {
             $host->shutdown();
@@ -1371,7 +1439,7 @@ it('keeps overlapping compiled Runwire host generations isolated in distinct car
         $loaded = WebReleaseRuntime::loadPrevalidated(
             $config,
             $manifest,
-            (string) $report['release_runtime_manifest_sha256'],
+            $report['release_runtime_manifest_sha256'],
             foundationCapabilities: ['runwire'],
         );
         $capabilities = new \Infocyph\Runwire\RuntimeCapabilities(
@@ -1477,7 +1545,7 @@ it('retains the trusted web release lease for the Runwire host lifetime', functi
         $loaded = WebReleaseRuntime::loadPrevalidated(
             $config,
             $manifest,
-            (string) $report['release_runtime_manifest_sha256'],
+            $report['release_runtime_manifest_sha256'],
             foundationCapabilities: ['runwire'],
         );
 
@@ -1530,8 +1598,8 @@ it('retains the trusted web release lease for the Runwire host lifetime', functi
             $project,
             $generationName,
         );
-        expect($exclusive)->toBeInstanceOf(\Infocyph\Foundation\Runtime\ReleaseGenerationLease::class);
-        $exclusive?->release();
+        \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\Foundation\Runtime\ReleaseGenerationLease::class, $exclusive);
+        $exclusive->release();
     } finally {
         foundationResetWebrickProductionRegistries();
         foundationWebReleaseRemove($project);

@@ -23,9 +23,11 @@ final class FoundationWorkerLifecycleScopedProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
@@ -46,11 +48,11 @@ final class FoundationWorkerLifecycleServiceProvider extends ServiceProvider
 
 final class FoundationWorkerLifecycleScopeProvider implements WorkerProvider
 {
-    /** @var list<array{first:int,second:int}> */
-    public static array $scopes = [];
-
     /** @var list<string> */
     public static array $executionIds = [];
+
+    /** @var list<array{first:int,second:int}> */
+    public static array $scopes = [];
 
     public function __construct(private readonly Application $application) {}
     /**
@@ -80,11 +82,11 @@ final class FoundationWorkerLifecycleScopeProvider implements WorkerProvider
 
 final class FoundationWorkerLifecycleRestartProvider implements WorkerProvider
 {
+    public static bool $continuedAfterHeartbeat = false;
+
     public static int $registryCount = 0;
 
     public static bool $stopObserved = false;
-
-    public static bool $continuedAfterHeartbeat = false;
 
     public function __construct(private readonly Application $application) {}
 
@@ -268,6 +270,7 @@ function foundationWorkerLifecycleRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

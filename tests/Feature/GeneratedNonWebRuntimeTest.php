@@ -2,11 +2,15 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
+use FilesystemIterator;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
+
 use Infocyph\Foundation\Messaging\InterMixExecutionScope;
 use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
@@ -19,6 +23,11 @@ use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Envelope\MessageIdStamp;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RuntimeException;
+use stdClass;
+use WeakReference;
 
 final readonly class FoundationGeneratedRuntimeProbe
 {
@@ -31,9 +40,11 @@ final class FoundationGeneratedRuntimeScopedProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
@@ -319,6 +330,7 @@ it('keeps one trusted worker container hot while isolating provider jobs and Omn
             ->and(array_unique(array_column($seen, 2)))->toHaveCount(128);
 
         $failedReference = null;
+
         try {
             $worker->execute(
                 static function () use ($runtime, &$failedReference): never {
@@ -335,8 +347,8 @@ it('keeps one trusted worker container hot while isolating provider jobs and Omn
         }
         gc_collect_cycles();
 
-        expect($failedReference)->toBeInstanceOf(WeakReference::class)
-            ->and($failedReference?->get())->toBeNull()
+        \PHPUnit\Framework\Assert::assertInstanceOf(WeakReference::class, $failedReference);
+        expect($failedReference->get())->toBeNull()
             ->and(fn() => $runtime->application->make(ExecutionId::class))
             ->toThrow(ServiceResolutionException::class);
 
@@ -382,6 +394,8 @@ it('keeps one trusted worker container hot while isolating provider jobs and Omn
             ],
         );
 
+        \PHPUnit\Framework\Assert::assertIsArray($firstMessage);
+        \PHPUnit\Framework\Assert::assertIsArray($secondMessage);
         expect($firstMessage)->toMatchArray([
             'omnibus:message-one',
             true,
@@ -512,7 +526,6 @@ function foundationGeneratedRuntimeRemove(string $directory): void
     rmdir($directory);
 }
 
-
 it('treats feature selection as trusted immutable generated-runtime identity', function (): void {
     $project = foundationGeneratedRuntimeProject();
     $config = foundationGeneratedRuntimeConfig($project);
@@ -530,8 +543,8 @@ it('treats feature selection as trusted immutable generated-runtime identity', f
             'execution.messaging' => false,
             'data.database' => false,
         ];
-        expect(GeneratedRuntime::load($sameTopology, RuntimeMode::Cli, $artifact))
-            ->toBeInstanceOf(GeneratedRuntime::class);
+        expect(GeneratedRuntime::load($sameTopology, RuntimeMode::Cli, $artifact)->runtimeMode)
+            ->toBe(RuntimeMode::Cli);
 
         $changed = $config;
         $changed['modules']['features']['data.database'] = true;

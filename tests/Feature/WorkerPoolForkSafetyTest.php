@@ -85,7 +85,7 @@ it('rejects a resolved TalkingBytes HTTP client before pool fork', function (): 
             'messaging' => foundationForkSafetyMessagingConfig(),
         ]);
         $app->execution()->run(static function () use ($app): void {
-            expect($app->make(HttpClient::class))->toBeInstanceOf(HttpClient::class);
+            expect($app->make(HttpClient::class))->toBe($app->make(HttpClient::class));
 
             // Resolving a scoped client still makes the parent unsafe to fork.
             expect(fn() => new WorkerManager($app)->run('parallel'))
@@ -115,9 +115,9 @@ it('forks initializes terminates and reaps an Omnibus worker child without skipp
         ->and(defined('SIGINT'))->toBeTrue();
 
     $parentPid = getmypid();
-    expect($parentPid)->toBeInt();
+    \PHPUnit\Framework\Assert::assertIsInt($parentPid);
     $marker = tempnam(sys_get_temp_dir(), 'foundation-worker-pool-');
-    expect($marker)->toBeString();
+    \PHPUnit\Framework\Assert::assertIsString($marker);
     $terminate = constant('SIGTERM');
     $interrupt = constant('SIGINT');
     $previousTerminate = pcntl_signal_get_handler($terminate);
@@ -143,6 +143,7 @@ it('forks initializes terminates and reaps an Omnibus worker child without skipp
                 }
 
                 usleep(250_000);
+
                 throw new RuntimeException('WorkerPool child should have been terminated by the parent.');
             },
             concurrency: 1,
@@ -157,8 +158,8 @@ it('forks initializes terminates and reaps an Omnibus worker child without skipp
             throw new RuntimeException('Unable to read the WorkerPool child probe marker.');
         }
         $decoded = json_decode($payload, true, 16, JSON_THROW_ON_ERROR);
-        expect($decoded)->toBeArray()
-            ->and($decoded['parent'] ?? null)->toBe($parentPid)
+        \PHPUnit\Framework\Assert::assertIsArray($decoded);
+        expect($decoded['parent'] ?? null)->toBe($parentPid)
             ->and($decoded['child'] ?? null)->toBeInt()
             ->and($decoded['child'] ?? null)->not->toBe($parentPid)
             ->and($decoded['slot'] ?? null)->toBe(0)
@@ -214,6 +215,7 @@ function foundationForkSafetyRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

@@ -56,14 +56,12 @@ it('keeps documented feature inventory and v2 CLI catalog in sync', function ():
         ->and($document)->toContain('never deletes application data');
 });
 
-
 it('keeps the Foundation 4 migration commands compatible with the final v2 catalog', function (): void {
     $guide = file_get_contents(dirname(__DIR__, 2) . '/docs/foundation-4-migration.md');
     if ($guide === false) {
         throw new \RuntimeException('Unable to read Foundation migration documentation.');
     }
-    expect($guide)->toBeString()
-        ->and($guide)->toContain('schema_version: 2')
+    expect($guide)->toContain('schema_version: 2')
         ->and($guide)->toContain('data.database')
         ->and($guide)->toContain('security.mfa')
         ->and($guide)->toContain('execution.messaging');
@@ -93,7 +91,6 @@ it('keeps release notes explicit about the v2 features and required host certifi
         expect($notes)->toContain($feature);
     }
 });
-
 
 it('keeps Composer publication metadata and optional package roles consistent with the module catalog', function (): void {
     $manifest = json_decode(

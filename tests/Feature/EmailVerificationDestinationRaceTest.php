@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
 use Infocyph\DBLayer\Migration\MigrationRunner;
+
 use Infocyph\Foundation\Auth\Account\Account;
 use Infocyph\Foundation\Auth\Account\AccountStatus;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerAccountStore;
@@ -22,6 +25,7 @@ use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Tests\Fixtures\AuthContentionFixture;
 use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
+use RuntimeException;
 
 it('rejects an address change occurring after verification trust checking but before account mutation', function (): void {
     $accounts = new InMemoryAccountStore();
@@ -31,7 +35,7 @@ it('rejects an address change occurring after verification trust checking but be
     $requests = new InMemoryEmailVerificationStore();
     $now = time();
     $requests->save(new EmailVerificationRequest('request-1', 'owner', 'original@example.test', $now, $now + 3600));
-    $store = new class($requests, $accounts) implements EmailVerificationStoreInterface {
+    $store = new class ($requests, $accounts) implements EmailVerificationStoreInterface {
         public function __construct(
             private InMemoryEmailVerificationStore $requests,
             private InMemoryAccountStore $accounts,
@@ -155,7 +159,6 @@ it('conditionally marks a real DBLayer account verified only for its current ema
         }
     }
 });
-
 
 it('preserves failed DBLayer verification requests and unwraps only successful rollback denials', function (): void {
     $database = sys_get_temp_dir() . '/foundation-email-rollback-' . bin2hex(random_bytes(8)) . '.sqlite';

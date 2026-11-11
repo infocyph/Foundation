@@ -122,8 +122,6 @@ it('passes CacheLayer-native tier descriptors and applies Foundation lock policy
     if (!$adapter instanceof TieredCacheAdapter || !$lockProvider instanceof FileLockProvider) {
         throw new \UnexpectedValueException('Cache adapter and lock provider must match the selected native backends.');
     }
-    expect($adapter)->toBeInstanceOf(TieredCacheAdapter::class)
-        ->and($lockProvider)->toBeInstanceOf(FileLockProvider::class);
 
     $chainReflection = new ReflectionClass($adapter);
     $pools = $chainReflection->getProperty('pools')->getValue($adapter);
@@ -219,7 +217,6 @@ function foundationCacheOnceValue(OnceMemoizer $memoizer, int &$calls): int
 
     return $value;
 }
-
 
 it('keeps CacheLayer database schema lifecycle under the core cache subsystem', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-cache-schema-' . bin2hex(random_bytes(5));

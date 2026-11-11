@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Command\CommandCatalog;
 use Infocyph\Foundation\Command\CommandContext;
 use Infocyph\Foundation\Command\CommandDefinition;
 use Infocyph\Foundation\Command\CommandDispatcher;
 use Infocyph\Foundation\Command\CommandHandlerInterface;
-use Infocyph\Foundation\Command\CommandCatalog;
 use Infocyph\Foundation\Command\ExitCode;
 use Infocyph\Foundation\Command\TerminalIO;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
@@ -54,6 +54,11 @@ final class FoundationCliScopedCommand implements CommandHandlerInterface
 
     public function __construct(private readonly Application $application) {}
 
+    public static function contextSeedMatches(): bool
+    {
+        return self::$contextSeedMatches;
+    }
+
     /**
      * @throws \InvalidArgumentException
      */
@@ -64,6 +69,11 @@ final class FoundationCliScopedCommand implements CommandHandlerInterface
             ->name('cli:scoped')
             ->description('Prove explicit CLI execution scope seeding.')
             ->scope();
+    }
+
+    public static function definitionSeedMatches(): bool
+    {
+        return self::$definitionSeedMatches;
     }
 
     /**
@@ -106,8 +116,8 @@ it('keeps plain CLI commands scope-free and enters scope only when execution sta
         expect($dispatcher->run(['infbyte', 'cli:scope-free'], $io))->toBe(ExitCode::SUCCESS)
             ->and(FoundationCliScopeFreeCommand::$executionIdVisible)->toBeFalse()
             ->and($dispatcher->run(['infbyte', 'cli:scoped'], $io))->toBe(ExitCode::SUCCESS)
-            ->and(FoundationCliScopedCommand::$contextSeedMatches)->toBeTrue()
-            ->and(FoundationCliScopedCommand::$definitionSeedMatches)->toBeTrue()
+            ->and(FoundationCliScopedCommand::contextSeedMatches())->toBeTrue()
+            ->and(FoundationCliScopedCommand::definitionSeedMatches())->toBeTrue()
             ->and(FoundationCliScopedCommand::$executionId)->not->toBeNull()->not->toBe('');
     } finally {
         foundationCliScopeSelectionRemove($project);

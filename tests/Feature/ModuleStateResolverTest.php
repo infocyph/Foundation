@@ -18,13 +18,12 @@ it('separates direct module ownership from transitive package availability', fun
             'base_path' => $basePath,
             '_config_cache' => false,
         ]);
-        $direct = moduleStateFind(
+        $direct = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($directApp, new ModuleCatalog()))->all(),
             'database',
         );
 
-        if (!is_array($direct['packages'] ?? null)
-            || !is_array($direct['packages']['infocyph/dblayer'] ?? null)) {
+        if (!isset($direct['packages']['infocyph/dblayer'])) {
             throw new \UnexpectedValueException('Direct module ownership requires a DBLayer package status.');
         }
         expect($direct['installed'])->toBeTrue()
@@ -32,8 +31,8 @@ it('separates direct module ownership from transitive package availability', fun
             ->and($direct['direct'])->toBeTrue()
             ->and($direct['transitive'])->toBeFalse()
             ->and($direct['ownership_unknown'])->toBeFalse()
-            ->and($direct['packages']['infocyph/dblayer']['direct'] ?? null)->toBeTrue()
-            ->and($direct['packages']['infocyph/dblayer']['transitive'] ?? null)->toBeFalse()
+            ->and($direct['packages']['infocyph/dblayer']['direct'])->toBeTrue()
+            ->and($direct['packages']['infocyph/dblayer']['transitive'])->toBeFalse()
             ->and($direct['packages']['infocyph/dblayer']['compatible'] ?? null)->toBeTrue();
 
         moduleStateWriteComposer($basePath, []);
@@ -41,7 +40,7 @@ it('separates direct module ownership from transitive package availability', fun
             'base_path' => $basePath,
             '_config_cache' => false,
         ]);
-        $transitive = moduleStateFind(
+        $transitive = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($transitiveApp, new ModuleCatalog()))->all(),
             'database',
         );
@@ -68,25 +67,24 @@ it('rejects direct root constraints that can fall below the supported module flo
             'base_path' => $basePath,
             '_config_cache' => false,
         ]);
-        $database = moduleStateFind(
+        $database = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($application, new ModuleCatalog()))->all(),
             'database',
         );
         $package = $database['packages']['infocyph/dblayer'] ?? null;
 
         if (!is_array($package)) {
-                throw new RuntimeException('Expected native DBLayer package status.');
-            }
-            expect($package)->toBeArray()
-            ->and($package['available'] ?? null)->toBeTrue()
-            ->and($package['direct'] ?? null)->toBeTrue()
-            ->and($package['catalog_compatible'] ?? null)->toBeTrue()
-            ->and($package['direct_constraint_compatible'] ?? null)->toBeFalse()
-            ->and($package['compatible'] ?? null)->toBeFalse()
-            ->and($database['installed'])->toBeFalse()
-            ->and($database['ready'])->toBeFalse()
-            ->and(implode(' ', $database['blockers']))
-            ->toContain('outside the supported module range ^6.1');
+            throw new RuntimeException('Expected native DBLayer package status.');
+        }
+        expect($package['available'])->toBeTrue()
+        ->and($package['direct'])->toBeTrue()
+        ->and($package['catalog_compatible'] ?? null)->toBeTrue()
+        ->and($package['direct_constraint_compatible'] ?? null)->toBeFalse()
+        ->and($package['compatible'] ?? null)->toBeFalse()
+        ->and($database['installed'])->toBeFalse()
+        ->and($database['ready'])->toBeFalse()
+        ->and(implode(' ', $database['blockers']))
+        ->toContain('outside the supported module range ^6.1');
     } finally {
         moduleStateRemoveDirectory($basePath);
     }
@@ -94,7 +92,7 @@ it('rejects direct root constraints that can fall below the supported module flo
 
 it('accepts exact supported pins and fails closed on unsupported consumer constraint syntax', function (): void {
     $version = InstalledVersions::getVersion('infocyph/dblayer');
-    expect($version)->toBeString();
+    \PHPUnit\Framework\Assert::assertIsString($version);
     preg_match('/^(\d+\.\d+\.\d+)/', $version, $match);
     $exact = $match[1] ?? throw new RuntimeException('Unable to derive the installed DBLayer release.');
 
@@ -116,7 +114,7 @@ it('accepts exact supported pins and fails closed on unsupported consumer constr
                 '_config_cache' => false,
                 'app' => ['capabilities' => ['database']],
             ]);
-            $database = moduleStateFind(
+            $database = FoundationModuleStateFinder::find(
                 (new ModuleStateResolver($application, new ModuleCatalog()))->all(),
                 'database',
             );
@@ -125,16 +123,13 @@ it('accepts exact supported pins and fails closed on unsupported consumer constr
             if (!is_array($package)) {
                 throw new RuntimeException('Expected native DBLayer package status.');
             }
-            expect($package)->toBeArray()
-                ->and(array_key_exists('direct_constraint_compatible', $package))->toBeTrue()
-                ->and($package['direct_constraint_compatible'])->toBe($expected);
+            expect($package['direct_constraint_compatible'])->toBe($expected);
 
             if ($expected === true) {
                 expect($database['installed'])->toBeTrue()
                     ->and($database['ready'])->toBeTrue();
             } else {
-                expect(array_key_exists('compatible', $package))->toBeTrue()
-                    ->and($package['compatible'])->toBeNull()
+                expect($package['compatible'])->toBeNull()
                     ->and($database['installed'])->toBeFalse()
                     ->and($database['ready'])->toBeFalse()
                     ->and(implode(' ', $database['blockers']))->toContain('Unable to verify direct Composer constraint');
@@ -158,7 +153,7 @@ it('reports unknown Composer ownership instead of silently treating packages as 
             'base_path' => $basePath,
             '_config_cache' => false,
         ]);
-        $missing = moduleStateFind(
+        $missing = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($missingApp, new ModuleCatalog()))->all(),
             'database',
         );
@@ -174,7 +169,7 @@ it('reports unknown Composer ownership instead of silently treating packages as 
             'base_path' => $basePath,
             '_config_cache' => false,
         ]);
-        $invalid = moduleStateFind(
+        $invalid = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($invalidApp, new ModuleCatalog()))->all(),
             'database',
         );
@@ -202,7 +197,7 @@ it('separates effective configuration publication and explicit activation state'
         mkdir($basePath . '/config', 0775, true);
         file_put_contents($basePath . '/config/database.php', "<?php\nreturn [];\n");
 
-        $inferred = moduleStateFind(
+        $inferred = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($inferredApp, new ModuleCatalog()))->all(),
             'database',
         );
@@ -218,7 +213,7 @@ it('separates effective configuration publication and explicit activation state'
             '_config_cache' => false,
             'app' => ['capabilities' => []],
         ]);
-        $explicit = moduleStateFind(
+        $explicit = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($explicitApp, new ModuleCatalog()))->all(),
             'database',
         );
@@ -248,7 +243,7 @@ it('keeps core auth ready while tracking OTP and passkey feature state independe
                 ],
             ],
         ]);
-        $otp = moduleStateFind(
+        $otp = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($otpApp, new ModuleCatalog()))->all(),
             'auth',
         );
@@ -276,7 +271,7 @@ it('keeps core auth ready while tracking OTP and passkey feature state independe
                 ],
             ],
         ]);
-        $passkey = moduleStateFind(
+        $passkey = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($passkeyApp, new ModuleCatalog()))->all(),
             'auth',
         );
@@ -300,7 +295,7 @@ it('reports optional integrations separately from managed module ownership', fun
             'base_path' => $basePath,
             '_config_cache' => false,
         ]);
-        $communication = moduleStateFind(
+        $communication = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($application, new ModuleCatalog()))->all(),
             'communication',
         );
@@ -311,7 +306,7 @@ it('reports optional integrations separately from managed module ownership', fun
             ->and($communication['optional_integrations']['grpc/grpc']['available'] ?? null)->toBeBool()
             ->and($communication['optional_integrations']['grpc/grpc']['features'] ?? null)->toBe(['grpc'])
             ->and($communication['features'])->toHaveKey('grpc')
-            ->and($communication['platform']['extensions'] ?? null)->toBe(['curl', 'fileinfo', 'openssl']);
+            ->and($communication['platform']['extensions'])->toBe(['curl', 'fileinfo', 'openssl']);
     } finally {
         moduleStateRemoveDirectory($basePath);
     }
@@ -327,7 +322,7 @@ it('keeps ordinary Omnibus messaging portable without PCNTL or POSIX requirement
             '_config_cache' => false,
             'app' => ['capabilities' => ['messaging']],
         ]);
-        $messaging = moduleStateFind(
+        $messaging = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($application, new ModuleCatalog()))->all(),
             'messaging',
         );
@@ -371,7 +366,7 @@ it('evaluates conditional specialist module dependencies against explicit topolo
             'app' => ['capabilities' => []],
             'messaging' => ['durable' => ['enabled' => true]],
         ]);
-        $blocked = moduleStateFind(
+        $blocked = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($blockedApp, new ModuleCatalog()))->all(),
             'messaging',
         );
@@ -388,7 +383,7 @@ it('evaluates conditional specialist module dependencies against explicit topolo
             'app' => ['capabilities' => ['database']],
             'messaging' => ['durable' => ['enabled' => true]],
         ]);
-        $ready = moduleStateFind(
+        $ready = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($readyApp, new ModuleCatalog()))->all(),
             'messaging',
         );
@@ -411,7 +406,7 @@ it('evaluates selected auth feature dependencies against core capabilities', fun
             'app' => ['capabilities' => ['auth']],
             'auth' => ['drivers' => ['mfa' => 'otp', 'passkey' => 'disabled']],
         ]);
-        $blocked = moduleStateFind(
+        $blocked = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($blockedApp, new ModuleCatalog()))->all(),
             'auth',
         );
@@ -429,7 +424,7 @@ it('evaluates selected auth feature dependencies against core capabilities', fun
             'app' => ['capabilities' => ['auth', 'cache']],
             'auth' => ['drivers' => ['mfa' => 'otp', 'passkey' => 'disabled']],
         ]);
-        $ready = moduleStateFind(
+        $ready = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($readyApp, new ModuleCatalog()))->all(),
             'auth',
         );
@@ -452,7 +447,7 @@ it('reports runtime platform readiness and hard-blocks missing required extensio
             '_config_cache' => false,
             'app' => ['capabilities' => ['database']],
         ]);
-        $database = moduleStateFind(
+        $database = FoundationModuleStateFinder::find(
             (new ModuleStateResolver($application, new ModuleCatalog()))->all(),
             'database',
         );
@@ -497,43 +492,34 @@ it('keeps specialist catalog package floors aligned with the tested dependency s
         }
 
         foreach ($catalog->managedPackages($definition) as $package => $constraint) {
+            \PHPUnit\Framework\Assert::assertIsArray($dev);
             expect($dev[$package] ?? null)->toBe($constraint);
         }
     }
 
+    \PHPUnit\Framework\Assert::assertIsArray(($composer['require'] ?? null));
     expect($composer['require']['infocyph/cachelayer'] ?? null)->toBe('^4.0.2');
 });
 
-/**
- * @param list<array<string,mixed>> $modules
- * @return array{packages:array<string,array<string,mixed>>, blockers:list<string>,warnings:list<string>, ...}
- * @throws \RuntimeException
- */
-function moduleStateFind(array $modules, string $name): array
+/** @phpstan-import-type ModuleState from ModuleStateResolver */
+final class FoundationModuleStateFinder
 {
-    $module = array_find(
-        $modules,
-        static fn(array $candidate): bool => ($candidate['name'] ?? null) === $name,
-    );
-
-    if (!is_array($module) || !is_array($module['packages'] ?? null)
-        || !is_array($module['blockers'] ?? null) || !is_array($module['warnings'] ?? null)
-    ) {
-        throw new RuntimeException(sprintf('Module %s has an invalid resolution structure.', $name));
-    }
-    foreach ($module['packages'] as $packageName => $package) {
-        if (!is_string($packageName) || !is_array($package)) {
-            throw new RuntimeException('Module package details must be keyed arrays.');
+    /**
+     * @param list<array<string,mixed>> $modules
+     * @return array<string,mixed>
+     * @phpstan-param list<ModuleState> $modules
+     * @phpstan-return ModuleState
+     * @throws \RuntimeException
+     */
+    public static function find(array $modules, string $name): array
+    {
+        $module = array_find($modules, static fn(array $candidate): bool => $candidate['name'] === $name);
+        if ($module === null) {
+            throw new RuntimeException(sprintf('Module %s was not resolved.', $name));
         }
-    }
-    foreach ([$module['blockers'], $module['warnings']] as $diagnostics) {
-        if (!array_is_list($diagnostics) || array_any($diagnostics, static fn(mixed $value): bool => !is_string($value))) {
-            throw new RuntimeException('Module diagnostic collections must be string lists.');
-        }
-    }
 
-    /** @var array{packages:array<string,array<string,mixed>>, blockers:list<string>,warnings:list<string>, ...} $module */
-    return $module;
+        return $module;
+    }
 }
 
 /** @param array<string,string> $requirements */

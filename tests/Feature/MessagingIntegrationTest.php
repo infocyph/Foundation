@@ -16,11 +16,11 @@ use Infocyph\Omnibus\Consumer\Command\ConsumerTask;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Integration\Runwire\RunwireBinding;
 use Infocyph\Omnibus\MessageBus;
+use Infocyph\Omnibus\Scheduling\ScheduledMessageDispatcher;
 use Infocyph\Runwire\Exception\CancelledException;
 use Infocyph\Runwire\RequestContext;
 use Infocyph\Runwire\Runtime\Enum\CancellationReason;
 use Infocyph\Runwire\RuntimeContext;
-use Infocyph\Omnibus\Scheduling\ScheduledMessageDispatcher;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
 final readonly class FoundationMessage
@@ -46,11 +46,14 @@ final readonly class FoundationEvent
 final class FoundationMessageProbe
 {
     private static int $next = 0;
+
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
@@ -94,6 +97,7 @@ final class FoundationFailingMessageHandler
     public function __invoke(): never
     {
         self::$scopes[] = $this->application->make(FoundationMessageProbe::class)->sequence;
+
         throw new RuntimeException('expected consumer failure');
     }
 }
@@ -136,11 +140,11 @@ final class FoundationScheduledMessageFactory
     }
 }
 /**
+ * @param array<string,mixed> $messaging
  * @throws \Exception
  * @throws \LogicException
  * @throws \Psr\Cache\InvalidArgumentException
  */
-
 function foundationMessagingApplication(array $messaging = []): Application
 {
     $provider = new class extends ServiceProvider {
@@ -276,8 +280,12 @@ it('isolates concurrent Fiber message executions in distinct Foundation scopes',
     $fiberB->resume();
     $fiberA->resume();
 
-    expect($fiberA->getReturn()->succeeded)->toBe(1)
-        ->and($fiberB->getReturn()->succeeded)->toBe(1)
+    $firstResult = $fiberA->getReturn();
+    $secondResult = $fiberB->getReturn();
+    \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\Omnibus\Consumer\ConsumerResult::class, $firstResult);
+    \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\Omnibus\Consumer\ConsumerResult::class, $secondResult);
+    expect($firstResult->succeeded)->toBe(1)
+        ->and($secondResult->succeeded)->toBe(1)
         ->and(FoundationFiberMessageHandler::$handled)->toHaveCount(2);
 
     foreach (FoundationFiberMessageHandler::$handled as $handled) {

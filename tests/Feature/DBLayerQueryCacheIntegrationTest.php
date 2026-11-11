@@ -13,50 +13,53 @@ use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
 use Psr\Container\ContainerInterface;
 
+final class FoundationQueryCacheTestContainer implements ContainerInterface
+{
+    public bool $cacheFactoryTouched = false;
+
+    public bool $cacheManagerTouched = false;
+
+    /** @var array<string,mixed> */
+    public array $services = [];
+
+    #[\Override]
+    public function get(string $id): mixed
+    {
+        if ($id === CacheLayerFactory::class) {
+            $this->cacheFactoryTouched = true;
+        }
+        if ($id === CacheManager::class) {
+            $this->cacheManagerTouched = true;
+        }
+
+        return $this->services[$id]
+            ?? throw new RuntimeException(sprintf('Unknown test service "%s".', $id));
+    }
+
+    #[\Override]
+    public function has(string $id): bool
+    {
+        if ($id === CacheLayerFactory::class) {
+            $this->cacheFactoryTouched = true;
+        }
+        if ($id === CacheManager::class) {
+            $this->cacheManagerTouched = true;
+        }
+
+        return array_key_exists($id, $this->services);
+    }
+}
 /**
  * @param array<string,mixed> $config
- * @return array{DBLayerFactory,RuntimeExecutionState,object,ConfigRepository,CacheManager}
+ * @return array{DBLayerFactory,RuntimeExecutionState,FoundationQueryCacheTestContainer,ConfigRepository,CacheManager}
  * @throws \UnexpectedValueException
  */
 function foundationDbLayerQueryRuntime(array $config): array
 {
     $repository = new ConfigRepository($config);
     $state = new RuntimeExecutionState();
-    $container = new class implements ContainerInterface {
-        /** @var array<string,mixed> */
-        public array $services = [];
+    $container = new FoundationQueryCacheTestContainer();
 
-        public bool $cacheFactoryTouched = false;
-
-        public bool $cacheManagerTouched = false;
-
-        #[\Override]
-        public function get(string $id): mixed
-        {
-            if ($id === CacheLayerFactory::class) {
-                $this->cacheFactoryTouched = true;
-            }
-            if ($id === CacheManager::class) {
-                $this->cacheManagerTouched = true;
-            }
-
-            return $this->services[$id]
-                ?? throw new RuntimeException(sprintf('Unknown test service "%s".', $id));
-        }
-
-        #[\Override]
-        public function has(string $id): bool
-        {
-            if ($id === CacheLayerFactory::class) {
-                $this->cacheFactoryTouched = true;
-            }
-            if ($id === CacheManager::class) {
-                $this->cacheManagerTouched = true;
-            }
-
-            return array_key_exists($id, $this->services);
-        }
-    };
     $container->services[RuntimeExecutionState::class] = $state;
 
     $database = new DBLayerFactory(new DatabaseConnectionResolver($repository), $container);
@@ -241,7 +244,6 @@ it('builds PDO-backed CacheLayer infrastructure without borrowing an execution c
         }
     }
 });
-
 
 it('shares the configured named query cache with the application cache registry and honors replacement', function (): void {
     [$database, $state, , , $manager] = foundationDbLayerQueryRuntime([

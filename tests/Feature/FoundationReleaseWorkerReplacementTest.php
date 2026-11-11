@@ -24,12 +24,12 @@ final class FoundationReleaseReplacementWorker implements WorkerProvider
 
     public static bool $continuedAfterHeartbeat = false;
 
+    /** @var list<string> */
+    public static array $executionIds = [];
+
     public static int $runs = 0;
 
     public static bool $stopObserved = false;
-
-    /** @var list<string> */
-    public static array $executionIds = [];
     /**
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
@@ -57,6 +57,11 @@ final class FoundationReleaseReplacementWorker implements WorkerProvider
     }
 }
 
+/**
+ * Runtime entry point discovered through native provider, route or benchmark metadata.
+ *
+ * @api
+ */
 final class FoundationReleaseReplacementProvider extends ServiceProvider
 {
     #[\Override]
@@ -100,7 +105,8 @@ it('gracefully replaces a release worker when the active Foundation generation c
             generation: 'release-worker-a',
         );
         $trustedA = hash_file('sha256', $releaseA['manifest']);
-        expect($trustedA)->toBeString()->toMatch('/^[a-f0-9]{64}$/D');
+        \PHPUnit\Framework\Assert::assertIsString($trustedA);
+        expect($trustedA)->toMatch('/^[a-f0-9]{64}$/D');
 
         $runtime = new FoundationReleaseRuntime()->nonWebPrevalidated(
             $config,
@@ -109,10 +115,10 @@ it('gracefully replaces a release worker when the active Foundation generation c
             $trustedA,
         );
         $loaded = $runtime->application->loadedReleaseGeneration();
-        expect($loaded)->not->toBeNull()
-            ->and($loaded?->generation)->toBe('release-worker-a')
-            ->and($loaded?->releaseRoot)->toBe($releaseRoot)
-            ->and($loaded?->trustedFoundationManifestSha256)->toBe($trustedA);
+        \PHPUnit\Framework\Assert::assertNotNull($loaded);
+        expect($loaded->generation)->toBe('release-worker-a')
+            ->and($loaded->releaseRoot)->toBe($releaseRoot)
+            ->and($loaded->trustedFoundationManifestSha256)->toBe($trustedA);
 
         FoundationReleaseReplacementWorker::$activateReplacement = static function () use (
             $compiler,
@@ -168,7 +174,8 @@ it('keeps an unbooted release-selected pool supervisor generation-aware', functi
             generation: 'pool-supervisor-a',
         );
         $trustedA = hash_file('sha256', $releaseA['manifest']);
-        expect($trustedA)->toBeString()->toMatch('/^[a-f0-9]{64}$/D');
+        \PHPUnit\Framework\Assert::assertIsString($trustedA);
+        expect($trustedA)->toMatch('/^[a-f0-9]{64}$/D');
 
         foundationReleaseReplacementSetEnvironment(FoundationReleaseBootstrap::RELEASE_ROOT_ENV, $releaseRoot);
         foundationReleaseReplacementSetEnvironment(FoundationReleaseBootstrap::MANIFEST_SHA256_ENV, $trustedA);
@@ -176,11 +183,9 @@ it('keeps an unbooted release-selected pool supervisor generation-aware', functi
         $supervisor = Foundation::worker($config);
         $method = new ReflectionMethod(WorkerManager::class, 'generationStopRequested');
         $watch = $method->invoke(new WorkerManager($supervisor));
-        expect($watch)->toBeInstanceOf(Closure::class)
-            ->and($supervisor->booted())->toBeFalse();
-        if (!$watch instanceof Closure) {
-            throw new RuntimeException('Worker generation watch was not created.');
-        }
+        \PHPUnit\Framework\Assert::assertInstanceOf(Closure::class, $watch);
+        expect($supervisor->booted())->toBeFalse();
+
         expect($watch())->toBeFalse();
 
         $compiler->buildAndActivate(

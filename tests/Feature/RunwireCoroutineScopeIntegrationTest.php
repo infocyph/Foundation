@@ -2,7 +2,12 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
+use DomainException;
 use Infocyph\ArrayKit\Collection\LazyCollection;
+
+use Infocyph\CacheLayer\Integration\Runwire\RunwireExecutionContext;
 use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwireIntegration;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
@@ -11,7 +16,6 @@ use Infocyph\InterMix\DI\RuntimeContainerInterface;
 use Infocyph\InterMix\Integration\Runwire\RunwireIntegration;
 use Infocyph\Omnibus\Integration\Runwire\RunwireBinding as OmnibusRunwireBinding;
 use Infocyph\OTP\Support\RunwireState;
-use Infocyph\CacheLayer\Integration\Runwire\RunwireExecutionContext;
 use Infocyph\ReqShield\Support\RunwireExecution;
 use Infocyph\Runwire\Coroutine\CoroutineRuntime;
 use Infocyph\Runwire\Coroutine\CoroutineScope;
@@ -20,6 +24,7 @@ use Infocyph\Runwire\Runtime\Enum\RuntimeDriver;
 use Infocyph\Runwire\RuntimeCapabilities;
 use Infocyph\Runwire\RuntimeContext;
 use Infocyph\UID\Runtime\RunwireBinding as UidRunwireBinding;
+use RuntimeException;
 
 it('preserves native coroutine runtime request and scope through structured child tasks', function (): void {
     $runtime = RuntimeContext::fromCapabilities(
@@ -46,13 +51,22 @@ it('preserves native coroutine runtime request and scope through structured chil
         $result = (new CoroutineRuntime())->runRequest(
             $request,
             static function (CoroutineScope $scope) use (
-                $runtime, $request, $integration, $database, $omnibus,
+                $runtime,
+                $request,
+                $integration,
+                $database,
+                $omnibus,
             ): array {
-                return $integration->withinRequest(
+                $nativeResult = $integration->withinRequest(
                     $request,
                     $scope,
                     static function (RuntimeContainerInterface $owner) use (
-                        $runtime, $request, $scope, $integration, $database, $omnibus,
+                        $runtime,
+                        $request,
+                        $scope,
+                        $integration,
+                        $database,
+                        $omnibus,
                     ): array {
                         $before = CacheRunwireIntegration::current();
 
@@ -60,7 +74,11 @@ it('preserves native coroutine runtime request and scope through structured chil
                             $request,
                             $scope,
                             static function (RuntimeContainerInterface $active) use (
-                                $runtime, $request, $scope, $database, $omnibus,
+                                $runtime,
+                                $request,
+                                $scope,
+                                $database,
+                                $omnibus,
                             ): array {
                                 (new UidRunwireBinding($runtime, $request, $scope))->assertActive();
                                 (new RunwireExecution($runtime, $request, $scope))->checkpoint(yield: true);
@@ -106,8 +124,13 @@ it('preserves native coroutine runtime request and scope through structured chil
                         ];
                     },
                 );
+                \PHPUnit\Framework\Assert::assertIsArray($nativeResult);
+
+                return $nativeResult;
             },
         );
+
+        \PHPUnit\Framework\Assert::assertIsArray(($result[4] ?? null));
 
         expect($result[0])->toBe($runtime)
             ->and($result[1])->toBe($request)
@@ -191,7 +214,7 @@ it('detaches a throwing native child and reuses InterMix for the next host-owned
         $result = $coroutines->runRequest(
             $nextRequest,
             static function (CoroutineScope $scope) use ($integration, $nextRequest): array {
-                return $integration->withinRequest(
+                $nativeResult = $integration->withinRequest(
                     $nextRequest,
                     $scope,
                     static fn(RuntimeContainerInterface $owner): array => [
@@ -199,6 +222,9 @@ it('detaches a throwing native child and reuses InterMix for the next host-owned
                         CacheRunwireIntegration::current()?->request,
                     ],
                 );
+                \PHPUnit\Framework\Assert::assertIsArray($nativeResult);
+
+                return $nativeResult;
             },
         );
 

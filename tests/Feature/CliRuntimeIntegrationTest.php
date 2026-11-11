@@ -134,6 +134,11 @@ final class FoundationCliRuntimeIO implements CommandIO
         $this->payloads[] = ['headers' => $headers, 'rows' => $rows];
     }
 
+    public function text(): string
+    {
+        return implode("\n", [...$this->lines, ...$this->writes]);
+    }
+
     #[\Override]
     public function warning(string $message): void
     {
@@ -150,11 +155,6 @@ final class FoundationCliRuntimeIO implements CommandIO
     public function writeln(string $message = ''): void
     {
         $this->lines[] = $message;
-    }
-
-    public function text(): string
-    {
-        return implode("\n", [...$this->lines, ...$this->writes]);
     }
 }
 
@@ -535,6 +535,7 @@ it('uses the native selector for every installed runtime enum case', function ()
         $environment = new RuntimeEnvironmentProbe()->probe();
         foreach (RuntimeDriver::cases() as $driver) {
             $io = new FoundationCliRuntimeIO(machine: true);
+
             try {
                 $selected = new RuntimeSelector()->select(new RuntimeOptions(driver: $driver), $environment);
             } catch (RuntimeUnavailableException $exception) {
@@ -542,6 +543,7 @@ it('uses the native selector for every installed runtime enum case', function ()
                     'infbyte', 'serve', '--runtime=' . $driver->value, '--dry-run', '--json',
                 ], $io))->toBe(ExitCode::FAILURE)
                     ->and($io->errors)->toContain($exception->getMessage());
+
                 continue;
             }
 
@@ -674,7 +676,10 @@ function foundationCliRuntimeWriteManifest(string $project, CommandRegistry $reg
     );
 }
 
-/** @return list<array<string,mixed>> */
+/**
+ * @return list<array<string,mixed>>
+ * @throws \UnexpectedValueException
+ */
 function foundationCliRuntimeHistory(string $project): array
 {
     $path = $project . '/storage/logs/executions.jsonl';
@@ -691,7 +696,7 @@ function foundationCliRuntimeHistory(string $project): array
     foreach ($lines as $line) {
         $decoded = json_decode($line, true, 32, JSON_THROW_ON_ERROR);
         if (is_array($decoded)) {
-            $records[] = $decoded;
+            $records[] = foundationStringMap($decoded);
         }
     }
 

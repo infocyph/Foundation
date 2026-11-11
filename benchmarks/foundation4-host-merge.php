@@ -2,16 +2,19 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../tests/Fixtures/ProbeInput.php';
+$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::arguments($_SERVER['argv'] ?? []);
+
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 use Infocyph\Foundation\Benchmarks\Support\Foundation4HostComparison;
 use Infocyph\Foundation\Benchmarks\Support\Foundation4HostUpgradeEvidence;
 
-if (!in_array($argc, [3, 6], true)) {
+if (!in_array(count($argv), [3, 6], true)) {
     throw new InvalidArgumentException('Usage: php foundation4-host-merge.php ARTIFACT_DIRECTORY OUTPUT [BASELINE.lock CANDIDATE.lock REVIEWED_ALLOWLIST.json]');
 }
 $reports = ['baseline' => [], 'candidate' => []];
-$files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($argv[1], FilesystemIterator::SKIP_DOTS));
+$files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(\Infocyph\Foundation\Tests\Fixtures\ProbeInput::path($argv[1]), FilesystemIterator::SKIP_DOTS));
 foreach ($files as $file) {
     if (!$file instanceof SplFileInfo || !$file->isFile() || $file->getFilename() !== 'report.json') {
         continue;
@@ -56,7 +59,7 @@ foreach ($reports as $variant => $parts) {
             }
             if (isset($combined['soak'][$host])
                 || ($part['soak_window_seconds'] ?? 0) < 120
-                || count($soak['windows'] ?? []) !== 2
+                || count($soak['windows']) !== 2
             ) {
                 throw new RuntimeException('Missing or duplicate sustained host soak evidence.');
             }
@@ -101,8 +104,8 @@ if ($merged['baseline']['tool_sha'] !== $merged['candidate']['tool_sha']
     throw new RuntimeException('Baseline/candidate tooling or workload differs.');
 }
 $upgrade = null;
-if ($argc === 6) {
-    $review = json_decode((string) file_get_contents($argv[5]), true, flags: JSON_THROW_ON_ERROR);
+if (count($argv) === 6) {
+    $review = json_decode((string) file_get_contents(\Infocyph\Foundation\Tests\Fixtures\ProbeInput::path($argv[5])), true, flags: JSON_THROW_ON_ERROR);
     if (!is_array($review)) {
         throw new InvalidArgumentException('Reviewed dependency upgrade policy must be a JSON object.');
     }
@@ -114,10 +117,10 @@ if ($argc === 6) {
     ];
 }
 
-$comparison = Foundation4HostComparison::compare($merged['baseline'], $merged['candidate'], $upgrade);
-file_put_contents($argv[2], json_encode($comparison, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . PHP_EOL);
+$comparison = Foundation4HostComparison::compare(\Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::objectMap($merged['baseline']), \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::objectMap($merged['candidate']), $upgrade);
+file_put_contents(\Infocyph\Foundation\Tests\Fixtures\ProbeInput::path($argv[2]), json_encode($comparison, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . PHP_EOL);
 foreach ($merged as $variant => $report) {
-    file_put_contents(dirname($argv[2]) . '/' . $variant . '-merged.json', json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . PHP_EOL);
+    file_put_contents(\Infocyph\Foundation\Tests\Fixtures\ProbeInput::path(dirname($argv[2]) . '/' . $variant . '-merged.json'), json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . PHP_EOL);
 }
 if (!$comparison['passed']) {
     throw new RuntimeException('Matched host comparison failed; inspect variance and regression evidence.');

@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
 use Infocyph\Foundation\Auth\AuthManager;
+
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Internal\AuthRuntimeRegistrar;
@@ -10,6 +13,7 @@ use Infocyph\Foundation\Auth\Internal\AuthStoreRegistrar;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use RuntimeException;
 
 it('keeps the native authentication and audit-service recipes on their owning registrars', function (): void {
     $config = new ConfigRepository([

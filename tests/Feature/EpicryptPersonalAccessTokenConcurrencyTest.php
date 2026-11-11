@@ -83,8 +83,7 @@ it('serializes PAT issue against concurrent revoke-all for the same subject', fu
         if (!is_array($row) || !is_numeric($row['revision'] ?? null)) {
             throw new \UnexpectedValueException('Concurrent PAT subject revision must be numeric.');
         }
-        expect($row)->toBeArray()
-            ->and((int) ($row['revision'] ?? 0))->toBe(3)
+        expect((int) ($row['revision']))->toBe(3)
             ->and($record->revokedAt === null || $record->revokedAt === 1_700_000_100)->toBeTrue();
     } finally {
         $files = glob($root . '/*');

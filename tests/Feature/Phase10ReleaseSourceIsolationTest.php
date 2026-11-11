@@ -49,17 +49,14 @@ it('boots immutable releases without rediscovering application source files', fu
             generation: 'phase10-source-isolation',
         );
         $generation = $releaseRoot . '/generations/phase10-source-isolation';
-        $manifest = require $generation . '/foundation.php';
-        if (!is_array($manifest)) {
-            throw new \UnexpectedValueException('Generated Foundation release manifest must be an array.');
-        }
+        $manifest = \foundationReadPhpFixtureArray($generation . '/foundation.php');
 
         if (!is_string($manifest['config_sha256'] ?? null)) {
             throw new \UnexpectedValueException('Release manifest must contain a configuration digest.');
         }
         expect(is_file($generation . '/config.php'))->toBeTrue()
             ->and($manifest['config_path'] ?? null)->toBe('config.php')
-            ->and($manifest['config_sha256'] ?? null)->toMatch('/^[a-f0-9]{64}$/D');
+            ->and($manifest['config_sha256'])->toMatch('/^[a-f0-9]{64}$/D');
 
         $releaseConfig = FoundationReleaseConfig::load(
             $generation . '/config.php',

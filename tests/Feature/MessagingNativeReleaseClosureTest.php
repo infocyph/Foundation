@@ -219,13 +219,15 @@ it('executes Omnibus failure administration and queue monitoring through the rea
             ->and($shown->json[0]['decoded'] ?? null)->toBeTrue();
 
         $retried = new FoundationMessagingCommandIO();
-        expect($dispatcher->run([
+        $retryStatus = $dispatcher->run([
             'infbyte',
             'queue:retry',
             'retry-me',
             '--transport=shared',
             '--queue=retried',
-        ], $retried))->toBe(ExitCode::SUCCESS)
+        ], $retried);
+        \PHPUnit\Framework\Assert::assertIsArray(($retried->json[0] ?? null));
+        expect($retryStatus)->toBe(ExitCode::SUCCESS)
             ->and($failures->find('retry-me'))->toBeNull()
             ->and($transport->size('retried'))->toBe(1)
             ->and($retried->json[0]['queue'] ?? null)->toBe('retried');
@@ -244,7 +246,9 @@ it('executes Omnibus failure administration and queue monitoring through the rea
             ]);
 
         $pruned = new FoundationMessagingCommandIO();
-        expect($dispatcher->run(['infbyte', 'queue:prune-failed', '--hours=24'], $pruned))->toBe(ExitCode::SUCCESS)
+        $pruneStatus = $dispatcher->run(['infbyte', 'queue:prune-failed', '--hours=24'], $pruned);
+        \PHPUnit\Framework\Assert::assertIsArray(($pruned->json[0] ?? null));
+        expect($pruneStatus)->toBe(ExitCode::SUCCESS)
             ->and($failures->find('old-one'))->toBeNull()
             ->and($pruned->json[0]['pruned'] ?? null)->toBe(1);
 
@@ -262,8 +266,9 @@ it('executes Omnibus failure administration and queue monitoring through the rea
             );
 
         $flushed = new FoundationMessagingCommandIO();
-        expect($dispatcher->run(['infbyte', 'queue:flush', '--no-interaction', '--force'], $flushed))
-            ->toBe(ExitCode::SUCCESS)
+        $flushStatus = $dispatcher->run(['infbyte', 'queue:flush', '--no-interaction', '--force'], $flushed);
+        \PHPUnit\Framework\Assert::assertIsArray(($flushed->json[0] ?? null));
+        expect($flushStatus)->toBe(ExitCode::SUCCESS)
             ->and($failures->all())->toBe([])
             ->and($flushed->json[0]['flushed'] ?? null)->toBe(2);
     } finally {
@@ -319,10 +324,8 @@ it('gracefully stops an Omnibus message worker after a named restart signal and 
             ->and(new RuntimeProcessRegistry($app)->all('worker', 'jobs'))->toBe([]);
 
         $transport = $app->make(TransportRegistry::class)->get('memory');
-        expect($transport)->toBeInstanceOf(InMemoryTransport::class);
-        if (!$transport instanceof InMemoryTransport) {
-            throw new LogicException('Expected the Omnibus in-memory transport.');
-        }
+        \PHPUnit\Framework\Assert::assertInstanceOf(InMemoryTransport::class, $transport);
+
         expect($transport->size('jobs'))->toBe(1);
     } finally {
         foundationMessagingReleaseRemove($project);

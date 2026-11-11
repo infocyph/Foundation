@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
+use FilesystemIterator;
 use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\DBLayer\Schema\SchemaManager;
 use Infocyph\Foundation\Auth\Account\Account;
+
 use Infocyph\Foundation\Auth\Account\AccountStatus;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerAccountStore;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailDestinationChanged;
@@ -16,6 +20,9 @@ use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Tests\Fixtures\AuthContentionFixture;
 use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
+use InvalidArgumentException;
+use PDO;
+use RuntimeException;
 
 /**
  * @return array<string, mixed>
@@ -89,7 +96,6 @@ it('commits one persisted auth transition across independent competing processes
             'id' => 'owner', 'identifier' => 'owner@example.test', 'status' => 'active', 'password_hash' => 'before',
         ]);
         foreach (['reset', 'email', 'refresh', 'remember', 'session', 'passkey'] as $kind) {
-            $store = $fixture->store($kind);
             $record = match ($kind) {
                 'reset' => new PasswordResetRequest('source', 'owner', $now, $now + 300),
                 'email' => new EmailVerificationRequest('source', 'owner', 'owner@example.test', $now, $now + 300),
@@ -97,7 +103,14 @@ it('commits one persisted auth transition across independent competing processes
                 'session' => new AuthSession('source', 'owner', null, $now, $now, $now + 300),
                 'passkey' => new PasskeyCredential('source', 'owner', 'credential', null, 'key', 0, [], $now),
             };
-            $kind === 'session' ? $store->create($record) : $store->save($record);
+            match (true) {
+                $record instanceof AuthSession => $fixture->store('session')->create($record),
+                $record instanceof PasswordResetRequest => $fixture->store('reset')->save($record),
+                $record instanceof EmailVerificationRequest => $fixture->store('email')->save($record),
+                $record instanceof \Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenRecord => $fixture->store('refresh')->save($record),
+                $record instanceof \Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenRecord => $fixture->store('remember')->save($record),
+                $record instanceof PasskeyCredential => $fixture->store('passkey')->save($record),
+            };
             foreach (['first', 'second'] as $worker) {
                 $processes[] = startPersistedAuthWorker($directory, $kind, $worker, $now);
             }
@@ -135,9 +148,9 @@ it('commits one persisted auth transition across independent competing processes
             if ($kind === 'reset' || $kind === 'email') {
                 expect($db->table($fixture->tables->accounts())->where('id', '=', 'owner')->value('password_hash'))->toBe($winner);
             } elseif ($kind === 'passkey') {
-                expect($store->findByCredentialId('credential'))->toBeNull();
+                expect($fixture->store('passkey')->findByCredentialId('credential'))->toBeNull();
             } else {
-                expect($store->find((string) $winner))->not->toBeNull();
+                expect($fixture->store($kind)->find((string) $winner))->not->toBeNull();
             }
             foreach (new FilesystemIterator($directory) as $file) {
                 if (!$file instanceof \SplFileInfo) {
@@ -176,6 +189,7 @@ it('commits one persisted auth transition across independent competing processes
         $before = $db->table($fixture->tables->accounts())->where('id', '=', 'owner')->value('password_hash');
         expect(fn(): mixed => $reset->consumeAndApply('rollback', static function () use ($db, $fixture): void {
             $db->table($fixture->tables->accounts())->where('id', '=', 'owner')->update(['password_hash' => 'uncommitted']);
+
             throw new RuntimeException('injected account mutation failure');
         }))->toThrow(\Infocyph\DBLayer\Exceptions\TransactionException::class)
             ->and($reset->wasConsumed('rollback'))->toBeFalse()
@@ -241,7 +255,11 @@ it('commits one persisted auth transition across independent competing processes
             metadata: ['email' => 'pending-cas@example.test'],
         ));
         $emailRequests->save(new EmailVerificationRequest(
-            'cas-success', 'email-cas-pending', 'pending-cas@example.test', $now, $now + 300,
+            'cas-success',
+            'email-cas-pending',
+            'pending-cas@example.test',
+            $now,
+            $now + 300,
         ));
         expect($emailRequests->consumeAndApply('cas-success', static function () use ($accounts, $now): void {
             if (!$accounts->markVerifiedForEmail('email-cas-pending', 'pending-cas@example.test', $now)) {
@@ -258,7 +276,11 @@ it('commits one persisted auth transition across independent competing processes
             metadata: ['email' => 'outdated-cas@example.test'],
         ));
         $emailRequests->save(new EmailVerificationRequest(
-            'cas-stale', 'email-cas-stale', 'outdated-cas@example.test', $now, $now + 300,
+            'cas-stale',
+            'email-cas-stale',
+            'outdated-cas@example.test',
+            $now,
+            $now + 300,
         ));
         $accounts->updateMetadata('email-cas-stale', ['email' => 'changed-cas@example.test']);
         expect(fn(): mixed => $emailRequests->consumeAndApply('cas-stale', static function () use ($accounts, $now): void {
@@ -284,9 +306,9 @@ it('commits one persisted auth transition across independent competing processes
         }
         $db->disconnect();
         foreach (new FilesystemIterator($directory) as $file) {
-                if (!$file instanceof \SplFileInfo) {
-                    throw new \UnexpectedValueException('Unexpected authentication contention fixture entry.');
-                }
+            if (!$file instanceof \SplFileInfo) {
+                throw new \UnexpectedValueException('Unexpected authentication contention fixture entry.');
+            }
             unlink($file->getPathname());
         }
         rmdir($directory);
@@ -327,8 +349,14 @@ it('restores retained auth records through independent SQLite/MySQL/PostgreSQL c
         );
         $fixture->store('refresh')->save(
             new \Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenRecord(
-                hash('sha256', 'retained-refresh-token'), null, null,
-                'retained-refresh', 'retained-owner', 'retained-family', $now, $now + 3600,
+                hash('sha256', 'retained-refresh-token'),
+                null,
+                null,
+                'retained-refresh',
+                'retained-owner',
+                'retained-family',
+                $now,
+                $now + 3600,
             ),
         );
         $fixture->store('passkey')->save(
@@ -408,7 +436,7 @@ it('restores retained auth records through independent SQLite/MySQL/PostgreSQL c
         }
 
         expect(hash('sha256', json_encode($restored, JSON_THROW_ON_ERROR)))->toBe($snapshotDigest)
-            ->and(password_verify('retained-secret', (string) $restored[$tables->accounts()]['password_hash']))->toBeTrue()
+            ->and(password_verify('retained-secret', foundationFixtureString($restored[$tables->accounts()]['password_hash'])))->toBeTrue()
             ->and($fixture->store('session')->find('retained-session'))->not->toBeNull()
             ->and($fixture->store('refresh')->find('retained-refresh'))->not->toBeNull()
             ->and($fixture->store('passkey')->findByCredentialId('opaque-credential-id'))->not->toBeNull();
@@ -424,15 +452,14 @@ it('restores retained auth records through independent SQLite/MySQL/PostgreSQL c
         }
         $database->disconnect();
         foreach (new FilesystemIterator($directory) as $file) {
-                if (!$file instanceof \SplFileInfo) {
-                    throw new \UnexpectedValueException('Unexpected authentication contention fixture entry.');
-                }
+            if (!$file instanceof \SplFileInfo) {
+                throw new \UnexpectedValueException('Unexpected authentication contention fixture entry.');
+            }
             unlink($file->getPathname());
         }
         rmdir($directory);
     }
 })->with(['sqlite', 'mysql', 'pgsql']);
-
 
 it('backfills actual legacy passkey identities before Foundation 4 hash lookups on selected SQL engines', function (string $driver): void {
     $directory = sys_get_temp_dir() . '/foundation-legacy-passkey-' . bin2hex(random_bytes(6));
@@ -526,9 +553,9 @@ it('backfills actual legacy passkey identities before Foundation 4 hash lookups 
         }
         $database->disconnect();
         foreach (new FilesystemIterator($directory) as $file) {
-                if (!$file instanceof \SplFileInfo) {
-                    throw new \UnexpectedValueException('Unexpected authentication contention fixture entry.');
-                }
+            if (!$file instanceof \SplFileInfo) {
+                throw new \UnexpectedValueException('Unexpected authentication contention fixture entry.');
+            }
             unlink($file->getPathname());
         }
         rmdir($directory);

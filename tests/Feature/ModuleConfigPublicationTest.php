@@ -54,7 +54,7 @@ it('publishes only Foundation authentication policy with the crypto module', fun
         $application = Foundation::cli(['base_path' => $basePath, '_config_cache' => false]);
         $manager = new ModuleManager($application, new ModuleCatalog());
         $result = $manager->publishConfig('crypto');
-        $configuration = require $basePath . '/config/security.php';
+        $configuration = \foundationReadPhpFixtureArray($basePath . '/config/security.php');
 
         expect($result['published'])->toBe([$basePath . '/config/security.php'])
             ->and($configuration)->toHaveKeys([
@@ -84,7 +84,7 @@ it('publishes the built-in browser session configuration without Composer', func
         $result = $manager->publishConfig('session');
 
         expect($result['published'])->toBe([$basePath . '/config/session.php'])
-            ->and(require $basePath . '/config/session.php')->toHaveKeys([
+            ->and(\foundationReadPhpFixtureArray($basePath . '/config/session.php'))->toHaveKeys([
                 'driver', 'lifetime', 'cookie', 'stores', 'lock', 'csrf',
             ]);
     } finally {
@@ -105,7 +105,7 @@ it('force-publishes atomically and removes Foundation-owned backups after commit
         expect($result['published'])->toBe([$basePath . '/config/database.php'])
             ->and(((array) glob($basePath . '/config/*.foundation-*.bak')))->toBe([])
             ->and(((array) glob($basePath . '/config/.foundation-config-*')))->toBe([])
-            ->and(require $basePath . '/config/database.php')->toHaveKey('connections');
+            ->and(\foundationReadPhpFixtureArray($basePath . '/config/database.php'))->toHaveKey('connections');
     } finally {
         moduleConfigRemoveDirectory($basePath);
     }

@@ -27,7 +27,7 @@ final readonly class FoundationPersistentPrincipal implements PrincipalInterface
     public function __construct(private string $identifier) {}
 
     #[\Override]
-    public function accountId(): ?string
+    public function accountId(): string
     {
         return $this->identifier;
     }
@@ -57,9 +57,11 @@ final class FoundationPersistentScopedProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
@@ -250,6 +252,7 @@ it('isolates execution state while preserving bounded process-local memoizers', 
 
 /**
  * @throws \ReflectionException
+ * @throws \UnexpectedValueException
  */
 function foundationPersistentMemoized(FoundationPersistentMemoCalls $calls): int
 {
@@ -257,14 +260,17 @@ function foundationPersistentMemoized(FoundationPersistentMemoCalls $calls): int
         return ++$calls->memo;
     };
 
-    return Memoizer::instance()->get($calls->memoClosure);
+    return foundationFixtureInteger(Memoizer::instance()->get($calls->memoClosure));
 }
 
+/**
+ * @throws \UnexpectedValueException
+ */
 function foundationPersistentOnce(FoundationPersistentMemoCalls $calls): int
 {
-    return OnceMemoizer::instance()->once(static function () use ($calls): int {
+    return foundationFixtureInteger(OnceMemoizer::instance()->once(static function () use ($calls): int {
         return ++$calls->once;
-    });
+    }));
 }
 
 function foundationPersistentStateProject(): string
@@ -288,6 +294,7 @@ function foundationPersistentStateRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

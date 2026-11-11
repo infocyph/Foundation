@@ -2,22 +2,29 @@
 
 declare(strict_types=1);
 
-use Infocyph\CacheLayer\Cache\CacheInterface;
+require_once __DIR__ . '/ProbeInput.php';
+$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::arguments($_SERVER['argv'] ?? []);
+
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\PathManager;
 
-if ($argc !== 5) {
+if (count($argv) !== 5) {
     throw new InvalidArgumentException('Expected phase, project, versioned autoloader, and report directory.');
 }
 
-[$phase, $project, $autoload, $reports] = array_slice($argv, 1);
+$phase = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 1);
+$project = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 2);
+$autoload = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 3);
+$reports = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 4);
 if (!in_array($phase, ['old-seed', 'new-read', 'old-restore', 'new-rollforward'], true)) {
     throw new InvalidArgumentException('Unknown cross-major Redis cache phase.');
 }
 
-require $autoload;
+$project = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::project($project);
+$reports = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::path($reports);
+\Infocyph\Foundation\Tests\Fixtures\ProbeInput::autoload($autoload);
 
 $config = new ConfigRepository([
     'app' => ['base_path' => $project],
@@ -37,13 +44,11 @@ $factory = new CacheLayerFactory(
     new PathManager($project, ['cache' => 'storage/cache']),
     static function (?string $name = null): Connection {
         unset($name);
+
         throw new LogicException('Native Redis cache verification must not resolve a SQL connection.');
     },
 );
 $cache = $factory->make('retained');
-if (!$cache instanceof CacheInterface) {
-    throw new RuntimeException('Selected CacheLayer Redis store is unavailable.');
-}
 
 $redis = new Redis();
 if ($redis->connect('127.0.0.1', 6379, 2.0) !== true) {
@@ -52,6 +57,7 @@ if ($redis->connect('127.0.0.1', 6379, 2.0) !== true) {
 
 $expected = ['session' => 'legacy-session', 'replay_denied' => true, 'account' => 'legacy-account'];
 $snapshot = $reports . '/original-cache-snapshot.json';
+
 try {
     if ($phase === 'old-seed') {
         if (!$cache->set('replay-state', $expected, 3600)) {
@@ -62,7 +68,7 @@ try {
         }
 
         $keys = $redis->keys('*');
-        if (!is_array($keys) || $keys === []) {
+        if ($keys === []) {
             throw new RuntimeException('Native Redis contains no persisted original-source cache entries.');
         }
 
@@ -86,13 +92,16 @@ try {
         }
 
         $keys = $redis->keys('*');
-        if (!is_array($keys)) {
-            throw new RuntimeException('Unable to enumerate isolated Redis recovery keys.');
-        }
         if ($keys !== []) {
             $redis->del(...$keys);
         }
         foreach ($entries as $key => $entry) {
+            if (!is_array($entry)) {
+                throw new \UnexpectedValueException('Expected a structured rehearsal record.');
+            }
+            if (!is_string($entry['dump'] ?? null) || !is_int($entry['ttl_ms'] ?? null)) {
+                throw new RuntimeException('Redis recovery snapshot requires encoded bytes and an integer TTL.');
+            }
             $bytes = base64_decode($entry['dump'], true);
             if (!is_string($bytes) || $redis->restore($key, max(0, (int) $entry['ttl_ms']), $bytes) !== true) {
                 throw new RuntimeException('Native Redis recovery failed for stored cache entry.');

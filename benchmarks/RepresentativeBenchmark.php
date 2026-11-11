@@ -23,6 +23,15 @@ use Throwable;
 
 final readonly class RepresentativeBenchmark
 {
+    /** @var positive-int */
+    private int $operations;
+
+    /** @var positive-int */
+    private int $repetitions;
+
+    /** @var non-negative-int */
+    private int $warmupOperations;
+
     /**
      * @param int $repetitions Number of independently measured samples.
      * @param int $warmupOperations Unmeasured operations performed before each sample.
@@ -30,13 +39,16 @@ final readonly class RepresentativeBenchmark
      * @throws \InvalidArgumentException
      */
     public function __construct(
-        private int $repetitions = 3,
-        private int $warmupOperations = 100,
-        private int $operations = 1_000,
+        int $repetitions = 3,
+        int $warmupOperations = 100,
+        int $operations = 1_000,
     ) {
-        if ($this->repetitions < 1 || $this->warmupOperations < 0 || $this->operations < 1) {
+        if ($repetitions < 1 || $warmupOperations < 0 || $operations < 1) {
             throw new \InvalidArgumentException('Benchmark repetitions and operations must be positive.');
         }
+        $this->repetitions = $repetitions;
+        $this->warmupOperations = $warmupOperations;
+        $this->operations = $operations;
     }
 
     /**
@@ -224,6 +236,16 @@ PHP);
         };
     }
 
+    private function cpuModel(): string
+    {
+        $contents = is_file('/proc/cpuinfo') ? file_get_contents('/proc/cpuinfo') : false;
+
+        return is_string($contents)
+            && preg_match('/^model name\\s*:\\s*(.+)$/mi', $contents, $matches) === 1
+            ? trim($matches[1])
+            : php_uname('m');
+    }
+
     /**
      * @return array<string, mixed>
      * @throws \RuntimeException
@@ -238,11 +260,7 @@ PHP);
             );
         }
 
-        $contents = is_file('/proc/cpuinfo') ? file_get_contents('/proc/cpuinfo') : false;
-        $cpuModel = is_string($contents)
-            && preg_match('/^model name\\s*:\\s*(.+)$/mi', $contents, $matches) === 1
-            ? trim($matches[1])
-            : php_uname('m');
+        $cpuModel = $this->cpuModel();
         $extensions = get_loaded_extensions();
         sort($extensions);
         $fingerprint = is_string($fingerprint) && $fingerprint !== ''
@@ -263,7 +281,7 @@ PHP);
             'php_sapi' => PHP_SAPI,
             'operating_system' => php_uname('s') . ' ' . php_uname('r'),
             'cpu_model' => $cpuModel,
-            'memory_limit' => (($__foundation154_266 = ini_get('memory_limit')) !== false && $__foundation154_266 !== '' && $__foundation154_266 !== '0' ? $__foundation154_266 : '-1'),
+            'memory_limit' => (($__foundation154_266 = ini_get('memory_limit')) !== '' && $__foundation154_266 !== '0' ? $__foundation154_266 : '-1'),
             'opcache' => extension_loaded('Zend OPcache') && (bool) ini_get('opcache.enable_cli'),
             'jit' => (string) ini_get('opcache.jit') !== '' && (string) ini_get('opcache.jit') !== '0',
             'xdebug' => extension_loaded('xdebug'),
@@ -292,49 +310,23 @@ PHP);
         $memoryPeak = 0.0;
         $memoryGrowth = 0.0;
 
-        for ($sample = 0; $sample < $this->repetitions; $sample++) {
-            for ($warmup = 0; $warmup < $this->warmupOperations; $warmup++) {
-                $operation();
-            }
-
-            if (function_exists('memory_reset_peak_usage')) {
-                memory_reset_peak_usage();
-            }
-            $memoryBefore = memory_get_usage(true);
-            $sampleSuccessful = 0;
-            $sampleStarted = hrtime(true);
-
-            for ($iteration = 0; $iteration < $this->operations; $iteration++) {
-                $started = hrtime(true);
-
-                try {
-                    if ($operation()) {
-                        ++$successful;
-                        ++$sampleSuccessful;
-                    } else {
-                        ++$failed;
-                    }
-                } catch (Throwable) {
-                    ++$failed;
-                }
-                $latencies[] = (hrtime(true) - $started) / 1_000_000;
-            }
-
-            $sampleDuration = max(0.000001, (hrtime(true) - $sampleStarted) / 1_000_000_000);
-            $duration += (float) $sampleDuration;
-            $sampleRpms[] = ((float) $sampleSuccessful / (float) $sampleDuration) * 60.0;
-            $memoryAfter = memory_get_usage(true);
-            $memoryTotal += ((float) $memoryBefore + (float) $memoryAfter) / 2.0 / 1_048_576.0;
-            $memoryPeak = max($memoryPeak, (float) memory_get_peak_usage(true) / 1_048_576.0);
-            $memoryGrowth = max($memoryGrowth, max(0.0, (float) ($memoryAfter - $memoryBefore)) / 1_048_576.0);
-        }
+        $sample = 0;
+        do {
+            $sampleResult = $this->sample($operation);
+            array_push($latencies, ...$sampleResult['latencies']);
+            $successful += $sampleResult['successful'];
+            $failed += $sampleResult['failed'];
+            $duration += $sampleResult['duration'];
+            $sampleRpms[] = $sampleResult['rpm'];
+            $memoryTotal += $sampleResult['memory_average'];
+            $memoryPeak = max($memoryPeak, $sampleResult['memory_peak']);
+            $memoryGrowth = max($memoryGrowth, $sampleResult['memory_growth']);
+            ++$sample;
+        } while ($sample < $this->repetitions);
 
         sort($latencies);
         $attempted = $this->operations * $this->repetitions;
         sort($sampleRpms);
-        if ($sampleRpms === []) {
-            throw new \RuntimeException('Expected at least one representative benchmark repetition.');
-        }
         $medianRpm = $this->percentile($sampleRpms, 0.50) ?? 0.0;
         $spread = $medianRpm > 0.0
             ? ((max($sampleRpms) - min($sampleRpms)) / $medianRpm) * 100.0
@@ -361,14 +353,14 @@ PHP);
                 'failed_operations' => $failed,
                 'timeouts' => 0,
                 'successful_rpm' => $duration > 0 ? ((float) $successful / $duration) * 60.0 : 0.0,
-                'error_rate' => $attempted > 0 ? $failed / $attempted : 0.0,
+                'error_rate' => $failed / $attempted,
                 'latency_ms' => [
-                    'minimum' => $latencies[0] ?? null,
-                    'average' => $latencies === [] ? null : array_sum($latencies) / (float) count($latencies),
+                    'minimum' => $latencies[0],
+                    'average' => array_sum($latencies) / (float) count($latencies),
                     'p50' => $this->percentile($latencies, 0.50),
                     'p95' => $this->percentile($latencies, 0.95),
                     'p99' => $this->percentile($latencies, 0.99),
-                    'maximum' => $latencies === [] ? null : $latencies[count($latencies) - 1],
+                    'maximum' => $this->percentile($latencies, 1.0),
                 ],
                 'cpu' => [
                     'average_percent' => null,
@@ -480,6 +472,60 @@ PHP);
             return $response->getStatusCode() === 200
                 && (string) $response->getBody() === $expectedBody;
         };
+    }
+
+    /**
+     * @param callable():bool $operation
+     * @return array{latencies:non-empty-list<float>,successful:int,failed:int,duration:float,rpm:float,memory_average:float,memory_peak:float,memory_growth:float}
+     */
+    private function sample(callable $operation): array
+    {
+        $latencies = [];
+        $failed = 0;
+        for ($warmup = 0; $warmup < $this->warmupOperations; $warmup++) {
+            $operation();
+        }
+
+        if (function_exists('memory_reset_peak_usage')) {
+            memory_reset_peak_usage();
+        }
+        $memoryBefore = memory_get_usage(true);
+        $sampleSuccessful = 0;
+        $sampleStarted = hrtime(true);
+
+        $iteration = 0;
+        do {
+            $started = hrtime(true);
+
+            try {
+                if ($operation()) {
+                    ++$sampleSuccessful;
+                } else {
+                    ++$failed;
+                }
+            } catch (Throwable) {
+                ++$failed;
+            }
+            $latencies[] = (float) (hrtime(true) - $started) / 1_000_000.0;
+            ++$iteration;
+        } while ($iteration < $this->operations);
+
+        $sampleDuration = max(0.000001, (hrtime(true) - $sampleStarted) / 1_000_000_000);
+        $memoryAfter = memory_get_usage(true);
+        $memoryTotal = ((float) $memoryBefore + (float) $memoryAfter) / 2.0 / 1_048_576.0;
+        $memoryPeak = (float) memory_get_peak_usage(true) / 1_048_576.0;
+        $memoryGrowth = max(0.0, (float) ($memoryAfter - $memoryBefore)) / 1_048_576.0;
+
+        return [
+            'latencies' => $latencies,
+            'successful' => $sampleSuccessful,
+            'failed' => $failed,
+            'duration' => (float) $sampleDuration,
+            'rpm' => ((float) $sampleSuccessful / (float) $sampleDuration) * 60.0,
+            'memory_average' => $memoryTotal,
+            'memory_peak' => $memoryPeak,
+            'memory_growth' => $memoryGrowth,
+        ];
     }
 
     /**

@@ -45,6 +45,7 @@ it('serializes release build-plane mutations without changing the active generat
         $active->activate($root, 'stable');
 
         $lock = FoundationReleaseBuildLock::acquire($root);
+
         try {
             expect(fn() => FoundationReleaseBuildLock::acquire($root))
                 ->toThrow(RuntimeException::class, 'already in progress')
@@ -92,12 +93,12 @@ it('rejects a trusted release when its dependency identity no longer matches', f
 
     try {
         $manifestPath = foundationReleaseInfrastructureGeneration($root, 'dependency-mismatch');
-        $manifest = require $manifestPath;
+        $manifest = \foundationReadPhpFixtureArray($manifestPath);
         $manifest['dependency_fingerprint'] = str_repeat('0', 32);
         FoundationReleaseManifest::write($manifestPath, $manifest);
         new ActiveGeneration()->activate($root, 'dependency-mismatch');
         $sha = hash_file('sha256', $manifestPath);
-        expect($sha)->toBeString();
+        \PHPUnit\Framework\Assert::assertIsString($sha);
 
         expect(fn() => new FoundationReleaseRuntime()->trustedActiveManifest($root, $sha))
             ->toThrow(RuntimeException::class, 'dependency identity does not match');
@@ -108,6 +109,7 @@ it('rejects a trusted release when its dependency identity no longer matches', f
 
 it('rejects traversal paths in the Foundation generation manifest', function (): void {
     $manifest = foundationReleaseInfrastructureManifest('bad');
+    \PHPUnit\Framework\Assert::assertIsArray(($manifest['worker'] ?? null));
     $manifest['worker']['intermix_path'] = '../worker.php';
 
     expect(fn() => FoundationReleaseManifest::assertValid($manifest))
@@ -145,6 +147,7 @@ it('preserves draining generations until their runtime lease is released', funct
         new ActiveGeneration()->activate($root, 'active');
 
         $lease = ReleaseGenerationLease::acquireShared($root, 'draining');
+
         try {
             expect($compiler->prune($root, keep: 1))->toBe([])
                 ->and(is_dir($root . '/generations/draining'))->toBeTrue();
@@ -259,6 +262,7 @@ function foundationReleaseInfrastructureRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

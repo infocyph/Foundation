@@ -56,9 +56,7 @@ it('forwards host Runwire inputs through worker CLI and scheduler owned and borr
                 executionId: new ExecutionId('native-' . $mode),
             );
 
-            if (!is_array($result) || !is_array($result[3] ?? null)) {
-                throw new \UnexpectedValueException('Borrowed Runwire scope must return a structured context tuple.');
-            }
+            \PHPUnit\Framework\Assert::assertIsArray($result[3]);
             expect($result[0])->toBe($runtime)
                 ->and($result[1])->toBe($request)
                 ->and($result[2])->toBe($result[3][2])
@@ -181,13 +179,13 @@ it('keeps exact host Runwire identities in source-free compiled worker CLI and s
                         $request = $generated->application->make(RequestContext::class);
                         $context = $generated->container->captureScopeContext();
                         $child = new Fiber(static fn(): array => $execution->withinBorrowedScope(
-                                $context,
-                                static fn(ExecutionId $borrowed): array => [
-                                    $borrowed,
-                                    $generated->application->make(RuntimeContext::class),
-                                    $generated->application->make(RequestContext::class),
-                                ],
-                            ));
+                            $context,
+                            static fn(ExecutionId $borrowed): array => [
+                                $borrowed,
+                                $generated->application->make(RuntimeContext::class),
+                                $generated->application->make(RequestContext::class),
+                            ],
+                        ));
                         $child->start();
 
                         return [$id, $runtime, $request, $child->getReturn()];

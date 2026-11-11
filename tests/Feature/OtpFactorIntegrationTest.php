@@ -12,20 +12,20 @@ use Infocyph\Foundation\Auth\Mfa\MfaChallenge;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorType;
-use Infocyph\Foundation\Auth\Support\InMemoryMfaFactorStore;
 use Infocyph\Foundation\Auth\Otp\OtpManager;
+use Infocyph\Foundation\Auth\Support\InMemoryMfaFactorStore;
 use Infocyph\Foundation\Foundation;
 use Infocyph\OTP\AOTP;
 use Infocyph\OTP\GridOTP;
 use Infocyph\OTP\HOTP;
+use Infocyph\OTP\MobileOTP;
 use Infocyph\OTP\RecoveryCodes;
+use Infocyph\OTP\ValueObjects\AotpChallenge;
+use Infocyph\OTP\ValueObjects\GridChallenge;
 use Infocyph\Runwire\Exception\CancelledException;
 use Infocyph\Runwire\RequestContext;
 use Infocyph\Runwire\Runtime\Enum\CancellationReason;
 use Infocyph\Runwire\RuntimeContext;
-use Infocyph\OTP\MobileOTP;
-use Infocyph\OTP\ValueObjects\AotpChallenge;
-use Infocyph\OTP\ValueObjects\GridChallenge;
 
 /**
  * @throws \Exception
@@ -89,8 +89,7 @@ it('keeps AOTP private keys device-owned and composes native challenges', functi
         if (isset($enrollment->context['otp']) && !is_array($enrollment->context['otp'])) {
             throw new \UnexpectedValueException('AOTP enrollment must provide an OTP context.');
         }
-        expect($factor)->toBeInstanceOf(MfaFactor::class)
-            ->and($factor->metadata['otp']['public_key'] ?? null)->toBe($keys->publicKey)
+        expect(foundationStringMap($factor->metadata['otp'])['public_key'] ?? null)->toBe($keys->publicKey)
             ->and($factor->metadata['otp'])->not->toHaveKey('private_key')
             ->and($enrollment->context['otp'] ?? [])->not->toHaveKey('private_key');
 
@@ -119,12 +118,13 @@ it('keeps AOTP private keys device-owned and composes native challenges', functi
         if (!is_array($payload)) {
             throw new RuntimeException('AOTP challenge metadata was not emitted.');
         }
-        $native = AotpChallenge::fromArray($payload);
+        $nativeChallenge = foundationFixtureObject($challenge->challenge, MfaChallenge::class);
+        $native = AotpChallenge::fromArray(foundationStringMap($payload));
         $response = AOTP::respond($keys->privateKey, $native, $native->audience, $native->context);
         $verified = $app->make(\Infocyph\Foundation\Auth\AuthServices::class)
             ->mfa()
             ->verifyChallenge(
-                (string) $challenge->challenge?->id,
+                $nativeChallenge->id,
                 json_encode($response->toArray(), JSON_THROW_ON_ERROR),
             );
 
@@ -139,14 +139,11 @@ it('enrolls GridOTP without exposing its secret through generic enrollment conte
         $enrollment = $otp->enrollGridOtp('acct-grid-1');
         $factor = $enrollment->factor();
 
-        expect($factor)->toBeInstanceOf(MfaFactor::class)
-            ->and($enrollment->secret)->not->toBeEmpty()
-            ->and($factor?->metadata['otp']['secret'] ?? null)->toBe($enrollment->secret)
+        \PHPUnit\Framework\Assert::assertInstanceOf(MfaFactor::class, $factor);
+        \PHPUnit\Framework\Assert::assertIsArray(($enrollment->enrollment->context['otp'] ?? null));
+        expect($enrollment->secret)->not->toBeEmpty()
+            ->and(foundationStringMap($factor->metadata['otp'])['secret'] ?? null)->toBe($enrollment->secret)
             ->and($enrollment->enrollment->context['otp']['secret'] ?? null)->toBe('[redacted]');
-
-        if (!$factor instanceof MfaFactor) {
-            throw new RuntimeException('GridOTP enrollment did not create a factor.');
-        }
 
         $enrollmentChallenge = $otp->issueGridEnrollmentChallenge('acct-grid-1', $factor->id);
         $confirmed = $otp->completeGridEnrollment(
@@ -162,11 +159,12 @@ it('enrolls GridOTP without exposing its secret through generic enrollment conte
         if (!is_array($payload)) {
             throw new RuntimeException('GridOTP challenge metadata was not emitted.');
         }
-        $native = GridChallenge::fromArray($payload);
+        $nativeChallenge = foundationFixtureObject($challenge->challenge, MfaChallenge::class);
+        $native = GridChallenge::fromArray(foundationStringMap($payload));
         $verified = $app->make(\Infocyph\Foundation\Auth\AuthServices::class)
             ->mfa()
             ->verifyChallenge(
-                (string) $challenge->challenge?->id,
+                $nativeChallenge->id,
                 GridOTP::respond($native, $enrollment->secret),
             );
 
@@ -187,14 +185,11 @@ it('imports MobileOTP only through the explicit legacy workflow', function (): v
         );
         $factor = $enrollment->factor;
 
-        expect($factor)->toBeInstanceOf(MfaFactor::class)
-            ->and($factor?->metadata['otp']['legacy'] ?? null)->toBeTrue()
+        \PHPUnit\Framework\Assert::assertInstanceOf(MfaFactor::class, $factor);
+        \PHPUnit\Framework\Assert::assertIsArray(($enrollment->context['otp'] ?? null));
+        expect(foundationStringMap($factor->metadata['otp'])['legacy'] ?? null)->toBeTrue()
             ->and($enrollment->context['otp']['secret'] ?? null)->toBe('[redacted]')
             ->and($enrollment->context['otp']['pin'] ?? null)->toBe('[redacted]');
-
-        if (!$factor instanceof MfaFactor) {
-            throw new RuntimeException('MobileOTP enrollment did not create a factor.');
-        }
 
         $code = new MobileOTP($secret, $pin)->generate();
         $confirmed = $otp->completeEnrollment('acct-mobile-1', $factor->id, $code);
@@ -209,10 +204,7 @@ it('preserves GridOTP state after cancellation of a borrowed Runwire operation',
         $otp = $app->make(OtpManager::class);
         $enrollment = $otp->enrollGridOtp('acct-grid-cancelled');
         $factor = $enrollment->factor();
-        expect($factor)->toBeInstanceOf(MfaFactor::class);
-        if (!$factor instanceof MfaFactor) {
-            throw new RuntimeException('GridOTP test factor was not created.');
-        }
+        \PHPUnit\Framework\Assert::assertInstanceOf(MfaFactor::class, $factor);
 
         $challenge = $otp->issueGridEnrollmentChallenge('acct-grid-cancelled', $factor->id);
         $response = GridOTP::respond($challenge, $enrollment->secret);
@@ -300,9 +292,9 @@ it('preserves HOTP counters across a cancelled borrowed request and forwards nat
         CacheRunwire::release($runtime);
     }
 
-    expect($factors->findForAccount($factor->accountId)[0]->metadata['otp']['counter'])->toBe(0)
+    expect(foundationStringMap($factors->findForAccount($factor->accountId)[0]->metadata['otp'])['counter'])->toBe(0)
         ->and($verifier->verify($challenge, $code)->verified)->toBeTrue()
-        ->and($factors->findForAccount($factor->accountId)[0]->metadata['otp']['counter'])->toBe(1)
+        ->and(foundationStringMap($factors->findForAccount($factor->accountId)[0]->metadata['otp'])['counter'])->toBe(1)
         ->and($verifier->verify($challenge, $code)->verified)->toBeFalse();
 });
 
@@ -317,6 +309,7 @@ it('keeps recovery-code issuance and consumption atomic across cancelled borrowe
     $runtime = RuntimeContext::standalone();
     $request = RequestContext::create($runtime);
     CacheRunwire::bind($runtime);
+
     try {
         CacheRunwire::share($request, null, static function () use ($accountId, $recovery, $request): void {
             $request->cancel(CancellationReason::HOST_CANCELLED);
@@ -331,11 +324,12 @@ it('keeps recovery-code issuance and consumption atomic across cancelled borrowe
     $codes = $recovery->generate($accountId);
     expect($codes)->toHaveCount(3);
     $code = $codes[0];
-    $original = $factors->findForAccount($accountId)[0]->metadata['otp_recovery']['hashes'];
+    $original = foundationStringMap($factors->findForAccount($accountId)[0]->metadata['otp_recovery'])['hashes'];
 
     $runtime = RuntimeContext::standalone();
     $request = RequestContext::create($runtime);
     CacheRunwire::bind($runtime);
+
     try {
         CacheRunwire::share($request, null, static function () use ($accountId, $code, $recovery, $request): void {
             $request->cancel(CancellationReason::HOST_CANCELLED);
@@ -346,9 +340,9 @@ it('keeps recovery-code issuance and consumption atomic across cancelled borrowe
         CacheRunwire::release($runtime);
     }
 
-    expect($factors->findForAccount($accountId)[0]->metadata['otp_recovery']['hashes'])->toBe($original)
+    expect(foundationStringMap($factors->findForAccount($accountId)[0]->metadata['otp_recovery'])['hashes'])->toBe($original)
         ->and($recovery->verify($accountId, $code)->verified)->toBeTrue()
-        ->and($factors->findForAccount($accountId)[0]->metadata['otp_recovery']['hashes'])->toHaveCount(2)
+        ->and(foundationStringMap($factors->findForAccount($accountId)[0]->metadata['otp_recovery'])['hashes'])->toHaveCount(2)
         ->and($recovery->verify($accountId, $code)->verified)->toBeFalse();
 });
 
@@ -368,6 +362,14 @@ it('rejects recovery consumption when cancellation arrives after state read but 
         ) {}
 
         #[\Override]
+        public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool
+        {
+            $this->writes++;
+
+            return $this->backing->compareAndSwap($expected, $updated);
+        }
+
+        #[\Override]
         public function findForAccount(string $accountId): array
         {
             $found = $this->backing->findForAccount($accountId);
@@ -377,14 +379,6 @@ it('rejects recovery consumption when cancellation arrives after state read but 
             }
 
             return $found;
-        }
-
-        #[\Override]
-        public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool
-        {
-            $this->writes++;
-
-            return $this->backing->compareAndSwap($expected, $updated);
         }
 
         #[\Override]
@@ -404,10 +398,11 @@ it('rejects recovery consumption when cancellation arrives after state read but 
         str_repeat('k', 32),
     ));
     $code = $recovery->generate($accountId)[0];
-    $initial = $backing->findForAccount($accountId)[0]->metadata['otp_recovery']['hashes'];
+    $initial = foundationStringMap($backing->findForAccount($accountId)[0]->metadata['otp_recovery'])['hashes'];
     expect($store->writes)->toBe(1);
 
     CacheRunwire::bind($runtime);
+
     try {
         CacheRunwire::share($request, null, static function () use ($accountId, $code, $recovery, $store): void {
             $store->cancelOnFind = true;
@@ -419,7 +414,7 @@ it('rejects recovery consumption when cancellation arrives after state read but 
     }
 
     expect($store->writes)->toBe(1)
-        ->and($backing->findForAccount($accountId)[0]->metadata['otp_recovery']['hashes'])->toBe($initial)
+        ->and(foundationStringMap($backing->findForAccount($accountId)[0]->metadata['otp_recovery'])['hashes'])->toBe($initial)
         ->and($recovery->verify($accountId, $code)->verified)->toBeTrue()
         ->and($store->writes)->toBe(2);
 });

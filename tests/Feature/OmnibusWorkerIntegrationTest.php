@@ -27,9 +27,11 @@ final class FoundationWorkerProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
@@ -196,21 +198,21 @@ it('requires declarative fork-safe configuration before starting a worker pool',
     }
 
     expect(static fn(): Application => Foundation::worker([
-            'messaging' => [
-                'handlers' => [FoundationWorkerMessage::class => static fn(): null => null],
-                'workers' => [
-                    'parallel' => [
-                        'transport' => 'shared',
-                        'queue' => 'default',
-                        'pool' => [
-                            'enabled' => true,
-                            'concurrency' => 2,
-                        ],
+        'messaging' => [
+            'handlers' => [FoundationWorkerMessage::class => static fn(): null => null],
+            'workers' => [
+                'parallel' => [
+                    'transport' => 'shared',
+                    'queue' => 'default',
+                    'pool' => [
+                        'enabled' => true,
+                        'concurrency' => 2,
                     ],
                 ],
             ],
-        ]))->toThrow(
-            InvalidArgumentException::class,
-            'Declarative factory arguments must be service references or exportable values.',
-        );
+        ],
+    ]))->toThrow(
+        InvalidArgumentException::class,
+        'Declarative factory arguments must be service references or exportable values.',
+    );
 });

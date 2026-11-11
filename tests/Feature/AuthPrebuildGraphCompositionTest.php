@@ -2,19 +2,22 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
 use Infocyph\Epicrypt\Token\Payload\PurposeToken;
+
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
-use Infocyph\Foundation\Auth\AuthOtpServiceProvider;
-use Infocyph\Foundation\Auth\AuthServiceProvider;
 use Infocyph\Foundation\Auth\Authentication\Lockout\LockoutManager;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetManager;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\TokenAuthManager;
 use Infocyph\Foundation\Auth\Authorization\Gate\Gate;
 use Infocyph\Foundation\Auth\Authorization\Policy\PolicyInterface;
 use Infocyph\Foundation\Auth\Authorization\Policy\PolicyResolverInterface;
+use Infocyph\Foundation\Auth\AuthOtpServiceProvider;
+use Infocyph\Foundation\Auth\AuthServiceProvider;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordPolicyInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
@@ -22,6 +25,7 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyManager;
 use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Container\FoundationGraph;
+use stdClass;
 
 it('contributes authentication services before any Application runtime has been registered', function (): void {
     $context = FoundationBuildContext::fromConfig(
@@ -104,7 +108,7 @@ it('resolves optional authorization policies against the completed runtime graph
         #[\Override]
         public function resolve(mixed $resource): ?PolicyInterface
         {
-            expect($resource)->toBeInstanceOf(stdClass::class);
+            \PHPUnit\Framework\Assert::assertInstanceOf(stdClass::class, $resource);
             $this->calls++;
 
             return null;
@@ -114,7 +118,7 @@ it('resolves optional authorization policies against the completed runtime graph
     $container = $builder->build();
     $gate = $container->get(Gate::class);
 
-    expect($gate)->toBeInstanceOf(Gate::class);
+    \PHPUnit\Framework\Assert::assertInstanceOf(Gate::class, $gate);
     $gate->can(new Principal('policy-test', accountId: 'policy-test'), 'view', new stdClass());
     expect($resolver->calls)->toBe(1);
 });

@@ -29,7 +29,7 @@ it('models managed feature and optional package roles without broadening install
 
 it('documents the canonical three-module feature IDs and package version floors', function (): void {
     $content = file_get_contents(dirname(__DIR__, 2) . '/docs/modules.md');
-    expect($content)->toBeString();
+    \PHPUnit\Framework\Assert::assertIsString($content);
 
     $catalog = new \Infocyph\Foundation\Module\ModuleArchitectureCatalog();
     foreach ($catalog->all() as $group => $definition) {
@@ -79,7 +79,7 @@ it('keeps Composer core and specialist module floors on one supported generation
 it('keeps all publishable module templates aligned with the configuration guide', function (): void {
     $root = dirname(__DIR__, 2);
     $documentation = file_get_contents($root . '/docs/configuration.md');
-    expect($documentation)->toBeString();
+    \PHPUnit\Framework\Assert::assertIsString($documentation);
 
     foreach (new ModuleCatalog()->all() as $module) {
         foreach ($module['config'] as $filename) {
@@ -195,11 +195,17 @@ it('rejects catalog identifier collisions and dependency cycles', function (): v
     $validator = new ModuleCatalogValidator();
 
     $aliases = $catalog->all();
+    if (!isset($aliases['database'])) {
+        throw new LogicException('Catalog fixture is missing database.');
+    }
     $aliases['database']['aliases'][] = 'queue';
     expect(fn() => $validator->validate($aliases))
         ->toThrow(LogicException::class, 'Module identifier "queue" is shared');
 
     $cycle = $catalog->all();
+    if (!isset($cycle['database'])) {
+        throw new LogicException('Catalog fixture is missing database.');
+    }
     $cycle['database']['dependencies'][] = [
         'type' => 'module',
         'target' => 'messaging',

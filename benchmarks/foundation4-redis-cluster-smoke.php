@@ -45,9 +45,11 @@ if (!$writer instanceof Cache || !$reader instanceof Cache) {
 }
 
 $assert = static function (bool $ok, string $reason): void {
-    if (!$ok) {
-        throw new RuntimeException($reason);
+    if ($ok) {
+        return;
     }
+
+    throw new RuntimeException($reason);
 };
 
 try {

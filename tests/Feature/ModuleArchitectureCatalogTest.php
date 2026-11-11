@@ -94,19 +94,43 @@ it('rejects foreign modules, package ownership collisions, undeclared dependenci
     expect(fn() => $catalog->validate($extra))->toThrow(LogicException::class);
 
     $shared = $modules;
+    if (!isset($shared['execution'])) {
+        throw new LogicException('Catalog fixture is missing execution.');
+    }
+    if (!isset($shared['execution']['features']['messaging'])) {
+        throw new LogicException('Catalog fixture is missing messaging.');
+    }
     $shared['execution']['features']['messaging']['packages']['infocyph/pathwise'] = '^4.2.1';
     expect(fn() => $catalog->validate($shared))->toThrow(LogicException::class, 'multiple unrelated feature owners');
 
     $unknown = $modules;
+    if (!isset($unknown['data'])) {
+        throw new LogicException('Catalog fixture is missing data.');
+    }
+    if (!isset($unknown['data']['features']['database'])) {
+        throw new LogicException('Catalog fixture is missing database.');
+    }
     $unknown['data']['features']['database']['dependencies'][] = ['target' => 'unknown.feature'];
     expect(fn() => $catalog->validate($unknown))->toThrow(LogicException::class, 'Unknown or self-referential');
 
     $cycle = $modules;
+    if (!isset($cycle['data'])) {
+        throw new LogicException('Catalog fixture is missing data.');
+    }
+    if (!isset($cycle['data']['features']['database'])) {
+        throw new LogicException('Catalog fixture is missing database.');
+    }
     $cycle['data']['features']['database']['dependencies'][] = ['target' => 'execution.messaging'];
     expect(fn() => $catalog->validate($cycle))->toThrow(LogicException::class, 'Cyclic optional feature dependencies');
 
     foreach (['infocyph/cachelayer' => '^4.0', 'infocyph/runwire' => '^3.0'] as $package => $constraint) {
         $core = $modules;
+        if (!isset($core['execution'])) {
+            throw new LogicException('Catalog fixture is missing execution.');
+        }
+        if (!isset($core['execution']['features']['messaging'])) {
+            throw new LogicException('Catalog fixture is missing messaging.');
+        }
         $core['execution']['features']['messaging']['packages'][$package] = $constraint;
         expect(fn() => $catalog->validate($core))->toThrow(LogicException::class, 'Invalid optional package owner');
     }
@@ -128,26 +152,62 @@ it('rejects invalid schema ownership, unsafe config paths, platform names and sh
     $definitions = $catalog->all();
 
     $schema = $definitions;
+    if (!isset($schema['security'])) {
+        throw new LogicException('Catalog fixture is missing security.');
+    }
+    if (!isset($schema['security']['features']['crypto'])) {
+        throw new LogicException('Catalog fixture is missing crypto.');
+    }
     $schema['security']['features']['crypto']['schemas'] = ['messaging'];
     expect(fn() => $catalog->validate($schema))->toThrow(LogicException::class, 'duplicate schema owner');
 
     $path = $definitions;
+    if (!isset($path['data'])) {
+        throw new LogicException('Catalog fixture is missing data.');
+    }
+    if (!isset($path['data']['features']['filesystem'])) {
+        throw new LogicException('Catalog fixture is missing filesystem.');
+    }
     $path['data']['features']['filesystem']['config'] = ['../config.php'];
     expect(fn() => $catalog->validate($path))->toThrow(LogicException::class, 'Invalid config ownership path');
 
     $collision = $definitions;
+    if (!isset($collision['data'])) {
+        throw new LogicException('Catalog fixture is missing data.');
+    }
+    if (!isset($collision['data']['features']['filesystem'])) {
+        throw new LogicException('Catalog fixture is missing filesystem.');
+    }
     $collision['data']['features']['filesystem']['config'] = ['database.php'];
     expect(fn() => $catalog->validate($collision))->toThrow(LogicException::class, 'Duplicate config ownership');
 
     $coreSchema = $definitions;
+    if (!isset($coreSchema['security'])) {
+        throw new LogicException('Catalog fixture is missing security.');
+    }
+    if (!isset($coreSchema['security']['features']['crypto'])) {
+        throw new LogicException('Catalog fixture is missing crypto.');
+    }
     $coreSchema['security']['features']['crypto']['schemas'] = ['auth'];
     expect(fn() => $catalog->validate($coreSchema))->toThrow(LogicException::class, 'schema owner');
 
     $platform = $definitions;
+    if (!isset($platform['data'])) {
+        throw new LogicException('Catalog fixture is missing data.');
+    }
+    if (!isset($platform['data']['features']['database'])) {
+        throw new LogicException('Catalog fixture is missing database.');
+    }
     $platform['data']['features']['database']['platform']['extensions'] = ['not an extension'];
     expect(fn() => $catalog->validate($platform))->toThrow(LogicException::class, 'Invalid platform extension');
 
     $shared = $definitions;
+    if (!isset($shared['security'])) {
+        throw new LogicException('Catalog fixture is missing security.');
+    }
+    if (!isset($shared['security']['features']['passkey'])) {
+        throw new LogicException('Catalog fixture is missing passkey.');
+    }
     $shared['security']['features']['passkey']['packages']['infocyph/otp'] = '^6.0.1';
     expect(fn() => $catalog->validate($shared))->toThrow(LogicException::class, 'Conflicting shared constraints');
 

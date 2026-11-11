@@ -6,7 +6,9 @@ declare(strict_types=1);
  * Isolated real TCP peer for Foundation/TalkingBytes integration tests.
  * No production code, external network or HTTP fixture substitution involved.
  */
-$readyPath = $argv[1] ?? '';
+require_once __DIR__ . '/ProbeInput.php';
+$arguments = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::arguments($_SERVER['argv'] ?? []);
+$readyPath = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::path($arguments[1] ?? '');
 if ($readyPath === '') {
     throw new RuntimeException('Missing TalkingBytes HTTP fixture handshake path.');
 }
@@ -18,6 +20,7 @@ if ($listener === false) {
 $address = stream_socket_get_name($listener, false);
 if (!is_string($address) || !str_contains($address, ':')) {
     fclose($listener);
+
     throw new RuntimeException('Unable to resolve loopback HTTP endpoint.');
 }
 $delimiter = strrchr($address, ':');
@@ -49,6 +52,7 @@ while ($requests < 24 && microtime(true) < $until) {
     $separator = strpos($incoming, "\r\n\r\n");
     if ($separator === false) {
         fclose($peer);
+
         continue;
     }
 
@@ -67,11 +71,16 @@ while ($requests < 24 && microtime(true) < $until) {
     foreach (explode("\r\n", $head) as $line) {
         if (stripos($line, 'content-length:') === 0) {
             $length = max(0, (int) trim(substr($line, 15)));
+
             break;
         }
     }
-    while (strlen($body) < $length && !feof($peer)) {
-        $chunk = fread($peer, min(8192, $length - strlen($body)));
+    while (!feof($peer)) {
+        $remaining = $length - strlen($body);
+        if ($remaining <= 0) {
+            break;
+        }
+        $chunk = fread($peer, min(8192, $remaining));
         if ($chunk === false || $chunk === '') {
             break;
         }

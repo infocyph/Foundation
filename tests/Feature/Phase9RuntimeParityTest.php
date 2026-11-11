@@ -7,16 +7,15 @@ use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Command\CommandContext;
 use Infocyph\Foundation\Command\CommandDefinition;
-use Infocyph\Foundation\Command\CommandDescriptor;
 use Infocyph\Foundation\Command\CommandIO;
 use Infocyph\Foundation\Command\ParsedInput;
 use Infocyph\Foundation\Routing\WebGraphFactory;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
+use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\Foundation\Runtime\NonWebGraphFactory;
-use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Scheduling\ScheduledCommand;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
@@ -44,9 +43,11 @@ final class Phase9ParityScopedProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
@@ -78,6 +79,11 @@ final class Phase9ParityProvider extends ServiceProvider
     }
 }
 
+/**
+ * Runtime entry point discovered through native provider, route or benchmark metadata.
+ *
+ * @api
+ */
 final readonly class Phase9WebParityHandler
 {
     public static function show(string $name): Response
@@ -111,19 +117,11 @@ it('keeps InterMix development and generated production semantics aligned for no
 
             $artifact = $runtimeRoot . '/bootstrap/cache/container.php';
             $report = new GeneratedRuntimeCompiler()->compile($config, $mode, $artifact);
-            $inputIds = match ($mode) {
-                RuntimeMode::Cli => [
-                    CommandContext::class,
-                    CommandDefinition::class,
-                    CommandDescriptor::class,
-                    CommandIO::class,
-                    ParsedInput::class,
-                    ExecutionId::class,
-                ],
-                RuntimeMode::Worker => [ExecutionId::class],
-                RuntimeMode::Scheduler => [ExecutionId::class, ScheduledCommand::class],
-                RuntimeMode::Web => throw new LogicException('Web parity uses the Webrick graph.'),
-            };
+            $inputIds = [
+                RuntimeMode::Cli->value => [CommandContext::class, CommandDefinition::class, CommandIO::class, ParsedInput::class, ExecutionId::class],
+                RuntimeMode::Worker->value => [ExecutionId::class],
+                RuntimeMode::Scheduler->value => [ExecutionId::class, ScheduledCommand::class],
+            ][$mode->value];
             expect($report['skipped'])->toBe([]);
             foreach ($inputIds as $inputId) {
                 expect($report['compiled'])->toContain($inputId);
@@ -208,7 +206,7 @@ PHP);
         $productionRuntime = WebReleaseRuntime::loadPrevalidated(
             $config,
             $manifest,
-            (string) $release['release_runtime_manifest_sha256'],
+            $release['release_runtime_manifest_sha256'],
             foundationCapabilities: [],
         );
         $production = $productionRuntime->kernel->handle($request);
@@ -266,6 +264,7 @@ function phase9ParityRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

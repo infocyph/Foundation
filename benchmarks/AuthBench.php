@@ -20,20 +20,21 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Webrick\Request\Request;
 use PhpBench\Attributes as Bench;
 
+/** @api Discovered and invoked by PHPBench. */
 #[Bench\Revs(10)]
 #[Bench\Iterations(3)]
 #[Bench\Warmup(1)]
 final class AuthBench
 {
-    private Account $account;
+    private ?Account $account = null;
 
-    private Application $app;
+    private ?Application $app = null;
 
-    private MfaFactor $factor;
+    private ?MfaFactor $factor = null;
 
-    private Request $request;
+    private ?Request $request = null;
 
-    private AuthServices $services;
+    private ?AuthServices $services = null;
 
     /**
      * @throws \LogicException
@@ -44,6 +45,10 @@ final class AuthBench
     #[Bench\BeforeMethods('setUpAuthorization')]
     public function benchAuthorization(): void
     {
+
+        if ($this->services === null || $this->account === null) {
+            throw new \LogicException('Native PHPBench setup must initialize the scenario before measurement.');
+        }
         $decision = $this->services->authorizer()->can(
             new Principal($this->account->id(), accountId: $this->account->id()),
             'benchmark.read',
@@ -62,6 +67,10 @@ final class AuthBench
     #[Bench\BeforeMethods('setUpAuth')]
     public function benchLogin(): void
     {
+
+        if ($this->services === null || $this->account === null) {
+            throw new \LogicException('Native PHPBench setup must initialize the scenario before measurement.');
+        }
         $result = $this->services->authenticator()->login(new LoginRequest(
             $this->account->identifier(),
             'benchmark-secret',
@@ -76,27 +85,34 @@ final class AuthBench
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \UnexpectedValueException
+     * @throws \Throwable
      */
     #[Bench\BeforeMethods('setUpMfa')]
     public function benchMfaChallenge(): void
     {
-        $challenge = $this->services->mfa()->issueChallenge(
-            $this->account->id(),
-            factorId: $this->factor->id,
-        );
 
-        $issuedChallenge = $challenge->challenge;
-        if (!$issuedChallenge instanceof MfaChallenge) {
-            throw new \LogicException('MFA benchmark challenge was not created.');
-        }
+        $this->withinRequestScope(function (): void {
+            if ($this->services === null || $this->account === null || $this->factor === null) {
+                throw new \LogicException('Native PHPBench setup must initialize the scenario before measurement.');
+            }
+            $challenge = $this->services->mfa()->issueChallenge(
+                $this->account->id(),
+                factorId: $this->factor->id,
+            );
 
-        $verified = $this->services->mfa()->verifyChallenge(
-            $issuedChallenge->id,
-            '000000',
-        );
-        if (!$verified->successful()) {
-            throw new \LogicException('MFA benchmark did not verify its challenge.');
-        }
+            $issuedChallenge = $challenge->challenge;
+            if (!$issuedChallenge instanceof MfaChallenge) {
+                throw new \LogicException('MFA benchmark challenge was not created.');
+            }
+
+            $verified = $this->services->mfa()->verifyChallenge(
+                $issuedChallenge->id,
+                '000000',
+            );
+            if (!$verified->successful()) {
+                throw new \LogicException('MFA benchmark did not verify its challenge.');
+            }
+        });
     }
 
     /**
@@ -105,26 +121,33 @@ final class AuthBench
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \UnexpectedValueException
+     * @throws \Throwable
      */
     #[Bench\BeforeMethods('setUpPasskey')]
     public function benchPasskeyAuthentication(): void
     {
-        $started = $this->services->passkeys()->startAuthentication($this->account->id());
-        $challenge = $started->challenge;
-        if (!$challenge instanceof PasskeyChallenge) {
-            throw new \LogicException('Passkey benchmark challenge was not created.');
-        }
 
-        $verified = $this->services->passkeys()->finishAuthentication(new PasskeyAuthenticationResult(
-            challengeId: $challenge->id,
-            credentialId: 'benchmark-credential',
-            clientData: 'client-data',
-            authenticatorData: 'authenticator-data',
-            signature: 'signature',
-        ));
-        if (!$verified->successful()) {
-            throw new \LogicException('Passkey benchmark did not verify its credential.');
-        }
+        $this->withinRequestScope(function (): void {
+            if ($this->services === null || $this->account === null) {
+                throw new \LogicException('Native PHPBench setup must initialize the scenario before measurement.');
+            }
+            $started = $this->services->passkeys()->startAuthentication($this->account->id());
+            $challenge = $started->challenge;
+            if (!$challenge instanceof PasskeyChallenge) {
+                throw new \LogicException('Passkey benchmark challenge was not created.');
+            }
+
+            $verified = $this->services->passkeys()->finishAuthentication(new PasskeyAuthenticationResult(
+                challengeId: $challenge->id,
+                credentialId: 'benchmark-credential',
+                clientData: 'client-data',
+                authenticatorData: 'authenticator-data',
+                signature: 'signature',
+            ));
+            if (!$verified->successful()) {
+                throw new \LogicException('Passkey benchmark did not verify its credential.');
+            }
+        });
     }
 
     /**
@@ -136,6 +159,10 @@ final class AuthBench
     #[Bench\BeforeMethods('setUpToken')]
     public function benchTokenVerification(): void
     {
+
+        if ($this->services === null || $this->account === null) {
+            throw new \LogicException('Native PHPBench setup must initialize the scenario before measurement.');
+        }
         $token = $this->services->tokens()->issueAccessToken(new AccessTokenClaims(
             subjectId: $this->account->id(),
             actorId: null,
@@ -156,6 +183,10 @@ final class AuthBench
     #[Bench\BeforeMethods('setUpAuthenticatedRequest')]
     public function benchWarmAuthenticatedRequest(): void
     {
+
+        if ($this->app === null || $this->request === null) {
+            throw new \LogicException('Native PHPBench setup must initialize the scenario before measurement.');
+        }
         if ($this->app->handle($this->request)->getStatusCode() !== 200) {
             throw new \LogicException('Authenticated request benchmark did not return HTTP 200.');
         }
@@ -279,6 +310,10 @@ PHP);
     public function setUpAuthorization(): void
     {
         $this->setUpAuth();
+        if ($this->services === null || $this->account === null) {
+            throw new \LogicException('Native PHPBench setup must initialize the scenario before measurement.');
+        }
+
         $permission = $this->services->permissions()->create('benchmark.read');
         $this->services->permissions()->assignToAccount($this->account->id(), $permission->id);
     }
@@ -291,21 +326,28 @@ PHP);
      * @throws \UnexpectedValueException
      * @throws \Exception
      * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \Throwable
      */
     public function setUpMfa(): void
     {
         $this->setUpAuth();
-        $factor = $this->services->mfa()->enrollFactor(
-            $this->account->id(),
-            MfaFactorType::TOTP,
-            'Benchmark',
-            enabled: true,
-        )->factor;
-        if (!$factor instanceof MfaFactor) {
-            throw new \LogicException('MFA benchmark factor was not created.');
-        }
+        $this->withinRequestScope(function (): void {
+            if ($this->services === null || $this->account === null) {
+                throw new \LogicException('Native PHPBench setup must initialize the scenario before measurement.');
+            }
 
-        $this->factor = $factor;
+            $factor = $this->services->mfa()->enrollFactor(
+                $this->account->id(),
+                MfaFactorType::TOTP,
+                'Benchmark',
+                enabled: true,
+            )->factor;
+            if (!$factor instanceof MfaFactor) {
+                throw new \LogicException('MFA benchmark factor was not created.');
+            }
+
+            $this->factor = $factor;
+        });
     }
 
     /**
@@ -315,22 +357,29 @@ PHP);
      * @throws \UnexpectedValueException
      * @throws \Exception
      * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \Throwable
      */
     public function setUpPasskey(): void
     {
         $this->setUpAuth();
-        $started = $this->services->passkeys()->startRegistration($this->account->id());
-        $challenge = $started->challenge;
-        if (!$challenge instanceof PasskeyChallenge) {
-            throw new \LogicException('Passkey benchmark registration challenge was not created.');
-        }
+        $this->withinRequestScope(function (): void {
+            if ($this->services === null || $this->account === null) {
+                throw new \LogicException('Native PHPBench setup must initialize the scenario before measurement.');
+            }
 
-        $this->services->passkeys()->finishRegistration(new PasskeyRegistrationResult(
-            challengeId: $challenge->id,
-            accountId: $this->account->id(),
-            credentialId: 'benchmark-credential',
-            publicKey: 'public-key',
-        ));
+            $started = $this->services->passkeys()->startRegistration($this->account->id());
+            $challenge = $started->challenge;
+            if (!$challenge instanceof PasskeyChallenge) {
+                throw new \LogicException('Passkey benchmark registration challenge was not created.');
+            }
+
+            $this->services->passkeys()->finishRegistration(new PasskeyRegistrationResult(
+                challengeId: $challenge->id,
+                accountId: $this->account->id(),
+                credentialId: 'benchmark-credential',
+                publicKey: 'public-key',
+            ));
+        });
     }
 
     /**
@@ -344,5 +393,21 @@ PHP);
     public function setUpToken(): void
     {
         $this->setUpAuth();
+    }
+
+    /**
+     * MFA and passkey measurements include the native request scope required by
+     * their services; setup also runs in a separate, deterministically closed scope.
+     *
+     * @param callable():void $operation
+     * @throws \Throwable
+     * @throws \LogicException
+     */
+    private function withinRequestScope(callable $operation): void
+    {
+        if ($this->app === null) {
+            throw new \LogicException('Auth benchmark application must be initialized before opening a scope.');
+        }
+        $this->app->container()->withinScope('webrick.request', $operation);
     }
 }

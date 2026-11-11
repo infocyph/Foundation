@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../tests/Fixtures/ProbeInput.php';
+$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::arguments($_SERVER['argv'] ?? []);
+
 use Infocyph\Foundation\Benchmarks\Support\FoundationMaintenanceBenchmarkAdapter;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
@@ -70,10 +73,7 @@ PHP);
         $manifest,
         capabilities: [],
     );
-    $trustedSha256 = $release['release_runtime_manifest_sha256'] ?? null;
-    if (!is_string($trustedSha256)) {
-        throw new RuntimeException('Maintenance benchmark release digest is unavailable.');
-    }
+    $trustedSha256 = $release['release_runtime_manifest_sha256'];
 
     $adapter = new FoundationMaintenanceBenchmarkAdapter();
     $runtime = WebReleaseRuntime::loadPrevalidated(
@@ -161,11 +161,15 @@ function foundationMaintenanceBenchmarkChild(string $mode): array
 $mode = null;
 foreach (array_slice($argv, 1) as $argument) {
     if (str_starts_with($argument, '--mode=')) {
-        $mode = substr($argument, strlen('--mode='));
+        $mode = match (substr($argument, strlen('--mode='))) {
+            'enabled' => 'enabled',
+            'disabled' => 'disabled',
+            default => throw new InvalidArgumentException('Unsupported maintenance benchmark mode.'),
+        };
     }
 }
 
-if (is_string($mode) && $mode !== '') {
+if ($mode !== null) {
     fwrite(STDOUT, json_encode(foundationMaintenanceBenchmarkMode($mode), JSON_THROW_ON_ERROR) . "\n");
 
     return;
@@ -173,8 +177,8 @@ if (is_string($mode) && $mode !== '') {
 
 $disabled = foundationMaintenanceBenchmarkChild('disabled');
 $enabled = foundationMaintenanceBenchmarkChild('enabled');
-$disabledNs = $disabled['median_ns_per_operation'] ?? 0.0;
-$enabledNs = $enabled['median_ns_per_operation'] ?? 0.0;
+$disabledNs = $disabled['median_ns_per_operation'];
+$enabledNs = $enabled['median_ns_per_operation'];
 if ($disabledNs <= 0.0 || $enabledNs <= 0.0) {
     throw new RuntimeException('Maintenance benchmark did not produce positive timings.');
 }

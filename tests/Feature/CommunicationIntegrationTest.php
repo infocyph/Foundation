@@ -167,7 +167,6 @@ it('creates TalkingBytes gRPC clients and inbound dispatchers through Foundation
         ->and($response->message)->toBe(['accepted' => ['order_id' => 1001]]);
 });
 
-
 it('preserves TalkingBytes 2.3.1 resolved middleware composition through the typed HTTP base path', function (): void {
     $app = Foundation::web([
         'app' => ['base_path' => dirname(__DIR__, 2)],
@@ -202,7 +201,6 @@ it('preserves TalkingBytes 2.3.1 resolved middleware composition through the typ
         ->and($client->hasRetryMiddleware())->toBeTrue();
 });
 
-
 it('binds current Runwire context per HTTP and gRPC profile creation without retaining it for later ordinary operations', function (): void {
     $profiles = new CommunicationProfiles(new ConfigRepository([
         'communication' => [
@@ -217,13 +215,13 @@ it('binds current Runwire context per HTTP and gRPC profile creation without ret
     $request = RequestContext::create($runtime);
     $caller = static fn(GrpcRequest $message): GrpcResponse => new GrpcResponse(GrpcStatus::Ok, $message->message);
 
-    expect($profiles->http())->toBeInstanceOf(HttpClient::class);
+    expect($profiles->http())->not->toBe($profiles->http());
 
     try {
         CacheRunwire::share($request, null, static function () use ($profiles, $caller, $request): void {
             expect(CacheRunwire::current()?->request)->toBe($request)
-                ->and($profiles->http())->toBeInstanceOf(HttpClient::class)
-                ->and($profiles->grpc($caller))->toBeObject();
+                ->and($profiles->http())->not->toBe($profiles->http())
+                ->and($profiles->grpc($caller))->not->toBe($profiles->grpc($caller));
 
             $request->cancel(CancellationReason::HOST_CANCELLED);
 
@@ -235,14 +233,14 @@ it('binds current Runwire context per HTTP and gRPC profile creation without ret
     }
 
     expect(CacheRunwire::current())->toBeNull()
-        ->and($profiles->http())->toBeInstanceOf(HttpClient::class)
-        ->and($profiles->grpc($caller))->toBeObject();
+        ->and($profiles->http())->not->toBe($profiles->http())
+        ->and($profiles->grpc($caller))->not->toBe($profiles->grpc($caller));
 });
 
 it('prevents a second native TalkingBytes HTTP attempt when a borrowed host cancels during the first retryable response', function (): void {
     $runtime = RuntimeContext::standalone();
     $request = RequestContext::create($runtime);
-    $transport = new class($request) implements HttpTransport {
+    $transport = new class ($request) implements HttpTransport {
         public int $attempts = 0;
 
         public ?string $url = null;
@@ -310,14 +308,14 @@ it('retains host deadline and terminal cancellation after live HTTP and gRPC pro
                 ->and($deadline?->remainingSeconds())->toBeGreaterThan(0.0)
                 ->toBeLessThan(30.0)
                 ->and($profiles->httpConfig()->timeoutSeconds)->toBe(20)
-                ->and($profiles->http())->toBeInstanceOf(HttpClient::class)
-                ->and($profiles->grpc($caller))->toBeObject();
+                ->and($profiles->http())->not->toBe($profiles->http())
+                ->and($profiles->grpc($caller))->not->toBe($profiles->grpc($caller));
 
             expect($config->set('communication.http.default_client', 'rotated'))->toBeTrue()
                 ->and($config->set('communication.grpc.default_profile', 'rotated'))->toBeTrue()
                 ->and($profiles->httpConfig()->timeoutSeconds)->toBe(180)
                 ->and($profiles->http()->hasRetryMiddleware())->toBeTrue()
-                ->and($profiles->grpc($caller))->toBeObject()
+                ->and($profiles->grpc($caller))->not->toBe($profiles->grpc($caller))
                 ->and((new RunwireBinding($runtime, $request))->deadline()?->remainingSeconds())
                 ->toBeLessThan(30.0);
 
@@ -332,8 +330,8 @@ it('retains host deadline and terminal cancellation after live HTTP and gRPC pro
 
     expect(CacheRunwire::current())->toBeNull()
         ->and($profiles->httpConfig()->timeoutSeconds)->toBe(180)
-        ->and($profiles->http())->toBeInstanceOf(HttpClient::class)
-        ->and($profiles->grpc($caller))->toBeObject();
+        ->and($profiles->http())->not->toBe($profiles->http())
+        ->and($profiles->grpc($caller))->not->toBe($profiles->grpc($caller));
 });
 
 it('keeps Foundation production TLS policy when using TalkingBytes 2.3.1 typed composition', function (): void {

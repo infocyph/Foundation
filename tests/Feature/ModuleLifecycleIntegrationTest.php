@@ -58,6 +58,11 @@ final class FoundationModuleLifecycleIO implements CommandIO
         $this->payloads[] = $value;
     }
 
+    public function lastPayload(): mixed
+    {
+        return $this->payloads === [] ? null : $this->payloads[array_key_last($this->payloads)];
+    }
+
     #[\Override]
     public function machineReadable(): bool
     {
@@ -127,15 +132,11 @@ final class FoundationModuleLifecycleIO implements CommandIO
     {
         unset($message);
     }
-
-    public function lastPayload(): mixed
-    {
-        return $this->payloads === [] ? null : $this->payloads[array_key_last($this->payloads)];
-    }
 }
 
 it('publishes the three-group eight-feature public command inventory in version two', function (): void {
     $path = moduleLifecycleBasePath('public-inventory');
+
     try {
         $dispatcher = moduleLifecycleDispatcher($path);
         $io = new FoundationModuleLifecycleIO();
@@ -175,6 +176,7 @@ it('publishes the three-group eight-feature public command inventory in version 
 it('requires explicit qualified optional features for every planning or lifecycle mutation', function (): void {
     $path = moduleLifecycleBasePath('qualified-only');
     moduleLifecycleWriteComposer($path, []);
+
     try {
         $dispatcher = moduleLifecycleDispatcher($path);
         foreach ([
@@ -201,6 +203,7 @@ it('requires explicit qualified optional features for every planning or lifecycl
 it('plans optional specialist packages and conditional dependencies without activation', function (): void {
     $path = moduleLifecycleBasePath('v2-plan');
     moduleLifecycleWriteComposer($path, []);
+
     try {
         $dispatcher = moduleLifecycleDispatcher($path, [
             'messaging' => ['durable' => ['enabled' => true]],
@@ -209,6 +212,8 @@ it('plans optional specialist packages and conditional dependencies without acti
         expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:plan', 'execution.messaging'], $io))
             ->toBe(ExitCode::SUCCESS);
         $plan = $io->lastPayload();
+        \PHPUnit\Framework\Assert::assertIsArray($plan);
+        \PHPUnit\Framework\Assert::assertIsArray(($plan['effects'] ?? null));
         expect($plan['schema_version'])->toBe(2)
             ->and($plan['requested'])->toBe(['execution.messaging'])
             ->and($plan['required'])->toBe(['data.database', 'execution.messaging'])
@@ -225,15 +230,18 @@ it('plans optional specialist packages and conditional dependencies without acti
 it('executes v2 installation dry runs and preserves Composer and activation state', function (): void {
     $path = moduleLifecycleBasePath('dry-run-v2');
     moduleLifecycleWriteComposer($path, []);
+
     try {
         $dispatcher = moduleLifecycleDispatcher($path);
         $io = new FoundationModuleLifecycleIO();
-        expect(moduleLifecycleRun($dispatcher, [
+        $status = moduleLifecycleRun($dispatcher, [
             'infbyte', 'module:install', 'data', '--feature=filesystem', '--dry-run',
-        ], $io))->toBe(ExitCode::SUCCESS)
-            ->and($io->lastPayload()['schema_version'])->toBe(2)
-            ->and($io->lastPayload()['status'])->toBe('planned')
-            ->and($io->lastPayload()['features'])->toBe(['data.filesystem'])
+        ], $io);
+        $payload = foundationStringMap($io->lastPayload());
+        expect($status)->toBe(ExitCode::SUCCESS)
+            ->and($payload['schema_version'])->toBe(2)
+            ->and($payload['status'])->toBe('planned')
+            ->and($payload['features'])->toBe(['data.filesystem'])
             ->and($path . '/config/modules.php')->not->toBeFile()
             ->and($path . '/commands.jsonl')->not->toBeFile();
     } finally {
@@ -244,6 +252,7 @@ it('executes v2 installation dry runs and preserves Composer and activation stat
 it('rejects enablement before the selected package is installed', function (): void {
     $path = moduleLifecycleBasePath('activation-v2');
     moduleLifecycleWriteComposer($path, []);
+
     try {
         $io = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun(moduleLifecycleDispatcher($path), [
@@ -259,6 +268,7 @@ it('rejects enablement before the selected package is installed', function (): v
 it('keeps schema sync empty without selected specialist ownership', function (): void {
     $path = moduleLifecycleBasePath('core-only-schema');
     moduleLifecycleWriteComposer($path, []);
+
     try {
         $io = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun(moduleLifecycleDispatcher($path), [
@@ -296,7 +306,7 @@ function moduleLifecycleDispatcher(string $basePath, array $config = []): Comman
     ];
 
     return CommandDispatcher::project(
-        array_replace_recursive($baseConfig, $config),
+        foundationStringMap(array_replace_recursive($baseConfig, $config)),
         manifestPath: $basePath . '/bootstrap/cache/commands.php',
         routesPath: $basePath . '/routes/console.php',
     );
@@ -351,7 +361,7 @@ function moduleLifecycleCommands(string $commandLog): array
                 throw new RuntimeException('Invalid module lifecycle command log entry.');
             }
 
-            return array_values($decoded);
+            return \Infocyph\Foundation\Tests\Fixtures\ProbeInput::arguments($decoded);
         },
         (($commands = file($commandLog, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES)) === false
             ? throw new RuntimeException('Unable to read module lifecycle command log.')
@@ -446,6 +456,7 @@ it('preserves a compiled release generation when disabling an already disabled f
     $generation = $path . '/storage/releases/generations/unchanged';
     mkdir($generation, 0775, true);
     file_put_contents($generation . '/marker.txt', 'retain');
+
     try {
         $dispatcher = moduleLifecycleDispatcher($path, [
             'modules' => ['features' => ['data.database' => false]],

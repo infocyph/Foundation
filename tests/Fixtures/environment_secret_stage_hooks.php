@@ -16,11 +16,19 @@ function chmod(string $filename, int $permissions): bool
 }
 /**
  * @throws \RuntimeException
+ * @throws \ValueError
  */
 
 function fwrite(mixed $stream, string $data, ?int $length = null): int|false
 {
+    if (!is_resource($stream)) {
+        throw new \RuntimeException('Environment writes require an open stream.');
+    }
     EnvironmentSecretStageObserver::inspect($stream);
+
+    if ($length !== null && $length < 0) {
+        throw new \ValueError('Write length must be non-negative.');
+    }
 
     return $length === null ? \fwrite($stream, $data) : \fwrite($stream, $data, $length);
 }

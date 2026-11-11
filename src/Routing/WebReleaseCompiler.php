@@ -28,7 +28,7 @@ final readonly class WebReleaseCompiler
     /**
      * @param array<string, mixed>|ConfigRepository $config
      * @param array<int|string, mixed> $capabilities Explicit production capability topology; [] is minimal.
-     * @return array<string, mixed>
+     * @return array{release_runtime_manifest_sha256:string,foundation_matcher_cache_path:?string,foundation_capabilities:array<string,bool>,foundation_config:array<string,mixed>,...}
      * @throws \RuntimeException
      * @throws \UnexpectedValueException
      * @throws \Exception

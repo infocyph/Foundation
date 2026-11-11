@@ -63,9 +63,9 @@ function phase9HttpScalarTax(int $foundation, int $direct): array
  */
 function phase9HttpChild(string $variant): array
 {
-    $operations = max(1_000, (int) ((($__foundation154_61 = getenv('PHASE9_HTTP_OPERATIONS')) !== false && $__foundation154_61 !== '' && $__foundation154_61 !== '0' ? $__foundation154_61 : 100_000)));
-    $repetitions = max(3, (int) ((($__foundation154_62 = getenv('PHASE9_HTTP_REPETITIONS')) !== false && $__foundation154_62 !== '' && $__foundation154_62 !== '0' ? $__foundation154_62 : 7)));
-    $warmup = max(100, (int) ((($__foundation154_63 = getenv('PHASE9_HTTP_WARMUP')) !== false && $__foundation154_63 !== '' && $__foundation154_63 !== '0' ? $__foundation154_63 : 1_000)));
+    $operations = max(1_000, phase9HttpEnvironmentInteger('PHASE9_HTTP_OPERATIONS', 100_000));
+    $repetitions = max(3, phase9HttpEnvironmentInteger('PHASE9_HTTP_REPETITIONS', 7));
+    $warmup = max(100, phase9HttpEnvironmentInteger('PHASE9_HTTP_WARMUP', 1_000));
     $root = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR
         . 'foundation-phase9-http-' . $variant . '-' . bin2hex(random_bytes(6));
     mkdir($root . '/bootstrap/cache', 0777, true);
@@ -89,7 +89,7 @@ function phase9HttpChild(string $variant): array
             $release = new WebrickReleaseCompiler()->compile(
                 builder: $builder,
                 register: static function (Registrar $registrar): void {
-                    $registrar->get('/json', 'phase9StandaloneHttpHandler');
+                    $registrar->__call('get', ['/json', 'phase9StandaloneHttpHandler']);
                 },
                 environment: $environment,
                 configFingerprint: $configFingerprint,
@@ -113,14 +113,14 @@ function phase9HttpChild(string $variant): array
             $bootStarted = hrtime(true);
             $container = $builder->productionPrevalidated(
                 $intermixPath,
-                (string) $release['intermix']['digest'],
+                phase9HttpString($release['intermix']['digest'] ?? null),
             );
             $kernel = CompiledRouterKernel::fromPrevalidatedArtifact(
                 log: new NullLogger(),
                 matcher: FusedMatcher::make(),
                 container: $container,
                 artifactPath: $routerPath,
-                trustedArtifactFingerprint: (string) $release['webrick']['fingerprint'],
+                trustedArtifactFingerprint: phase9HttpString(\Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::objectMap($release['webrick'] ?? null)['fingerprint'] ?? null),
                 environment: $environment,
                 configFingerprint: $configFingerprint,
             );
@@ -173,7 +173,7 @@ PHP);
             $runtime = WebReleaseRuntime::loadPrevalidated(
                 $config,
                 $manifestPath,
-                (string) $release['release_runtime_manifest_sha256'],
+                $release['release_runtime_manifest_sha256'],
                 foundationCapabilities: [],
             );
             $kernel = $runtime->kernel;
@@ -210,8 +210,9 @@ PHP);
 }
 
 /**
- * @return array<string,mixed>
+ * @return array{warm_request:array{median_ns:int|float,...<string,mixed>},compile_ns:int,runtime_boot_ns:int,...<string,mixed>}
  * @throws \RuntimeException
+ * @throws \InvalidArgumentException
  */
 function phase9HttpSpawn(string $variant): array
 {
@@ -247,11 +248,15 @@ function phase9HttpSpawn(string $variant): array
         throw new RuntimeException(sprintf('Phase 9 HTTP "%s" benchmark returned invalid JSON.', $variant));
     }
 
-    return $decoded;
+    return phase9HttpReport($decoded);
 }
 
 if (($argv[1] ?? null) === '--child') {
-    $result = phase9HttpChild($argv[2] ?? '');
+    $variant = match ($argv[2] ?? '') {
+        'webrick' => 'webrick', 'foundation' => 'foundation',
+        default => throw new InvalidArgumentException('Unknown HTTP benchmark variant.'),
+    };
+    $result = phase9HttpChild($variant);
     fwrite(STDOUT, json_encode($result, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
 
     return;
@@ -276,9 +281,9 @@ $result = [
         'intermix_reference' => InstalledVersions::getReference('infocyph/intermix'),
     ],
     'configuration' => [
-        'operations' => max(1_000, (int) ((($__foundation154_271 = getenv('PHASE9_HTTP_OPERATIONS')) !== false && $__foundation154_271 !== '' && $__foundation154_271 !== '0' ? $__foundation154_271 : 100_000))),
-        'repetitions' => max(3, (int) ((($__foundation154_272 = getenv('PHASE9_HTTP_REPETITIONS')) !== false && $__foundation154_272 !== '' && $__foundation154_272 !== '0' ? $__foundation154_272 : 7))),
-        'warmup' => max(100, (int) ((($__foundation154_273 = getenv('PHASE9_HTTP_WARMUP')) !== false && $__foundation154_273 !== '' && $__foundation154_273 !== '0' ? $__foundation154_273 : 1_000))),
+        'operations' => max(1_000, phase9HttpEnvironmentInteger('PHASE9_HTTP_OPERATIONS', 100_000)),
+        'repetitions' => max(3, phase9HttpEnvironmentInteger('PHASE9_HTTP_REPETITIONS', 7)),
+        'warmup' => max(100, phase9HttpEnvironmentInteger('PHASE9_HTTP_WARMUP', 1_000)),
         'matcher' => 'fused',
         'route' => 'GET /json -> {"ok":true}',
         'isolation' => 'standalone Webrick and Foundation execute in separate PHP processes',
@@ -287,8 +292,8 @@ $result = [
     'foundation' => $foundation,
     'attribution' => [
         'warm_request_tax' => phase9HttpTax($foundation['warm_request'], $direct['warm_request']),
-        'compile_tax' => phase9HttpScalarTax((int) $foundation['compile_ns'], (int) $direct['compile_ns']),
-        'runtime_boot_tax' => phase9HttpScalarTax((int) $foundation['runtime_boot_ns'], (int) $direct['runtime_boot_ns']),
+        'compile_tax' => phase9HttpScalarTax($foundation['compile_ns'], $direct['compile_ns']),
+        'runtime_boot_tax' => phase9HttpScalarTax($foundation['runtime_boot_ns'], $direct['runtime_boot_ns']),
     ],
 ];
 
@@ -303,3 +308,41 @@ file_put_contents(
     LOCK_EX,
 );
 fwrite(STDOUT, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL);
+
+function phase9HttpEnvironmentInteger(string $name, int $default): int
+{
+    $value = getenv($name);
+
+    return $value !== false && $value !== '' && $value !== '0' ? (int) $value : $default;
+}
+
+/** @throws RuntimeException */
+function phase9HttpString(mixed $value): string
+{
+    if (!is_string($value)) {
+        throw new RuntimeException('HTTP attribution identity must be a string.');
+    }
+
+    return $value;
+}
+
+/**
+ * @return array{warm_request:array{median_ns:int|float,...<string,mixed>},compile_ns:int,runtime_boot_ns:int,...<string,mixed>}
+ * @throws RuntimeException
+ * @throws InvalidArgumentException
+ */
+function phase9HttpReport(mixed $input): array
+{
+    $report = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::objectMap($input);
+    $warm = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::objectMap($report['warm_request'] ?? null);
+    if ((!is_int($warm['median_ns'] ?? null) && !is_float($warm['median_ns'] ?? null))
+        || !is_int($report['compile_ns'] ?? null) || !is_int($report['runtime_boot_ns'] ?? null)
+    ) {
+        throw new RuntimeException('HTTP attribution report is missing measured timings.');
+    }
+
+    return [
+        'warm_request' => ['median_ns' => $warm['median_ns']] + $warm,
+        'compile_ns' => $report['compile_ns'], 'runtime_boot_ns' => $report['runtime_boot_ns'],
+    ] + $report;
+}

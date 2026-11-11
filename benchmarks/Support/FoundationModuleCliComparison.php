@@ -18,8 +18,12 @@ final class FoundationModuleCliComparison
      */
     public static function compare(array $baseline, array $candidate): array
     {
-        foreach ([$baseline, $candidate] as $report) {
-            self::validate($report);
+        self::validate($baseline);
+        self::validate($candidate);
+        $beforeCommands = $baseline['commands'];
+        $afterCommands = $candidate['commands'];
+        if (!is_array($beforeCommands) || !is_array($afterCommands)) {
+            throw new \InvalidArgumentException('Module CLI evidence requires command maps.');
         }
         foreach (['schema_version', 'php', 'php_sapi', 'opcache_cli', 'fixture', 'module_count'] as $field) {
             if ($baseline[$field] !== $candidate[$field]) {
@@ -32,26 +36,12 @@ final class FoundationModuleCliComparison
 
         $commands = [];
         foreach (self::COMMANDS as $name) {
-            $before = $baseline['commands'][$name] ?? null;
-            $after = $candidate['commands'][$name] ?? null;
+            $before = $beforeCommands[$name] ?? null;
+            $after = $afterCommands[$name] ?? null;
             if (!is_array($before) || !is_array($after)) {
                 throw new \InvalidArgumentException('Module CLI comparison requires structured command metrics.');
             }
-            $metrics = [];
-            foreach (['cold_ms', 'warm_p50_ms', 'warm_p95_ms'] as $field) {
-                $oldMs = $before[$field] ?? null;
-                $newMs = $after[$field] ?? null;
-                if ((!is_float($oldMs) && !is_int($oldMs))
-                    || (!is_float($newMs) && !is_int($newMs))
-                    || $oldMs <= 0.0 || $newMs <= 0.0) {
-                    throw new \InvalidArgumentException('Module CLI timing values must be positive numbers.');
-                }
-                $metrics[$field] = [
-                    'baseline_ms' => $oldMs,
-                    'candidate_ms' => $newMs,
-                    'delta_percent' => round(((float) $newMs / (float) $oldMs - 1.0) * 100, 3),
-                ];
-            }
+            $metrics = self::metrics($before, $after);
             $commands[] = ['command' => $name, 'metrics' => $metrics];
         }
 
@@ -70,6 +60,33 @@ final class FoundationModuleCliComparison
     }
 
     /**
+     * @param array<array-key,mixed> $before
+     * @param array<array-key,mixed> $after
+     * @return array<string,array{baseline_ms:int|float,candidate_ms:int|float,delta_percent:float}>
+     * @throws \InvalidArgumentException
+     */
+    private static function metrics(array $before, array $after): array
+    {
+        $metrics = [];
+        foreach (['cold_ms', 'warm_p50_ms', 'warm_p95_ms'] as $field) {
+            $oldMs = $before[$field] ?? null;
+            $newMs = $after[$field] ?? null;
+            if ((!is_float($oldMs) && !is_int($oldMs))
+                || (!is_float($newMs) && !is_int($newMs))
+                || $oldMs <= 0.0 || $newMs <= 0.0) {
+                throw new \InvalidArgumentException('Module CLI timing values must be positive numbers.');
+            }
+            $metrics[$field] = [
+                'baseline_ms' => $oldMs,
+                'candidate_ms' => $newMs,
+                'delta_percent' => round(((float) $newMs / (float) $oldMs - 1.0) * 100.0, 3),
+            ];
+        }
+
+        return $metrics;
+    }
+
+    /**
      * @param array<string,mixed> $report
      * @throws \InvalidArgumentException
      */
@@ -80,7 +97,7 @@ final class FoundationModuleCliComparison
             || !is_int($report['feature_count'] ?? null)
             || $report['feature_count'] < 1
             || !is_string($report['php'] ?? null)
-            || ($report['php'] ?? '') === ''
+            || $report['php'] === ''
             || !is_string($report['php_sapi'] ?? null)
             || !is_bool($report['opcache_cli'] ?? null)
             || !is_string($report['fixture'] ?? null)
@@ -94,7 +111,16 @@ final class FoundationModuleCliComparison
             throw new \InvalidArgumentException('Module CLI benchmark evidence is incomplete.');
         }
 
-        foreach ($report['commands'] as $metrics) {
+        self::validateTimings($report['commands']);
+    }
+
+    /**
+     * @param array<array-key,mixed> $commands
+     * @throws \InvalidArgumentException
+     */
+    private static function validateTimings(array $commands): void
+    {
+        foreach ($commands as $metrics) {
             if (!is_array($metrics) || !is_int($metrics['warm_samples'] ?? null) || $metrics['warm_samples'] < 5) {
                 throw new \InvalidArgumentException('Missing repeated warm CLI samples.');
             }

@@ -521,7 +521,7 @@ final class ModuleCatalog
     }
 
     /**
-     * @phpstan-param ModuleDefinition $definition
+     * @phpstan-param ModuleDefinition|ResolvedModule $definition
      * @return array<string,string>
      * @throws \InvalidArgumentException
      */

@@ -4,23 +4,22 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Auth\Authorization\Decision\AuthorizationDecision;
 use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 use Infocyph\Foundation\Auth\Principal\PrincipalType;
-use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Http\Middleware\AuthMiddleware;
 use Infocyph\Foundation\Http\Middleware\PermissionMiddleware;
 use Infocyph\Foundation\Http\Resolver\OAuthBearerTokenPrincipalResolver;
 use Infocyph\Foundation\Http\Response\AuthExceptionMapper;
 use Infocyph\Foundation\Http\Response\AuthResponseFactory;
-use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
@@ -58,12 +57,9 @@ it('resolves account and service OAuth bearer tokens into the existing principal
             ->and($service?->metadata()['auth_via'] ?? null)->toBe('oauth_bearer')
             ->and($service?->metadata()['oauth_scopes'] ?? null)->toBe(['service.read']);
 
-        $seen = [];
-        $authorizer = new class($seen) implements AuthorizerInterface {
+        $authorizer = new class implements AuthorizerInterface {
             /** @var list<array{principal:PrincipalInterface,ability:string}> */
             public array $seen = [];
-
-            public function __construct(array $seen) { unset($seen); }
 
             #[\Override]
             public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void

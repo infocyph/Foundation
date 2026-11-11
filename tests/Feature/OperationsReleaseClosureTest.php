@@ -236,7 +236,7 @@ it('closes maintenance runtime control and process registry operations through r
         expect($activeStatus['worker'] ?? null)->toBe('jobs')
             ->and($activeStatus['registry_visibility'] ?? null)->toBe('host')
             ->and($activeStatus['configured']['jobs']['type'] ?? null)->toBe('messaging')
-            ->and($activeStatus['processes'] ?? null)->toHaveCount(1)
+            ->and($activeStatus['processes'])->toHaveCount(1)
             ->and($activeStatus['processes'][0]['id'] ?? null)->toBe($record['id'])
             ->and($activeStatus['processes'][0]['running'] ?? null)->toBeTrue();
 
@@ -244,7 +244,10 @@ it('closes maintenance runtime control and process registry operations through r
         $staleStatus = foundationOperationsPayload(
             foundationOperationsRun($dispatcher, ['infbyte', 'worker:status', 'jobs']),
         );
-        expect($staleStatus['processes'] ?? null)->toHaveCount(1)
+        \PHPUnit\Framework\Assert::assertIsArray(($staleStatus['processes'] ?? null));
+        \PHPUnit\Framework\Assert::assertIsArray(($staleStatus['processes'][0] ?? null));
+
+        expect($staleStatus['processes'])->toHaveCount(1)
             ->and($staleStatus['processes'][0]['id'] ?? null)->toBe($record['id'])
             ->and($staleStatus['processes'][0]['running'] ?? null)->toBeFalse();
 
@@ -285,7 +288,7 @@ function foundationOperationsPayload(FoundationOperationsReleaseIO $io): array
         throw new RuntimeException('Operations command did not emit a machine-readable payload.');
     }
 
-    return $payload;
+    return foundationStringMap($payload);
 }
 
 /**

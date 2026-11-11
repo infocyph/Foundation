@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Module\ModuleActivationManager;
-use Infocyph\Foundation\Module\ModuleCatalog;
 
 /**
  * @return array{
@@ -67,10 +66,7 @@ it('enables only the selected feature and preserves legacy capability policy', f
         $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
         $activation = new ModuleActivationManager($app);
         $result = $activation->applyFeatures('enable', ['security.passkey'], featureActivationContext());
-        $config = require $result;
-        if (!is_array($config)) {
-            throw new \UnexpectedValueException('Module feature configuration must be an array.');
-        }
+        $config = \foundationReadPhpFixtureArray($result);
 
         expect($result)->toBe($path . '/config/modules.php')
             ->and($config['features'])->toBe(['security.passkey' => true])
@@ -92,10 +88,7 @@ it('disables one feature without changing enabled siblings or application policy
         $context = featureActivationContext();
         $context['enabled'] = ['security.mfa', 'security.passkey'];
         $pathToConfig = $activation->applyFeatures('disable', ['security.mfa'], $context);
-        $config = require $pathToConfig;
-        if (!is_array($config)) {
-            throw new \UnexpectedValueException('Generated module configuration must be an array.');
-        }
+        $config = \foundationReadPhpFixtureArray($pathToConfig);
         expect($config['features'])->toBe(['security.mfa' => false, 'security.passkey' => true])
             ->and($config['capabilities'])->toBe(['filesystem' => true]);
     } finally {
@@ -208,10 +201,9 @@ it('serializes overlapping feature plans without silently losing changes', funct
         }
         $processes = [];
 
-        $config = require $path . '/config/modules.php';
-        if (!is_array($config) || !is_array($config['features'] ?? null)) {
-            throw new \UnexpectedValueException('Published feature configuration must provide a feature map.');
-        }
+        $config = \foundationReadPhpFixtureArray($path . '/config/modules.php');
+
+        \PHPUnit\Framework\Assert::assertIsArray($config['features'] ?? null);
         expect($successes)->toBe(1)
             ->and(count($config['features']))->toBe(1)
             ->and(in_array(array_keys($config['features']), [['security.passkey'], ['security.mfa']], true))->toBeTrue();

@@ -75,12 +75,12 @@ final readonly class FoundationOmnibusDurableMessageCodec implements MessageCode
 
 final class FoundationOmnibusDurableHandler
 {
+    public static ?RequestContext $cancelDuringDelivery = null;
+
     /** @var list<string> */
     public static array $handled = [];
 
     public static int $transientAttempts = 0;
-
-    public static ?RequestContext $cancelDuringDelivery = null;
 
     /**
      * @throws \Infocyph\Runwire\Exception\CancelledException
@@ -168,6 +168,7 @@ it('preserves a durable reservation for the next consumer after host cancellatio
         $runtime = RuntimeContext::standalone();
         $request = RequestContext::create($runtime);
         CacheRunwire::bind($runtime);
+
         try {
             CacheRunwire::share($request, null, static function () use ($consumer, $request): void {
                 $request->cancel(CancellationReason::HOST_CANCELLED);
@@ -381,7 +382,6 @@ it('rejects a stale durable lease receipt after a newer consumer reclaims the me
         foundationOmnibusRemoveDatabase($database);
     }
 });
-
 
 it('preserves durable receipts and retries on selected production SQL engines', function (
     string $driver,
@@ -598,6 +598,10 @@ it('keeps the DBLayer durable graph cold when durable messaging is disabled', fu
  * @throws \InvalidArgumentException
  * @throws \LogicException
  * @throws \Psr\Cache\InvalidArgumentException
+ * @param array<string,bool>|null $selectedFeatures
+ * @param array<string,mixed>|null $workers
+ * @param array<string,mixed>|null $databaseConfig
+ * @param array<string,string>|null $durableTables
  */
 function foundationOmnibusDurableApp(
     ?array $selectedFeatures = null,
@@ -605,8 +609,7 @@ function foundationOmnibusDurableApp(
     ?array $workers = null,
     ?array $databaseConfig = null,
     ?array $durableTables = null,
-): array
-{
+): array {
     $database = foundationOmnibusDatabasePath();
     $config = [
         'database' => $databaseConfig ?? foundationOmnibusDatabaseConfig($database),
@@ -731,12 +734,12 @@ function foundationOmnibusRemoveDatabase(string $database): void
     }
 }
 
-
 it('retains durable messages and failed attempts across selected specialist execution failures', function (): void {
     [$app, $database] = foundationOmnibusDurableApp([
         'data.database' => true,
         'execution.messaging' => true,
     ]);
+
     try {
         $schema = $app->make(MessagingDatabaseSchema::class);
         expect($schema->readiness()['installed'])->toBeFalse();
@@ -779,6 +782,7 @@ it('retains durable messages and failed attempts across selected specialist exec
 
 it('rejects durable selected messaging without DB ownership before opening storage', function (): void {
     $database = foundationOmnibusDatabasePath();
+
     try {
         expect(fn() => Foundation::worker([
             'database' => foundationOmnibusDatabaseConfig($database),

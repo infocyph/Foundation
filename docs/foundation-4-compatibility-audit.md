@@ -7,15 +7,21 @@ This audit concerns **library-major runtime/API compatibility**; it does not
 require altering application data formats, key-rotation policies or deliberate
 public configuration.
 
-Current maintenance status (2026-11-07): the
-[canonical implementation tracker](foundation-4-library-upgrade-plan.md#current-implementation-and-maintenance-status)
-records 93/95 completed implementation items, with only the two P6 release
-certifications unchecked. R01–R07 repairs and passwordless single-use hardening
-are implemented locally; final release verification remains open. Development
-toolchain M02/M03 are explicitly upstream blocked in the
+Current maintenance status (2026-11-11): the
+[canonical implementation tracker](foundation-4-library-upgrade-plan.md)
+records **local `composer ic:ci` exit 0, 13/13 checks passing** for the uncommitted
+working tree based on `365425bc`, with required isolated integration services.
+The functional suite contains 1,021 passing tests; both PHPStan and Psalm pass.
+The CI repair preserves current-major APIs, ordinary PHP operation, host-owned
+Runwire contexts and behavioral validation. Broad public JSON contracts were
+restored and hostile CLI/path/loopback regressions were added.
+
+Implementation remains **93/95, P0 25/25**: both P6 release certifications and
+exact-commit hosted/consumer verification remain open. Development toolchain
+M02/M03 constraints remain upstream maintenance items in the updated
 [dependency record](foundation-4-dependency-qualification.md#current-maintenance-disposition).
-The source/CI statements below remain historical evidence, not certification of
-these uncommitted maintenance changes.
+The dated source/CI statements below remain historical evidence; this local
+pass is not a hosted release or publication claim.
 
 ## Removed major-version compatibility
 

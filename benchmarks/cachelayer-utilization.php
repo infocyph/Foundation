@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Composer\InstalledVersions;
+use Infocyph\CacheLayer\Cache\AtomicCacheProviderInterface;
 use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheOptions;
 use Infocyph\CacheLayer\Counter\AtomicCounters;
@@ -16,6 +17,12 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\PathManager;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
+
+/** @return Closure():bool */
+function cacheLayer33AtomicDiscovery(AtomicCacheProviderInterface $cache): Closure
+{
+    return static fn(): bool => $cache->atomic() !== null;
+}
 
 /** @return array<string,mixed> */
 function cacheLayer33Measure(
@@ -227,7 +234,7 @@ $workloads = [
     cacheLayer33Measure(
         'atomic-capability-present-discovery',
         'component',
-        static fn(): bool => $cache->atomic() !== null,
+        cacheLayer33AtomicDiscovery($cache),
         $operations,
         $repetitions,
         $warmup,
@@ -482,7 +489,7 @@ $runtime = [
     'php_sapi' => PHP_SAPI,
     'operating_system' => php_uname(),
     'cpu_model' => $cpuModel,
-    'memory_limit' => (($__foundation154_484 = ini_get('memory_limit')) !== false && $__foundation154_484 !== '' && $__foundation154_484 !== '0' ? $__foundation154_484 : 'unknown'),
+    'memory_limit' => (($__foundation154_484 = ini_get('memory_limit')) !== '' && $__foundation154_484 !== '0' ? $__foundation154_484 : 'unknown'),
     'opcache' => extension_loaded('Zend OPcache'),
     'jit' => (($__foundation154_486 = ini_get('opcache.jit')) !== false && $__foundation154_486 !== '' && $__foundation154_486 !== '0' ? $__foundation154_486 : false),
     'xdebug' => extension_loaded('xdebug'),

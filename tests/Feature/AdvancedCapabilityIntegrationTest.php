@@ -47,7 +47,7 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
     ])->boot();
 
     $app->container()->withinScope(RuntimeRequestContext::REQUEST_SCOPE, static function () use ($app): void {
-            $mfa = $app->make(AuthServices::class)->mfa();
+        $mfa = $app->make(AuthServices::class)->mfa();
         $hotpSecret = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
         $hotp = new HOTP($hotpSecret);
         $hotpEnrollment = $mfa->enrollFactor(
@@ -59,7 +59,8 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
         );
 
         $hotpFactorId = $hotpEnrollment->factor?->id;
-        expect($hotpFactorId)->toBeString()->not->toBeEmpty();
+        \PHPUnit\Framework\Assert::assertIsString($hotpFactorId);
+        expect($hotpFactorId)->not->toBeEmpty();
 
         $firstChallenge = $mfa->issueChallenge('account-hotp', factorId: $hotpFactorId);
         $firstVerification = $mfa->verifyChallenge((string) $firstChallenge->challenge?->id, $hotp->generate(0));
@@ -67,7 +68,13 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
         $stepUp = $app->make(AuthServices::class)->stepUp();
         $now = time();
         $session = new \Infocyph\Foundation\Auth\Authentication\Session\AuthSession(
-            'verified-hotp-session', 'account-hotp', null, $now, $now, $now + 300, $now,
+            'verified-hotp-session',
+            'account-hotp',
+            null,
+            $now,
+            $now,
+            $now + 300,
+            $now,
         );
         expect($stepUp->requiresStepUp($session, 'payment', ['method' => 'mfa']))->toBeTrue();
         $stepUp->markSatisfied($session->accountId, $session->id, 'payment', \Infocyph\Foundation\Auth\Authentication\StepUp\StepUpMethod::MFA);
@@ -144,7 +151,6 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
     });
 });
 
-
 it('rejects host-cancelled native HOTP mutation and retains the unconsumed counter for ordinary execution', function (): void {
     $app = Foundation::web([
         'auth' => [
@@ -205,13 +211,13 @@ it('rejects host-cancelled native HOTP mutation and retains the unconsumed count
             throw new \UnexpectedValueException('Cancelled HOTP verification must preserve a factor record.');
         }
         expect($before?->revision)->toBe(0)
-            ->and($before?->metadata['otp']['counter'] ?? null)->toBe(0)
+            ->and(foundationStringMap($before?->metadata['otp'])['counter'] ?? null)->toBe(0)
             ->and(CacheRunwire::current())->toBeNull();
 
         expect($verifier->verify($challenge, $code)->verified)->toBeTrue();
         $after = $store->findForAccount('account-cancelled-hotp')[0] ?? null;
         expect($after?->revision)->toBe(1)
-            ->and($after?->metadata['otp']['counter'] ?? null)->toBe(1)
+            ->and(foundationStringMap($after?->metadata['otp'])['counter'] ?? null)->toBe(1)
             ->and($verifier->verify($challenge, $code)->verified)->toBeFalse();
 
         // A late host cancellation must not retroactively negate a committed
@@ -223,9 +229,9 @@ it('rejects host-cancelled native HOTP mutation and retains the unconsumed count
             ['otp' => ['secret' => $secret, 'counter' => 0, 'digits' => 6]],
             enabled: true,
         )->factor;
-        expect($committedFactor)->not->toBeNull();
+        \PHPUnit\Framework\Assert::assertNotNull($committedFactor);
         $committedChallenge = $mfa->issueChallenge('account-committed-hotp', factorId: $committedFactor->id)->challenge;
-        expect($committedChallenge)->not->toBeNull();
+        \PHPUnit\Framework\Assert::assertNotNull($committedChallenge);
 
         $committedRuntime = RuntimeContext::standalone();
         $committedRequest = RequestContext::create($committedRuntime);
@@ -249,7 +255,7 @@ it('rejects host-cancelled native HOTP mutation and retains the unconsumed count
 
         $persisted = $store->findForAccount('account-committed-hotp')[0] ?? null;
         expect($persisted?->revision)->toBe(1)
-            ->and($persisted?->metadata['otp']['counter'] ?? null)->toBe(1)
+            ->and(foundationStringMap($persisted?->metadata['otp'])['counter'] ?? null)->toBe(1)
             ->and($verifier->verify($committedChallenge, $code)->verified)->toBeFalse()
             ->and(CacheRunwire::current())->toBeNull();
     });

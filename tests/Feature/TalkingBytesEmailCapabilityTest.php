@@ -6,7 +6,6 @@ use Infocyph\Foundation\Communication\CommunicationServiceProvider;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Notifications\EmailProfiles;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
-use Infocyph\TalkingBytes\Email\Mailbox\Mailbox;
 use Infocyph\TalkingBytes\Email\Mailbox\Pop3Mailbox;
 use Infocyph\TalkingBytes\Email\Receiver\SpoolEmailReceiver;
 
@@ -120,9 +119,7 @@ it('keeps mailbox instances caller-owned and spool receivers execution-scoped', 
         $popFirst = $profiles->pop3Mailbox();
         $popSecond = $profiles->pop3Mailbox();
 
-        expect($imapFirst)->toBeInstanceOf(Mailbox::class)
-            ->and($imapSecond)->toBeInstanceOf(Mailbox::class)
-            ->and($imapFirst)->not->toBe($imapSecond)
+        expect($imapFirst)->not->toBe($imapSecond)
             ->and($popFirst)->toBeInstanceOf(Pop3Mailbox::class)
             ->and($popSecond)->toBeInstanceOf(Pop3Mailbox::class)
             ->and($popFirst)->not->toBe($popSecond);

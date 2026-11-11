@@ -11,8 +11,8 @@ use Infocyph\Foundation\Auth\Support\SystemClock;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\Foundation\Tests\Fixtures\AuthContentionFixture;
 use Infocyph\Foundation\Tests\Fixtures\AuthAuditSensitiveKeyMatrix;
+use Infocyph\Foundation\Tests\Fixtures\AuthContentionFixture;
 use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 it('persists no sensitive matrix key across nested login reset MFA and passkey records', function (): void {
@@ -116,6 +116,7 @@ it('does not persist caller session or device metadata as canonical authorizatio
                 array $context = [],
             ): void {
                 unset($principal, $ability, $resource, $context);
+
                 throw new LogicException('The tested path is can().');
             }
 
@@ -127,6 +128,7 @@ it('does not persist caller session or device metadata as canonical authorizatio
                 array $context = [],
             ): \Infocyph\Foundation\Auth\Authorization\Decision\AuthorizationDecision {
                 unset($principal, $ability, $resource, $context);
+
                 return \Infocyph\Foundation\Auth\Authorization\Decision\AuthorizationDecision::deny();
             }
         };
@@ -140,6 +142,7 @@ it('does not persist caller session or device metadata as canonical authorizatio
             public function grantsForPrincipal(string $principalId): array
             {
                 unset($principalId);
+
                 return [];
             }
 
@@ -157,7 +160,7 @@ it('does not persist caller session or device metadata as canonical authorizatio
         };
         $delegation = new \Infocyph\Foundation\Auth\Authorization\Grant\DelegationManager($grants, $store, $ids, $clock);
         $grant = $delegation->grant('account-1', 'read', metadata: $untrusted);
-        expect($grant->grant)->not->toBeNull();
+        \PHPUnit\Framework\Assert::assertNotNull($grant->grant);
         $delegation->revoke($grant->grant->id, 'account-1', $untrusted);
 
         $rows = $connection->select('SELECT type, session_id, device_id, metadata FROM ' . $fixture->tables->auditEvents());
@@ -258,7 +261,6 @@ it('redacts arbitrary uppercase and mixed-case secrets for all auth-purpose audi
             if (!is_string($raw)) {
                 throw new \UnexpectedValueException('Persisted audit metadata must be JSON text.');
             }
-            expect($raw)->toBeString();
             $metadata = json_decode($raw, true, flags: JSON_THROW_ON_ERROR);
             if (!is_array($metadata)) {
                 throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');

@@ -124,8 +124,8 @@ PHP);
             ->and($second['generation'] ?? null)->toBeString()->not->toBe('')
             ->and($second['generation'] ?? null)->not->toBe($first['generation'] ?? null)
             ->and($second['manifest_sha256'] ?? null)->toBeString()->toHaveLength(64)
-            ->and(is_file((string) ($second['manifest'] ?? '')))->toBeTrue()
-            ->and(is_file((string) ($second['active_pointer'] ?? '')))->toBeTrue();
+            ->and(is_file(foundationFixtureString($second['manifest'] ?? '')))->toBeTrue()
+            ->and(is_file(foundationFixtureString($second['active_pointer'] ?? '')))->toBeTrue();
 
         $warm = foundationOptimizationPayload(foundationOptimizationRun($dispatcher, 'optimize:report'));
         expect($warm['ready'] ?? null)->toBeTrue()
@@ -206,9 +206,13 @@ PHP);
             || !is_array($showPayload['states']['data.database'] ?? null)) {
             throw new \UnexpectedValueException('Optimized module status must contain a database state.');
         }
-        expect($showPayload)->toBeArray()
-            ->and($doctorPayload)->toBeArray()
-            ->and($planPayload)->toBeArray()
+        \PHPUnit\Framework\Assert::assertIsArray(($doctorPayload['states'] ?? null));
+        \PHPUnit\Framework\Assert::assertIsArray(($doctorPayload['states']['data.database'] ?? null));
+
+        \PHPUnit\Framework\Assert::assertIsArray(($doctorPayload['states']['data.database']['packages'] ?? null));
+        \PHPUnit\Framework\Assert::assertIsArray(($doctorPayload['states']['data.database']['packages']['infocyph/dblayer'] ?? null));
+
+        expect($planPayload)->toBeArray()
             ->and($validationPayload)->toBeArray()
             ->and($readinessPayload)->toBeArray()
             ->and($optimizePayload)->toBeArray()
@@ -220,13 +224,16 @@ PHP);
             ->and($validationPayload['valid'] ?? false)->toBeTrue()
             ->and($readinessPayload['schema_version'] ?? null)->toBe(1)
             ->and($readinessPayload['ready'] ?? false)->toBeTrue()
-            ->and(array_keys($readinessPayload['checks'] ?? []))->not->toContain('module:database');
+            ->and(array_keys(foundationStringMap($readinessPayload['checks'] ?? [])))->not->toContain('module:database');
 
         $manifestPath = $optimizePayload['manifest'] ?? null;
-        expect($manifestPath)->toBeString()->toBeFile();
-        $manifest = require $manifestPath;
-        expect($manifest)->toBeArray();
+        \PHPUnit\Framework\Assert::assertIsString($manifestPath);
+        expect($manifestPath)->toBeFile();
+        $manifest = \foundationReadPhpFixtureArray($manifestPath);
+
         foreach (['web', 'cli', 'worker', 'scheduler'] as $runtime) {
+            \PHPUnit\Framework\Assert::assertIsArray(($manifest[$runtime] ?? null));
+
             expect($manifest[$runtime]['capabilities'] ?? null)->toBe([]);
         }
     } finally {
@@ -289,7 +296,7 @@ function foundationOptimizationPayload(FoundationOptimizationCommandIO $io): arr
         throw new RuntimeException('Optimization command did not emit a machine-readable payload.');
     }
 
-    return $payload;
+    return foundationStringMap($payload);
 }
 
 /**

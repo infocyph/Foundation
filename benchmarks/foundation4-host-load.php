@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
-if ($argc !== 5) {
+require_once __DIR__ . '/../tests/Fixtures/ProbeInput.php';
+$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::arguments($_SERVER['argv'] ?? []);
+
+if (count($argv) !== 5) {
     throw new InvalidArgumentException('Usage: php foundation4-host-load.php URL REQUESTS CONCURRENCY OUTPUT');
 }
-$url = $argv[1] ?? throw new InvalidArgumentException('Missing host load URL.');
-$requested = $argv[2] ?? throw new InvalidArgumentException('Missing request count.');
-$parallel = $argv[3] ?? throw new InvalidArgumentException('Missing concurrency.');
-$output = $argv[4] ?? throw new InvalidArgumentException('Missing report path.');
+$url = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::loopbackHttp($argv[1]);
+$requested = $argv[2];
+$parallel = $argv[3];
+$output = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::path($argv[4]);
 $requests = (int) $requested;
 $concurrency = (int) $parallel;
 $minimumSeconds = (float) ((($__foundation154_11 = getenv('FOUNDATION_HOST_MIN_SECONDS')) !== false && $__foundation154_11 !== '' && $__foundation154_11 !== '0' ? $__foundation154_11 : 0));
@@ -66,7 +69,7 @@ try {
     foreach ($handles as $handle) {
         curl_multi_add_handle($multi, $handle);
     }
-    $cpuStarted = getrusage();
+    $cpuStarted = f4HostCpu();
     $start = hrtime(true);
 
     while ($finished < $sent || $sent < $requests || hrtime(true) - $start < $minimumNanoseconds) {
@@ -77,7 +80,7 @@ try {
             throw new RuntimeException(sprintf('cURL multi failed: %d', $state));
         }
 
-        while (($message = curl_multi_info_read($multi)) !== false) {
+        while (($message = f4HostCompleted($multi)) !== null) {
             $handle = $message['handle'];
             $response = f4HostResponse($handle, $message['result'], $authenticated);
             $newConnections += (int) curl_getinfo($handle, CURLINFO_NUM_CONNECTS);
@@ -120,11 +123,11 @@ try {
 }
 
 $duration = max((float) (hrtime(true) - $start) / 1_000_000_000.0, 0.000001);
-$cpuFinished = getrusage();
+$cpuFinished = f4HostCpu();
 $cpuSeconds = (float) ($cpuFinished['ru_utime.tv_sec'] - $cpuStarted['ru_utime.tv_sec'])
     + (float) ($cpuFinished['ru_stime.tv_sec'] - $cpuStarted['ru_stime.tv_sec'])
-    + ($cpuFinished['ru_utime.tv_usec'] - $cpuStarted['ru_utime.tv_usec']) / 1_000_000
-    + ($cpuFinished['ru_stime.tv_usec'] - $cpuStarted['ru_stime.tv_usec']) / 1_000_000;
+    + (float) ($cpuFinished['ru_utime.tv_usec'] - $cpuStarted['ru_utime.tv_usec']) / 1_000_000.0
+    + (float) ($cpuFinished['ru_stime.tv_usec'] - $cpuStarted['ru_stime.tv_usec']) / 1_000_000.0;
 sort($latencies, SORT_NUMERIC);
 $percentile = static function (float $fraction) use ($latencies): float {
     $index = max(0, min(count($latencies) - 1, (int) ceil((float) count($latencies) * $fraction) - 1));
@@ -139,7 +142,7 @@ $record = [
     'minimum_duration_seconds' => $minimumSeconds,
     'connection_warmup' => $connectionWarmup,
     'measured_new_connections' => $newConnections,
-    'load_cpu_percent' => round($cpuSeconds / $duration * 100, 3),
+    'load_cpu_percent' => round($cpuSeconds / $duration * 100.0, 3),
     'worker_requests' => $workerRequests,
     'database_queries' => $totalQueries,
     'application_cache_hits' => $totalCacheHits,
@@ -198,49 +201,25 @@ function f4HostResponse(CurlHandle $handle, int $result, bool $authenticated): a
 /**
  * @param list<CurlHandle> $handles
  * @return array{successful:int,duration_seconds:float,worker_requests:array<int,int>}
+ * @throws \RuntimeException
  */
 function f4HostPrimeConnections(CurlMultiHandle $multi, array $handles, bool $authenticated): array
 {
     $started = hrtime(true);
     $completed = 0;
     $workers = [];
-    $pump = static function () use ($multi, $authenticated, &$completed, &$workers): int {
-        do {
-            $state = curl_multi_exec($multi, $running);
-        } while ($state === CURLM_CALL_MULTI_PERFORM);
-        if ($state !== CURLM_OK) {
-            throw new RuntimeException('Connection warm-up multi failed: ' . $state);
-        }
-        while (($message = curl_multi_info_read($multi)) !== false) {
-            $handle = $message['handle'];
-            $response = f4HostResponse($handle, $message['result'], $authenticated);
-            if ($response['error'] !== null) {
-                throw new RuntimeException('Connection warm-up failed: ' . $response['error']);
-            }
-            curl_multi_remove_handle($multi, $handle);
-            $completed++;
-            if ($authenticated) {
-                $pid = $response['worker'];
-                $workers[$pid] = ($workers[$pid] ?? 0) + 1;
-            }
-        }
 
-        return $running;
-    };
     foreach ($handles as $handle) {
         curl_setopt($handle, CURLOPT_FRESH_CONNECT, true);
         curl_multi_add_handle($multi, $handle);
         $next = hrtime(true) + 5_000_000;
         do {
-            $running = $pump();
-            $remaining = (float) ($next - hrtime(true)) / 1_000_000_000.0;
-            if ($remaining > 0 && ($running === 0 || curl_multi_select($multi, $remaining) === -1)) {
-                usleep((int) ceil($remaining * 1_000_000.0));
-            }
+            $running = f4HostPrimePump($multi, $authenticated, $completed, $workers);
+            f4HostPrimeWait($multi, $next, $running);
         } while (hrtime(true) < $next);
     }
     while ($completed < count($handles)) {
-        $pump();
+        f4HostPrimePump($multi, $authenticated, $completed, $workers);
         if ($completed < count($handles) && curl_multi_select($multi, 0.05) === -1) {
             usleep(1000);
         }
@@ -254,4 +233,96 @@ function f4HostPrimeConnections(CurlMultiHandle $multi, array $handles, bool $au
         'duration_seconds' => round((hrtime(true) - $started) / 1_000_000_000, 6),
         'worker_requests' => $workers,
     ];
+}
+
+/**
+ * @param array<int,int> $workers
+ * @throws RuntimeException
+ */
+function f4HostPrimePump(CurlMultiHandle $multi, bool $authenticated, int &$completed, array &$workers): int
+{
+    do {
+        $state = curl_multi_exec($multi, $running);
+    } while ($state === CURLM_CALL_MULTI_PERFORM);
+    if ($state !== CURLM_OK) {
+        throw new RuntimeException('Connection warm-up multi failed: ' . $state);
+    }
+    while (($message = f4HostCompleted($multi)) !== null) {
+        $handle = $message['handle'];
+        $response = f4HostResponse($handle, $message['result'], $authenticated);
+        if ($response['error'] !== null) {
+            throw new RuntimeException('Connection warm-up failed: ' . $response['error']);
+        }
+        curl_multi_remove_handle($multi, $handle);
+        $completed++;
+        if ($authenticated) {
+            $pid = $response['worker'];
+            $workers[$pid] = ($workers[$pid] ?? 0) + 1;
+        }
+    }
+
+    return f4HostRunning($running);
+}
+
+/**
+ * @return array{handle:CurlHandle,result:int}|null
+ * @throws RuntimeException
+ */
+function f4HostCompleted(CurlMultiHandle $multi): ?array
+{
+    $message = curl_multi_info_read($multi);
+    if ($message === false) {
+        return null;
+    }
+    if (!($message['handle'] ?? null) instanceof CurlHandle || !is_int($message['result'] ?? null)) {
+        throw new RuntimeException('cURL returned malformed completion metadata.');
+    }
+
+    return ['handle' => $message['handle'], 'result' => $message['result']];
+}
+
+/**
+ * @return array{'ru_utime.tv_sec':int,'ru_stime.tv_sec':int,'ru_utime.tv_usec':int,'ru_stime.tv_usec':int}
+ * @throws RuntimeException
+ */
+function f4HostCpu(): array
+{
+    return f4HostCpuCounters(getrusage());
+}
+
+/**
+ * @return array{'ru_utime.tv_sec':int,'ru_stime.tv_sec':int,'ru_utime.tv_usec':int,'ru_stime.tv_usec':int}
+ * @throws RuntimeException
+ */
+function f4HostCpuCounters(mixed $usage): array
+{
+    if (!is_array($usage) || !is_int($usage['ru_utime.tv_sec'] ?? null)
+        || !is_int($usage['ru_stime.tv_sec'] ?? null) || !is_int($usage['ru_utime.tv_usec'] ?? null)
+        || !is_int($usage['ru_stime.tv_usec'] ?? null)
+    ) {
+        throw new RuntimeException('Native CPU usage counters are unavailable.');
+    }
+
+    return [
+        'ru_utime.tv_sec' => $usage['ru_utime.tv_sec'], 'ru_stime.tv_sec' => $usage['ru_stime.tv_sec'],
+        'ru_utime.tv_usec' => $usage['ru_utime.tv_usec'], 'ru_stime.tv_usec' => $usage['ru_stime.tv_usec'],
+    ];
+}
+
+function f4HostPrimeWait(CurlMultiHandle $multi, int $next, int $running): void
+{
+    $remaining = (float) ($next - hrtime(true)) / 1_000_000_000.0;
+    if ($remaining > 0 && ($running === 0 || curl_multi_select($multi, $remaining) === -1)) {
+        usleep((int) ceil($remaining * 1_000_000.0));
+    }
+}
+
+/** @throws RuntimeException */
+function f4HostRunning(mixed $running): int
+{
+    if (!is_int($running)) {
+        throw new RuntimeException('cURL did not return a running handle count.');
+    }
+
+    return $running;
 }

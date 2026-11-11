@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
-use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 use Infocyph\Foundation\Tests\Fixtures\ServeProbe;
 use Infocyph\Runwire\Runtime\Enum\RuntimeDriver;
@@ -99,15 +98,15 @@ it('serves real requests with isolated contexts and recovers after a failed requ
                 'http' => ['ignore_errors' => true, 'timeout' => 3, 'header' => "Connection: close\r\n"],
             ]));
             $headers = http_get_last_response_headers();
-            expect($body)->toBeString()->not->toContain('serve-probe-private-error');
+            \PHPUnit\Framework\Assert::assertIsString($body);
+            expect($body)->not->toContain('serve-probe-private-error');
             if ($path === '/failure') {
                 expect($headers[0] ?? '')->toContain('500');
+
                 continue;
             }
             expect($headers[0] ?? '')->toContain('200');
-            if (!is_string($body)) {
-                throw new \UnexpectedValueException('HTTP serving probe must return response bytes.');
-            }
+
             $response = json_decode($body, true, flags: JSON_THROW_ON_ERROR);
             if (!is_array($response)) {
                 throw new \UnexpectedValueException('Expected a decoded JSON object.');
@@ -180,13 +179,14 @@ it('serves real requests with isolated contexts and recovers after a failed requ
 ]);
 
 /**
- * @return list<array<string, mixed>>
+ * @return list<array{pid:int,worker_slot:int|null,request_id:string,runtime_pid:int|null,...<string,mixed>}>
  * @throws \RuntimeException
  */
 function foundationServeBurst(string $address): array
 {
     $multi = curl_multi_init();
     $handles = [];
+
     try {
         for ($index = 0; $index < 16; ++$index) {
             $handle = curl_init('http://' . $address . '/probe');
@@ -218,11 +218,7 @@ function foundationServeBurst(string $address): array
             if (!is_string($body)) {
                 throw new RuntimeException('HTTP serving probe returned no response body.');
             }
-            $response = json_decode($body, true, flags: JSON_THROW_ON_ERROR);
-            if (!is_array($response)) {
-                throw new \UnexpectedValueException('HTTP serving burst must return structured JSON.');
-            }
-            $responses[] = $response;
+            $responses[] = foundationServePayload($body);
         }
 
         return $responses;
@@ -258,4 +254,22 @@ function foundationServeWait(mixed $process, string $address, string $project): 
 
     throw new RuntimeException('Serving did not become ready: '
         . (string) file_get_contents($project . '/stdout.log') . (string) file_get_contents($project . '/stderr.log'));
+}
+
+/**
+ * @return array{pid:int,worker_slot:int|null,request_id:string,runtime_pid:int|null,...<string,mixed>}
+ * @throws UnexpectedValueException
+ */
+function foundationServePayload(string $body): array
+{
+    $response = foundationStringMap(json_decode($body, true, flags: JSON_THROW_ON_ERROR));
+    $slot = $response['worker_slot'] ?? null;
+    $runtimePid = $response['runtime_pid'] ?? null;
+    if (!is_int($response['pid'] ?? null) || !is_string($response['request_id'] ?? null)
+        || ($slot !== null && !is_int($slot)) || ($runtimePid !== null && !is_int($runtimePid))
+    ) {
+        throw new UnexpectedValueException('Serving probe must return process, worker and request identities.');
+    }
+
+    return ['pid' => $response['pid'], 'worker_slot' => $slot, 'request_id' => $response['request_id'], 'runtime_pid' => $runtimePid] + $response;
 }

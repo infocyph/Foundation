@@ -6,6 +6,13 @@ namespace Infocyph\Foundation\Benchmarks\Support;
 
 final class BenchmarkSupport
 {
+    public static function iniValue(string $name, string $default): string
+    {
+        $value = ini_get($name);
+
+        return $value !== false && $value !== '' && $value !== '0' ? $value : $default;
+    }
+
     /**
      * @return array{median_ns:float,min_ns:float,max_ns:float,spread_percent:float}
      * @throws \InvalidArgumentException
@@ -22,7 +29,8 @@ final class BenchmarkSupport
 
         $samples = [];
 
-        for ($repeat = 0; $repeat < $repetitions; ++$repeat) {
+        $repeat = 0;
+        do {
             for ($iteration = 0; $iteration < $warmup; ++$iteration) {
                 $operation();
             }
@@ -32,12 +40,10 @@ final class BenchmarkSupport
                 $operation();
             }
             $samples[] = (float) max(1, hrtime(true) - $started) / (float) $operations;
-        }
+            ++$repeat;
+        } while ($repeat < $repetitions);
 
         sort($samples, SORT_NUMERIC);
-        if ($samples === []) {
-            throw new \RuntimeException('Benchmark must produce at least one sample.');
-        }
         $median = $samples[intdiv(count($samples), 2)];
         $minimum = $samples[0];
         $maximum = $samples[count($samples) - 1];
@@ -50,13 +56,37 @@ final class BenchmarkSupport
         ];
     }
 
+    /**
+     * @return array<string,mixed>
+     * @throws \InvalidArgumentException
+     */
+    public static function objectMap(mixed $input): array
+    {
+        if (!is_array($input)) {
+            throw new \InvalidArgumentException('Benchmark evidence must be an object map.');
+        }
+        $map = [];
+        foreach ($input as $key => $value) {
+            if (!is_string($key)) {
+                throw new \InvalidArgumentException('Benchmark object maps require string keys.');
+            }
+            $map[$key] = $value;
+        }
+
+        return $map;
+    }
+
     public static function ratio(float $numerator, float $denominator): float
     {
         return round($numerator / max(1.0, $denominator), 4);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function removeDirectory(string $directory): void
     {
+        $directory = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::path($directory);
         if (!is_dir($directory)) {
             return;
         }
@@ -93,7 +123,8 @@ final class BenchmarkSupport
 
         $samples = [];
 
-        for ($repeat = 0; $repeat < $repetitions; ++$repeat) {
+        $repeat = 0;
+        do {
             for ($iteration = 0; $iteration < $warmup; ++$iteration) {
                 $operation();
             }
@@ -103,12 +134,10 @@ final class BenchmarkSupport
                 $operation();
             }
             $samples[] = (float) (hrtime(true) - $started) / (float) $operations;
-        }
+            ++$repeat;
+        } while ($repeat < $repetitions);
 
         sort($samples, SORT_NUMERIC);
-        if ($samples === []) {
-            throw new \RuntimeException('Benchmark must produce at least one sample.');
-        }
         $median = $samples[intdiv(count($samples), 2)];
 
         return [

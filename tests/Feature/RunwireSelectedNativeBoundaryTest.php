@@ -2,11 +2,16 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
+use DomainException;
+use Fiber;
 use Infocyph\ArrayKit\Collection\LazyCollection;
 use Infocyph\CacheLayer\Integration\Runwire\RunwireExecutionContext as CacheRunwireContext;
 use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Epicrypt\Integration\Runwire\RunwireExecutionContext as EpicryptRunwireContext;
+
 use Infocyph\InterMix\Integration\Runwire\RunwireIntegration as InterMixRunwire;
 use Infocyph\Omnibus\Integration\Runwire\RunwireBinding as OmnibusRunwire;
 use Infocyph\OTP\Support\RunwireState as OtpRunwireState;
@@ -22,6 +27,11 @@ use Infocyph\Runwire\RuntimeOptions;
 use Infocyph\TalkingBytes\Integration\Runwire\RunwireBinding as TalkingBytesRunwire;
 use Infocyph\UID\Runtime\RunwireBinding as UidRunwire;
 use Infocyph\Webrick\Runtime\Http\RunwireRuntimeAdapter;
+use LogicException;
+use ReflectionMethod;
+use ReflectionNamedType;
+use ReflectionParameter;
+use RuntimeException;
 
 it('pins the selected published native Runwire APIs across all Foundation library owners', function (): void {
     foreach ([
@@ -46,8 +56,7 @@ it('pins the selected published native Runwire APIs across all Foundation librar
     if (!$dbRuntime instanceof ReflectionNamedType) {
         throw new RuntimeException('Runwire binding parameter must have a named runtime type.');
     }
-    expect($dbRuntime)->toBeInstanceOf(ReflectionNamedType::class)
-        ->and($dbRuntime->getName())->toBe(RuntimeContext::class);
+    expect($dbRuntime->getName())->toBe(RuntimeContext::class);
 });
 
 it('forwards one exact Runwire runtime and request into native library boundaries', function (): void {
@@ -118,24 +127,42 @@ it('forwards exact Runwire identities through native intermediary and borrowed c
             $request,
             null,
             static function (\Infocyph\InterMix\DI\RuntimeContainerInterface $owner) use (
-                $bridge, $runtime, $request, $connection, $omnibus, &$captured,
+                $bridge,
+                $runtime,
+                $request,
+                $connection,
+                $omnibus,
+                &$captured,
             ): array {
                 $captured = $owner->captureScopeContext();
-                $parent = [$owner->get(RuntimeContext::class), $owner->get(RequestContext::class)];
+                $parent = [\foundationService($owner, RuntimeContext::class), \foundationService($owner, RequestContext::class)];
                 $parentCache = CacheRunwire::current();
 
                 $intermediary = static function () use (
-                    $bridge, $captured, $runtime, $request, $connection, $omnibus,
+                    $bridge,
+                    $captured,
+                    $runtime,
+                    $request,
+                    $connection,
+                    $omnibus,
                 ): array {
                     $fiber = new Fiber(static function () use (
-                        $bridge, $captured, $runtime, $request, $connection, $omnibus,
+                        $bridge,
+                        $captured,
+                        $runtime,
+                        $request,
+                        $connection,
+                        $omnibus,
                     ): array {
-                        return $bridge->withinScopeContext(
+                        $nativeResult = $bridge->withinScopeContext(
                             $captured,
                             $request,
                             null,
                             static function (\Infocyph\InterMix\DI\RuntimeContainerInterface $child) use (
-                                $runtime, $request, $connection, $omnibus,
+                                $runtime,
+                                $request,
+                                $connection,
+                                $omnibus,
                             ): array {
                                 $epicrypt = new EpicryptRunwireContext($runtime, $request);
                                 $pathwise = new PathwiseRunwireContext($runtime, $request);
@@ -159,8 +186,8 @@ it('forwards exact Runwire identities through native intermediary and borrowed c
                                 );
 
                                 return [
-                                    $child->get(RuntimeContext::class),
-                                    $child->get(RequestContext::class),
+                                    \foundationService($child, RuntimeContext::class),
+                                    \foundationService($child, RequestContext::class),
                                     CacheRunwire::current()?->runtime,
                                     CacheRunwire::current()?->request,
                                     $database,
@@ -170,20 +197,30 @@ it('forwards exact Runwire identities through native intermediary and borrowed c
                                 ];
                             },
                         );
+                        \PHPUnit\Framework\Assert::assertIsArray($nativeResult);
+
+                        return $nativeResult;
                     });
                     $fiber->start();
 
-                    return $fiber->getReturn();
+                    $nativeResult = $fiber->getReturn();
+                    \PHPUnit\Framework\Assert::assertIsArray($nativeResult);
+
+                    return $nativeResult;
                 };
 
                 return [$parent, $parentCache, $intermediary(), CacheRunwire::current()];
             },
         );
 
+        \PHPUnit\Framework\Assert::assertIsArray($values);
         [$parent, $parentCache, $child, $restoredCache] = $values;
+        \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\CacheLayer\Integration\Runwire\RunwireExecutionContext::class, $parentCache);
+        \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\CacheLayer\Integration\Runwire\RunwireExecutionContext::class, $restoredCache);
+        \PHPUnit\Framework\Assert::assertIsArray($child);
         expect($parent)->toBe([$runtime, $request])
-            ->and($parentCache?->runtime)->toBe($runtime)
-            ->and($parentCache?->request)->toBe($request)
+            ->and($parentCache->runtime)->toBe($runtime)
+            ->and($parentCache->request)->toBe($request)
             ->and($child[0])->toBe($runtime)
             ->and($child[1])->toBe($request)
             ->and($child[2])->toBe($runtime)
@@ -196,7 +233,7 @@ it('forwards exact Runwire identities through native intermediary and borrowed c
             ->and($child[5])->toBe([$runtime, $request])
             ->and($child[6])->toBe([10, 20])
             ->and($child[7])->toBeNull()
-            ->and($restoredCache?->request)->toBe($request)
+            ->and($restoredCache->request)->toBe($request)
             ->and(CacheRunwire::current())->toBeNull()
             ->and($omnibus->runtime())->toBeNull()
             ->and($connection->runwireBinding())->toBeNull();
@@ -224,10 +261,13 @@ it('rejects host cancellation at the native intermediary and child boundaries', 
     $request = RequestContext::create($runtime);
     $bridge = new InterMixRunwire($builder->build());
     $bridge->bind($runtime);
+
     try {
         $request->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
         expect($request->cancelled())->toBeTrue()
-            ->and(fn(): mixed => $request->cancellation->throwIfCancelled())
+            ->and(function () use ($request): void {
+                $request->cancellation->throwIfCancelled();
+            })
             ->toThrow(\Infocyph\Runwire\Exception\CancelledException::class)
             ->and(fn(): mixed => $bridge->withinRequest(
                 $request,
@@ -236,9 +276,13 @@ it('rejects host cancellation at the native intermediary and child boundaries', 
                     (new ReqShieldRunwire($runtime, $request))->checkpoint();
                 },
             ))->toThrow(\Infocyph\Runwire\Exception\CancelledException::class)
-            ->and(fn(): mixed => (new ReqShieldRunwire($runtime, $request))->checkpoint())
+            ->and(function () use ($runtime, $request): void {
+                (new ReqShieldRunwire($runtime, $request))->checkpoint();
+            })
             ->toThrow(\Infocyph\Runwire\Exception\CancelledException::class)
-            ->and(fn(): mixed => (new UidRunwire($runtime, $request))->assertActive())
+            ->and(function () use ($runtime, $request): void {
+                (new UidRunwire($runtime, $request))->assertActive();
+            })
             ->toThrow(\Infocyph\Runwire\Exception\CancelledException::class);
     } finally {
         $bridge->release($runtime);
@@ -278,10 +322,12 @@ it('detaches a throwing Foundation exception reporter from the native Runwire re
             $failingRequest,
             null,
             static function (\Infocyph\InterMix\DI\RuntimeContainerInterface $owner) use (
-                $runtime, $failingRequest, $logger,
+                $runtime,
+                $failingRequest,
+                $logger,
             ): void {
-                expect($owner->get(RuntimeContext::class))->toBe($runtime)
-                    ->and($owner->get(RequestContext::class))->toBe($failingRequest);
+                expect(\foundationService($owner, RuntimeContext::class))->toBe($runtime)
+                    ->and(\foundationService($owner, RequestContext::class))->toBe($failingRequest);
 
                 $logger->error('failure', [
                     'status' => 500,
@@ -296,8 +342,8 @@ it('detaches a throwing Foundation exception reporter from the native Runwire re
             $followingRequest,
             null,
             static fn(\Infocyph\InterMix\DI\RuntimeContainerInterface $owner): array => [
-                $owner->get(RuntimeContext::class),
-                $owner->get(RequestContext::class),
+                \foundationService($owner, RuntimeContext::class),
+                \foundationService($owner, RequestContext::class),
                 CacheRunwire::current()?->request,
             ],
         );
@@ -346,11 +392,12 @@ it('pins the published Runwire 3 host methods and named request/runtime contract
     $explicit = new RuntimeOptions(driver: RuntimeDriver::SWOOLE);
     expect($options->driver)->toBe(RuntimeDriver::AUTO)
         ->and($explicit->driver)->toBe(RuntimeDriver::SWOOLE)
-        ->and(Runtime::create($explicit))->toBeInstanceOf(Runtime::class)
+        ->and(Runtime::create($explicit)->selection())->toBeNull()
         ->and(RuntimeDriver::from('native'))->toBe(RuntimeDriver::NATIVE);
 
     $runtime = RuntimeContext::standalone();
     $request = RequestContext::create($runtime, requestId: 'foundation-runwire3-api');
+
     try {
         expect($request->runtime())->toBe($runtime)
             ->and($request->cancel(CancellationReason::HOST_CANCELLED))->toBeTrue()

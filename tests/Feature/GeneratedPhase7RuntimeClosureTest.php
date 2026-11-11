@@ -29,9 +29,11 @@ final class FoundationPhase7GeneratedScopedProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
@@ -169,6 +171,7 @@ it('keeps trusted worker and scheduler production containers bounded across long
     $workerArtifact = $project . '/bootstrap/cache/worker.php';
     $schedulerArtifact = $project . '/bootstrap/cache/scheduler.php';
     $database = $project . '/storage/runtime.sqlite';
+
     try {
         $compiler = new GeneratedRuntimeCompiler();
         $workerReport = $compiler->compile(
@@ -232,6 +235,7 @@ it('keeps trusted worker and scheduler production containers bounded across long
         $workerTemps = [];
         foreach (range(1, 512) as $index) {
             $item = 'worker-item-' . $index;
+
             try {
                 $worker->execute(
                     static function (ExecutionId $id) use (

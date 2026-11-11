@@ -65,13 +65,13 @@ try {
     }
 
     $directResolve = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::throughputMeasure(
-        static fn(): object => $direct->get(Phase9DiNode::class),
+        static fn(): mixed => $direct->get(Phase9DiNode::class),
         $operations,
         $repetitions,
         $warmup,
     );
     $foundationContainerResolve = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::throughputMeasure(
-        static fn(): object => $foundation->container->get(Phase9DiNode::class),
+        static fn(): mixed => $foundation->container->get(Phase9DiNode::class),
         $operations,
         $repetitions,
         $warmup,
@@ -85,9 +85,9 @@ try {
 
     $scopeOperations = max(1_000, intdiv($operations, 10));
     $directScope = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::throughputMeasure(
-        static fn(): object => $direct->withinScope(
+        static fn(): mixed => $direct->withinScope(
             'foundation.cli',
-            static fn(): object => $direct->get(Phase9DiScopedProbe::class),
+            static fn(): mixed => $direct->get(Phase9DiScopedProbe::class),
         ),
         $scopeOperations,
         $repetitions,

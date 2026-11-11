@@ -2,28 +2,28 @@
 
 declare(strict_types=1);
 
-use Infocyph\Epicrypt\Security\RememberToken as EpicryptRememberToken;
 use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Migration\MigrationRunner;
+use Infocyph\Epicrypt\Security\RememberToken as EpicryptRememberToken;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerPasswordResetStore;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerRefreshTokenStore;
+use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationRequest;
+use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetRequest;
+use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenStatus;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenRecord;
+use Infocyph\Foundation\Auth\AuthServices;
+use Infocyph\Foundation\Auth\Contract\Storage\RefreshTokenStoreInterface;
+use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
+use Infocyph\Foundation\Auth\Support\InMemoryEmailVerificationStore;
+use Infocyph\Foundation\Auth\Support\InMemoryPasswordResetStore;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
-use Infocyph\Foundation\Auth\AuthServices;
-use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationRequest;
-use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetRequest;
-use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenStatus;
-use Infocyph\Foundation\Auth\Contract\Storage\RefreshTokenStoreInterface;
-use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
-use Infocyph\Foundation\Auth\Support\InMemoryEmailVerificationStore;
-use Infocyph\Foundation\Auth\Support\InMemoryPasswordResetStore;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 it('atomically consumes a password reset once and restores it when account mutation fails', function (): void {
     $store = new InMemoryPasswordResetStore();
@@ -98,7 +98,7 @@ it('delegates remember-me signatures and account-device binding to native Epicry
     $app = Foundation::web(['app' => ['base_path' => sys_get_temp_dir()], 'router' => ['files' => []]]);
     $app->container()->withinScope('webrick.request', static function () use ($app): void {
         $issued = $app->make(AuthServices::class)->rememberMe()->issue('owner', 'device-1');
-        $value = $issued->token?->value ?? '';
+        $value = $issued->token->value ?? '';
         $parts = explode('.', $value, 2);
         if (!isset($parts[1])) {
             throw new RuntimeException('Expected a signed remember-me token.');
@@ -188,8 +188,8 @@ it('rolls back token rotation instead of overwriting an existing replacement ide
     $clock = new SystemClock();
     if ($kind === 'refresh') {
         $store = new DBLayerRefreshTokenStore($state, $tables, $clock);
-        $make = static fn(string $id, string $account, string $family): RefreshTokenRecord =>
-            new RefreshTokenRecord(hash('sha256', $id), null, null, $id, $account, $family, $now, $now + 300);
+        $make = static fn(string $id, string $account, string $family): RefreshTokenRecord
+            => new RefreshTokenRecord(hash('sha256', $id), null, null, $id, $account, $family, $now, $now + 300);
         $current = $make('source', 'owner', 'family');
         $occupied = $make('occupied', 'other-account', 'other-family');
         $store->save($current);
@@ -200,9 +200,16 @@ it('rolls back token rotation instead of overwriting an existing replacement ide
             ->and($store->find('occupied'))->toEqual($occupied);
     } else {
         $store = new \Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerRememberTokenStore($state, $tables, $clock);
-        $make = static fn(string $id, string $account, string $family): \Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenRecord =>
-            new \Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenRecord(
-                'device', $id, hash('sha256', $id), $id, $account, $family, $now, $now + 300,
+        $make = static fn(string $id, string $account, string $family): \Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenRecord
+            => new \Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenRecord(
+                'device',
+                $id,
+                hash('sha256', $id),
+                $id,
+                $account,
+                $family,
+                $now,
+                $now + 300,
             );
         $current = $make('source', 'owner', 'family');
         $occupied = $make('occupied', 'other-account', 'other-family');

@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/ProbeInput.php';
+$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::arguments($_SERVER['argv'] ?? []);
+
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\Migration\MigrationRunner;
@@ -17,12 +20,17 @@ if (count($argv) !== 5) {
     throw new InvalidArgumentException('Expected stage, SQLite file, versioned autoloader and digest path.');
 }
 
-[$stage, $database, $autoload, $digestFile] = array_slice($argv, 1);
+$stage = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 1);
+$database = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 2);
+$autoload = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 3);
+$digestFile = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 4);
 if (!in_array($stage, ['seed', 'upgrade', 'legacy-read'], true)) {
     throw new InvalidArgumentException('Unknown cross-major rehearsal stage.');
 }
 
-require $autoload;
+$database = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::path($database);
+$digestFile = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::path($digestFile);
+\Infocyph\Foundation\Tests\Fixtures\ProbeInput::autoload($autoload);
 
 $connection = new Connection(ConnectionConfig::fromArray(['driver' => 'sqlite', 'database' => $database]));
 $tables = new AuthTables();

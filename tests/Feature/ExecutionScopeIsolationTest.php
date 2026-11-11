@@ -7,10 +7,10 @@ use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Auth\Principal\Principal;
+use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
-use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -90,6 +90,8 @@ it('isolates same-label CLI scopes across interleaved Fibers and sequential exec
     $firstBefore = $first->start();
     $secondBefore = $second->start();
 
+    \PHPUnit\Framework\Assert::assertIsArray($firstBefore);
+    \PHPUnit\Framework\Assert::assertIsArray($secondBefore);
     expect($firstBefore)->toMatchArray(['id' => 'fiber-one', 'resolved_id' => 'fiber-one'])
         ->and($secondBefore)->toMatchArray(['id' => 'fiber-two', 'resolved_id' => 'fiber-two'])
         ->and($firstBefore['probe'])->not->toBe($secondBefore['probe']);
@@ -99,6 +101,8 @@ it('isolates same-label CLI scopes across interleaved Fibers and sequential exec
     $firstAfter = $first->getReturn();
     $secondAfter = $second->getReturn();
 
+    \PHPUnit\Framework\Assert::assertIsArray($firstAfter);
+    \PHPUnit\Framework\Assert::assertIsArray($secondAfter);
     expect($firstAfter)->toMatchArray(['id' => 'fiber-one', 'same_probe' => true])
         ->and($secondAfter)->toMatchArray(['id' => 'fiber-two', 'same_probe' => true])
         ->and($firstAfter['probe'])->toBe($firstBefore['probe'])
@@ -149,8 +153,6 @@ it('cleans a suspended Fiber execution when it is aborted by an injected excepti
             },
             executionId: new ExecutionId('aborted-fiber'),
         );
-
-        throw new LogicException('unreachable');
     });
 
     $fiber->start();
@@ -214,7 +216,10 @@ it('forwards one host-owned InterMix scope through a child Fiber without taking 
             executionId: new ExecutionId('host-owned-worker'),
         );
     });
-    [$context, $state, $originalId] = $owner->start();
+    $ownerResult = $owner->start();
+    \PHPUnit\Framework\Assert::assertIsArray($ownerResult);
+    [$context, $state, $originalId] = $ownerResult;
+    \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\InterMix\DI\ScopeContext::class, $context);
 
     $child = new Fiber(static fn(): array => $app->execution()->withinBorrowedScope(
         $context,
@@ -227,11 +232,14 @@ it('forwards one host-owned InterMix scope through a child Fiber without taking 
     expect($child->isTerminated())->toBeTrue();
     $borrowed = $child->getReturn();
 
+    \PHPUnit\Framework\Assert::assertIsArray($borrowed);
     expect($borrowed[0])->toBe($originalId)
         ->and($borrowed[1])->toBe($state);
 
     $owner->resume();
-    [$ownerState, $ownerId] = $owner->getReturn();
+    $ownerResult = $owner->getReturn();
+    \PHPUnit\Framework\Assert::assertIsArray($ownerResult);
+    [$ownerState, $ownerId] = $ownerResult;
     expect($ownerState)->toBe($state)
         ->and($ownerId)->toBe($originalId)
         ->and(fn(): mixed => $app->execution()->withinBorrowedScope(
@@ -262,20 +270,26 @@ it('preserves thrown child failures without closing the borrowed owner scope', f
             executionId: new ExecutionId('host-parent'),
         );
     });
-    [$context, $state, $id] = $owner->start();
+    $ownerResult = $owner->start();
+    \PHPUnit\Framework\Assert::assertIsArray($ownerResult);
+    [$context, $state, $id] = $ownerResult;
+    \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\InterMix\DI\ScopeContext::class, $context);
 
-    expect(fn(): mixed => $app->execution()->withinBorrowedScope(
-        $context,
-        static fn(): never => throw new DomainException('host child failure'),
-    ))->toThrow(DomainException::class, 'host child failure');
+    expect(function () use ($app, $context): void {
+        $app->execution()->withinBorrowedScope(
+            $context,
+            static fn(): never => throw new DomainException('host child failure'),
+        );
+    })->toThrow(DomainException::class, 'host child failure');
 
     $owner->resume();
-    [$after, $afterId] = $owner->getReturn();
+    $ownerResult = $owner->getReturn();
+    \PHPUnit\Framework\Assert::assertIsArray($ownerResult);
+    [$after, $afterId] = $ownerResult;
 
     expect($after)->toBe($state)
         ->and($afterId)->toBe($id);
 });
-
 
 it('keeps scoped module runtime state separate across selected CLI worker scheduler jobs', function (): void {
     foreach ([
@@ -283,21 +297,10 @@ it('keeps scoped module runtime state separate across selected CLI worker schedu
         RuntimeMode::Worker,
         RuntimeMode::Scheduler,
     ] as $mode) {
-        $app = match ($mode) {
-            RuntimeMode::Cli => Foundation::cli([
-                'app' => ['env' => 'testing', 'capabilities' => ['database']],
-                'modules' => ['features' => ['data.database' => true]],
-            ]),
-            RuntimeMode::Worker => Foundation::worker([
-                'app' => ['env' => 'testing', 'capabilities' => ['database']],
-                'modules' => ['features' => ['data.database' => true]],
-            ]),
-            RuntimeMode::Scheduler => Foundation::scheduler([
-                'app' => ['env' => 'testing', 'capabilities' => ['database']],
-                'modules' => ['features' => ['data.database' => true]],
-            ]),
-            RuntimeMode::Web => throw new LogicException('Webrick owns web request scopes.'),
-        };
+        $app = Foundation::{$mode->value}([
+            'app' => ['env' => 'testing', 'capabilities' => ['database']],
+            'modules' => ['features' => ['data.database' => true]],
+        ]);
         $app->boot();
         $previous = null;
 
@@ -343,12 +346,7 @@ it('clears each principal between selected-feature CLI worker scheduler executio
             'app' => ['env' => 'testing', 'capabilities' => ['auth', 'database']],
             'modules' => ['features' => ['data.database' => true]],
         ];
-        $app = match ($mode) {
-            RuntimeMode::Cli => Foundation::cli($config),
-            RuntimeMode::Worker => Foundation::worker($config),
-            RuntimeMode::Scheduler => Foundation::scheduler($config),
-            RuntimeMode::Web => throw new LogicException('Webrick owns request principal scopes.'),
-        };
+        $app = Foundation::{$mode->value}($config);
         $app->boot();
 
         $first = $app->execution()->run(static function () use ($app, $mode): string {

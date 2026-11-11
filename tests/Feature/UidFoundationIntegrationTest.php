@@ -91,14 +91,22 @@ it('preserves unique UID 6 generation across interleaved Fibers and borrowed Run
         foreach ($fibers as $fiber) {
             $part = $fiber->start();
             expect($part)->toHaveCount(16);
-            array_push($observed, ...$part);
+            \PHPUnit\Framework\Assert::assertIsArray($part);
+            foreach ($part as $value) {
+                \PHPUnit\Framework\Assert::assertIsString($value);
+                $observed[] = $value;
+            }
         }
 
         foreach ($fibers as $fiber) {
             $fiber->resume();
             $part = $fiber->getReturn();
             expect($part)->toHaveCount(16);
-            array_push($observed, ...$part);
+            \PHPUnit\Framework\Assert::assertIsArray($part);
+            foreach ($part as $value) {
+                \PHPUnit\Framework\Assert::assertIsString($value);
+                $observed[] = $value;
+            }
         }
 
         expect($observed)->toHaveCount(256)
@@ -126,6 +134,7 @@ it('keeps native UID generation isolated across sequential executions on a reuse
 
     for ($cycle = 0; $cycle < 16; ++$cycle) {
         $request = RequestContext::create($runtime);
+
         try {
             [$account, $correlation, $execution] = $app->execution()->run(
                 static fn(): array => [

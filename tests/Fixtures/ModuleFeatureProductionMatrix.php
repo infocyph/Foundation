@@ -26,7 +26,8 @@ $workingDirectory = getcwd();
 if ($workingDirectory === false) {
     throw new RuntimeException('Unable to locate the production fixture working directory.');
 }
-require $workingDirectory . '/vendor/autoload.php';
+require_once __DIR__ . '/ProbeInput.php';
+\Infocyph\Foundation\Tests\Fixtures\ProbeInput::autoload($workingDirectory . '/vendor/autoload.php');
 
 if (!class_exists(\Infocyph\Runwire\RuntimeContext::class)) {
     throw new RuntimeException('Runwire must be available in every Foundation production installation.');

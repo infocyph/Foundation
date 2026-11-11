@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Benchmarks\Support\FoundationModuleCliComparison;
 
-/** @return array<string,mixed> */
+/** @return array{commands:array<string,array{cold_ms:float,warm_p50_ms:float,warm_p95_ms:float,warm_p99_ms:float,warm_samples:int}>,...<string,mixed>} */
 function b7ModuleCliReport(float $duration = 5.0): array
 {
     $commands = [];
@@ -51,6 +51,8 @@ it('rejects identical sources, short sample series and incomparable PHP runtimes
 
     $candidate = b7ModuleCliReport();
     $candidate['source_sha'] = str_repeat('c', 40);
+    \PHPUnit\Framework\Assert::assertIsArray(($candidate['commands']['plan'] ?? null));
+
     $candidate['commands']['plan']['warm_samples'] = 3;
     expect(fn() => FoundationModuleCliComparison::compare($base, $candidate))
         ->toThrow(InvalidArgumentException::class, 'repeated warm CLI samples');
@@ -72,6 +74,7 @@ it('rejects missing commands and nonpositive CLI timings', function (): void {
 
     $candidate = b7ModuleCliReport();
     $candidate['source_sha'] = str_repeat('c', 40);
+    \PHPUnit\Framework\Assert::assertIsArray(($candidate['commands']['show'] ?? null));
     $candidate['commands']['show']['warm_p50_ms'] = 0.0;
     expect(fn() => FoundationModuleCliComparison::compare($base, $candidate))
         ->toThrow(InvalidArgumentException::class, 'Invalid CLI timing');

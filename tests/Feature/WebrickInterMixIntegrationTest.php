@@ -2,13 +2,9 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationManager;
 use Infocyph\Foundation\Auth\Authentication\Login\Authenticator;
-use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetManager;
-use Infocyph\Foundation\Auth\Authentication\TokenAuth\TokenAuthManager;
 use Infocyph\Foundation\Auth\AuthManager;
 use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Contract\Cache\CounterStoreInterface;
@@ -21,8 +17,6 @@ use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Auth\Mfa\MfaManager;
 use Infocyph\Foundation\Auth\Mfa\MfaVerifierInterface;
-use Infocyph\Foundation\Auth\Otp\OtpManager;
-use Infocyph\Foundation\Auth\Passkey\PasskeyManager;
 use Infocyph\Foundation\Auth\Passkey\PasskeyServiceInterface;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Auth\Principal\Principal;
@@ -38,7 +32,6 @@ use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
 use Infocyph\Foundation\Routing\WebrickMiddlewareFactory;
-use Infocyph\Foundation\Session\SessionManager;
 use Infocyph\Foundation\Testing\TestKit;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -119,11 +112,13 @@ final readonly class FoundationGatewayConsumer
 final class FoundationScopedProbe
 {
     private static int $nextSequence = 0;
+
     public readonly int $sequence;
 
     public function __construct()
     {
-        $this->sequence = ++self::$nextSequence;
+        self::$nextSequence++;
+        $this->sequence = self::$nextSequence;
     }
 }
 
@@ -144,8 +139,9 @@ it('applies InterMix environment bindings from the application environment', fun
         'providers' => ['web' => [$provider]],
     ]);
 
-    expect($app->container()->make(FoundationGatewayConsumer::class)->gateway)
-        ->toBeInstanceOf(LocalFoundationGateway::class);
+    $consumer = $app->container()->make(FoundationGatewayConsumer::class);
+    \PHPUnit\Framework\Assert::assertInstanceOf(FoundationGatewayConsumer::class, $consumer);
+    \PHPUnit\Framework\Assert::assertInstanceOf(LocalFoundationGateway::class, $consumer->gateway);
 });
 
 it('scopes request-lifetime services through the HTTP kernel', function (): void {
@@ -311,6 +307,7 @@ PHP,
 
 it('keeps optional auth adapters lazy until their capabilities are selected', function (): void {
     $project = foundationIntegrationProject([]);
+
     try {
         $probe = new FoundationResolutionProbe();
         $app = Foundation::web([
@@ -325,7 +322,7 @@ it('keeps optional auth adapters lazy until their capabilities are selected', fu
             ],
             'security' => ['jwt' => ['issuer' => 'foundation.test', 'audience' => 'foundation-clients']],
         ]);
-        expect($app->make(AuthManager::class))->toBeInstanceOf(AuthManager::class);
+        expect($app->make(AuthManager::class))->toBe($app->make(AuthManager::class));
         foreach ([
             AccessTokenServiceInterface::class, AccountProviderInterface::class, AuthIdGeneratorInterface::class,
             AuthNotifierInterface::class, CounterStoreInterface::class, MfaVerifierInterface::class,
@@ -333,7 +330,7 @@ it('keeps optional auth adapters lazy until their capabilities are selected', fu
         ] as $service) {
             expect($probe->saw($service))->toBeFalse();
         }
-        expect($app->make(AuthServices::class)->passwordHasher())->toBeInstanceOf(PasswordHasherInterface::class)
+        expect($app->make(AuthServices::class)->passwordHasher())->toBe($app->make(PasswordHasherInterface::class))
             ->and($probe->saw(PasswordHasherInterface::class))->toBeTrue()
             ->and($probe->saw(AccessTokenServiceInterface::class))->toBeFalse();
     } finally {
@@ -345,10 +342,10 @@ it('resolves auth actions and selected auth capabilities through DI only', funct
     $probe = new FoundationResolutionProbe();
     $app = Foundation::web(['auth' => ['drivers' => ['mfa' => 'simple']], 'providers' => ['web' => [$probe]]]);
 
-    expect($app->make(AuthManager::class))->toBeInstanceOf(AuthManager::class)
+    expect($app->make(AuthManager::class))->toBe($app->make(AuthManager::class))
         ->and($probe->saw(Authenticator::class))->toBeFalse()
         ->and($probe->saw(MfaManager::class))->toBeFalse()
-        ->and($app->make(AuthActions::class))->toBeInstanceOf(AuthActions::class)
+        ->and($app->make(AuthActions::class))->toBe($app->make(AuthActions::class))
         ->and($probe->saw(Authenticator::class))->toBeFalse()
         ->and($app->container()->withinScope(
             'webrick.request',
@@ -360,16 +357,19 @@ it('resolves auth actions and selected auth capabilities through DI only', funct
 it('isolates current principals between concurrent fibers and restores failed request context', function (): void {
     $app = Foundation::web(['auth' => ['drivers' => ['mfa' => 'simple']]]);
     $first = new Fiber(static function () use ($app): string {
-        return $app->container()->withinScope('webrick.request', static function () use ($app): string {
+        $nativeResult = $app->container()->withinScope('webrick.request', static function () use ($app): string {
             $context = $app->make(CurrentPrincipalContext::class);
             $context->set(new Principal('first'));
             expect(Fiber::suspend($context->require()->id()))->toBeNull();
 
             return $context->require()->id();
         });
+        \PHPUnit\Framework\Assert::assertIsString($nativeResult);
+
+        return $nativeResult;
     });
     $second = new Fiber(static function () use ($app): ?string {
-        return $app->container()->withinScope('webrick.request', static function () use ($app): ?string {
+        $nativeResult = $app->container()->withinScope('webrick.request', static function () use ($app): ?string {
             $context = $app->make(CurrentPrincipalContext::class);
             $context->set(new Principal('second'));
             expect(Fiber::suspend($context->require()->id()))->toBeNull();
@@ -377,6 +377,11 @@ it('isolates current principals between concurrent fibers and restores failed re
 
             return $context->get()?->id();
         });
+        if ($nativeResult !== null) {
+            \PHPUnit\Framework\Assert::assertIsString($nativeResult);
+        }
+
+        return $nativeResult;
     });
     expect($first->start())->toBe('first')->and($second->start())->toBe('second');
     $first->resume();
@@ -390,10 +395,15 @@ it('isolates current principals between concurrent fibers and restores failed re
         $context->set($previous);
         $resolver = new RequestPrincipalResolver(
             new ConfigRepository(['auth' => ['http' => ['principal_resolvers' => ['test']]]]),
-            ['test' => new readonly class($resolved) implements PrincipalResolverInterface {
+            ['test' => new readonly class ($resolved) implements PrincipalResolverInterface {
                 public function __construct(private Principal $principal) {}
+
                 #[\Override]
-                public function name(): string { return 'test'; }
+                public function name(): string
+                {
+                    return 'test';
+                }
+
                 #[\Override]
                 public function resolve(Request $request): Principal
                 {
@@ -409,6 +419,7 @@ it('isolates current principals between concurrent fibers and restores failed re
             static function (Request $request) use ($context): Response {
                 unset($request);
                 expect($context->require()->id())->toBe('request');
+
                 throw new RuntimeException('handler failed');
             },
         ))->toThrow(RuntimeException::class, 'handler failed')
@@ -426,6 +437,7 @@ Router::get('/without-cookie-middleware', static fn(): Response => Response::jso
 Router::get('/with-cookie-middleware', static fn(): Response => Response::json(['ok' => true]), ['middleware' => ['encrypted-cookie']]);
 PHP,
     ]);
+
     try {
         $probe = new FoundationResolutionProbe();
         $app = Foundation::web([
@@ -478,21 +490,23 @@ PHP,
             $project . '/bootstrap/cache/release.json',
             [],
         );
+        \PHPUnit\Framework\Assert::assertIsArray(($release['intermix'] ?? null));
         expect($release['intermix']['skipped'] ?? null)->toBe([]);
 
-        $payload = require $router;
-        expect($payload)->toBeArray();
+        $payload = \foundationReadPhpFixtureArray($router);
+
         $artifact = CompiledRouterArtifact::fromPayload($payload);
         $plain = null;
         foreach ($artifact->routes() as $route) {
             if ($route->getPath() === '/cached-plain') {
                 $plain = $route;
+
                 break;
             }
         }
 
-        expect($plain)->not->toBeNull()
-            ->and(MiddlewareAliases::has('auth'))->toBeTrue()
+        \PHPUnit\Framework\Assert::assertNotNull($plain);
+        expect(MiddlewareAliases::has('auth'))->toBeTrue()
             ->and(MiddlewareAliases::has('policy'))->toBeFalse()
             ->and(MiddlewareAliases::has('session'))->toBeFalse();
     } finally {
@@ -530,13 +544,14 @@ PHP,
             $manifest,
             [],
         );
+        \PHPUnit\Framework\Assert::assertIsArray(($release['intermix'] ?? null));
         expect($release['intermix']['skipped'] ?? null)->toBe([]);
         unlink($project . '/routes/web.php');
 
         $runtime = WebReleaseRuntime::loadPrevalidated(
             $config,
             $manifest,
-            (string) $release['release_runtime_manifest_sha256'],
+            $release['release_runtime_manifest_sha256'],
             foundationCapabilities: [],
         );
         $response = $runtime->kernel->handle(Request::fake(
@@ -554,6 +569,7 @@ PHP,
 
 it('applies definitions to string global middleware without recursively booting', function (): void {
     $project = foundationIntegrationProject([]);
+
     try {
         $app = Foundation::web([
             'base_path' => $project,
@@ -586,6 +602,7 @@ function foundationIntegrationProject(array $files): string
         }
         file_put_contents($target, $contents);
     }
+
     return $root;
 }
 
@@ -598,7 +615,8 @@ function foundationCachedRouteHandler(string $name): Response
 function foundationJsonResponse(Response $response): array
 {
     $decoded = json_decode((string) $response->getBody(), true);
-    return is_array($decoded) ? $decoded : [];
+
+    return is_array($decoded) ? foundationStringMap($decoded) : [];
 }
 
 /** @param array<string,mixed> $query */

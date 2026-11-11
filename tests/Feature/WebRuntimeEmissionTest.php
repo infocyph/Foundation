@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Routing\WebReleaseCompiler;
-use Infocyph\Foundation\Routing\WebReleaseRuntime;
 use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessRunner;
+use Infocyph\Foundation\Routing\WebReleaseCompiler;
+use Infocyph\Foundation\Routing\WebReleaseRuntime;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Runtime\RoutingInput;
@@ -17,16 +17,16 @@ use Infocyph\Webrick\Runtime\Http\SapiRuntimeAdapter;
 
 final class FoundationPersistentEmissionAdapter implements RuntimeAdapterInterface
 {
-    public int $requestMaterializations = 0;
-
-    public int $writes = 0;
+    private readonly RuntimeCapabilities $runtimeCapabilities;
 
     /** @var list<string> */
     public array $bodies = [];
 
     public string $path = '/file';
 
-    private readonly RuntimeCapabilities $runtimeCapabilities;
+    public int $requestMaterializations = 0;
+
+    public int $writes = 0;
 
     public function __construct()
     {
@@ -107,6 +107,7 @@ it('emits file and stream bodies through the real SAPI response writer', functio
         throw new RuntimeException('Unable to allocate SAPI response fixture.');
     }
     file_put_contents($file, 'sapi-file-body');
+
     try {
         $fileBody = foundationSapiEmission($file, false);
         $streamBody = foundationSapiEmission($file, true);
@@ -198,8 +199,8 @@ it('lets RuntimeServer own exactly one persistent native write for file and stre
             $manifest,
             capabilities: [],
         );
-        $trustedSha256 = $release['release_runtime_manifest_sha256'] ?? null;
-        expect($trustedSha256)->toBeString();
+        $trustedSha256 = $release['release_runtime_manifest_sha256'];
+        expect($trustedSha256)->toMatch('/^[a-f0-9]{64}$/D');
 
         $adapter = new FoundationPersistentEmissionAdapter();
         $runtime = WebReleaseRuntime::loadPrevalidated(
@@ -267,6 +268,7 @@ function foundationRuntimeEmissionRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

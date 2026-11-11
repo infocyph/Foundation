@@ -12,7 +12,7 @@ use Infocyph\ReqShield\Support\ValidationResult;
 
 it('emits JsonDispatch 3 success envelopes and resource transformations', function (): void {
     $factory = new JsonDispatchResponseFactory('example', '7.4.0');
-    $resource = new class(['id' => 7, 'secret' => 'hidden']) extends JsonResource {
+    $resource = new class (['id' => 7, 'secret' => 'hidden']) extends JsonResource {
         /** @throws \UnexpectedValueException */
         #[\Override]
         public function resolve(): mixed
@@ -20,12 +20,13 @@ it('emits JsonDispatch 3 success envelopes and resource transformations', functi
             if (!is_array($this->resource)) {
                 throw new \UnexpectedValueException('JSON resource must contain structured data.');
             }
+
             return ['id' => $this->resource['id'] ?? null];
         }
     };
 
     $response = new TestResponse($factory->success(
-        new ResourceCollection([$resource], static fn(JsonResource $item): JsonResource => $item),
+        new ResourceCollection([$resource], static fn(mixed $item): mixed => $item),
         message: 'Ready',
     ));
 
@@ -107,6 +108,10 @@ it('preserves DBLayer cursor tokens and replaces existing cursor query values', 
     ));
     $json = $response->json();
 
+    \PHPUnit\Framework\Assert::assertIsArray(($json['_properties'] ?? null));
+    \PHPUnit\Framework\Assert::assertIsArray(($json['_properties']['/data'] ?? null));
+
+    \PHPUnit\Framework\Assert::assertIsArray(($json['_links'] ?? null));
     expect($json['_properties']['/data']['pagination'])->toBe([
         'mode' => 'cursor',
         'limit' => 2,
@@ -116,7 +121,7 @@ it('preserves DBLayer cursor tokens and replaces existing cursor query values', 
         'previous_cursor' => 'previous-token',
     ])->and($json['_links']['next'])
         ->toBe('/users?filter=active&cursor=opaque%2B%2F%3D%20token#results')
-        ->and(substr_count($json['_links']['next'], 'cursor='))
+        ->and(substr_count(foundationFixtureString($json['_links']['next']), 'cursor='))
         ->toBe(1)
         ->and($json['_links']['previous'])
         ->toBe('/users?filter=active&cursor=previous-token#results');
@@ -131,4 +136,12 @@ it('rejects invalid issue and status combinations before rendering', function ()
         ->toThrow(InvalidArgumentException::class)
         ->and(fn() => $factory->error([new Issue('BROKEN', 'Broken')], 422))
         ->toThrow(InvalidArgumentException::class);
+});
+
+it('preserves the public mixed JSON success and JSON-path assertion contracts', function (): void {
+    $factory = new JsonDispatchResponseFactory();
+    foreach ([true, false, 1.25, 7, 'scalar', null] as $value) {
+        $response = new TestResponse($factory->success($value));
+        expect($response->assertJsonPath('data', $value))->toBe($response);
+    }
 });

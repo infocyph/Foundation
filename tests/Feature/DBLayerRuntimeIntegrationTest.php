@@ -269,6 +269,7 @@ it('reuses a pooled DBLayer connection after failed SQL with retained exception 
         $connection = $first->leasedConnection('default', $manager);
         $connection->beginTransaction();
         $connection->statement('INSERT INTO rollback_probe (id, note) VALUES (?, ?)', [1, 'pending']);
+
         try {
             $connection->statement('INSERT INTO rollback_probe (id, note) VALUES (?, ?)', [1, 'duplicate']);
         } catch (\Infocyph\DBLayer\Exceptions\ConnectionException $exception) {
@@ -279,11 +280,11 @@ it('reuses a pooled DBLayer connection after failed SQL with retained exception 
 
         $next = new RuntimeExecutionState();
         $reused = $next->leasedConnection('default', $manager);
-        expect((int) $reused->scalar('SELECT COUNT(*) FROM rollback_probe'))->toBe(0)
+        expect(foundationFixtureInteger($reused->scalar('SELECT COUNT(*) FROM rollback_probe')))->toBe(0)
             ->and($pool->getStats()['active_connections'])->toBe(1);
 
         $reused->statement('INSERT INTO rollback_probe (id, note) VALUES (?, ?)', [2, 'committed']);
-        expect((int) $reused->scalar('SELECT COUNT(*) FROM rollback_probe'))->toBe(1);
+        expect(foundationFixtureInteger($reused->scalar('SELECT COUNT(*) FROM rollback_probe')))->toBe(1);
         $next->cleanup();
 
         expect($pool->getStats()['active_connections'])->toBe(0)

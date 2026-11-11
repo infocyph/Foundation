@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
 use Infocyph\Foundation\Application\RuntimeMode;
+
 use Infocyph\Foundation\Release\FoundationReleaseManifest;
 use Infocyph\Foundation\Release\FoundationReleaseRuntime;
 use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
+use RuntimeException;
 
 it('does not evaluate an untrusted executable release manifest in prevalidated boot', function (): void {
     $root = sys_get_temp_dir() . '/foundation-trust-' . bin2hex(random_bytes(8));
@@ -103,16 +107,23 @@ it('evaluates captured authenticated bytes from a cleaned private copy', functio
     }
 });
 
-/** Test-only stream that changes PHP source on its second open. */
+/**
+ * Test-only PHP stream-wrapper callback; changes source on its second open.
+ *
+ * @api
+ */
 final class FoundationManifestChangingStream
 {
-    public static string $original = '';
-    public static string $replacement = '';
     public static int $opens = 0;
+
+    public static string $original = '';
+
+    public static string $replacement = '';
 
     public mixed $context = null;
 
     private string $contents = '';
+
     private int $offset = 0;
 
     public function stream_eof(): bool
@@ -205,6 +216,7 @@ it('evaluates one captured manifest source even when the original stream changes
 
     $scheme = 'foundationmanifesttest';
     expect(stream_wrapper_register($scheme, FoundationManifestChangingStream::class))->toBeTrue();
+
     try {
         $result = FoundationReleaseManifest::load($scheme . '://release.php');
         expect($result['generation'])->toBe('probe')
@@ -255,7 +267,7 @@ PHP);
         $original = file_get_contents(
             \Infocyph\Webrick\Router\Build\ReleaseCompiler::runtimeManifestPath($manifestPath),
         );
-        expect($original)->toBeString();
+        \PHPUnit\Framework\Assert::assertIsString($original);
         FoundationManifestChangingStream::$original = $original;
         FoundationManifestChangingStream::$replacement = '<?php file_put_contents('
             . var_export($marker, true) . ", 'unverified'); return [];";
@@ -266,11 +278,11 @@ PHP);
         $runtime = \Infocyph\Foundation\Routing\WebReleaseRuntime::loadPrevalidated(
             $config,
             $scheme . '://release.json',
-            (string) $release['release_runtime_manifest_sha256'],
+            $release['release_runtime_manifest_sha256'],
             foundationCapabilities: [],
         );
-        expect($runtime)->toBeInstanceOf(\Infocyph\Foundation\Routing\WebReleaseRuntime::class)
-            ->and(FoundationManifestChangingStream::$opens)->toBe(1)
+        expect($runtime->kernel->handle(\Infocyph\Webrick\Request\Request::fake())->getStatusCode())->toBe(404);
+        expect(FoundationManifestChangingStream::$opens)->toBe(1)
             ->and(is_file($marker))->toBeFalse();
     } finally {
         if ($registered) {
@@ -335,6 +347,7 @@ it('loads the captured authenticated config bytes without reopening the original
     $scheme = 'foundationconfigcapture';
 
     expect(stream_wrapper_register($scheme, FoundationManifestChangingStream::class))->toBeTrue();
+
     try {
         $config = \Infocyph\Foundation\Release\FoundationReleaseConfig::load(
             $scheme . '://config.php',
@@ -365,6 +378,7 @@ it('loads the captured authenticated worker topology without reopening the sourc
     $scheme = 'foundationworkercapture';
 
     expect(stream_wrapper_register($scheme, FoundationManifestChangingStream::class))->toBeTrue();
+
     try {
         $providers = new \Infocyph\Foundation\Worker\WorkerTopology()->load(
             $scheme . '://providers.php',

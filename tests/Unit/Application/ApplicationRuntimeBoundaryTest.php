@@ -2,16 +2,22 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Unit\Application;
+
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
+
 use Infocyph\Foundation\Application\ServiceRegistry;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Container\DevelopmentRuntimeBindings;
 use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\InterMix\DI\Container;
+use LogicException;
 use Psr\Container\ContainerInterface;
+use RuntimeException;
+use stdClass;
 
 it('keeps generated production resolution behind the runtime-neutral application facade', function (): void {
     $context = FoundationBuildContext::fromConfig(
@@ -64,9 +70,7 @@ it('keeps generated production resolution behind the runtime-neutral application
 it('coordinates through the PSR container contract without requiring an InterMix runtime type', function (): void {
     $service = new stdClass();
     $runtime = new class ($service) implements ContainerInterface {
-        public function __construct(private readonly object $service)
-        {
-        }
+        public function __construct(private readonly object $service) {}
         /**
          * @throws \RuntimeException
          */

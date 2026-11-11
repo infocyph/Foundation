@@ -272,7 +272,10 @@ final class ConfigLoader
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @psalm-taint-specialize
+     */
     private function map(mixed $value): array
     {
         if (!is_array($value)) {
@@ -292,6 +295,7 @@ final class ConfigLoader
     /**
      * @param iterable<array<array-key, mixed>> $layers
      * @return array<string, mixed>
+     * @psalm-taint-specialize
      */
     private function mergeConfigLayers(iterable $layers): array
     {
@@ -301,14 +305,19 @@ final class ConfigLoader
     /**
      * @param array<string, mixed> $input
      * @return array<string, mixed>
+     * @psalm-taint-specialize
      */
     private function normalizeInput(array $input): array
     {
         $app = $this->map($input['app'] ?? null);
-        foreach (['base_path', 'env', 'debug'] as $key) {
-            if (array_key_exists($key, $input) && !array_key_exists($key, $app)) {
-                $app[$key] = $input[$key];
-            }
+        if (array_key_exists('base_path', $input) && !array_key_exists('base_path', $app)) {
+            $app['base_path'] = $input['base_path'];
+        }
+        if (array_key_exists('env', $input) && !array_key_exists('env', $app)) {
+            $app['env'] = $input['env'];
+        }
+        if (array_key_exists('debug', $input) && !array_key_exists('debug', $app)) {
+            $app['debug'] = $input['debug'];
         }
         if ($app !== []) {
             $input['app'] = $app;

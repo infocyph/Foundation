@@ -205,11 +205,13 @@ it('reaps a noninteractive child when an output callback fails with pending stdi
 
 it('retries deterministic zero and partial stdin writes without skipping bytes', function (): void {
     $wrapper = new class {
-        public mixed $context = null;
-
         public static string $captured = '';
 
+        public mixed $context = null;
+
         private int $calls = 0;
+
+        public function stream_close(): void {}
 
         public function stream_open(string $path, string $mode, int $options, ?string &$openedPath): bool
         {
@@ -229,8 +231,6 @@ it('retries deterministic zero and partial stdin writes without skipping bytes',
 
             return strlen($partial);
         }
-
-        public function stream_close(): void {}
     };
     $scheme = 'foundation-stdin-' . bin2hex(random_bytes(5));
     $class = $wrapper::class;
@@ -250,7 +250,7 @@ it('retries deterministic zero and partial stdin writes without skipping bytes',
         $lastActivityAt = hrtime(true);
         $pipes = [0 => $stream];
         $offsets = [];
-        for ($i = 0; $i < 12 && isset($pipes[0]); ++$i) {
+        for ($i = 0; $i < 12 && foundationInputPipeOpen($pipes); ++$i) {
             expect($method->invokeArgs($capture, [
                 $stream, $input, &$offset, &$lastActivityAt, &$pipes,
             ]))->toBeNull();
@@ -262,7 +262,7 @@ it('retries deterministic zero and partial stdin writes without skipping bytes',
             ->and($offset)->toBe(strlen($input))
             ->and($class::$captured)->toBe($input)
             ->and($pipes)->not->toHaveKey(0)
-            ->and(is_resource($stream))->toBeFalse();
+            ->and(foundationInputStreamOpen($stream))->toBeFalse();
     } finally {
         stream_wrapper_unregister($scheme);
     }
@@ -279,11 +279,8 @@ it('restores caller signal handlers and async mode after normal and failed proce
     $async = pcntl_async_signals();
     $interrupt = pcntl_signal_get_handler(SIGINT);
     $terminate = pcntl_signal_get_handler(SIGTERM);
-    if ((!is_int($interrupt) && !is_callable($interrupt))
-        || (!is_int($terminate) && !is_callable($terminate))
-    ) {
-        throw new RuntimeException('Unable to capture the original process signal handlers.');
-    }
+    $interrupt = foundationSignalHandler($interrupt);
+    $terminate = foundationSignalHandler($terminate);
 
     try {
         $runner = new ProcessRunner();
@@ -314,3 +311,26 @@ it('restores caller signal handlers and async mode after normal and failed proce
         pcntl_async_signals($async);
     }
 });
+
+/**
+ * @throws RuntimeException
+ */
+function foundationSignalHandler(mixed $handler): int|callable
+{
+    if (!is_int($handler) && !is_callable($handler)) {
+        throw new RuntimeException('Unable to capture the original process signal handler.');
+    }
+
+    return $handler;
+}
+
+/** @param array<array-key,mixed> $pipes */
+function foundationInputPipeOpen(array $pipes): bool
+{
+    return isset($pipes[0]);
+}
+
+function foundationInputStreamOpen(mixed $stream): bool
+{
+    return is_resource($stream);
+}

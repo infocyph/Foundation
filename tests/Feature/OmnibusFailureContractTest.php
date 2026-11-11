@@ -35,8 +35,7 @@ it('preserves Omnibus 3 failure retry claim and removal semantics used by queue 
     if (!$sent->message instanceof FoundationOmnibusFailureMessage) {
         throw new \UnexpectedValueException('Failure retry must preserve the decoded message type.');
     }
-    expect($sent->message)->toBeInstanceOf(FoundationOmnibusFailureMessage::class)
-        ->and($sent->message->value)->toBe('retry-me')
+    expect($sent->message->value)->toBe('retry-me')
         ->and($transport->size('retry'))->toBe(1)
         ->and($failures->find('foundation-failure-1'))->toBeNull();
 });

@@ -98,8 +98,7 @@ it('uses Epicrypt PATs with authoritative serialized DB state and never persists
             if (!is_array($state) || !is_numeric($state['revision'] ?? null)) {
                 throw new \UnexpectedValueException('PAT subject revision must be numeric.');
             }
-            expect($state)->toBeArray()
-                ->and((int) ($state['revision'] ?? 0))->toBeGreaterThanOrEqual(5);
+            expect((int) ($state['revision']))->toBeGreaterThanOrEqual(5);
 
         });
     } finally {

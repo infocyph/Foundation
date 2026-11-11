@@ -23,7 +23,7 @@ it('warms distinct reusable connections before counting measured requests', func
             ->and($result['connection_warmup']['successful'] ?? null)->toBe(10)
             ->and($result['measured_new_connections'] ?? null)->toBe(0)
             ->and($result['load_cpu_percent'])->toBeGreaterThanOrEqual(0)
-            ->and(array_sum($result['worker_requests'] ?? []))->toBe($authenticated ? 100 : 0);
+            ->and(array_sum($result['worker_requests']))->toBe($authenticated ? 100 : 0);
     }, $authenticated);
 })->with([true, false]);
 
@@ -95,6 +95,7 @@ function foundationHostLoadProbe(string $mode, callable $assert, bool $authentic
         for ($attempt = 0; $attempt < 100; $attempt++) {
             if (curl_exec($probe) === '{"ok":true}' && curl_getinfo($probe, CURLINFO_HTTP_CODE) === 200) {
                 $ready = true;
+
                 break;
             }
             if (!$server->isRunning()) {

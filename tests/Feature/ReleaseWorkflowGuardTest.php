@@ -42,8 +42,8 @@ it('enforces independent complete performance batches without mixing their artif
         ->and($measure['strategy']['matrix']['host'])->toBe(['fpm', 'runwire'])
         ->and($measure['strategy']['matrix']['workers'])->toBe([1, 4])
         ->and($measure['strategy']['matrix']['concurrency'])->toBe([1, 10, 50])
-        ->and((int) $measure['env']['FOUNDATION_HOST_MIN_SECONDS'])->toBeGreaterThanOrEqual(120)
-        ->and((int) $measure['env']['FOUNDATION_HOST_WARMUP_SECONDS'])->toBeGreaterThanOrEqual(30);
+        ->and(foundationFixtureInteger($measure['env']['FOUNDATION_HOST_MIN_SECONDS']))->toBeGreaterThanOrEqual(120)
+        ->and(foundationFixtureInteger($measure['env']['FOUNDATION_HOST_WARMUP_SECONDS']))->toBeGreaterThanOrEqual(30);
 
     $download = [];
     $runScripts = [];
@@ -166,6 +166,7 @@ it('keeps the benchmark controller and its telemetry children on the load CPU', 
  *
  * @return array{on:array<string,mixed>,jobs:array<string,array<string,mixed>>}
  * @throws \UnexpectedValueException
+ * @throws \Symfony\Component\Yaml\Exception\ParseException
  */
 function foundationReleaseWorkflow(string $path): array
 {
@@ -179,10 +180,10 @@ function foundationReleaseWorkflow(string $path): array
         if (!is_string($name) || !is_array($job)) {
             throw new \UnexpectedValueException('Release workflow jobs must be named mappings.');
         }
-        $jobs[$name] = $job;
+        $jobs[$name] = foundationStringMap($job);
     }
 
-    return ['on' => $document['on'], 'jobs' => $jobs];
+    return ['on' => foundationStringMap($document['on']), 'jobs' => $jobs];
 }
 
 /**

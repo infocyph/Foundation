@@ -96,13 +96,11 @@ it('keeps old access tokens verifiable through fallback keys and rejects unknown
     expect($rotatedService->verify($rotatedService->issue($newClaims), $audience))->toEqual($newClaims);
 
     $jwks = new EpicryptOAuthJwkSetProvider($rotatedKeys)->jwks();
-    $keys = $jwks['keys'] ?? null;
-    if (!is_array($keys)) {
-        throw new \UnexpectedValueException('OAuth JWKS must contain a key list.');
-    }
+    $keys = $jwks['keys'];
+
     $kids = [];
     foreach ($keys as $key) {
-        if (!is_array($key) || !is_string($key['kid'] ?? null)) {
+        if (!is_string($key['kid'] ?? null)) {
             throw new \UnexpectedValueException('OAuth JWK must contain a string key ID.');
         }
         $kids[] = $key['kid'];

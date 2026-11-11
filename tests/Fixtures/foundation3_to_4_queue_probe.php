@@ -2,27 +2,35 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/ProbeInput.php';
+$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::arguments($_SERVER['argv'] ?? []);
+
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Messaging\ConsumerFactory;
 use Infocyph\Foundation\Messaging\MessagingDatabaseSchema;
-use Infocyph\Omnibus\Integration\DBLayer\DBLayerFailureStore;
-use Infocyph\Omnibus\Integration\DBLayer\DBLayerTransport;
-use Infocyph\Omnibus\MessageBus;
 use Infocyph\Foundation\Tests\Fixtures\FoundationReleaseCarryoverHandler;
 use Infocyph\Foundation\Tests\Fixtures\FoundationReleaseCarryoverMessage;
 use Infocyph\Foundation\Tests\Fixtures\FoundationReleaseCarryoverMessageCodec;
+use Infocyph\Omnibus\Integration\DBLayer\DBLayerFailureStore;
+use Infocyph\Omnibus\Integration\DBLayer\DBLayerTransport;
+use Infocyph\Omnibus\MessageBus;
 
-if ($argc !== 5) {
+if (count($argv) !== 5) {
     throw new InvalidArgumentException('Expected queue phase, shared database, versioned autoloader and evidence path.');
 }
 
-[$phase, $database, $autoload, $reports] = array_slice($argv, 1);
+$phase = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 1);
+$database = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 2);
+$autoload = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 3);
+$reports = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::argument($argv, 4);
 if (!in_array($phase, ['old-seed', 'new-probe', 'old-rollback', 'old-restored', 'new-rollforward'], true)) {
     throw new InvalidArgumentException('Unknown cross-major durable-queue phase.');
 }
 
-require $autoload;
+$database = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::path($database);
+$reports = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::path($reports);
+\Infocyph\Foundation\Tests\Fixtures\ProbeInput::autoload($autoload);
 require_once __DIR__ . '/FoundationReleaseCarryoverMessage.php';
 require_once __DIR__ . '/FoundationReleaseCarryoverMessageCodec.php';
 require_once __DIR__ . '/FoundationReleaseCarryoverHandler.php';

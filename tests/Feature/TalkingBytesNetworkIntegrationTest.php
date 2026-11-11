@@ -60,14 +60,16 @@ it('runs configured TalkingBytes HTTP retries, redirects, multipart uploads and 
 
         $http = $profiles->http();
         $retried = $http->get($url . '/retry');
+        \PHPUnit\Framework\Assert::assertInstanceOf(HttpResponse::class, $retried->response);
         expect($retried->successful)->toBeTrue()
             ->and($retried->statusCode)->toBe(200)
-            ->and($retried->response)->toBeInstanceOf(HttpResponse::class)
+
             ->and($retried->response->json())->toMatchArray(['attempt' => 2]);
 
         $redirected = $http->get($url . '/redirect');
+        \PHPUnit\Framework\Assert::assertInstanceOf(HttpResponse::class, $redirected->response);
         expect($redirected->successful)->toBeTrue()
-            ->and($redirected->response)->toBeInstanceOf(HttpResponse::class)
+
             ->and($redirected->response->json())->toMatchArray(['path' => '/pool-a']);
 
         $file = tempnam(sys_get_temp_dir(), 'foundation-multipart-source-');
@@ -75,13 +77,15 @@ it('runs configured TalkingBytes HTTP retries, redirects, multipart uploads and 
             throw new RuntimeException('Unable to allocate TalkingBytes upload source.');
         }
         file_put_contents($file, 'foundation-upload-probe');
+
         try {
             $multipart = HttpClient::multipart()
                 ->addField('tag', 'network-fixture')
                 ->addFile('attachment', $file, 'text/plain', 'fixture.txt');
             $uploaded = $http->postMultipart($url . '/multipart', $multipart);
+            \PHPUnit\Framework\Assert::assertInstanceOf(HttpResponse::class, $uploaded->response);
             expect($uploaded->successful)->toBeTrue()
-                ->and($uploaded->response)->toBeInstanceOf(HttpResponse::class)
+
                 ->and($uploaded->response->json())->toMatchArray([
                     'contains_file' => true,
                     'contains_field' => true,
@@ -98,11 +102,15 @@ it('runs configured TalkingBytes HTTP retries, redirects, multipart uploads and 
             'alpha' => HttpRequest::get($url . '/pool-a'),
             'beta' => HttpRequest::get($url . '/pool-b'),
         ]);
+        $alpha = $pool->get('alpha')?->response;
+        $beta = $pool->get('beta')?->response;
+        \PHPUnit\Framework\Assert::assertInstanceOf(HttpResponse::class, $alpha);
+        \PHPUnit\Framework\Assert::assertInstanceOf(HttpResponse::class, $beta);
         expect($pool->successfulCount())->toBe(2)
             ->and($pool->failedCount())->toBe(0)
-            ->and($pool->get('alpha')?->response)->toBeInstanceOf(HttpResponse::class)
-            ->and($pool->get('alpha')?->response->json())->toMatchArray(['path' => '/pool-a'])
-            ->and($pool->get('beta')?->response->json())->toMatchArray(['path' => '/pool-b']);
+
+            ->and($alpha->json())->toMatchArray(['path' => '/pool-a'])
+            ->and($beta->json())->toMatchArray(['path' => '/pool-b']);
 
         $failed = $http->get($url . '/server-error');
         expect($failed->successful)->toBeFalse()

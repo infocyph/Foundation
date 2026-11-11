@@ -21,7 +21,6 @@ use Infocyph\Foundation\Auth\OAuth\Http\OAuthAuthorizationController;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpHandler;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpInput;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpResponseFactory;
-use Infocyph\Foundation\Auth\OAuth\Http\OAuthRateLimitMiddleware;
 use Infocyph\Foundation\Auth\OAuth\Metadata\AuthorizationServerMetadata;
 use Infocyph\Foundation\Auth\OAuth\OAuthManager;
 use Infocyph\Foundation\Auth\OAuth\Scope\OAuthScopeResolver;
@@ -29,9 +28,9 @@ use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
 use Infocyph\InterMix\DI\ContainerBuilder;
-use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Router\Build\CompiledRouterArtifact;
 use Infocyph\Webrick\Router\Definition\Registrar;
@@ -122,16 +121,13 @@ it('includes Foundation OAuth routes in compiled Webrick releases', function ():
         }
         expect($release['intermix']['skipped'] ?? null)->toBe([]);
 
-        $payload = require $router;
-        if (!is_array($payload)) {
-            throw new \UnexpectedValueException('Compiled OAuth router payload must be an array.');
-        }
-        expect($payload)->toBeArray();
+        $payload = \foundationReadPhpFixtureArray($router);
         $artifact = CompiledRouterArtifact::fromPayload($payload);
         $oauthMetadata = null;
         foreach ($artifact->routes() as $route) {
             if ($route->getName() === 'oauth.metadata') {
                 $oauthMetadata = $route;
+
                 break;
             }
         }
@@ -322,6 +318,7 @@ function foundationOAuthHttpRemoveProject(string $root): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($root);
@@ -426,8 +423,8 @@ it('performs one native OAuth protocol validation per HTTP authorization request
             uri: 'https://issuer.example.test/oauth/authorize?' . $query,
         ));
 
-        expect($result)->toBeInstanceOf(AuthorizationRequest::class)
-            ->and($clientStore->redirectUriReads)->toBe(1)
+        \PHPUnit\Framework\Assert::assertInstanceOf(AuthorizationRequest::class, $result);
+        expect($clientStore->redirectUriReads)->toBe(1)
             ->and($clientStore->findReads)->toBe(2)
             ->and($clientStore->scopeReads)->toBe(2);
     } finally {

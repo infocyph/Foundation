@@ -11,31 +11,22 @@ under P1/P6.
 
 ## Current maintenance disposition
 
-2026-11-10 published-runtime refresh: Foundation now requires `infocyph/runwire:^3.0.1`, matching [Runwire's published 3.0.1 tag](https://github.com/infocyph/Runwire/releases/tag/3.0.1) at `be84df6bc599798f4407df1ef5beb23afd5ceb3e`. The prior 3.0 resolved-graph row below is an **immutable historical CI snapshot**, not the new requirement or a fresh install claim. Exact-head CI must resolve the upgraded graph, record the actually installed package version/source ref, run the regular PHPForge + native host suite and re-evaluate all dependency/production-consumer checks. No new lock hash, advisory verdict, or certification pass is asserted by this manifest edit.
+2026-11-11 local CI qualification, based on source `365425bc` plus uncommitted remediation:
 
-The prior 2026-11-07 maintenance snapshot was rechecked against the then-current maintenance tree. Live
-`composer outdated --format=json`, `composer audit --locked --format=json`,
-the two `composer prohibits` checks and a full `composer update --dry-run
---no-install --no-scripts --no-plugins` agree: there are no compatible updates
-to apply and no advisory records. The dry-run does not modify the installation
-or lock. The current direct package baseline is unchanged.
-The local graph has **171 packages**, with lock SHA-256
-`7ea5c4a62971c7c4455ecfb237e261c7798f30cb015c98e5a74935090d9b3f34`.
-This is current local evidence, not a new hosted artifact or publication.
+- Full `composer ic:ci`: **exit 0, 13/13 checks pass**, including PHPStan, Psalm and the complete functional suite. See the [canonical implementation tracker](foundation-4-library-upgrade-plan.md) for scope, evidence and the remaining release boundary.
+- Current installed graph: **172 packages**, lock SHA256 `51cabd616ef81d302607e336cb9aed2ea1bcb43b49a18df94d3ccbb10e1ba6b7`. Composer normalization changed only manifest/lock metadata; all package versions and source/dist references were compared before/after and remain identical.
+- Installed Runwire **3.0.1**, source `be84df6bc599798f4407df1ef5beb23afd5ceb3e`; required floor remains `^3.0.1`.
+- Installed PHPForge **dev-main**, source `ba2ffc3ba608207129883187e57c56c20e112ad4`; its existing `dev-main@dev` requirement is unchanged.
+- Current `composer audit --locked --format=json`: **zero advisories**, one abandoned package, **exit 1**. The failed audit status is attributable to abandonment and is kept separate from the passing thirteen-task `ic:ci` suite.
+- This task repaired CI against the installed graph. A latest-published-version survey and exact-commit hosted/consumer qualification were not repeated; historical latest-version claims below do not become current claims by implication. `composer.lock` remains gitignored.
 
-| Tracker | Remaining dependency | Verified owner/constraint | Disposition |
+| Tracker | Current external maintenance item | Verified installed owner/constraint | Disposition |
 | --- | --- | --- | --- |
-| M02 | Abandoned `doctrine/annotations` 2.0.2 | PHPForge requires [PHPBench 1.7.0](https://packagist.org/packages/phpbench/phpbench), which requires `doctrine/annotations ^2.0`; it is still PHPBench's latest stable release | Upstream blocked, development-only. Composer audit still reports abandonment and exits 1. No supported replacement/removal exists within Foundation's graph. |
-| M03 | PHPUnit 13.4.5 versus latest 13.4.6 | [Pest 5.3.5](https://packagist.org/packages/pestphp/pest) explicitly conflicts with PHPUnit `>13.4.5` | Upstream blocked; no incompatible override or fake compatibility declaration. |
-| M03 | JsonMapper 5.0.1 versus latest 6.0.0 | Installed Psalm 7.0.5 requires `netresearch/jsonmapper ^5.0`; `danog/advanced-json-rpc` 3.2.3 requires `^5` | Upstream blocked; native tool owners must release compatible updates first. |
+| M02 | Abandoned `doctrine/annotations` 2.0.2 | Development-only PHPBench 1.7.0 requires `doctrine/annotations ^2.0` | Upstream blocked; still reported by Composer audit. No suppression, fake replacement or vendor edit. |
+| M03 | PHPUnit ceiling 13.4.5 | Installed Pest 5.3.5 conflicts with PHPUnit `>13.4.5` | Upstream compatibility ceiling remains; no incompatible override. |
+| M03 | JsonMapper major 5 ceiling | Installed Psalm **7.3.0** requires `netresearch/jsonmapper ^5.0`; `danog/advanced-json-rpc` 3.2.3 requires `^5` | Upstream compatibility ceiling remains; owners must support a newer major before Foundation can consume it. |
 
-These are visible external maintenance items, not resolved defects or waived
-latest-version requirements. Foundation runtime changes cannot truthfully
-remove the upstream constraints. At that historical snapshot, no production dependency, Composer constraint,
-workflow pin or vendor file was altered; `composer.lock` remains gitignored.
-Final exact-revision dependency/consumer qualification is release verification
-and is outside this maintenance task. Historical immutable records below retain
-their original source SHA, package counts and hashes.
+These maintenance constraints are not resolved defects or waived latest-version requirements. Foundation runtime changes cannot remove upstream tool requirements. The previous November 6/7/10 package counts, lock hashes, source references and workflow artifacts below are immutable historical evidence. Current local CI success does not close the two P6 certifications or authorize merging, tagging or publishing.
 
 ## Resolved candidate graph
 

@@ -96,15 +96,12 @@ it('verifies rotated signed URLs with native Webrick and rejects tampering and e
                 ['id' => 'previous', 'environment' => $previousEnvironment, 'status' => 'fallback'],
             ]]],
         ]))->resolve();
-        expect($previous)->toBeInstanceOf(SignedUrlConfig::class)
-            ->and($rotated)->toBeInstanceOf(SignedUrlConfig::class);
+        $previous = foundationFixtureObject($previous, SignedUrlConfig::class);
+        $rotated = foundationFixtureObject($rotated, SignedUrlConfig::class);
 
         $aliases = ['download' => ['/download/{id}', null]];
         $previousGenerator = new UrlGenerator('', $aliases, signedConfig: $previous);
         $activeGenerator = new UrlGenerator('', $aliases, signedConfig: $rotated);
-        if (!$previous instanceof SignedUrlConfig || !$rotated instanceof SignedUrlConfig) {
-            throw new \UnexpectedValueException('Signed URL rotation requires both resolved key configurations.');
-        }
         $verifier = new VerifySignedUrlMiddleware($rotated);
         $next = static fn(Request $request): Response => Response::plaintext($request->getMethod());
 

@@ -85,6 +85,7 @@ it('rolls back failed statements while retaining the error and reuses native DBL
             // Preserve the original failure and its PDO stack while the same
             // connection rolls back and is used by a later transaction.
             $retainedFailure = null;
+
             try {
                 $database->statement($insert, [1, 'duplicate']);
             } catch (ConnectionException $failure) {
@@ -120,7 +121,7 @@ it('rolls back failed statements while retaining the error and reuses native DBL
             );
 
             expect($result)->toBe('committed')
-                ->and((int) $database->scalar("SELECT COUNT(*) FROM {$table}"))->toBe(1)
+                ->and(foundationFixtureInteger($database->scalar("SELECT COUNT(*) FROM {$table}")))->toBe(1)
                 ->and($database->scalar("SELECT payload FROM {$table} WHERE id = ?", [1]))->toBe('committed')
                 ->and($database->getPdo())->toBe($pdo)
                 ->and($database->transactionLevel())->toBe(0)
@@ -177,6 +178,7 @@ it('releases failed SQLite write contention for a later transaction while retain
                 $writer->statement("INSERT INTO {$table} (id, payload) VALUES (?, ?)", [1, 'writer']);
 
                 $retainedFailure = null;
+
                 try {
                     $contender->statement($insert, [2, 'blocked']);
                 } catch (ConnectionException $failure) {
@@ -192,7 +194,7 @@ it('releases failed SQLite write contention for a later transaction while retain
                 $writer->rollbackTransaction();
 
                 expect($contender->statement($insert, [2, 'after-rollback']))->toBeTrue()
-                    ->and((int) $contender->scalar("SELECT COUNT(*) FROM {$table}"))->toBe(1)
+                    ->and(foundationFixtureInteger($contender->scalar("SELECT COUNT(*) FROM {$table}")))->toBe(1)
                     ->and($contender->scalar("SELECT payload FROM {$table} WHERE id = ?", [2]))
                     ->toBe('after-rollback')
                     ->and($contender->getPdo())->toBe($contenderPdo)

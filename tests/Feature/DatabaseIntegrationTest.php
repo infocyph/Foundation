@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
+
 use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Exceptions\MigrationException;
 use Infocyph\DBLayer\Migration\Migration;
@@ -20,12 +23,14 @@ use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DatabaseMigrationManager;
-use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Database\DatabaseServiceProvider;
+use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Testing\TestKit;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use PDO;
+use RuntimeException;
 
 final class FoundationExampleMigration implements Migration
 {
@@ -251,6 +256,7 @@ it('exposes scoped DBLayer connections while Foundation keeps composition policy
                 static fn(): array => $connection->select('SELECT * FROM users WHERE id = ?', [1]),
             );
             $plan = $connection->explain('SELECT * FROM users WHERE id = ?', [1]);
+            \PHPUnit\Framework\Assert::assertIsArray($fetched);
             if (!is_array($fetched[0] ?? null)) {
                 throw new \UnexpectedValueException('Expected a database result row.');
             }
@@ -258,7 +264,7 @@ it('exposes scoped DBLayer connections while Foundation keeps composition policy
             if (!is_string($fetched[0]['email'] ?? null)) {
                 throw new \UnexpectedValueException('Database read must retain an email string.');
             }
-            expect($fetched[0]['email'] ?? null)->toBe('ada@example.test')
+            expect($fetched[0]['email'])->toBe('ada@example.test')
                 ->and($plan)->not->toBeEmpty()
                 ->and($connection->getDriverName())->toBe('sqlite')
                 ->and($connection->getDatabaseName())->toEndWith('foundation.sqlite');

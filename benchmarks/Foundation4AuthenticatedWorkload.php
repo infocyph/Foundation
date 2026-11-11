@@ -37,11 +37,11 @@ final class Foundation4AuthenticatedWorkload
             'database' => [
                 'default' => 'host',
                 'connections' => ['host' => [
-                    'driver' => 'pgsql', 'host' => (($__foundation154_40 = getenv('FOUNDATION_HOST_PG_HOST')) !== false && $__foundation154_40 !== '' && $__foundation154_40 !== '0' ? $__foundation154_40 : '127.0.0.1'),
-                    'port' => (int) ((($__foundation154_41 = getenv('FOUNDATION_HOST_PG_PORT')) !== false && $__foundation154_41 !== '' && $__foundation154_41 !== '0' ? $__foundation154_41 : 5432)),
-                    'database' => (($__foundation154_42 = getenv('FOUNDATION_HOST_PG_DATABASE')) !== false && $__foundation154_42 !== '' && $__foundation154_42 !== '0' ? $__foundation154_42 : 'foundation_host'),
-                    'username' => (($__foundation154_43 = getenv('FOUNDATION_HOST_PG_USER')) !== false && $__foundation154_43 !== '' && $__foundation154_43 !== '0' ? $__foundation154_43 : 'phpforge'),
-                    'password' => (($__foundation154_44 = getenv('FOUNDATION_HOST_PG_PASSWORD')) !== false && $__foundation154_44 !== '' && $__foundation154_44 !== '0' ? $__foundation154_44 : 'Phpforge_123!'),
+                    'driver' => 'pgsql', 'host' => self::environment('FOUNDATION_HOST_PG_HOST', '127.0.0.1'),
+                    'port' => (int) (self::environment('FOUNDATION_HOST_PG_PORT', '5432')),
+                    'database' => self::environment('FOUNDATION_HOST_PG_DATABASE', 'foundation_host'),
+                    'username' => self::environment('FOUNDATION_HOST_PG_USER', 'phpforge'),
+                    'password' => self::environment('FOUNDATION_HOST_PG_PASSWORD', 'Phpforge_123!'),
                     'security' => ['max_param_bytes' => 16_384],
                 ]],
             ],
@@ -66,8 +66,8 @@ final class Foundation4AuthenticatedWorkload
             ]],
             'cache' => [
                 'default' => 'host', 'default_counter' => 'host',
-                'prefix' => 'foundation-host:' . ((($__foundation154_69 = getenv('FOUNDATION_HOST_PG_DATABASE')) !== false && $__foundation154_69 !== '' && $__foundation154_69 !== '0' ? $__foundation154_69 : basename($directory))) . ':',
-                'connections' => ['host' => ['driver' => 'redis', 'dsn' => (($__foundation154_70 = getenv('FOUNDATION_HOST_REDIS_DSN')) !== false && $__foundation154_70 !== '' && $__foundation154_70 !== '0' ? $__foundation154_70 : 'redis://127.0.0.1:6379')]],
+                'prefix' => 'foundation-host:' . (self::environment('FOUNDATION_HOST_PG_DATABASE', basename($directory))) . ':',
+                'connections' => ['host' => ['driver' => 'redis', 'dsn' => self::environment('FOUNDATION_HOST_REDIS_DSN', 'redis://127.0.0.1:6379')]],
                 'stores' => ['host' => [
                     'driver' => 'redis', 'connection' => 'host', 'fail_open' => false,
                     'security' => ['integrity_key' => getenv('FOUNDATION_HOST_AUTH_SECRET')],
@@ -157,5 +157,12 @@ final class Foundation4AuthenticatedWorkload
                 throw new RuntimeException('Unable to issue host workload access token.');
             }
         });
+    }
+
+    private static function environment(string $name, string $default): string
+    {
+        $value = getenv($name);
+
+        return $value !== false && $value !== '' && $value !== '0' ? $value : $default;
     }
 }

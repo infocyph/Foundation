@@ -6,7 +6,6 @@ use Infocyph\Foundation\Communication\CommunicationProfiles;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Tests\Fixtures\FoundationGrpcFixtureMessage;
 use Infocyph\Foundation\Tests\Fixtures\FoundationGrpcFixtureStub;
-use Infocyph\TalkingBytes\Grpc\GrpcDeadline;
 use Infocyph\TalkingBytes\Grpc\GrpcMetadata;
 use Infocyph\TalkingBytes\Grpc\Native\NativeGrpcInvoker;
 use Infocyph\TalkingBytes\Grpc\Native\NativeGrpcResult;
@@ -64,10 +63,14 @@ try {
     ])->boot();
 
     $stub = new FoundationGrpcFixtureStub($port);
-    $invoker = new class($stub) implements NativeGrpcInvoker {
+    $invoker = new class ($stub) implements NativeGrpcInvoker {
         public function __construct(private FoundationGrpcFixtureStub $stub) {}
 
         /**
+         * @throws \InvalidArgumentException
+         */
+        /**
+         * @throws \UnexpectedValueException
          * @throws \InvalidArgumentException
          */
         #[\Override]
@@ -82,19 +85,14 @@ try {
             }
             unset($headers);
             $suffix = str_ends_with($method, '/Unary') ? 'Unary' : 'Missing';
-            $call = $this->stub->call($suffix, $message, $deadlineSeconds);
-            [$reply, $status] = $call->wait();
 
-            return new NativeGrpcResult(
-                statusCode: (int) ($status->code ?? 13),
-                message: $reply,
-                metadata: ['fixture_status_details' => (string) ($status->details ?? '')],
-            );
+            return $this->stub->call($suffix, $message, $deadlineSeconds);
         }
     };
 
     $result = $app->execution()->run(static function () use ($app, $invoker): array {
         $client = $app->make(CommunicationProfiles::class)->grpcNative($invoker);
+
         return [
             $client->send(new GrpcRequest(
                 '/foundation.Integration/Unary',
@@ -127,6 +125,7 @@ try {
             'response_metadata' => $response instanceof GrpcResponse ? $response->metadata : [],
             'fixture_payload' => $message instanceof FoundationGrpcFixtureMessage ? $message->payload : null,
         ], JSON_THROW_ON_ERROR);
+
         throw new RuntimeException('Real Foundation-selected native gRPC unary roundtrip failed: ' . $diagnostic);
     }
     if ($rejected->successful || $rejected->statusCode === 0) {

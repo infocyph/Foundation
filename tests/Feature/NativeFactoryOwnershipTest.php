@@ -2,21 +2,25 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
 use Infocyph\Foundation\Application\FoundationBuildContext;
+
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Internal\AuthNotificationRegistrar;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\FilesystemServiceProvider;
+use Infocyph\Foundation\Routing\RoutingServiceProvider;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\Pathwise\StreamHandler\DownloadProcessor;
 use Infocyph\Pathwise\StreamHandler\UploadProcessor;
-use Infocyph\Foundation\Routing\RoutingServiceProvider;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Route\Collection;
 use League\Flysystem\FilesystemOperator;
+use RuntimeException;
 
 it('registers native filesystem factories directly on the owning provider', function (): void {
     $context = FoundationBuildContext::fromConfig(
@@ -56,8 +60,7 @@ it('registers native auth-notification factory on the owning registrar', functio
         throw new RuntimeException('Native authentication notification factory was not registered.');
     }
 
-    expect($definition)->toBeInstanceOf(FactoryDefinition::class)
-        ->and($definition->signature()['class'])->toBe(AuthNotificationRegistrar::class)
+    expect($definition->signature()['class'])->toBe(AuthNotificationRegistrar::class)
         ->and($definition->signature()['method'])->toBe('talkingBytes')
         ->and(class_exists('Infocyph\\Foundation\\Auth\\Internal\\AuthNotificationGraphFactory'))->toBeFalse();
 });

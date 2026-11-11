@@ -10,13 +10,14 @@ use Infocyph\ReqShield\Exceptions\FrozenSchemaRegistryException;
 use Infocyph\ReqShield\Exceptions\InputLimitException;
 use Infocyph\ReqShield\Schema\SchemaRegistry;
 use Infocyph\ReqShield\Support\ValidationContext;
-use Infocyph\ReqShield\Validator as ReqShieldValidator;
 use Infocyph\Webrick\Request\Request;
 
 final class FoundationValidationUserData
 {
-    public string $email = '';
     public int $age = 0;
+
+    public string $email = '';
+
     /** @var array<string,mixed> */
     public array $profile = [];
 }
@@ -121,14 +122,12 @@ it('exposes ReqShield 3.3 runtime features through the thin Foundation validator
             }
         });
 
-    expect($after)->toBeInstanceOf(ReqShieldValidator::class)
-        ->and($after->validate([
-            'email' => 'blocked@example.com',
-            'age' => 21,
-            'profile' => ['name' => 'Ada'],
-        ])->fails())->toBeTrue();
+    expect($after->validate([
+        'email' => 'blocked@example.com',
+        'age' => 21,
+        'profile' => ['name' => 'Ada'],
+    ])->fails())->toBeTrue();
 });
-
 
 it('isolates FormRequest overrides and native ReqShield profiles across reused validation calls', function (): void {
     $app = Foundation::web([
@@ -142,15 +141,7 @@ it('isolates FormRequest overrides and native ReqShield profiles across reused v
     ])->boot();
 
     $factory = $app->make(ValidatorFactory::class);
-    $form = new class($factory) extends FormRequest {
-        #[\Override]
-        protected function rules(Request $request): array
-        {
-            unset($request);
-
-            return ['email' => 'required|email', 'age' => 'required|integer'];
-        }
-
+    $form = new class ($factory) extends FormRequest {
         #[\Override]
         protected function options(Request $request): array
         {
@@ -162,9 +153,17 @@ it('isolates FormRequest overrides and native ReqShield profiles across reused v
                 'limits' => ['max_fields' => 4],
             ];
         }
+
+        #[\Override]
+        protected function rules(Request $request): array
+        {
+            unset($request);
+
+            return ['email' => 'required|email', 'age' => 'required|integer'];
+        }
     };
     $request = static fn(array $post): Request => Request::fake(
-        post: $post,
+        post: foundationStringMap($post),
         method: 'POST',
         headers: ['Host' => 'localhost'],
     );
@@ -175,10 +174,11 @@ it('isolates FormRequest overrides and native ReqShield profiles across reused v
         'ignored' => 'secret',
     ]));
     $dto = $first->toDTO();
+    \PHPUnit\Framework\Assert::assertInstanceOf(FoundationValidationUserData::class, $dto);
 
     expect($first->passes())->toBeTrue()
         ->and($first->typed())->toBe(['email' => 'first@example.test', 'age' => 21])
-        ->and($dto)->toBeInstanceOf(FoundationValidationUserData::class)
+
         ->and($dto->email)->toBe('first@example.test')
         ->and($dto->age)->toBe(21)
         ->and($form->validate($request([
@@ -323,6 +323,6 @@ it('keeps frozen compiled validator state isolated across sequential and Fiber r
     $fiberA->resume();
     $fiberB->resume();
 
-    expect($fiberA->getReturn()['email'] ?? null)->toBe('a@example.test')
-        ->and($fiberB->getReturn()['email'] ?? null)->toBe('b@example.test');
+    expect(foundationStringMap($fiberA->getReturn())['email'] ?? null)->toBe('a@example.test')
+        ->and(foundationStringMap($fiberB->getReturn())['email'] ?? null)->toBe('b@example.test');
 });

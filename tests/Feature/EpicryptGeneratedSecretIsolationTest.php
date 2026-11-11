@@ -47,7 +47,7 @@ it('keeps runtime token roots out of generated InterMix artifacts', function (st
         if (!is_string($runtimePath)) {
             throw new \UnexpectedValueException('Generated runtime artifact must resolve to a file path.');
         }
-        expect($runtimePath)->toBeString();
+        expect(is_file($runtimePath))->toBeTrue();
         foreach ([
             $artifact,
             dirname($runtimePath) . '/manifest.json',

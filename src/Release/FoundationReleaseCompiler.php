@@ -258,7 +258,7 @@ final readonly class FoundationReleaseCompiler
         $environment = $this->stringField($web, 'environment');
         $configFingerprint = $this->digestField($web, 'config_fingerprint', 32);
         $webCapabilities = FoundationReleaseManifest::capabilities(
-            $web['foundation_capabilities'] ?? null,
+            $web['foundation_capabilities'],
             'web.capabilities',
         );
         $releaseConfig = $this->releaseConfig($web, $stage);

@@ -11,10 +11,10 @@ use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\TalkingBytes\Core\Support\CancellationSignal;
+use Infocyph\TalkingBytes\Grpc\GrpcStatus;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundExchange;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundHandlerInterface;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundRequest;
-use Infocyph\TalkingBytes\Grpc\GrpcStatus;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundSource;
 use Infocyph\TalkingBytes\Grpc\Testing\FakeGrpcInboundExchange;
@@ -30,7 +30,8 @@ final class FoundationTalkingBytesGrpcHandler implements GrpcInboundHandlerInter
 
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 
     #[\Override]

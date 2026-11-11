@@ -13,8 +13,8 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Operations\ExecutionHistory;
 use Infocyph\Foundation\Operations\RuntimeControl;
 use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
-use Infocyph\Foundation\Scheduling\ScheduleManager;
 use Infocyph\Foundation\Scheduling\ScheduledCommand;
+use Infocyph\Foundation\Scheduling\ScheduleManager;
 use Infocyph\Foundation\Scheduling\SchedulerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
@@ -148,9 +148,11 @@ final class FoundationSchedulerScopedProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
@@ -223,6 +225,7 @@ it('runs Scheduler execution units in fresh InterMix scopes', function (): void 
             if (!$left instanceof FoundationSchedulerScopedProbe || !$right instanceof FoundationSchedulerScopedProbe) {
                 throw new \UnexpectedValueException('Scheduler scope must resolve the registered probe type.');
             }
+
             return [$left->sequence, $right->sequence];
         });
         $second = $runtime->execute(function () use ($app): array {
@@ -232,6 +235,7 @@ it('runs Scheduler execution units in fresh InterMix scopes', function (): void 
             if (!$left instanceof FoundationSchedulerScopedProbe || !$right instanceof FoundationSchedulerScopedProbe) {
                 throw new \UnexpectedValueException('Scheduler scope must resolve the registered probe type.');
             }
+
             return [$left->sequence, $right->sequence];
         });
 
@@ -328,6 +332,7 @@ it('filters due entries deterministically and records non-zero and timeout outco
         $timeout = $manager->runNamed('timeout');
         expect($timeout->successful())->toBeFalse();
         $timedOut = (new ExecutionHistory($app))->latest('schedule', 'sched:slow');
+        \PHPUnit\Framework\Assert::assertIsArray(($timedOut['metadata'] ?? null));
         expect($timedOut['status'] ?? null)->toBe('timed_out')
             ->and($timedOut['metadata']['reason'] ?? null)->toBe('timed_out');
     } finally {
@@ -373,10 +378,11 @@ it('skips overlapping scheduled work under shared CacheLayer ownership and recor
                 'schedule_identity',
                 $entry->identity(),
             );
+            \PHPUnit\Framework\Assert::assertIsArray(($latest['metadata'] ?? null));
             expect($latest['status'] ?? null)->toBe('cancelled')
                 ->and($latest['metadata']['reason'] ?? null)->toBe('overlap');
             $executionId = $latest['execution_id'] ?? null;
-            expect($executionId)->toBeString();
+            \PHPUnit\Framework\Assert::assertIsString($executionId);
             $records = (new ExecutionHistory($app))->find($executionId);
             expect(array_column($records, 'status'))->toBe(['pending', 'cancelled']);
         } finally {

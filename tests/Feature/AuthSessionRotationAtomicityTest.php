@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerSessionStore;
+use Infocyph\Foundation\Auth\Adapter\Uid\UidAuthIdGenerator;
 use Infocyph\Foundation\Auth\Authentication\Session\AuthSession;
 use Infocyph\Foundation\Auth\Authentication\Session\SessionManager;
+use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
+use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\SessionStoreInterface;
 use Infocyph\Foundation\Auth\Exception\SessionException;
-use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
-use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
-use Infocyph\Foundation\Auth\Adapter\Uid\UidAuthIdGenerator;
-use Infocyph\Foundation\Http\Resolver\SessionPrincipalResolver;
-use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
 use Infocyph\Foundation\Auth\Support\InMemorySessionStore;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
@@ -21,6 +19,8 @@ use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Http\Resolver\SessionPrincipalResolver;
+use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
 use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 /**
@@ -65,7 +65,7 @@ it('allows only one rotation and rejects revoked changed expired and cross-accou
     $store->touch('original', $now + 1);
     expect($store->rotate($original, $second, $now))->toBeFalse();
     $fresh = $store->find('original');
-    expect($fresh)->not->toBeNull();
+    \PHPUnit\Framework\Assert::assertNotNull($fresh);
     expect($store->rotate($fresh, $second, $now + 301))->toBeFalse()
         ->and($store->rotate($fresh, new AuthSession('foreign', 'other', null, $now, $now, $now + 300), $now))->toBeFalse()
         ->and($store->find('original'))->not->toBeNull();
@@ -73,19 +73,35 @@ it('allows only one rotation and rejects revoked changed expired and cross-accou
 
 it('does not resurrect a session revoked while manager rotation is in flight', function (string $backend): void {
     $store = atomicAuthSessionStore($backend);
-    $barrier = new class($store) implements SessionStoreInterface {
+    $barrier = new class ($store) implements SessionStoreInterface {
         public ?AuthSession $replacement = null;
+
         public function __construct(private SessionStoreInterface $store) {}
+
         #[\Override]
-        public function create(AuthSession $session): void { $this->store->create($session); }
+        public function create(AuthSession $session): void
+        {
+            $this->store->create($session);
+        }
+
         #[\Override]
-        public function find(string $sessionId): ?AuthSession { return $this->store->find($sessionId); }
+        public function find(string $sessionId): ?AuthSession
+        {
+            return $this->store->find($sessionId);
+        }
+
         #[\Override]
-        public function revoke(string $sessionId): void { $this->store->revoke($sessionId); }
+        public function revoke(string $sessionId): void
+        {
+            $this->store->revoke($sessionId);
+        }
+
         #[\Override]
-        public function revokeAllForAccount(string $accountId, ?string $exceptSessionId = null): void { $this->store->revokeAllForAccount($accountId, $exceptSessionId); }
-        #[\Override]
-        public function touch(string $sessionId, int $lastSeenAt): void { $this->store->touch($sessionId, $lastSeenAt); }
+        public function revokeAllForAccount(string $accountId, ?string $exceptSessionId = null): void
+        {
+            $this->store->revokeAllForAccount($accountId, $exceptSessionId);
+        }
+
         #[\Override]
         public function rotate(AuthSession $current, AuthSession $replacement, int $now): bool
         {
@@ -93,6 +109,12 @@ it('does not resurrect a session revoked while manager rotation is in flight', f
             expect(Fiber::suspend())->toBeNull();
 
             return $this->store->rotate($current, $replacement, $now);
+        }
+
+        #[\Override]
+        public function touch(string $sessionId, int $lastSeenAt): void
+        {
+            $this->store->touch($sessionId, $lastSeenAt);
         }
     };
     $now = time();
@@ -106,7 +128,7 @@ it('does not resurrect a session revoked while manager rotation is in flight', f
         expect(fn(): mixed => $rotation->resume())->toThrow(SessionException::class, 'revoked during rotation')
             ->and($store->find('race'))->toBeNull()
             ->and($barrier->replacement)->not->toBeNull()
-            ->and($store->find($barrier->replacement?->id ?? 'missing'))->toBeNull();
+            ->and($store->find($barrier->replacement->id ?? 'missing'))->toBeNull();
     });
 })->with(['memory', 'sqlite']);
 

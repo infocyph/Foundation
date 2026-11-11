@@ -128,11 +128,7 @@ function uidRuntimeEnvironment(string $uidVersion): array
         'php_sapi' => PHP_SAPI,
         'operating_system' => php_uname(),
         'cpu_model' => $cpuModel,
-        'memory_limit' => (static function (): string {
-            $limit = ini_get('memory_limit');
-
-            return is_string($limit) && $limit !== '' && $limit !== '0' ? $limit : 'unknown';
-        })(),
+        'memory_limit' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::iniValue('memory_limit', 'unknown'),
         'opcache' => extension_loaded('Zend OPcache'),
         'jit' => (($__foundation154_133 = ini_get('opcache.jit')) !== false && $__foundation154_133 !== '' && $__foundation154_133 !== '0' ? $__foundation154_133 : false),
         'xdebug' => extension_loaded('xdebug'),

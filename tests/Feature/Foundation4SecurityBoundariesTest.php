@@ -4,37 +4,37 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Auth\Account\Account;
 use Infocyph\Foundation\Auth\Account\AccountStatus;
-use Infocyph\Foundation\Auth\AuthServices;
+use Infocyph\Foundation\Auth\Adapter\TalkingBytes\AuthNotificationMapper;
+use Infocyph\Foundation\Auth\Adapter\TalkingBytes\TalkingBytesAuthNotifier;
+use Infocyph\Foundation\Auth\Adapter\Uid\UidAuthIdGenerator;
+use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationManager;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationRequest;
+use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationStatus;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationTokenServiceInterface;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetManager;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetRequest;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetStatus;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetTokenServiceInterface;
-use Infocyph\Foundation\Auth\Contract\Security\TokenVerificationResult;
-use Infocyph\Foundation\Auth\Support\CollectingAuthNotifier;
-use Infocyph\Foundation\Auth\Support\InMemoryEmailVerificationStore;
-use Infocyph\Foundation\Auth\Support\InMemoryPasswordResetStore;
-use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationStatus;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
-use Infocyph\Foundation\Auth\Adapter\TalkingBytes\AuthNotificationMapper;
-use Infocyph\Foundation\Auth\Adapter\TalkingBytes\TalkingBytesAuthNotifier;
-use Infocyph\Foundation\Auth\Adapter\Uid\UidAuthIdGenerator;
-use Infocyph\Foundation\Auth\Audit\AuthEventType;
+use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
+use Infocyph\Foundation\Auth\Contract\Security\TokenVerificationResult;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Auth\Notification\AuthNotification;
 use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
+use Infocyph\Foundation\Auth\Support\CollectingAuthNotifier;
 use Infocyph\Foundation\Auth\Support\InMemoryAccountStore;
 use Infocyph\Foundation\Auth\Support\InMemoryAuditEventStore;
-use Infocyph\Foundation\Tests\Fixtures\AuthAuditSensitiveKeyMatrix;
+use Infocyph\Foundation\Auth\Support\InMemoryEmailVerificationStore;
+use Infocyph\Foundation\Auth\Support\InMemoryPasswordResetStore;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Notifications\NotificationTemplateRegistry;
+use Infocyph\Foundation\Tests\Fixtures\AuthAuditSensitiveKeyMatrix;
 use Infocyph\TalkingBytes\Email\Emailer;
 
 it('delivers account password resets only to the authoritative stored address', function (): void {
@@ -360,7 +360,7 @@ it('allows HTTP-facing verification issuance only to an account-stored email', f
             'victim@example.test',
             status: AccountStatus::PENDING_VERIFICATION,
         )->account;
-        expect($account)->not->toBeNull();
+        \PHPUnit\Framework\Assert::assertNotNull($account);
         $forged = $actions->requestEmailVerification([
             'account_id' => $account->id(),
             'email' => 'attacker@example.test',
@@ -382,7 +382,7 @@ it('allows HTTP-facing verification issuance only to an account-stored email', f
             metadata: ['email' => 'account@example.test'],
             status: AccountStatus::PENDING_VERIFICATION,
         )->account;
-        expect($username)->not->toBeNull();
+        \PHPUnit\Framework\Assert::assertNotNull($username);
         expect($actions->requestEmailVerification([
             'account_id' => $username->id(),
         ])->email())->toBe('account@example.test');
@@ -432,7 +432,7 @@ it('refuses caller context as authoritative audit identity through credential an
     $app->container()->withinScope('webrick.request', static function () use ($app): void {
         $services = $app->make(AuthServices::class);
         $account = $services->accounts()->create('provenance@example.test')->account;
-        expect($account)->not->toBeNull();
+        \PHPUnit\Framework\Assert::assertNotNull($account);
         $context = ['session_id' => 'forged-session', 'device_id' => 'forged-device'];
         $services->passwordResets()->issue($account->id(), $context);
         $services->emailVerification()->issue($account->id(), $account->identifier(), $context);
@@ -448,10 +448,7 @@ it('refuses caller context as authoritative audit identity through credential an
         $services->rememberMe()->issue($account->id(), 'stored-device', $context);
 
         $audit = $app->make(AuditEventStoreInterface::class);
-        expect($audit)->toBeInstanceOf(InMemoryAuditEventStore::class);
-        if (!$audit instanceof InMemoryAuditEventStore) {
-            throw new LogicException('Expected the in-memory audit store.');
-        }
+        \PHPUnit\Framework\Assert::assertInstanceOf(InMemoryAuditEventStore::class, $audit);
 
         $events = $audit->events();
         expect($events)->toHaveCount(6);
@@ -480,7 +477,7 @@ it('does not promote caller supplied password-change audit IDs and preserves pas
             'change-provenance@example.test',
             $hasher->hash('initial-password'),
         )->account;
-        expect($account)->not->toBeNull();
+        \PHPUnit\Framework\Assert::assertNotNull($account);
         $forged = ['session_id' => 'untrusted-session', 'device_id' => 'untrusted-device'];
         expect($services->passwordChanges()->change(
             $account->id(),
@@ -490,10 +487,8 @@ it('does not promote caller supplied password-change audit IDs and preserves pas
         )->successful())->toBeTrue();
 
         $audit = $app->make(AuditEventStoreInterface::class);
-        expect($audit)->toBeInstanceOf(InMemoryAuditEventStore::class);
-        if (!$audit instanceof InMemoryAuditEventStore) {
-            throw new LogicException('Expected an in-memory audit store.');
-        }
+        \PHPUnit\Framework\Assert::assertInstanceOf(InMemoryAuditEventStore::class, $audit);
+
         $event = $audit->events()[0] ?? null;
         expect($event?->type)->toBe(AuthEventType::PASSWORD_CHANGED)
             ->and($event?->accountId)->toBe($account->id())
@@ -545,7 +540,7 @@ it('rejects verified email tokens whose subject or destination differs from the 
             'email' => 'attacker@example.test',
         ]),
     ] as $verification) {
-        $tokens = new class($verification) implements EmailVerificationTokenServiceInterface {
+        $tokens = new class ($verification) implements EmailVerificationTokenServiceInterface {
             public function __construct(private TokenVerificationResult $verification) {}
 
             #[\Override]
@@ -634,7 +629,7 @@ it('keeps bearer issuance tokens in trusted auth services but never in HTTP-faci
             'bearer-boundary@example.test',
             status: AccountStatus::PENDING_VERIFICATION,
         )->account;
-        expect($account)->not->toBeNull();
+        \PHPUnit\Framework\Assert::assertNotNull($account);
         $email = $actions->requestEmailVerification(['account_id' => $account->id()]);
         $reset = $actions->requestPasswordReset(['identifier' => $account->identifier()]);
         $passwordless = $actions->requestPasswordless(['identifier' => $account->identifier()]);
@@ -652,9 +647,8 @@ it('keeps bearer issuance tokens in trusted auth services but never in HTTP-faci
             expect($encoded)->toContain('"token":null');
         }
 
-        expect($services->emailVerification()->issue($account->id(), $account->identifier())->token)
-            ->toBeString()
-            ->and($services->passwordResets()->issue($account->id())->token)
+        \PHPUnit\Framework\Assert::assertIsString($services->emailVerification()->issue($account->id(), $account->identifier())->token);
+        expect($services->passwordResets()->issue($account->id())->token)
             ->toBeString()
             ->and($services->passwordless()->issue($account->identifier())->token)
             ->toBeString();
@@ -709,7 +703,7 @@ it('binds HTTP password reset delivery and token subject for account ID and iden
                 ->and($notification->accountId)->toBe($account->id());
 
             $token = $notification->payload['token'] ?? null;
-            expect($token)->toBeString();
+            \PHPUnit\Framework\Assert::assertIsString($token);
             $outbound->send($notification);
             expect($services->passwordResets()->complete($token, 'replacement-hash')->completed())->toBeTrue()
                 ->and($services->accountProvider()->findById($account->id())?->passwordHash())->toBe('replacement-hash');
@@ -767,7 +761,7 @@ it('keeps verified email and passwordless tokens bound to trusted notification r
         foreach ($issued as $notification) {
             $outbound->send($notification);
             $token = $notification->payload['token'] ?? null;
-            expect($token)->toBeString();
+            \PHPUnit\Framework\Assert::assertIsString($token);
             if ($notification->type === AuthNotificationType::EMAIL_VERIFICATION_REQUESTED) {
                 expect($notification->accountId)->toBe($account->id())
                     ->and($services->emailVerification()->verify($token)->verified())->toBeTrue();

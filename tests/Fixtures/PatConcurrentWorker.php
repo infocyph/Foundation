@@ -18,6 +18,51 @@ final class PatConcurrentWorker
 {
     public const string TOKEN_ID = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    public static function factory(string $database): DBLayerFactory
+    {
+        $state = new RuntimeExecutionState();
+        $container = new readonly class ($state) implements ContainerInterface {
+            public function __construct(private RuntimeExecutionState $state) {}
+
+            /**
+             * @throws \LogicException
+             */
+            #[\Override]
+            public function get(string $id): mixed
+            {
+                if ($id === RuntimeExecutionState::class) {
+                    return $this->state;
+                }
+
+                throw new \LogicException(sprintf('PAT worker container has no service "%s".', $id));
+            }
+
+            #[\Override]
+            public function has(string $id): bool
+            {
+                return $id === RuntimeExecutionState::class;
+            }
+        };
+        $config = new ConfigRepository([
+            'database' => [
+                'default' => 'pat',
+                'connections' => [
+                    'pat' => ['driver' => 'sqlite', 'database' => $database],
+                ],
+            ],
+        ]);
+        $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), $container);
+        $factory->connection()->setQueryTimeoutMs(5_000);
+
+        return $factory;
+    }
+
     public static function run(string $database, string $startSignal, string $operation): int
     {
         try {
@@ -58,57 +103,6 @@ final class PatConcurrentWorker
 
             return 1;
         }
-    }
-    /**
-     * @throws \Infocyph\Foundation\Exception\ConfigurationException
-     * @throws \LogicException
-     * @throws \Psr\Container\ContainerExceptionInterface
-     * @throws \Psr\Container\NotFoundExceptionInterface
-     */
-
-    public static function factory(string $database): DBLayerFactory
-    {
-        $state = new RuntimeExecutionState();
-        $container = new readonly class($state) implements ContainerInterface {
-            public function __construct(private RuntimeExecutionState $state) {}
-
-            /**
-             * @throws \LogicException
-             */
-            #[\Override]
-            public function get(string $id): mixed
-            {
-                if ($id === RuntimeExecutionState::class) {
-                    return $this->state;
-                }
-
-                throw new \LogicException(sprintf('PAT worker container has no service "%s".', $id));
-            }
-
-            /**
-             * @throws \Infocyph\Foundation\Exception\ConfigurationException
-             * @throws \LogicException
-             * @throws \Psr\Container\ContainerExceptionInterface
-             * @throws \Psr\Container\NotFoundExceptionInterface
-             */
-            #[\Override]
-            public function has(string $id): bool
-            {
-                return $id === RuntimeExecutionState::class;
-            }
-        };
-        $config = new ConfigRepository([
-            'database' => [
-                'default' => 'pat',
-                'connections' => [
-                    'pat' => ['driver' => 'sqlite', 'database' => $database],
-                ],
-            ],
-        ]);
-        $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), $container);
-        $factory->connection()->setQueryTimeoutMs(5_000);
-
-        return $factory;
     }
 
     /**
