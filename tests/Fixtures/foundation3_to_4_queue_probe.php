@@ -119,7 +119,7 @@ $report = [
     'phase' => $phase,
     'source_file' => (new ReflectionClass(MessagingDatabaseSchema::class))->getFileName(),
     'durable_sha256' => $digest,
-    'pending' => (int) $transport->size($queue),
+    'pending' => $transport->size($queue),
     'failures' => count($failed),
 ];
 if (file_put_contents($reports . '/queue-' . $phase . '.json', json_encode($report, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . PHP_EOL) === false) {

@@ -63,6 +63,7 @@ final readonly class AuthManager
 
     /**
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     public function isProductionReady(): bool
     {
@@ -86,6 +87,7 @@ final readonly class AuthManager
      *   drivers: array<string, string>
      * }
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     public function readinessReport(): array
     {

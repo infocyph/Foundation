@@ -42,6 +42,9 @@ it('installs selected feature packages only, with explicit OTP passkey co-owners
 it('does not make core, PHPForge, or external developer packages installable modules', function (): void {
     $catalog = new ModuleArchitectureCatalog();
     $manifest = json_decode((string) file_get_contents(dirname(__DIR__, 2) . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+    if (!is_array($manifest)) {
+        throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
+    }
     expect($manifest)->toBeArray();
 
     $owned = [];

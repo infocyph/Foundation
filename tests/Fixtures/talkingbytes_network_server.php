@@ -50,7 +50,10 @@ while ($requests < 24 && microtime(true) < $until) {
 
     $head = substr($incoming, 0, $separator);
     $body = substr($incoming, $separator + 4);
-    $firstLine = strtok($head, "\r\n") ?: '';
+    $firstLine = strtok($head, "\r\n");
+    if ($firstLine === false || $firstLine === '' || $firstLine === '0') {
+        $firstLine = '';
+    }
     $path = '/';
     if (preg_match('~^[A-Z]+ (\S+) HTTP/~D', $firstLine, $matches) === 1) {
         $parsed = parse_url($matches[1], PHP_URL_PATH);

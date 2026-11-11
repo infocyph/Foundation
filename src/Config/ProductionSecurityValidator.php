@@ -22,6 +22,7 @@ final readonly class ProductionSecurityValidator
      * @return list<ConfigIssue>
      * @throws \UnexpectedValueException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function validate(): array
     {

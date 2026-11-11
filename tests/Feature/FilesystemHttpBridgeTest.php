@@ -225,7 +225,7 @@ it('isolates lazy streamed downloads across Fibers and rejects an abandoned comp
     $second = \Infocyph\Runwire\RequestContext::create($runtime);
     $abandoned = \Infocyph\Runwire\RequestContext::create($runtime);
     try {
-        $responseFor = static fn($owner) => \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
+        $responseFor = static fn($owner): mixed => \Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::share(
             $owner,
             null,
             static fn() => $responses->download(
@@ -677,6 +677,10 @@ function foundationFilesystemRemoveDirectory(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!($file instanceof \SplFileInfo)) {
+            throw new \UnexpectedValueException('Unexpected directory iterator entry.');
+        }
+
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

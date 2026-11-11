@@ -125,7 +125,7 @@ it('uses TalkingBytes v2 bound webhook signatures with Foundation atomic replay 
         'foundation-delivery-7',
     );
 
-    expect((string) ($headers['X-TB-Signature'] ?? ''))->toContain('v2=');
+    expect($headers['X-TB-Signature'] ?? '')->toContain('v2=');
 
     $event = $receiver->receive($payload, $headers);
     expect($event->event)->toBe('order.created')

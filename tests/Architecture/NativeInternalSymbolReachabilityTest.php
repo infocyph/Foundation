@@ -10,6 +10,10 @@ it('does not retain orphaned internal native-integration owners', function (): v
     );
 
     foreach ($scan as $file) {
+        if (!($file instanceof \SplFileInfo)) {
+            throw new \UnexpectedValueException('Unexpected directory iterator entry.');
+        }
+
         if (!$file->isFile() || $file->getExtension() !== 'php') {
             continue;
         }

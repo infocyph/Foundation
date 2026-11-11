@@ -99,7 +99,7 @@ it('rejects a trusted release when its dependency identity no longer matches', f
         $sha = hash_file('sha256', $manifestPath);
         expect($sha)->toBeString();
 
-        expect(fn() => new FoundationReleaseRuntime()->trustedActiveManifest($root, (string) $sha))
+        expect(fn() => new FoundationReleaseRuntime()->trustedActiveManifest($root, $sha))
             ->toThrow(RuntimeException::class, 'dependency identity does not match');
     } finally {
         foundationReleaseInfrastructureRemove($root);

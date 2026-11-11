@@ -29,6 +29,10 @@ it('contains no retired runtime cache paths', function (): void {
     );
 
     foreach ($files as $file) {
+        if (!($file instanceof \SplFileInfo)) {
+            throw new \UnexpectedValueException('Unexpected directory iterator entry.');
+        }
+
         if (!$file->isFile() || $file->getExtension() !== 'php') {
             continue;
         }

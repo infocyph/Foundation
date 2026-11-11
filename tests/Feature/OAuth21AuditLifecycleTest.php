@@ -64,7 +64,7 @@ it('audits authorization code consumption at the authoritative Epicrypt outcome'
             $capture->events = [];
         }
 
-        $consume = fn() => $fixture->codes->consume(
+        $consume = fn(): \Infocyph\Foundation\Auth\OAuth\Authorization\OAuthAuthorizationCode => $fixture->codes->consume(
             $issue->code,
             $registration->client->clientId,
             $redirectUri,

@@ -407,7 +407,7 @@ it('rejects recovery consumption when cancellation arrives after state read but 
 
     CacheRunwire::bind($runtime);
     try {
-        CacheRunwire::share($request, null, static function () use ($accountId, $code, $recovery, $request, $store): void {
+        CacheRunwire::share($request, null, static function () use ($accountId, $code, $recovery, $store): void {
             $store->cancelOnFind = true;
             expect(fn() => $recovery->verify($accountId, $code))->toThrow(CancelledException::class);
         }, $runtime);

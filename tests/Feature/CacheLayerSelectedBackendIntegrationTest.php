@@ -66,6 +66,9 @@ it('qualifies local and SQLite native CacheLayer operations through Foundation c
             RecursiveIteratorIterator::CHILD_FIRST,
         );
         foreach ($entries as $entry) {
+            if (!($entry instanceof \SplFileInfo)) {
+                throw new \UnexpectedValueException('Unexpected directory iterator entry.');
+            }
             $entry->isDir() && !$entry->isLink()
                 ? rmdir($entry->getPathname())
                 : unlink($entry->getPathname());
@@ -209,6 +212,9 @@ it('rejects mismatched integrity keys and object payloads in configured native S
             RecursiveIteratorIterator::CHILD_FIRST,
         );
         foreach ($entries as $entry) {
+            if (!($entry instanceof \SplFileInfo)) {
+                throw new \UnexpectedValueException('Unexpected directory iterator entry.');
+            }
             $entry->isDir() && !$entry->isLink()
                 ? rmdir($entry->getPathname())
                 : unlink($entry->getPathname());

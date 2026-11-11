@@ -219,7 +219,7 @@ it('forwards one host-owned InterMix scope through a child Fiber without taking 
             $app->make(FoundationExecutionScopeProbe::class),
         ],
     ));
-    $borrowed = $child->start();
+    $child->start();
     expect($child->isTerminated())->toBeTrue();
     $borrowed = $child->getReturn();
 

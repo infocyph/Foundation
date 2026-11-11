@@ -94,6 +94,7 @@ it('releases generated worker scope when restart cancels an active item', functi
             ->toThrow(ServiceResolutionException::class);
 
         $restartRequested = false;
+        expect($worker->stopRequested())->toBe($restartRequested);
         $next = $worker->execute(
             static fn(ExecutionId $id): array => [
                 (string) $id,

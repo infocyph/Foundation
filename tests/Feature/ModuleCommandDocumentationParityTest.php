@@ -93,6 +93,9 @@ it('keeps Composer publication metadata and optional package roles consistent wi
         true,
         flags: JSON_THROW_ON_ERROR,
     );
+    if (!is_array($manifest)) {
+        throw new \UnexpectedValueException('Composer manifest must be a JSON object.');
+    }
     $core = [
         'php' => '^8.4',
         'composer-runtime-api' => '^2.0',

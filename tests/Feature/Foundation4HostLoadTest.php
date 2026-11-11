@@ -9,6 +9,9 @@ it('warms distinct reusable connections before counting measured requests', func
         expect($load->getExitCode())->toBe(0, $load->getErrorOutput());
         expect($load->getErrorOutput())->toBe('');
         $result = json_decode((string) file_get_contents($output), true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($result)) {
+            throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
+        }
 
         expect($result['requests'])->toBe(100)
             ->and($result['successful'])->toBe(100)
@@ -33,6 +36,9 @@ it('still counts and rejects failed measured responses after successful connecti
     foundationHostLoadProbe('measurement-invalid', function (Process $load, string $output): void {
         expect($load->getExitCode())->not->toBe(0);
         $result = json_decode((string) file_get_contents($output), true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($result)) {
+            throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
+        }
 
         expect($result['connection_warmup']['successful'])->toBe(10)
             ->and($result['successful'])->toBe(0)

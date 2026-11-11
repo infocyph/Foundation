@@ -26,7 +26,7 @@ final class EnvironmentSecretStageObserver
         }
 
         $details = stream_get_meta_data($stream);
-        if (!str_ends_with((string) ($details['uri'] ?? ''), '.tmp')) {
+        if (!str_ends_with($details['uri'] ?? '', '.tmp')) {
             return;
         }
 

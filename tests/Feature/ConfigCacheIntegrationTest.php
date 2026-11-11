@@ -386,11 +386,14 @@ it('compiles provider discovery into the configuration cache', function (): void
 });
 
 it('keeps production requirements limited to the Foundation runtime core', function (): void {
-    $composer = json_decode(
-        file_get_contents(dirname(__DIR__, 2) . '/composer.json'),
-        true,
-        flags: JSON_THROW_ON_ERROR,
-    );
+    $composerSource = file_get_contents(dirname(__DIR__, 2) . '/composer.json');
+    if (!is_string($composerSource)) {
+        throw new \RuntimeException('Cannot inspect project Composer manifest.');
+    }
+    $composer = json_decode($composerSource, true, flags: JSON_THROW_ON_ERROR);
+    if (!is_array($composer)) {
+        throw new \UnexpectedValueException('Composer manifest must be a JSON object.');
+    }
 
     expect($composer['require'])->toBe([
         'php' => '^8.4',

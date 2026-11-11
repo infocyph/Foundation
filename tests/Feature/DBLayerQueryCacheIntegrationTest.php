@@ -167,7 +167,7 @@ it('uses the exact DBLayer connection cache and invalidates only after successfu
     $connection->statement('CREATE TABLE query_items (id INTEGER PRIMARY KEY, value TEXT NOT NULL)');
     $connection->table('query_items')->insert(['id' => 1, 'value' => 'one']);
 
-    $read = static fn() => $connection
+    $read = static fn(): ?array => $connection
         ->table('query_items')
         ->where('id', '=', 1)
         ->cacheFor(60)

@@ -120,6 +120,7 @@ final readonly class ModuleStateResolver
      * @throws \UnexpectedValueException
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function all(): array
     {

@@ -111,6 +111,12 @@ final class PatConcurrentWorker
         return $factory;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public static function store(string $database): DBLayerEpicryptPersonalAccessTokenStore
     {
         return new DBLayerEpicryptPersonalAccessTokenStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => self::factory($database)]), new AuthTables());

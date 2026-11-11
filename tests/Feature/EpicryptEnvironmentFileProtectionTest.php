@@ -76,6 +76,10 @@ function foundationEnvironmentProtectionRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($iterator as $entry) {
+        if (!($entry instanceof \SplFileInfo)) {
+            throw new \UnexpectedValueException('Unexpected directory iterator entry.');
+        }
+
         $entry->isDir() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());
     }
     rmdir($directory);

@@ -243,7 +243,7 @@ function phase9HttpSpawn(string $variant): array
 }
 
 if (($argv[1] ?? null) === '--child') {
-    $result = phase9HttpChild((string) ($argv[2] ?? ''));
+    $result = phase9HttpChild($argv[2] ?? '');
     fwrite(STDOUT, json_encode($result, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
 
     return;

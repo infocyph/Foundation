@@ -243,6 +243,9 @@ it('retains both required host soaks when aggregating separately paired scenario
         expect($result->exitCode)->toBe(0, $result->stderr);
         foreach (['baseline', 'candidate'] as $variant) {
             $merged = json_decode((string) file_get_contents($directory . '/' . $variant . '-merged.json'), true, flags: JSON_THROW_ON_ERROR);
+            if (!is_array($merged)) {
+                throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
+            }
             expect($merged['soak'])->toHaveKeys(['fpm', 'runwire'])
                 ->and($merged['soak']['runwire']['windows'])->toHaveCount(2);
         }

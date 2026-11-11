@@ -21,6 +21,10 @@ it('keeps direct SHA-256 hashing inside protocol and cryptographic source bounda
         new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
     );
     foreach ($files as $file) {
+        if (!($file instanceof \SplFileInfo)) {
+            throw new \UnexpectedValueException('Unexpected directory iterator entry.');
+        }
+
         if (!$file->isFile() || $file->getExtension() !== 'php') {
             continue;
         }

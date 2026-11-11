@@ -43,6 +43,9 @@ it('distinguishes CPU used within the sample window from lifetime CPU gauges', f
         expect($process->getExitCode())->toBe(0, $process->getErrorOutput());
         expect($process->getErrorOutput())->toBe('');
         $report = json_decode((string) file_get_contents($directory . '/report.json'), true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($report)) {
+            throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
+        }
         $run = $report['hosts']['fpm'][0]['runs'][0];
 
         expect($run['mean_process_cpu_percent'])->toBe($singleSample ? null : 50)

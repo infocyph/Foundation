@@ -88,6 +88,10 @@ it('assigns every declared production PHP symbol to an approved Foundation owner
     );
 
     foreach ($scan as $file) {
+        if (!($file instanceof \SplFileInfo)) {
+            throw new \UnexpectedValueException('Unexpected directory iterator entry.');
+        }
+
         if (!$file->isFile() || $file->getExtension() !== 'php') {
             continue;
         }

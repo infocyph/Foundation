@@ -72,7 +72,7 @@ it('enforces browser-session contention through every configured shared lock bac
     );
 
     try {
-        expect(fn() => $manager(0.01)->open($id)->get('value'))
+        expect(fn(): mixed => $manager(0.01)->open($id)->get('value'))
             ->toThrow(RuntimeException::class, 'Timed out while waiting for the browser session lock.');
     } finally {
         $holder->release($held);

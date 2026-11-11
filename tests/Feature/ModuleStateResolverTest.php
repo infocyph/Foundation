@@ -478,7 +478,7 @@ it('keeps specialist catalog package floors aligned with the tested dependency s
 
     $catalog = new ModuleCatalog();
 
-    foreach ($catalog->all() as $name => $definition) {
+    foreach ($catalog->all() as $definition) {
         if (($definition['built_in'] ?? false) === true) {
             continue;
         }

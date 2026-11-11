@@ -90,7 +90,7 @@ if ($mode === 'core') {
             $message = $exception->getMessage();
             $firstPackage = array_key_first($packages);
             if (!str_contains($message, 'Selected feature ' . $id . ' requires package ')
-                || !str_contains($message, (string) $firstPackage)
+                || !str_contains($message, $firstPackage)
             ) {
                 throw new RuntimeException('Missing specialist diagnostic was not actionable: ' . $message);
             }

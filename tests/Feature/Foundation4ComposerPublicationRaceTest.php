@@ -115,6 +115,9 @@ it('rejects a real Composer downgrade after a captured feature snapshot and perm
         }
         $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
         foreach ($files as $file) {
+            if (!($file instanceof \SplFileInfo)) {
+                throw new \UnexpectedValueException('Unexpected directory iterator entry.');
+            }
             $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
         }
         rmdir($directory);

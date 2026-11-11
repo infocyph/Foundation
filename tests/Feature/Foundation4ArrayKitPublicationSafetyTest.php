@@ -129,6 +129,10 @@ it('preserves native generations for readers pinned before a single-mode transit
             RecursiveIteratorIterator::CHILD_FIRST,
         );
         foreach ($entries as $entry) {
+            if (!($entry instanceof \SplFileInfo)) {
+                throw new \UnexpectedValueException('Unexpected directory iterator entry.');
+            }
+
             $entry->isDir() && !$entry->isLink()
                 ? rmdir($entry->getPathname())
                 : unlink($entry->getPathname());

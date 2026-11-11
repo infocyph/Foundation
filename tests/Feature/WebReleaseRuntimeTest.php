@@ -359,7 +359,7 @@ it('keeps unused backend integrations cold throughout unrelated flows', function
                 'principal-invalid' => expect($scope->get(\Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver::class)->resolve(Request::fake(headers: ['Authorization' => 'Bearer malformed'])))->toBeNull(),
                 'serializer' => expect($scope->get(\Infocyph\Omnibus\Serialization\EnvelopeSerializer::class))->toBeInstanceOf(\Infocyph\Omnibus\Serialization\EnvelopeSerializer::class),
                 'consumer-empty' => expect($scope->get(\Infocyph\Omnibus\Consumer\Consumer::class)->run()->received)->toBe(0),
-                'webhook-rejected' => expect(fn() => $scope->get(\Infocyph\TalkingBytes\Webhook\WebhookReceiver::class)->receive('{}', [
+                'webhook-rejected' => expect(fn(): mixed => $scope->get(\Infocyph\TalkingBytes\Webhook\WebhookReceiver::class)->receive('{}', [
                     'X-TB-Event' => 'probe', 'X-TB-Delivery' => 'cold-probe',
                 ]))->toThrow(RuntimeException::class, 'Webhook verification failed'),
                 'database-metadata', 'database-cached-metadata' => expect($scope->get(\Infocyph\DBLayer\Connection\Connection::class)->isConnected())->toBeFalse(),

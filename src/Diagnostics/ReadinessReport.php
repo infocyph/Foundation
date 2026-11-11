@@ -26,6 +26,7 @@ final readonly class ReadinessReport
      * @throws \UnexpectedValueException
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function generate(): array
     {
@@ -160,6 +161,7 @@ final readonly class ReadinessReport
      * @return array{ready:bool,detail:string}
      * @throws \UnexpectedValueException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     private function configurationReadiness(): array
     {

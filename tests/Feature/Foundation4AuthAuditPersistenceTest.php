@@ -59,6 +59,9 @@ it('persists no sensitive matrix key across nested login reset MFA and passkey r
         foreach ($rows as $row) {
             $raw = (string) $row['metadata'];
             $metadata = json_decode($raw, true, flags: JSON_THROW_ON_ERROR);
+            if (!is_array($metadata)) {
+                throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
+            }
             expect($metadata['context']['safe'])->toBe($identifiers);
             $keys = $chunks[$metadata['chunk_index']];
             foreach ($keys as $key => $sentinel) {
@@ -156,6 +159,9 @@ it('does not persist caller session or device metadata as canonical authorizatio
             expect($row['session_id'])->toBeNull()
                 ->and($row['device_id'])->toBeNull();
             $metadata = json_decode((string) $row['metadata'], true, flags: JSON_THROW_ON_ERROR);
+            if (!is_array($metadata)) {
+                throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
+            }
             expect($metadata['session_id'])->toBe('forged-session')
                 ->and($metadata['device_id'])->toBe('forged-device');
         }
@@ -241,6 +247,9 @@ it('redacts arbitrary uppercase and mixed-case secrets for all auth-purpose audi
             $raw = $row['metadata'] ?? null;
             expect($raw)->toBeString();
             $metadata = json_decode($raw, true, flags: JSON_THROW_ON_ERROR);
+            if (!is_array($metadata)) {
+                throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
+            }
             expect($metadata['request_id'])->toBe('safe-request')
                 ->and($metadata['authorization_id'])->toBe('safe-authorization')
                 ->and($metadata['TokenId'])->toBe('opaque-identifier')

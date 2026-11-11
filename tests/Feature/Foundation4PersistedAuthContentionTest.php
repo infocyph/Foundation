@@ -121,7 +121,11 @@ it('commits one persisted auth transition across independent competing processes
             }
             $processes = [];
             foreach (['first', 'second'] as $worker) {
-                $results[$worker] = json_decode((string) file_get_contents($directory . '/result-' . $worker), true, flags: JSON_THROW_ON_ERROR)['changed'];
+                $outcome = json_decode((string) file_get_contents($directory . '/result-' . $worker), true, flags: JSON_THROW_ON_ERROR);
+                if (!is_array($outcome) || !is_bool($outcome['changed'] ?? null)) {
+                    throw new \UnexpectedValueException('Persisted authentication worker result is malformed.');
+                }
+                $results[$worker] = $outcome['changed'];
             }
             expect(array_sum($results), $driver . ':' . $kind)->toBe(1);
             $winner = array_search(true, $results, true);
