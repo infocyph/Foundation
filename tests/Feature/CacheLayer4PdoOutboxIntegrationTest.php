@@ -26,9 +26,6 @@ it('keeps native PDO outbox events inside the same DBLayer transaction across no
     foreach (explode(';', substr($dsn, strlen($driver) + 1)) as $piece) {
         if (str_contains($piece, '=')) {
             $pair = explode('=', $piece, 2);
-            if (!isset($pair[1])) {
-                throw new RuntimeException('Malformed native PDO connection parameter.');
-            }
             [$key, $value] = $pair;
             $properties[$key] = $value;
         }

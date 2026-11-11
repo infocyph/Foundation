@@ -50,6 +50,9 @@ it('boots immutable releases without rediscovering application source files', fu
         );
         $generation = $releaseRoot . '/generations/phase10-source-isolation';
         $manifest = require $generation . '/foundation.php';
+        if (!is_array($manifest)) {
+            throw new \UnexpectedValueException('Generated Foundation release manifest must be an array.');
+        }
 
         expect(is_file($generation . '/config.php'))->toBeTrue()
             ->and($manifest['config_path'] ?? null)->toBe('config.php')

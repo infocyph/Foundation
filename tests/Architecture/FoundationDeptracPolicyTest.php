@@ -26,6 +26,9 @@ it('classifies native library edges while rejecting framework-to-application dep
         );
         $original = file_get_contents($root . '/deptrac.yaml');
         expect($original)->toBeString()->toContain('    - ./src');
+        if ($original === false) {
+            throw new \RuntimeException('Unable to load Deptrac policy fixture.');
+        }
 
         file_put_contents(
             $directory . '/deptrac.yaml',

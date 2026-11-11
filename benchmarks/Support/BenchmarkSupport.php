@@ -35,9 +35,9 @@ final class BenchmarkSupport
         }
 
         sort($samples, SORT_NUMERIC);
-        $median = (float) $samples[intdiv(count($samples), 2)];
-        $minimum = (float) $samples[0];
-        $maximum = (float) $samples[array_key_last($samples) ?? throw new \RuntimeException('Benchmark samples are empty.')];
+        $median = $samples[intdiv(count($samples), 2)];
+        $minimum = $samples[0];
+        $maximum = $samples[array_key_last($samples) ?? throw new \RuntimeException('Benchmark samples are empty.')];
 
         return [
             'median_ns' => round($median, 2),

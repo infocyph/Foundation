@@ -175,9 +175,15 @@ it('rejects host-cancelled native HOTP mutation and retains the unconsumed count
             enabled: true,
         )->factor;
         expect($factor)->not->toBeNull();
+        if ($factor === null) {
+            throw new \UnexpectedValueException('Expected native HOTP enrollment factor.');
+        }
 
         $challenge = $mfa->issueChallenge('account-cancelled-hotp', factorId: $factor->id)->challenge;
         expect($challenge)->not->toBeNull();
+        if ($challenge === null) {
+            throw new \UnexpectedValueException('Expected native HOTP challenge.');
+        }
 
         $verifier = $app->make(OtpMfaVerifier::class);
         $store = $app->make(MfaFactorStoreInterface::class);

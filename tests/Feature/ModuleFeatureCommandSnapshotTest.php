@@ -134,6 +134,9 @@ it('rejects Composer metadata changed after the v2 plan before locked activation
         $manifest = $path . '/vendor/composer/installed.json';
         $contents = file_get_contents($manifest);
         expect($contents)->toBeString();
+        if ($contents === false) {
+            throw new \RuntimeException('Unable to read installed Composer metadata.');
+        }
         file_put_contents($manifest, str_replace('6.1.4.0', '6.2.0.0', $contents));
 
         expect(fn() => $activation->applyFeatures('enable', ['data.database'], $snapshot))

@@ -44,6 +44,9 @@ foreach ($reports as $variant => $parts) {
             }
         }
         foreach ($part['soak'] ?? [] as $host => $soak) {
+            if (!is_array($soak) || !is_array($soak['windows'] ?? null)) {
+                throw new RuntimeException('Invalid sustained host soak evidence structure.');
+            }
             if (isset($combined['soak'][$host])
                 || ($part['soak_window_seconds'] ?? 0) < 120
                 || count($soak['windows'] ?? []) !== 2

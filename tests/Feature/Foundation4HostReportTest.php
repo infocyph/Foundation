@@ -46,7 +46,10 @@ it('distinguishes CPU used within the sample window from lifetime CPU gauges', f
         if (!is_array($report)) {
             throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
         }
-        $run = $report['hosts']['fpm'][0]['runs'][0];
+        $run = $report['hosts']['fpm'][0]['runs'][0] ?? null;
+        if (!is_array($run)) {
+            throw new \UnexpectedValueException('Expected a measured FPM host run.');
+        }
 
         expect($run['mean_process_cpu_percent'])->toBe($singleSample ? null : 50)
             ->and($run['peak_lifetime_process_cpu_percent'])->toBe(99)

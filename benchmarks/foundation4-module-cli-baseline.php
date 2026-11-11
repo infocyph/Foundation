@@ -23,6 +23,9 @@ function foundationModuleBaselineCleanup(string $folder): void
     );
 
     foreach ($files as $entry) {
+        if (!$entry instanceof SplFileInfo) {
+            throw new UnexpectedValueException('Unexpected module benchmark cleanup entry.');
+        }
         $entry->isDir() && !$entry->isLink() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());
     }
     rmdir($folder);

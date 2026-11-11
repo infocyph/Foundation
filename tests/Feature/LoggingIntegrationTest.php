@@ -51,10 +51,9 @@ it('writes structured records at the configured level and redacts nested secrets
 
         $records = array_values(array_filter(explode("\n", trim((string) file_get_contents($path)))));
         $record = json_decode($records[0], true, flags: JSON_THROW_ON_ERROR);
-        if (!is_array($record)) {
-            throw new \UnexpectedValueException('Expected a JSON log record.');
+        if (!is_array($record) || !is_array($record['context'] ?? null) || !is_array($record['context']['exception'] ?? null)) {
+            throw new \UnexpectedValueException('Expected a structured JSON error record.');
         }
-
 
         expect($records)->toHaveCount(1)
             ->and($record['level'])->toBe('error')

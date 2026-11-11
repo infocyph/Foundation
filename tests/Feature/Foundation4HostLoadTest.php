@@ -13,6 +13,10 @@ it('warms distinct reusable connections before counting measured requests', func
             throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');
         }
 
+        if (!is_array($result['worker_requests'] ?? null)) {
+            throw new \UnexpectedValueException('Host load worker request counts must be an array.');
+        }
+
         expect($result['requests'])->toBe(100)
             ->and($result['successful'])->toBe(100)
             ->and($result['database_queries'])->toBe($authenticated ? 400 : 0)

@@ -57,7 +57,10 @@ it('persists no sensitive matrix key across nested login reset MFA and passkey r
         $rows = $connection->select('SELECT metadata FROM ' . $fixture->tables->auditEvents());
         expect($rows)->toHaveCount(count($chunks) * 4);
         foreach ($rows as $row) {
-            $raw = (string) $row['metadata'];
+            if (!is_array($row) || !is_string($row['metadata'] ?? null)) {
+                throw new \UnexpectedValueException('Expected a persisted audit metadata row.');
+            }
+            $raw = $row['metadata'];
             $metadata = json_decode($raw, true, flags: JSON_THROW_ON_ERROR);
             if (!is_array($metadata)) {
                 throw new \UnexpectedValueException('Decoded benchmark or test evidence must be an array.');

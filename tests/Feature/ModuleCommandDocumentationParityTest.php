@@ -8,6 +8,9 @@ use Infocyph\Foundation\Module\ModuleFeatureCommandCatalog;
 it('keeps all documented Foundation 4 module commands in the executable command catalog', function (): void {
     $document = file_get_contents(dirname(__DIR__, 2) . '/docs/modules.md');
     expect($document)->toBeString();
+    if ($document === false) {
+        throw new \RuntimeException('Unable to load Foundation module command documentation.');
+    }
 
     preg_match_all('/^php infbyte (module:[a-z:]+)(?:\s|$)/m', $document, $matches);
     $examples = array_values(array_unique($matches[1]));

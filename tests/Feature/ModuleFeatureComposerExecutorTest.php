@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Module\ModuleFeatureComposerExecutor;
 
+/** @param array<string, string> $requirements */
 function f4ComposerFixture(array $requirements = []): string
 {
     $root = sys_get_temp_dir() . '/foundation-feature-composer-' . bin2hex(random_bytes(6));

@@ -16,8 +16,11 @@ it('boots with Foundation core dependencies while optional packages remain unava
         ->and(trim($result->stderr))->toBe('');
 
     $probe = json_decode(trim($result->stdout), true, flags: JSON_THROW_ON_ERROR);
-    expect($probe)->toBeArray()
-        ->and($probe)->not->toHaveKey('fatal')
+    expect($probe)->toBeArray();
+    if (!is_array($probe)) {
+        throw new \UnexpectedValueException('Optional-capability probe must return a JSON object.');
+    }
+    expect($probe)->not->toHaveKey('fatal')
         ->and($probe['base']['created_and_booted'] ?? false)->toBeTrue()
         ->and($probe['base']['base_path'] ?? null)->toBe($root)
         ->and($probe['warm_base_path'] ?? null)->toBe($root)

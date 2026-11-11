@@ -212,7 +212,7 @@ it('persists only protected MFA secrets while preserving revision based DB CAS',
     )[0] ?? null;
     expect($row)->toBeArray();
 
-    $raw = is_array($row) && is_string($row['metadata'] ?? null) ? $row['metadata'] : '';
+    $raw = is_string($row['metadata'] ?? null) ? $row['metadata'] : '';
     expect($raw)->not->toContain('JBSWY3DPEHPK3PXP')
         ->and($raw)->not->toContain('9284')
         ->and($raw)->toContain('ep2.');

@@ -12,7 +12,11 @@ use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\InterMix\DI\ContainerBuilder;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-/** @return array{delta_ns:float,percent:float} */
+/**
+ * @param array{median_ns:int|float} $foundation
+ * @param array{median_ns:int|float} $direct
+ * @return array{delta_ns:float,percent:float}
+ */
 function phase9DiTax(array $foundation, array $direct): array
 {
     $delta = $foundation['median_ns'] - $direct['median_ns'];

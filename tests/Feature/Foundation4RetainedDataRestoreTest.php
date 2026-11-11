@@ -177,10 +177,18 @@ it('restores independently created Foundation 4 auth and OAuth state from a veri
             ['f4-oauth-refresh'],
         )[0];
 
+        if (!is_array($savedMfa) || !is_string($savedMfa['metadata'] ?? null)) {
+            throw new \UnexpectedValueException('Restored MFA metadata must be a JSON string.');
+        }
+        $decodedMfa = json_decode($savedMfa['metadata'], true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($decodedMfa)) {
+            throw new \UnexpectedValueException('Restored MFA metadata must decode to an array.');
+        }
+
         expect(password_verify('foundation-4-password', $savedHash))->toBeTrue()
             ->and((int) $savedSession)->toBe($now + 3600)
             ->and($savedFamily)->toBe('f4-family')
-            ->and(json_decode($savedMfa['metadata'], true, flags: JSON_THROW_ON_ERROR)['protected'])->toBe($secret)
+            ->and($decodedMfa['protected'])->toBe($secret)
             ->and((int) $savedMfa['revision'])->toBe(2)
             ->and($savedPasskey['credential_record'])->toBe($credential)
             ->and((int) $savedPasskey['sign_count'])->toBe(4)

@@ -47,9 +47,9 @@ it('uses CacheLayer native claim consume CAS and TTL semantics', function (): vo
     expect($ttl->pull('mfa:challenge:one'))->toBe(['id' => 'one'])
         ->and($ttl->pull('mfa:challenge:one', '__miss__'))->toBe('__miss__');
 
-    expect($atomic?->setIfAbsent('cas-key', 0, 30))->toBeTrue()
-        ->and($atomic?->compareAndSet('cas-key', 0, 1, 30))->toBeTrue()
-        ->and($atomic?->compareAndSet('cas-key', 0, 2, 30))->toBeFalse()
+    expect($atomic->setIfAbsent('cas-key', 0, 30))->toBeTrue()
+        ->and($atomic->compareAndSet('cas-key', 0, 1, 30))->toBeTrue()
+        ->and($atomic->compareAndSet('cas-key', 0, 2, 30))->toBeFalse()
         ->and($cache->get('cas-key'))->toBe(1);
 
     $ttl->put('ttl:expires', 'short-lived', 1);

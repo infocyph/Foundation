@@ -169,6 +169,9 @@ PHP,
         $compiledFile = $cacheDirectory . '/config.php';
         $manifestFile = $cacheDirectory . '/__manifest.php';
         $manifest = require $manifestFile;
+        if (!is_array($manifest)) {
+            throw new \UnexpectedValueException('Compiled configuration manifest must be an array.');
+        }
         $native = new ArrayKitConfig();
 
         expect($native->loadCache($compiledFile))->toBeTrue()

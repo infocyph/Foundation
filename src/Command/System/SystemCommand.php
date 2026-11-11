@@ -35,8 +35,6 @@ abstract class SystemCommand extends Command
             $this->io()->json($data);
         } elseif ($message !== null) {
             $this->io()->writeln($message);
-        } elseif (is_scalar($data) || $data === null) {
-            $this->io()->writeln($data === null ? '' : (string) $data);
         } else {
             $this->io()->json($data);
         }

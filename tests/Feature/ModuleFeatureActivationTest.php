@@ -68,6 +68,9 @@ it('enables only the selected feature and preserves legacy capability policy', f
         $activation = new ModuleActivationManager($app);
         $result = $activation->applyFeatures('enable', ['security.passkey'], featureActivationContext());
         $config = require $result;
+        if (!is_array($config)) {
+            throw new \UnexpectedValueException('Module feature configuration must be an array.');
+        }
 
         expect($result)->toBe($path . '/config/modules.php')
             ->and($config['features'])->toBe(['security.passkey' => true])

@@ -49,6 +49,9 @@ it('accepts a stable throughput change inside the strict 2 percent budget', func
     $candidate['sha'] = str_repeat('c', 40);
 
     $result = Foundation4HostComparison::compare($base, $candidate);
+    if (!is_array($result['cases'] ?? null)) {
+        throw new \UnexpectedValueException('Host comparison cases must be an array.');
+    }
 
     expect($result['passed'])->toBeTrue()
         ->and($result['cases'])->toHaveCount(12)

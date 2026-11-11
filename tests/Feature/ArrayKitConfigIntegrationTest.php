@@ -79,10 +79,15 @@ PHP,
             namespaces: ['0', 'app'],
         );
 
+        $allConfiguration = $repository->get();
+        if (!is_array($allConfiguration)) {
+            throw new \UnexpectedValueException('Lazy configuration root must be an array.');
+        }
+
         expect($repository->lazyNamespaces())->toBe(['0', 'app'])
             ->and($repository->get('0.flags.0'))->toBe('original')
             ->and($repository->get(0))->toBe(['flags' => ['original', 'second']])
-            ->and($repository->get()['app']['name'] ?? null)->toBe('source')
+            ->and($allConfiguration['app']['name'] ?? null)->toBe('source')
             ->and($repository->all())->not->toHaveKey(0);
 
         expect($repository->snapshot('original'))->toBeTrue()

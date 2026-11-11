@@ -13,8 +13,11 @@ it('keeps external runtime and developer requirements in their correct Composer 
     if (!is_array($manifest)) {
         throw new \UnexpectedValueException('Expected a decoded JSON object.');
     }
-    $runtime = $manifest['require'];
-    $development = $manifest['require-dev'];
+    $runtime = $manifest['require'] ?? null;
+    $development = $manifest['require-dev'] ?? null;
+    if (!is_array($runtime) || !is_array($development)) {
+        throw new \UnexpectedValueException('Composer requirements must be arrays.');
+    }
     $features = new ModuleArchitectureCatalog();
 
     expect($runtime['psr/log'] ?? null)->toBe('^3.0.2')

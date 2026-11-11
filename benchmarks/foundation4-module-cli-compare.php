@@ -17,10 +17,6 @@ $candidate = json_decode((string) file_get_contents($argv[2]), true, flags: JSON
 if (!is_array($candidate)) {
     throw new \UnexpectedValueException('Expected a decoded JSON object.');
 }
-if (!is_array($baseline) || !is_array($candidate)) {
-    throw new InvalidArgumentException('Module CLI benchmark reports must be JSON objects.');
-}
-
 $result = FoundationModuleCliComparison::compare($baseline, $candidate);
 $json = json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL;
 if (file_put_contents($argv[3], $json, LOCK_EX) === false) {

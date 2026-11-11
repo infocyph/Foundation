@@ -142,6 +142,9 @@ it('publishes the three-group eight-feature public command inventory in version 
         expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:list'], $io))->toBe(ExitCode::SUCCESS);
 
         $payload = $io->lastPayload();
+        if (!is_array($payload) || !is_array($payload['modules'] ?? null)) {
+            throw new \UnexpectedValueException('Module inventory response requires an array of modules.');
+        }
         expect($payload['schema_version'])->toBe(2)
             ->and(array_column($payload['modules'], 'name'))->toBe(['data', 'security', 'execution'])
             ->and(array_merge(...array_column($payload['modules'], 'features')))->toBe([

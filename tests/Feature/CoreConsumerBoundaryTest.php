@@ -30,9 +30,14 @@ it('keeps core application installation independent of optional Epicrypt', funct
         $path = $manager->install();
         $contents = (string) file_get_contents($path);
 
+        $permissions = fileperms($path);
+        if ($permissions === false) {
+            throw new \RuntimeException('Unable to inspect generated environment file permissions.');
+        }
+
         expect($path)->toBe($project . '/.env')
             ->and($contents)->toMatch('/^AUTH_TOKEN_SECRET=[a-f0-9]{64}$/m')
-            ->and(fileperms($path) & 0777)->toBe(0600);
+            ->and($permissions & 0777)->toBe(0600);
     } finally {
         foundationCoreInstallRemove($project);
     }

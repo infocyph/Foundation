@@ -17,7 +17,8 @@ final class DatabaseSystemCommand extends SystemCommand
         private readonly Application $application,
         private readonly DatabaseMigrationManager $migrations,
         private readonly DBLayerFactory $database,
-    ) {}
+    ) {
+    }
 
     #[\Override]
     protected function handle(): int
@@ -241,7 +242,6 @@ final class DatabaseSystemCommand extends SystemCommand
 
     /**
      * @return list<array<string,mixed>>|null
-     *
      */
     private function recordList(mixed $data): ?array
     {

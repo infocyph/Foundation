@@ -320,8 +320,8 @@ PHP);
             }
 
             $sampleDuration = max(0.000001, (hrtime(true) - $sampleStarted) / 1_000_000_000);
-            $duration = $duration + $sampleDuration;
-            $sampleRpms[] = ((float) $sampleSuccessful / $sampleDuration) * 60.0;
+            $duration += (float) $sampleDuration;
+            $sampleRpms[] = ((float) $sampleSuccessful / (float) $sampleDuration) * 60.0;
             $memoryAfter = memory_get_usage(true);
             $memoryTotal += ((float) $memoryBefore + (float) $memoryAfter) / 2.0 / 1_048_576.0;
             $memoryPeak = max($memoryPeak, (float) memory_get_peak_usage(true) / 1_048_576.0);
@@ -332,7 +332,7 @@ PHP);
         $attempted = $this->operations * $this->repetitions;
         sort($sampleRpms);
         if ($sampleRpms === []) {
-            throw new RuntimeException('Expected at least one representative benchmark repetition.');
+            throw new \RuntimeException('Expected at least one representative benchmark repetition.');
         }
         $medianRpm = $this->percentile($sampleRpms, 0.50) ?? 0.0;
         $spread = $medianRpm > 0.0
@@ -363,7 +363,7 @@ PHP);
                 'error_rate' => $attempted > 0 ? $failed / $attempted : 0.0,
                 'latency_ms' => [
                     'minimum' => $latencies[0] ?? null,
-                    'average' => $latencies === [] ? null : (float) array_sum($latencies) / (float) count($latencies),
+                    'average' => $latencies === [] ? null : array_sum($latencies) / (float) count($latencies),
                     'p50' => $this->percentile($latencies, 0.50),
                     'p95' => $this->percentile($latencies, 0.95),
                     'p99' => $this->percentile($latencies, 0.99),

@@ -124,9 +124,10 @@ it('runs the existing scheduler manager on one trusted generated container with 
             5.0,
         );
         expect($handle)->not->toBeNull();
-        if ($handle !== null) {
-            $locks->release($handle);
+        if ($handle === null) {
+            throw new \RuntimeException('Expected scheduler lock acquisition.');
         }
+        $locks->release($handle);
 
         $scheduler = new SchedulerRuntime($runtime->application);
         $first = $scheduler->execute(

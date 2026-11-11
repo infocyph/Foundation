@@ -161,8 +161,7 @@ final class Foundation4HostUpgradeEvidence
      */
     private static function identity(array $package): array
     {
-        if (!is_array($package)
-            || !is_string($package['name'] ?? null)
+        if (!is_string($package['name'] ?? null)
             || !is_string($package['version'] ?? null)
             || $package['name'] === ''
             || $package['version'] === ''

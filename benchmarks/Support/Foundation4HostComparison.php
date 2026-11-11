@@ -219,7 +219,7 @@ final class Foundation4HostComparison
     /** @param list<float> $values */
     private static function coefficientOfVariation(array $values): float
     {
-        $mean = (float) array_sum($values) / (float) count($values);
+        $mean = array_sum($values) / (float) count($values);
         $variance = 0.0;
         foreach ($values as $value) {
             $variance += ($value - $mean) ** 2;

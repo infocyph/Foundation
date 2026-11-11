@@ -166,8 +166,11 @@ it('manages database-backed CacheLayer schemas through core cache commands', fun
             ->toBe(ExitCode::FAILURE);
 
         $beforePayload = $before->lastPayload();
-        expect($beforePayload)->toBeArray()
-            ->and($beforePayload['schemas'][0]['name'] ?? null)->toBe('cache:store:sqlite')
+        expect($beforePayload)->toBeArray();
+        if (!is_array($beforePayload)) {
+            throw new \UnexpectedValueException('Expected cache schema status payload.');
+        }
+        expect($beforePayload['schemas'][0]['name'] ?? null)->toBe('cache:store:sqlite')
             ->and($beforePayload['schemas'][0]['state'] ?? null)->toBe('pending')
             ->and($beforePayload['schemas'][0]['installed'] ?? null)->toBeFalse();
 
@@ -177,8 +180,11 @@ it('manages database-backed CacheLayer schemas through core cache commands', fun
 
         $installPayload = $install->lastPayload();
         expect($cachePath)->toBeFile()
-            ->and($installPayload)->toBeArray()
-            ->and($installPayload['schemas'][0]['state'] ?? null)->toBe('installed')
+            ->and($installPayload)->toBeArray();
+        if (!is_array($installPayload)) {
+            throw new \UnexpectedValueException('Expected cache schema installation payload.');
+        }
+        expect($installPayload['schemas'][0]['state'] ?? null)->toBe('installed')
             ->and($installPayload['schemas'][0]['installed'] ?? null)->toBeTrue();
 
         $after = new FoundationCacheSchemaCommandIO();

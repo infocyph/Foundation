@@ -251,6 +251,9 @@ it('exposes scoped DBLayer connections while Foundation keeps composition policy
                 static fn(): array => $connection->select('SELECT * FROM users WHERE id = ?', [1]),
             );
             $plan = $connection->explain('SELECT * FROM users WHERE id = ?', [1]);
+            if (!is_array($fetched[0] ?? null)) {
+                throw new \UnexpectedValueException('Expected a database result row.');
+            }
 
             expect($fetched[0]['email'] ?? null)->toBe('ada@example.test')
                 ->and($plan)->not->toBeEmpty()

@@ -25,7 +25,11 @@ function phase9FoundationHttpHandler(): Response
 {
     return Response::json(['ok' => true]);
 }
-/** @return array{delta_ns:float,percent:float} */
+/**
+ * @param array{median_ns:int|float} $foundation
+ * @param array{median_ns:int|float} $direct
+ * @return array{delta_ns:float,percent:float}
+ */
 function phase9HttpTax(array $foundation, array $direct): array
 {
     $delta = $foundation['median_ns'] - $direct['median_ns'];

@@ -327,7 +327,6 @@ final readonly class OAuthClientManager
 
     /**
      * @param array<string, mixed> $metadata
-     * @param string $uri
      */
     private function validRedirectUri(mixed $uri, array $metadata): bool
     {

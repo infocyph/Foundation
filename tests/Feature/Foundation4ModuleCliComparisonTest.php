@@ -28,6 +28,9 @@ it('reports v2 cold/warm CLI deltas without treating a microbenchmark as matched
     $candidate = b7ModuleCliReport(5.5);
     $candidate['source_sha'] = str_repeat('c', 40);
     $result = FoundationModuleCliComparison::compare(b7ModuleCliReport(), $candidate);
+    if (!is_array($result['commands'] ?? null)) {
+        throw new \UnexpectedValueException('Module CLI comparison commands must be an array.');
+    }
 
     expect($result['host_rpm_certified'])->toBeFalse()
         ->and($result['commands'])->toHaveCount(7)
