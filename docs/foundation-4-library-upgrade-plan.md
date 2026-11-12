@@ -1,7 +1,13 @@
 # Foundation 4: latest-library integration and full-library audit plan
 
-Date: 2026-11-12 (Asia/Dhaka). Status: **93/95 implementation criteria checked; exact-head PHP 8.4/8.5 analysis and functional QA pass; primary and confirmation P6 comparisons fail. Batch 170 confirms Pest including TalkingBytes is green, but PHPForge rejects @psalm-api and Pint/Rector find style issues; two public trusted-loaders need propagated JsonException. Batch 171 removes skip tags, resolves strict analysis/docs/style, and requires new full hosted verification; both P6 certifications remain open.**
+Date: 2026-11-12 (Asia/Dhaka). Status: **93/95 implementation criteria checked; exact-head PHP 8.4/8.5 analysis and functional QA pass; primary and confirmation P6 comparisons fail. Batch 171 passes both Psalm/PHPStan analyzer lanes, full Pest, skip scanner and Rector, with only a Pint alphabetical class-property ordering issue in the first completed QA lane. Batch 172 corrects the ordering and requires new exact-head qualification; both P6 certifications remain open.**
 
+
+## Batch 172 — finalize Pint's alphabetical public-property ordering (one commit; hosted QA pending)
+
+- **Exact Batch 171 CI:** [Security & Standards #43171769972](https://github.com/infocyph/Foundation/actions/runs/43171769972) confirms both PHP 8.4 and 8.5 strict analyzer lanes **success** and QA's `Pest`, `Skip Directive Scanner`, `Rector`, syntax, integrity, duplication, PHPCS and Deptrac tasks **passing** in the first completed QA lane. The remaining failed task is `Pint` (`ordered_class_elements`) in `src/Routing/VerifiedManifestStream.php`.
+- **Correct fix:** PHPForge's `ordered_class_elements.sort_algorithm=alpha` compares public property names lexically: `contents` sorts **before** `context` (n < x at the sixth letter). Move the public wrapper `$contents` declaration ahead of `$context`. Keep `$context`'s `resource|null` doc, all code semantics, readonly trusted bytes, stream callback contracts and analyzer configuration unchanged. No extra source/QA files modified.
+- **Qualification:** rerun all PHP 8.4/8.5 QA and static analyzers on this new exact head; source-only sustained P6 comparison and independently locked dependency upgrade P6 are still unreleased blocking gates. No prior version's green jobs can certify this commit. Preserve ignored `composer.lock`, PHPForge `dev-main@dev`, Runwire `^3.0.1`, PR draft/unmerged, no tag/release.
 
 ## Batch 171 — resolve analyzer/formatter/skip-scanner incompatibility without suppressions (one commit; hosted CI pending)
 

@@ -22,12 +22,12 @@ final class VerifiedManifestStream
     /** @var array<string, string> */
     private static array $snapshots = [];
 
-    /** @var resource|null */
-    public mixed $context = null;
-
     // PHP stream callbacks are invoked by the runtime, not a PHP caller.
     // Their public state is confined to this internal wrapper instance.
     public string $contents = '';
+
+    /** @var resource|null */
+    public mixed $context = null;
 
     public int $offset = 0;
 
