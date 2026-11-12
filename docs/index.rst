@@ -22,8 +22,9 @@ without inventing a replacement framework API.
 Start here
 ==========
 
-Read :doc:`start/overview` to understand the framework, then follow
-:doc:`start/installation` and :doc:`start/first-route`.
+Read :doc:`start/overview` to understand the framework, follow
+:doc:`start/installation` and :doc:`start/first-application`, then explore
+the application lifecycle and providers.
 
 .. toctree::
    :caption: Getting started
@@ -31,11 +32,18 @@ Read :doc:`start/overview` to understand the framework, then follow
 
    start/overview
    start/installation
+   start/directory-structure
+   start/configuration
+   start/development-server
    start/first-route
+   start/first-application
 
 .. toctree::
    :caption: Framework & references
    :maxdepth: 2
 
+   architecture/application-lifecycle
+   architecture/request-lifecycle
+   architecture/service-providers
    internals/native-boundaries
    reference/technical-guides

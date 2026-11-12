@@ -37,3 +37,6 @@ To inspect configured routes in a supported application:
 For Foundation 4, verify the selected HTTP runtime, application route
 configuration and compiled-release behavior before upgrading the skeleton.
 Refer to :doc:`../reference/technical-guides` for current branch details.
+
+Follow :doc:`first-application` to see the current skeleton's controller
+and route registration together.

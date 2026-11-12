@@ -39,3 +39,6 @@ Wait for a compatible downstream Infbyte skeleton before using this guide
 as a Foundation 4 application-creation tutorial.
 
 Next, see :doc:`first-route` for the existing skeleton's example route.
+
+Learn the layout in :doc:`directory-structure` and start the development
+server using :doc:`development-server`.

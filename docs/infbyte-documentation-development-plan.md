@@ -46,8 +46,8 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | Batch | Scope | Acceptance criteria | Status |
 | --- | --- | --- | --- |
 | D0 | Plan and review baseline | Plan checked in; constraints and batch gates recorded | **Done** |
-| D1 | Documentation infrastructure | RTD config, Sphinx+RST, Infbyte branding, book theme, coherent initial navigation, preserved Markdown references, reproducible strict docs build | **In progress — hosted validation pending** |
-| D2 | Onboarding and architecture | Foundation-4-aware versioning, guided installation, directory structure, first request, configuration, app/provider lifecycle; examples validated | Pending |
+| D1 | Documentation infrastructure | RTD config, Sphinx+RST, Infbyte branding, book theme, coherent initial navigation, preserved Markdown references, reproducible strict docs build | **Done — hosted Sphinx job passed** |
+| D2 | Onboarding and architecture | Foundation-4-aware versioning, guided installation, directory structure, first request, configuration, app/provider lifecycle; examples validated | **In progress — exact-head CI pending** |
 | D3 | HTTP and security | Focused Webrick routing/middleware/controllers/validation, authentication/authorization and sessions/CSRF guides with explicit modules | Pending |
 | D4 | Data and application services | DBLayer/cache/filesystem/Omnibus/TalkingBytes/notification guides split by developer task; native ownership linked | Pending |
 | D5 | CLI, testing, advanced/runtime and deployment | End-to-end workflows, credible production/host notes, upgrade and troubleshooting guides, complete quality gates | Pending |
@@ -78,7 +78,8 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 | Batch | Commit | Validation/evidence | Notes |
 | --- | --- | --- | --- |
 | D0 | `38c947ef9e3596674bada66ae1271c6549c02145` | Review of PR #20, InterMix docs build, and current Foundation/Infbyte docs | Documented Foundation 3 skeleton vs Foundation 4 pre-release mismatch |
-| D1 | `e3d93150f56d16d9c77c0d6e7e284fb62b93623e`, `b3012c4cf96f13def799e37bbd1f8349e192d427`; corrective commit in progress | Strict Sphinx job 131272199129 reported 33 warnings: 3 RST heading-length errors, 26 orphaned root Markdown files, 4 MyST/lexer warnings. | Fixed root-level Markdown exclusion and RST title-length errors; hosted rerun pending. |
+| D1 | `6df4619ee9e0fd210700eca79060476c4dcbef72` (correction after first D1 commits) | **Success:** strict Sphinx job `131277336677` / workflow `43245447050` | All earlier title, Markdown toctree, cross-reference and highlighting warnings excluded or resolved; engineering guides retained. |
+| D2 | This batch commit | Inspected Foundation 4 factories, Application, provider interfaces/loader, and Infbyte 3 starter sources | Added onboarding, provider, lifecycle guides and PHP 8.4 syntax-check; hosted docs QA still pending. |
 
 ## Known risks / decisions
 
@@ -90,4 +91,4 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 
 ## Immediate next action
 
-Verify D1's strict Sphinx CI build and fix warnings if any; mark D1 Done only after green evidence, then begin D2.
+D1 strict Sphinx CI passed. Verify D2 strict Sphinx build and PHP 8.4 provider example lint, then close D2 and proceed to D3.

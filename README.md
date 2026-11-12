@@ -134,10 +134,12 @@ Operational behavior and safety constraints are documented in
 
 ## Documentation
 
-The [documentation index](docs/README.md) links the focused guides for HTTP,
-authentication, sessions, database, storage, communication, JSON resources,
-logging, testing, security, and the Foundation 4 upgrade path. Configuration templates
-under `resources/config/` are the canonical key-by-key reference.
+The [Infbyte framework manual](docs/index.rst) provides developer-facing
+RST/Sphinx guides, while the [Foundation technical reference](docs/README.md)
+retains detailed implementation guidance. The Infbyte manual currently covers
+**unpublished Foundation 4 development contracts**; the public Infbyte skeleton
+on `main` still targets Foundation 3. Configuration templates under
+`resources/config/` are the canonical key-by-key reference.
 
 ## Verification
 
