@@ -354,6 +354,7 @@ final readonly class WebReleaseRuntime
     /**
      * @return array<string,mixed>
      * @throws \InvalidArgumentException
+     * @throws \JsonException
      * @throws \RuntimeException
      */
     private static function loadTrustedManifest(string $releaseManifestPath, string $trustedSha256): array

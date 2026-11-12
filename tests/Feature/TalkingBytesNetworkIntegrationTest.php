@@ -24,9 +24,11 @@ it('runs configured TalkingBytes HTTP retries, redirects, multipart uploads and 
         throw new RuntimeException('Unable to spawn TalkingBytes loopback peer.');
     }
     fclose($pipes[0]);
+    stream_set_blocking($pipes[2], false);
 
     try {
-        $until = microtime(true) + 4.0;
+        // A slow CI scheduler must not turn a healthy loopback peer into a false failure.
+        $until = microtime(true) + 10.0;
         while (!is_file($ready) && microtime(true) < $until) {
             if (!proc_get_status($process)['running']) {
                 break;
@@ -36,7 +38,9 @@ it('runs configured TalkingBytes HTTP retries, redirects, multipart uploads and 
         $server = is_file($ready) ? json_decode((string) file_get_contents($ready), true) : null;
         $port = is_array($server) ? ($server['port'] ?? null) : null;
         if (!is_int($port) || $port < 1) {
-            throw new RuntimeException('TalkingBytes loopback HTTP server did not become ready.');
+            $diagnostics = trim((string) stream_get_contents($pipes[2]));
+            throw new RuntimeException('TalkingBytes loopback HTTP server did not become ready.'
+                . ($diagnostics === '' ? '' : ' Child stderr: ' . $diagnostics));
         }
         $url = 'http://127.0.0.1:' . $port;
         $profiles = new CommunicationProfiles(new ConfigRepository([

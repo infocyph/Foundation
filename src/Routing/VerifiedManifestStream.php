@@ -15,6 +15,7 @@ use RuntimeException;
  * closes the original manifest path's check/use race.
  *
  * @internal
+ * @psalm-api
  */
 final class VerifiedManifestStream
 {
@@ -61,7 +62,11 @@ final class VerifiedManifestStream
         }
     }
 
-    /** @return bool */
+    /**
+     * PHP invokes this stream-wrapper callback indirectly.
+     * @psalm-api
+     * @return bool
+     */
     public function stream_open(string $path, string $mode, int $options, ?string &$opened_path): bool
     {
         unset($options, $opened_path);
@@ -75,6 +80,7 @@ final class VerifiedManifestStream
         return true;
     }
 
+    /** @psalm-api */
     public function stream_read(int $count): string
     {
         $chunk = substr($this->contents, $this->offset, $count);
@@ -83,16 +89,19 @@ final class VerifiedManifestStream
         return $chunk;
     }
 
+    /** @psalm-api */
     public function stream_eof(): bool
     {
         return $this->offset >= strlen($this->contents);
     }
 
+    /** @psalm-api */
     public function stream_tell(): int
     {
         return $this->offset;
     }
 
+    /** @psalm-api */
     public function stream_seek(int $offset, int $whence = SEEK_SET): bool
     {
         $position = match ($whence) {
@@ -110,13 +119,19 @@ final class VerifiedManifestStream
         return true;
     }
 
-    /** @return array<int|string, int> */
+    /**
+     * @psalm-api
+     * @return array<int|string, int>
+     */
     public function stream_stat(): array
     {
         return self::stat(strlen($this->contents));
     }
 
-    /** @return array<int|string, int>|false */
+    /**
+     * @psalm-api
+     * @return array<int|string, int>|false
+     */
     public function url_stat(string $path, int $flags): array|false
     {
         unset($flags);
@@ -126,6 +141,7 @@ final class VerifiedManifestStream
             : false;
     }
 
+    /** @psalm-api */
     public function stream_set_option(int $option, int $arg1, int $arg2): bool
     {
         unset($option, $arg1, $arg2);
