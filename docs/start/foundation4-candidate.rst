@@ -1,7 +1,7 @@
 .. _foundation-4-candidate:
 
 Foundation 4 candidate: run the Infbyte starter
-==============================================
+===============================================
 
 An **Infbyte 4 development candidate already exists** in the
 Infbyte repository, branch ``feature/infbyte-4``, draft PR #11:
@@ -66,7 +66,7 @@ Review generated files and secrets. Never commit application secrets
 or pass a development trust digest off as a production release.
 
 Inspect real Webrick routes
---------------------------
+---------------------------
 
 The candidate's ``routes/api.php`` contains exactly these source
 registrations:
@@ -107,7 +107,7 @@ The matching application controller implements the handlers:
        }
    }
 
-The route source is explicitly selected by ``config/router.php`.
+The route source is explicitly selected by ``config/router.php``.
 Production Webrick routing is compiled into the trusted generation;
 controllers are not automatically discovered by scanning folders.
 
