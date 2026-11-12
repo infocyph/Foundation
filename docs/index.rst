@@ -131,6 +131,10 @@ the application lifecycle and providers.
    :maxdepth: 2
 
    reference/cli
+   reference/application-api
+   reference/http-security-api
+   reference/console-testing-api
+   reference/configuration
 
 .. toctree::
    :caption: Framework & internals
