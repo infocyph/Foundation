@@ -50,8 +50,8 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D2 | Onboarding and architecture | Foundation-4-aware versioning, guided installation, directory structure, first request, configuration, app/provider lifecycle; examples validated | **Done — strict docs job passed** |
 | D3 | HTTP and security | Focused Webrick routing/middleware/controllers/validation, authentication/authorization and sessions/CSRF guides with explicit modules | **Done — strict docs job passed** |
 | D4 | Data and application services | DBLayer/cache/filesystem/Omnibus/TalkingBytes/notification guides split by developer task; native ownership linked | **Done — strict docs job passed** |
-| D5-A | CLI, scheduling, worker lifecycle and testing | Detailed RST tutorials, real command/schedule contracts, PHP examples and test doubles | **In progress — CI pending** |
-| D5-B | Runtime, production deployment and operations | Production hosting, releases, performance, rollback, readiness and troubleshooting | Pending |
+| D5-A | CLI, scheduling, worker lifecycle and testing | Detailed RST tutorials, real command/schedule contracts, PHP examples and test doubles | **Sphinx + Psalm green; full PHPForge QA running** |
+| D5-B | Runtime, production deployment and operations | Production hosting, releases, performance, rollback, readiness and troubleshooting | **In progress — hosted QA pending** |
 | D6 | Final audit and publication handoff | Navigation/link/example audit, cross-version wording, skeleton compatibility verified, docs preview and publication readiness reviewed | Pending |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
@@ -83,7 +83,8 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 | D2 | `10418cb345d70ac6cf02ba05b7acf200ffecd369` | **Success:** strict Sphinx job `131283174224` / workflow `43247106040`; verified provider contract and source examples | Eight new onboarding, architecture and PHP example files; PHP 8.4 provider syntax check in docs job. |
 | D3 | `1d7ed1b069685f2df9acfe422d611c28ce3d2d29` | **Success:** strict Sphinx job `131286418314` / workflow `43248110945` | Nine RST HTTP/security guides and version-accurate native ownership references. |
 | D4 | `95cbccc171299094d5057a6b026fe7fec328733a` | **Success:** strict Sphinx job `131289281083` / workflow `43248911748` | Eight RST data/service chapters and native ownership links. |
-| D5-A | `9ef4e41ed6faddf9eae7fc2a6b2f8a1743b49625` + follow-up QA fix | Strict Sphinx job `131314992272` **passed**; PHPForge Psalm/PHPCS failed because docs-only `.php` example classes were treated as application source. | Move three PHP examples to syntax-checked `.php.txt` assets without suppressions; new exact-head QA pending. |
+| D5-A | `9ef4e41ed6faddf9eae7fc2a6b2f8a1743b49625`, correction `3bca6676613fe438121f85c68b12e0ce8e93a002` | Sphinx jobs `131314992272` and `131321699842` **passed**; PHPForge analysis PHP 8.4/8.5 succeeded after the fix. | Moved three docs-only examples to PHP-linted `.php.txt` assets; PHPForge QA remains pending as D5-B begins. |
+| D5-B | This batch commit | Created ten RST advanced/runtime/deployment/security/reference guides from current Foundation 4 source | Read the Docs/Sphinx and full workflow evidence pending. |
 
 ## Known risks / decisions
 
@@ -95,4 +96,4 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 
 ## Immediate next action
 
-D1 through D4 and D5-A strict Sphinx builds passed. Verify the D5-A PHPForge regression fix on exact-head CI, then complete D5-B.
+D1 through D4 and D5-A strict Sphinx builds passed. Verify D5-B exact-head Sphinx, code quality, link navigation and workflow status. D6 will audit published compatibility and outstanding downstream Infbyte 4 skeleton readiness.

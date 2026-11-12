@@ -56,6 +56,7 @@ the application lifecycle and providers.
    security/authorization
    security/sessions-csrf
    security/advanced-authentication
+   security/production
 
 .. toctree::
    :caption: Data & storage
@@ -95,7 +96,31 @@ the application lifecycle and providers.
    testing/persistent-runtimes
 
 .. toctree::
-   :caption: Framework & references
+   :caption: Advanced
+   :maxdepth: 2
+
+   advanced/runtime-modes
+   advanced/modules
+   advanced/performance
+
+.. toctree::
+   :caption: Deployment
+   :maxdepth: 2
+
+   deployment/overview
+   deployment/hosting
+   deployment/releases
+   deployment/operations
+   deployment/troubleshooting
+
+.. toctree::
+   :caption: Framework & reference
+   :maxdepth: 2
+
+   reference/cli
+
+.. toctree::
+   :caption: Framework & internals
    :maxdepth: 2
 
    architecture/application-lifecycle
