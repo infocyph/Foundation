@@ -1,4 +1,19 @@
-# Foundation documentation
+# Infbyte documentation
+
+The public-facing framework manual is built with Sphinx from [`index.rst`](index.rst) and published as **Infbyte — PHP Application Framework**.
+
+> **Version status:** the new manual currently targets the *unpublished Foundation 4 development branch*. The Infbyte starter application on its `main` branch still requires Foundation 3. The Foundation 4 onboarding examples must be validated against a compatible Infbyte skeleton before publication.
+
+Build the manual with:
+
+```bash
+python -m pip install -r docs/requirements.txt
+sphinx-build -b html -n -W --keep-going docs docs/_build/html
+```
+
+The legacy Markdown links below remain technical source references during the phased RST conversion. Do not remove them until their content and links are checked and migrated.
+
+## Foundation technical reference
 
 Foundation is the application composition layer for the Infocyph packages. It
 owns application lifecycle and integration policy; standalone libraries retain

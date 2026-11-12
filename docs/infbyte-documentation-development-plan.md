@@ -46,7 +46,7 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | Batch | Scope | Acceptance criteria | Status |
 | --- | --- | --- | --- |
 | D0 | Plan and review baseline | Plan checked in; constraints and batch gates recorded | **Done** |
-| D1 | Documentation infrastructure | RTD config, Sphinx+RST, Infbyte branding, book theme, coherent initial navigation, preserved Markdown references, reproducible strict docs build | **Next** |
+| D1 | Documentation infrastructure | RTD config, Sphinx+RST, Infbyte branding, book theme, coherent initial navigation, preserved Markdown references, reproducible strict docs build | **In progress — hosted validation pending** |
 | D2 | Onboarding and architecture | Foundation-4-aware versioning, guided installation, directory structure, first request, configuration, app/provider lifecycle; examples validated | Pending |
 | D3 | HTTP and security | Focused Webrick routing/middleware/controllers/validation, authentication/authorization and sessions/CSRF guides with explicit modules | Pending |
 | D4 | Data and application services | DBLayer/cache/filesystem/Omnibus/TalkingBytes/notification guides split by developer task; native ownership linked | Pending |
@@ -77,7 +77,8 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 
 | Batch | Commit | Validation/evidence | Notes |
 | --- | --- | --- | --- |
-| D0 | This plan-file commit | Review of PR #20, InterMix docs build, and current Foundation/Infbyte docs | Documented Foundation 3 skeleton vs Foundation 4 pre-release mismatch |
+| D0 | `38c947ef9e3596674bada66ae1271c6549c02145` | Review of PR #20, InterMix docs build, and current Foundation/Infbyte docs | Documented Foundation 3 skeleton vs Foundation 4 pre-release mismatch |
+| D1 | This batch commit | Added strict Sphinx CI job; hosted result pending; local Python Sphinx unavailable in isolated environment | Do not mark complete until docs build passes |
 
 ## Known risks / decisions
 
@@ -89,4 +90,4 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 
 ## Immediate next action
 
-Implement D1 as a single coherent batch commit, then review its CI and update this plan before starting D2.
+Verify D1's strict Sphinx CI build and fix warnings if any; mark D1 Done only after green evidence, then begin D2.
