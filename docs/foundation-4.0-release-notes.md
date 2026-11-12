@@ -72,15 +72,13 @@ current permissions so revocations and account isolation remain effective.
 ## Platform and integration
 
 - 64-bit PHP 8.4 or 8.5, Composer 2.
-- Required Core runtime: ArrayKit `^5.3.2`, CacheLayer `^4.0.2`, InterMix `^11.2.1`, Runwire `^3.0`, UID `^6.0.1`, Webrick `^6.0.4`, and PSR Log (`psr/log`) `^3.0.2`.
+- Required Core runtime: ArrayKit `^5.3.2`, CacheLayer `^4.0.2`, InterMix `^11.2.1`, Runwire `^3.0.1`, UID `^6.0.1`, Webrick `^6.0.4`, and PSR Log (`psr/log`) `^3.0.2`.
 - Optional selected specialists: DBLayer `^6.1.4`, Epicrypt `^3.3`, Omnibus `^3.0.3`, OTP `^7.0.1`, Pathwise `^4.2.1`, ReqShield `^3.3.1`, TalkingBytes `^2.3.1`; passkey feature uses compatible WebAuthn dependencies.
 - The WebAuthn passkey feature requires `web-auth/webauthn-lib` `^5.3.12`; `opis/closure` `^4.5` and PHPForge remain development/engineering dependencies, not required Core runtime packages.
 - Optional transitive compatibility floors exclude PHP 8.4/8.5 implicit-nullability deprecations: Flysystem Local 3.25.1, MIME detection 1.16, PSR HTTP Factory 1.1, PKI Framework 1.6.2, Symfony Clock/PropertyAccess/PropertyInfo/Serializer/UID 6.4.3 (also excluding 7.0.0–7.0.2), and PHP 8.3 polyfill 1.30. Composer applies these conflicts when the package is present; optional feature installation remains explicit.
 - Development and production `--no-dev` configurations build standalone Foundation releases. Infbyte's stable dependency cutover follows actual Foundation 4 publication; application publication is a separate release.
 
-The [current API/compatibility audit](foundation-4-compatibility-audit.md) records
-retired library-major shims separately from retained key rotation, serialized
-message identity and application-owned configuration policy.
+The [migration guide](foundation-4-migration.md#retained-application-and-data-contracts) distinguishes retired library-major APIs from retained key rotation, serialized message identity and application-owned configuration policy.
 
 ## Major-version contract
 
@@ -123,3 +121,13 @@ PHP/extensions, actual supported hosts and exact CI/qualification artifacts.
 Publish only after every applicable release gate passes on the final source and
 dependency set and the operator approves the release. Until then, these notes
 remain unpublished.
+
+## Security and reliability corrections
+
+- Audit metadata redacts credential keys consistently across casing and separators; canonical session/device identities come from verified principal/session evidence.
+- OIDC authentication freshness uses genuine authentication evidence, including the zero-age case; consent approval enforces the same interaction policy as its initial request.
+- Borrowed Runwire cancellation remains active for every lazy download read and for abandoned or truncated streams.
+- Environment-secret staging is private before the first write. Primary command failures remain the reported failure when cleanup also fails.
+- Passwordless redemption consumes shared expiring markers atomically; replay, missing state and store failures fail closed.
+
+These implemented corrections do not replace final source, package, consumer and sustained-host verification.

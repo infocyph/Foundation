@@ -78,3 +78,9 @@ The complete cross-runtime/backend/fork/performance test matrix belongs to the
 dedicated release-verification phase; this guide describes the available test
 composition APIs and intended assertions, not a claim that the release matrix
 has already run.
+
+## Maintainer dependency evidence
+
+The original Foundation 3 source is `fc9b3258646ac744e61fd02e18d9b98e5afff2e8`. Its Composer manifest is authentic; no original lock was tracked or recovered. Historical selected-package resolution is a reconstruction, not the original resolved graph. Keep reconstructed and candidate locks as separate CI artifacts. This repository intentionally ignores its lockfile; application consumers should commit their own application locks.
+
+The November 11 toolchain audit recorded no advisories but failed for abandoned development doctrine/annotations 2.0.2, required by PHPBench 1.7.0. Pest 5.3.5 limited PHPUnit to 13.4.5; Psalm 7.3.0 and danog/advanced-json-rpc 3.2.3 required JsonMapper 5. These are dated upstream constraints, not runtime fixes or current audit certification. Use `composer audit --locked --format=json` and Composer resolution diagnostics for the actual selected graph; do not fake replacements or weaken checks.

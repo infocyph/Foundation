@@ -10,6 +10,7 @@
 build export-ignore
 graphify-out export-ignore
 benchmarks export-ignore
+deptrac.yaml export-ignore
 composer.lock export-ignore
 storage export-ignore
 vendor export-ignore

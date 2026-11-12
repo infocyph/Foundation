@@ -71,7 +71,7 @@ Runwire ownership.
 
 Foundation 4 requires 64-bit PHP 8.4+ and Composer 2. The candidate's direct production
 dependencies are ArrayKit `^5.3.2`, CacheLayer `^4.0.2`, InterMix `^11.2.1`,
-Runwire `^3.0`, UID `^6.0.1`, Webrick `^6.0.4`, and PSR Log `^3.0.2`.
+Runwire `^3.0.1`, UID `^6.0.1`, Webrick `^6.0.4`, and PSR Log `^3.0.2`.
 
 Select only the optional **feature IDs** needed by this application, grouped into the three public modules `data`, `security`, and `execution`. The following packages are installed only for selected features:
 
@@ -96,10 +96,7 @@ published versions are resolvable by Composer/Packagist. In particular,
 Webrick 6.0.4 requires InterMix 11.2.1 and its compiled ABI 3; generate a fresh trusted InterMix/Webrick release from the current 4.0 source. Do not work
 around missing package-index versions with transient dev aliases for release QA.
 
-See [the audited current dependency graph](foundation-4-dependency-qualification.md)
-for exact published commit references, selected platform requirements and
-locked CI evidence; the [compatibility audit](foundation-4-compatibility-audit.md)
-distinguishes removed library-major shims from current application/security policy.
+Use [the module catalog](modules.md) and the application Composer lock for selected package and platform requirements. The [API map](foundation-4-api-map.md) identifies native replacements; the current contracts below distinguish application security/data policy from retired library-major APIs.
 
 ## Explicit runtime and provider ownership
 
@@ -274,7 +271,7 @@ production consumers must first pass the release gates and publish Foundation 4.
    isolated deployment before modifying dependencies.
 2. **Update the application-owned Composer graph.** Require the published
    Foundation 4 stable release and each *selected* optional package directly,
-   using the versions in [the dependency matrix](foundation-4-library-upgrade-plan.md).
+   using the versions in [the selected feature requirements](modules.md).
    Resolve the application's full graph and commit its new lockfile. Do not
    install DBLayer, Omnibus, OTP, Pathwise, ReqShield, Epicrypt or TalkingBytes
    just because a package appears in Foundation's `require-dev`. PHPForge
@@ -339,3 +336,16 @@ php /path/to/Foundation/docs/examples/foundation-4-compiled-release.php
 ```
 
 The smoke builds a disposable trusted SHA-256 generation with native compiled Webrick web routes and CLI/worker/scheduler graphs; it dispatches HTTP and verifies an exact host-owned Runwire worker input. CI executes this through the four **full-optional --no-dev** matrices. It is not a replacement for a real application deployment or retained-data restoration.
+
+## Retained application and data contracts
+
+| Contract | Keep? | Reason |
+| --- | --- | --- |
+| `foundation.omnibus26.durable-message.v1` stored message codec alias | Yes | Persisted durable queue rows written under that alias must remain readable and retryable; this is stored-data identity, not an older Omnibus API. `OmnibusDurableIntegrationTest` verifies it |
+| Signed URL active/fallback key set | Yes | Webrick verifies valid previously issued URLs until expiry; current active key alone signs new links, with terminal rejection of tampered/expired requests |
+| OAuth/JWT old-key verification and issuer/jti/key-purpose policy | Yes | Bounded security key-rotation and token revocation are current public protocols |
+| Explicit MobileOTP legacy import command | Yes | Deliberate, bounded application data-import workflow, not a v6 runtime adapter |
+| `OAuth21BaselineCompatibilityTest` / `OAuth21PrincipalCompatibilityTest` | Yes | Preserve released application token-principal and security-middleware contracts while adopting current OAuth 2.1 services |
+| `app.capabilities` and optional `modules.features` policy | Yes | Intentional Foundation 4 application configuration; explicit feature flags constrain, never grant, capabilities |
+| Webrick direct host adapters distinct from Runwire | Yes | Actual selected host ownership must remain explicit; neither is a fallback for an excluded major |
+| Ordinary PHP/CLI/FPM without live Runwire context | Yes | Required synchronous operation of the current Core runtime, not a compatibility path |

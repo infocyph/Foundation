@@ -136,3 +136,35 @@ The comparison command alone does not certify a release. Perform dedicated produ
 Treat the release as blocked if any selected workload is untested, unstable, materially regresses, or has unbounded resource growth. **Do not relax the 2% budget** or substitute the short shared-runner smoke for matched sustained certification.
 
 After final changes, repeat all required PHP 8.4/8.5 lowest/stable, production `--no-dev`, compiler, release trust, selected specialist and host workloads against the *same immutable Foundation source and resolved dependency set*. Record exact SHA, workflow URL and artifact hashes with the release pull request. Infbyte application publication follows Foundation publication; merging, tags and publication remain operator actions.
+
+## Frozen-lock source replay
+
+Preparation normally resolves current dependencies. To repeat a reviewed source-only graph, provide `replay_run_id` and `replay_lock_sha256` together. The workflow downloads `foundation4-paired-host-locks` from that run in this repository, verifies both captured lock files against the reviewed digest before Composer installation, then uses `composer install`. Missing, malformed or mismatched evidence stops the run; it never resolves a replacement graph. Replay is intentionally restricted to source-only mode.
+
+`candidate_ref` selects an immutable measured source SHA independently of the workflow's tooling revision. The same selected tools and input fixture are overlaid into both source checkouts. Reports record the actual measured source identities and the shared tooling SHA. Keep the workflow dispatch ref stable while collecting evidence.
+
+Example:
+
+```bash
+gh workflow run foundation4-host-certification.yml \
+  --repo infocyph/Foundation --ref feature/foundation-3 \
+  -f candidate_ref=cd4fba90d6e415bbe7af04400c59ff5374be1cac \
+  -f baseline_ref=c220759fcbd6654fead843599712a5b79685f02d \
+  -f comparison_mode=source-only -f host_runner=ubuntu-24.04-arm \
+  -f replay_run_id=43217583759 \
+  -f replay_lock_sha256=fcfff7349f7e19bfd76687ec94184ba508ac573abff84b5c2ccd9cc61444f793
+```
+
+For the unresolved Runwire w1/c50 signal, add `-f diagnostic_case=runwire-w1-c50` to run both order-reversed batches for that case. This mode is explicitly non-certifying: it publishes `foundation4-diagnostic-pair-*` artifacts with a diagnostic-only scope marker, and does not invoke the complete-matrix qualification job. A successful diagnostic run cannot close P6. Ordinary PR certification and the default manual mode still require all 24 pairs and both comparison verdicts.
+
+Each measured trial now records diagnostic snapshots immediately before and after its timed load: CPU counters including steal time, pressure totals, cgroup throttling and I/O counters, available CPU frequencies, PostgreSQL activity, Redis activity, and selected Docker service image IDs/resource gauges. These probes execute outside the load window. Unavailable host counters are explicitly marked; credentials and DSNs are not included in output. Use matching before/after deltas to distinguish application work from host/backend contention. Diagnostic snapshots do not change acceptance calculations or budgets.
+
+## Current qualification evidence
+
+Both sustained performance certifications remain open. The [completed source-only run #43217583759](https://github.com/infocyph/Foundation/actions/runs/43217583759) compared candidate `cd4fba90d6e415bbe7af04400c59ff5374be1cac` with Foundation 4 baseline `c220759fcbd6654fead843599712a5b79685f02d`. All 24 measurement jobs and 240 measured trials completed with zero failed requests. Primary classified 7 pass / 4 high-variance / 1 regression; confirmation classified 9 pass / 3 high-variance / 0 regressions. Both acceptance jobs failed.
+
+The earlier failed scenarios passed both fresh batches: FPM w1/c50 +0.626%/-1.003%, Runwire w4/c1 +0.887%/-1.728%. A new primary Runwire w1/c50 signal (-8.318%, CV 1.316%) was not established by the noisy confirmation (+1.969%, CV 2.788%). Its cause remains unresolved. A Composer HTTP 429 error cleared on retry before the final confirmation comparison. No runtime repair or performance pass is claimed.
+
+[Primary artifact 13947562197](https://github.com/infocyph/Foundation/actions/runs/43217583759/artifacts/13947562197) and [confirmation artifact 13947492490](https://github.com/infocyph/Foundation/actions/runs/43217583759/artifacts/13947492490) retain the full reports and trial evidence. Both sources used lock `fcfff7349f7e19bfd76687ec94184ba508ac573abff84b5c2ccd9cc61444f793`. Compared with [earlier run #43172457224](https://github.com/infocyph/Foundation/actions/runs/43172457224), lock `28ca535ff6f08595a48613384f874a5192dee335188247129d007fd2cb63c263`, only development psalm/plugin-laravel changed 4.19.1 to 4.19.3; all other package references and production entries were unchanged. This fresh run is not an exact old-lock repeat. Earlier primary/confirmation counts were 4/7/1 and 7/4/1 (pass/variance/regression); their two stable negative cases were -2.520% and -2.560%. Keep both attempts' evidence.
+
+Before release, freeze the final source SHA and qualify PHP 8.4/8.5 latest/lowest quality checks, specialist operations, native hosts, the actual Composer archive and isolated production consumers. Source-only and independent-lock dependency-upgrade comparisons are separate requirements; neither substitutes for the other. Merge, tagging, package publication and downstream Infbyte deployment remain manual release decisions.

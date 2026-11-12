@@ -3,9 +3,9 @@
 This guide distinguishes **Foundation 4-native state verification** from the separately required **Foundation 3 → 4 cutover and rollback**. The old source/dependency/data combination and coherent data restore must be qualified before the major release. Current-version-only tests cannot replace historical upgrade evidence.
 
 The selected SQLite/Redis source, state and four-runtime artifact rehearsal
-implementation was completed in the batches recorded below. The
-[canonical tracker](foundation-4-library-upgrade-plan.md#current-implementation-and-maintenance-status)
-now separates this completed implementation from final release verification.
+implementation is covered by the workflow and native integration suites below.
+The [release qualification procedure](foundation-4-host-benchmark-certification.md)
+separates implementation from final release verification.
 The original-lock absence is an accepted policy exception, not a recovered
 lock. Current passwordless links additionally depend on their shared atomic
 auth TTL markers; include that authority in a coordinated application recovery
