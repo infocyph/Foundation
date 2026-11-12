@@ -182,6 +182,8 @@ jobs:
       candidate: ${{ steps.identity.outputs.candidate }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/checkout@v7
         if: inputs.comparison_mode == 'dependency-upgrade'
         with:
@@ -199,9 +201,11 @@ jobs:
           BASELINE_REF: ${{ inputs.baseline_ref || 'c220759fcbd6654fead843599712a5b79685f02d' }}
           COMPARISON_MODE: ${{ inputs.comparison_mode || 'source-only' }}
           UPGRADE_ALLOWLIST: ${{ inputs.upgrade_allowlist_path }}
+          EXPECTED_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           [[ "$BASELINE_REF" =~ ^[a-f0-9]{40}$ ]] || { echo "An immutable baseline SHA is required." >&2; exit 1; }
-          printf 'candidate=%s\n' "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          [[ "$(git rev-parse HEAD)" == "$EXPECTED_CANDIDATE_SHA" ]] || { echo "::error::Candidate checkout differs from the immutable selected source SHA." >&2; exit 1; }
+          printf 'candidate=%s\n' "$EXPECTED_CANDIDATE_SHA" >> "$GITHUB_OUTPUT"
           composer update --no-interaction --no-progress --prefer-dist --prefer-stable
           cp composer.lock candidate.lock
           if [[ "$COMPARISON_MODE" == dependency-upgrade ]]; then
@@ -278,8 +282,17 @@ jobs:
           path: candidate
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.baseline_ref }}
+          ref: ${{ inputs.baseline_ref || 'c220759fcbd6654fead843599712a5b79685f02d' }}
           path: baseline
+      - name: Validate actual paired source checkouts
+        env:
+          BASELINE_SHA: ${{ inputs.baseline_ref || 'c220759fcbd6654fead843599712a5b79685f02d' }}
+          CANDIDATE_SHA: ${{ needs.prepare-paired-host.outputs.candidate }}
+        run: |
+          set -euo pipefail
+          [[ "$BASELINE_SHA" != "$CANDIDATE_SHA" ]] || { echo "::error::Baseline and candidate source SHAs must differ." >&2; exit 1; }
+          [[ "$(git -C baseline rev-parse HEAD)" == "$BASELINE_SHA" ]] || { echo "::error::Baseline checkout does not match its declared source SHA." >&2; exit 1; }
+          [[ "$(git -C candidate rev-parse HEAD)" == "$CANDIDATE_SHA" ]] || { echo "::error::Candidate checkout does not match its declared source SHA." >&2; exit 1; }
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
