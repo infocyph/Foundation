@@ -26,6 +26,7 @@ jobs:
     uses: ./.github/workflows/foundation4-host-certification.yml
     permissions:
       contents: read
+      actions: read
     with:
       certify_source: true
   runtime-hosts:
@@ -33,6 +34,7 @@ jobs:
     uses: ./.github/workflows/foundation4-host-certification.yml
     permissions:
       contents: read
+      actions: read
   phpforge:
     uses: infocyph/phpforge/.github/workflows/security-standards.yml@a6232b6aefcc32b84b2fb94b8db8f5ac3b276d5d
     permissions:

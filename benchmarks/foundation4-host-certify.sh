@@ -406,6 +406,7 @@ for host in "${hosts[@]}"; do
                     echo "$prefix: invalid JSON before load" >&2
                     exit 1
                 }
+                bash "$ROOT/benchmarks/foundation4-host-diagnostics.sh" "$OUTPUT/$prefix.before"
                 start_sampler "$OUTPUT/$prefix.samples.csv"
                 if ! timeout "${LOAD_TIMEOUT_SECONDS}s" "${LOAD_COMMAND[@]}" "$ROOT/benchmarks/foundation4-host-load.php" \
                     "$url$ENDPOINT" "$REQUESTS" "$concurrency" "$OUTPUT/$prefix.load.json" \
@@ -416,6 +417,7 @@ for host in "${hosts[@]}"; do
                 kill "$SAMPLER_PID" 2>/dev/null || true
                 wait "$SAMPLER_PID" 2>/dev/null || true
                 SAMPLER_PID=""
+                bash "$ROOT/benchmarks/foundation4-host-diagnostics.sh" "$OUTPUT/$prefix.after"
                 body="$(curl --silent --show-error --fail --max-time 3 -H "Authorization: $AUTHORIZATION" "$url$ENDPOINT")"
                 [[ "$body" == '{"ok":true}' ]] || {
                     echo "$prefix: invalid JSON after load" >&2
