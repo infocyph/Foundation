@@ -376,29 +376,9 @@ final readonly class WebReleaseRuntime
             throw new \RuntimeException('Foundation web release manifest trust identity mismatch.');
         }
 
-        // Preserve Webrick's native release-schema validation using a private,
-        // short-lived copy. The original path must never be read a second time.
-        $directory = sys_get_temp_dir() . '/foundation-web-trust-' . bin2hex(random_bytes(12));
-        if (!mkdir($directory, 0700)) {
-            throw new \RuntimeException('Unable to stage the trusted Webrick release manifest.');
-        }
-        $privateManifestPath = $directory . '/release.json';
-        $privatePath = $useRuntime
-            ? WebrickReleaseCompiler::runtimeManifestPath($privateManifestPath)
-            : $privateManifestPath;
-
-        try {
-            if (file_put_contents($privatePath, $contents, LOCK_EX) !== strlen($contents)) {
-                throw new \RuntimeException('Unable to write the trusted Webrick manifest copy.');
-            }
-
-            return new ReleaseManifestLoader()->load($privateManifestPath);
-        } finally {
-            if (is_file($privatePath)) {
-                unlink($privatePath);
-            }
-            rmdir($directory);
-        }
+        // Validate Webrick's exact captured bytes; never reopen a mutable
+        // release path or generate PHP files on the per-request FPM hot path.
+        return VerifiedManifestStream::load($contents, $useRuntime);
     }
 
     /**
