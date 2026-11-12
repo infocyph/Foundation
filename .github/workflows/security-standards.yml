@@ -660,6 +660,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          php -l docs/examples/infbyte-clock-provider.php
-          php -l docs/examples/infbyte-report-command.php
-          php -l docs/examples/infbyte-schedule.php
+          php -l docs/examples/infbyte-clock-provider.php.txt
+          php -l docs/examples/infbyte-report-command.php.txt
+          php -l docs/examples/infbyte-schedule.php.txt

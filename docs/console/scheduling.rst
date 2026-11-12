@@ -16,7 +16,7 @@ The file returns a callable that receives
 
 This complete example is CI syntax-checked:
 
-.. literalinclude:: ../examples/infbyte-schedule.php
+.. literalinclude:: ../examples/infbyte-schedule.php.txt
    :language: php
    :linenos:
 

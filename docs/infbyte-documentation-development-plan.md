@@ -83,7 +83,7 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 | D2 | `10418cb345d70ac6cf02ba05b7acf200ffecd369` | **Success:** strict Sphinx job `131283174224` / workflow `43247106040`; verified provider contract and source examples | Eight new onboarding, architecture and PHP example files; PHP 8.4 provider syntax check in docs job. |
 | D3 | `1d7ed1b069685f2df9acfe422d611c28ce3d2d29` | **Success:** strict Sphinx job `131286418314` / workflow `43248110945` | Nine RST HTTP/security guides and version-accurate native ownership references. |
 | D4 | `95cbccc171299094d5057a6b026fe7fec328733a` | **Success:** strict Sphinx job `131289281083` / workflow `43248911748` | Eight RST data/service chapters and native ownership links. |
-| D5-A | This batch commit | Checked current CommandDefinition/Context/IO, ScheduledCommand, WorkerRuntime, TestKit, HttpTestClient, TestResponse and DatabaseTestManager source contracts | Nine detailed CLI/testing guides, two syntax-checkable example files and expanded doc QA; hosted build pending. |
+| D5-A | `9ef4e41ed6faddf9eae7fc2a6b2f8a1743b49625` + follow-up QA fix | Strict Sphinx job `131314992272` **passed**; PHPForge Psalm/PHPCS failed because docs-only `.php` example classes were treated as application source. | Move three PHP examples to syntax-checked `.php.txt` assets without suppressions; new exact-head QA pending. |
 
 ## Known risks / decisions
 
@@ -95,4 +95,4 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 
 ## Immediate next action
 
-D1 through D4 strict Sphinx jobs passed. Verify D5-A exact-head Sphinx build and PHP example lint, then start D5-B.
+D1 through D4 and D5-A strict Sphinx builds passed. Verify the D5-A PHPForge regression fix on exact-head CI, then complete D5-B.

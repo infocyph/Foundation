@@ -17,7 +17,7 @@ Define an application service
 Place this example under
 ``app/Providers/ClockProvider.php`` in a compatible application.
 
-.. literalinclude:: ../examples/infbyte-clock-provider.php
+.. literalinclude:: ../examples/infbyte-clock-provider.php.txt
    :language: php
    :linenos:
 

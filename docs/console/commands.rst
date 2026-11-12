@@ -33,7 +33,7 @@ and instance ``run(CommandContext $context): int``.
 This complete PHP example is maintained in the docs repository and
 syntax-checked in CI:
 
-.. literalinclude:: ../examples/infbyte-report-command.php
+.. literalinclude:: ../examples/infbyte-report-command.php.txt
    :language: php
    :linenos:
 
