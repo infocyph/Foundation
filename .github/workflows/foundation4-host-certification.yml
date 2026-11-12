@@ -325,8 +325,23 @@ jobs:
           cp locked-dependencies/candidate.lock candidate/composer.lock
           cp locked-dependencies/baseline.lock baseline/composer.lock
           cp -a candidate/benchmarks/. baseline/benchmarks/
+          # The shared benchmark harness imports this development-only fixture.
+          # Historical Foundation 4 source predates the fixture; copy tooling,
+          # not application source, and verify autoload before measurements.
+          mkdir -p baseline/tests/Fixtures
+          cp candidate/tests/Fixtures/ProbeInput.php baseline/tests/Fixtures/ProbeInput.php
+          cmp candidate/tests/Fixtures/ProbeInput.php baseline/tests/Fixtures/ProbeInput.php
           composer install --working-dir=candidate --no-interaction --no-progress --prefer-dist
           composer install --working-dir=baseline --no-interaction --no-progress --prefer-dist
+          for variant in candidate baseline; do
+            php -r '
+              require $argv[1] . "/vendor/autoload.php";
+              if (!class_exists(\Infocyph\Foundation\Tests\Fixtures\ProbeInput::class)) {
+                fwrite(STDERR, "Shared benchmark input fixture is unavailable in " . $argv[1] . PHP_EOL);
+                exit(1);
+              }
+            ' "$variant"
+          done
           php <<'PHP'
           <?php
           $pdo = new PDO("pgsql:host=127.0.0.1;dbname=phpforge", "phpforge", "Phpforge_123!");

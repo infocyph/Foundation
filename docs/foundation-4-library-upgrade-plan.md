@@ -1,7 +1,14 @@
 # Foundation 4: latest-library integration and full-library audit plan
 
-Date: 2026-11-12 (Asia/Dhaka). Status: **93/95 implementation criteria checked; exact-head PHP 8.4/8.5 analysis and functional QA pass; primary and confirmation P6 comparisons fail. Batch 167 source identity correction requires new hosted verification; both P6 certifications remain open.**
+Date: 2026-11-12 (Asia/Dhaka). Status: **93/95 implementation criteria checked; exact-head PHP 8.4/8.5 analysis and functional QA pass; primary and confirmation P6 comparisons fail. Batch 167 exact-source checkout exposed a historical-baseline benchmark fixture failure; Batch 168 compatibility correction requires new hosted verification; both P6 certifications remain open.**
 
+
+## Batch 168 — restore shared benchmark fixture for genuine historical-baseline checkout (one commit; new-head QA pending)
+
+- **New failure after Batch 167:** [Security & Standards #43160090141](https://github.com/infocyph/Foundation/actions/runs/43160090141) reaches verified exact baseline/candidate SHA checkouts, then fails multiple source-only paired-host measurement jobs (first observed primary `fpm/1/1`, `fpm/1/10`, `runwire/4/1`) before meaningful throughput measurement: `Class "Infocyph\Foundation\Tests\Fixtures\ProbeInput" not found` at `baseline/benchmarks/Support/BenchmarkSupport.php:89`. Other paired matrix jobs were still running when triaged; do not assume their verdicts.
+- **Root cause:** the existing host workflow installs candidate benchmark tooling into the genuinely historical immutable baseline `c220759fcbd6654fead843599712a5b79685f02d`. That baseline predates `tests/Fixtures/ProbeInput.php`, but modern `BenchmarkSupport::removeDirectory()` requires it. The earlier unpinned baseline checkout inadvertently hid this missing fixture, so the first exact-source run exposes it correctly. This is a **benchmark harness compatibility failure**, not established runtime/P6 performance regression.
+- **Minimal fix:** in the shared tool preparation step, copy the candidate's development-only `tests/Fixtures/ProbeInput.php` into the baseline checkout alongside the existing benchmarks overlay; byte-compare the fixture, install the existing locked Composer graphs and verify both fresh autoloaders resolve the exact fixture class before starting matched-host trials. Do not modify either revision's `src/` runtime implementation or dependency graph, change measurement algorithms, alter CPU isolation or relax the P6 matrix.
+- **Required qualification:** rerun exact-head QA and paired-host measurements after this commit. The preceding failed run is *not* P6 evidence and cannot be counted as the source-only certification. Both source-only and independently locked dependency-upgrade P6 gates remain open at **93/95, P0 25/25**; `composer.lock` ignored, PHPForge `dev-main@dev`, Runwire `^3.0.1`, PR draft/unmerged, no tag or release.
 
 ## Batch 167 — fail closed on the exact compared source SHAs (one commit; hosted QA pending)
 
