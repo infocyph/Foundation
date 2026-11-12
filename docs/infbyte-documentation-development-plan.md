@@ -78,7 +78,7 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 | Batch | Commit | Validation/evidence | Notes |
 | --- | --- | --- | --- |
 | D0 | `38c947ef9e3596674bada66ae1271c6549c02145` | Review of PR #20, InterMix docs build, and current Foundation/Infbyte docs | Documented Foundation 3 skeleton vs Foundation 4 pre-release mismatch |
-| D1 | This batch commit | Added strict Sphinx CI job; hosted result pending; local Python Sphinx unavailable in isolated environment | Do not mark complete until docs build passes |
+| D1 | `e3d93150f56d16d9c77c0d6e7e284fb62b93623e`, `b3012c4cf96f13def799e37bbd1f8349e192d427`; corrective commit in progress | Strict Sphinx job 131272199129 reported 33 warnings: 3 RST heading-length errors, 26 orphaned root Markdown files, 4 MyST/lexer warnings. | Fixed root-level Markdown exclusion and RST title-length errors; hosted rerun pending. |
 
 ## Known risks / decisions
 

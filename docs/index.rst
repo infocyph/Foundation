@@ -1,8 +1,8 @@
 .. _home:
 
-=================================
+===================================
 Infbyte — PHP Application Framework
-=================================
+===================================
 
 Build PHP applications on Foundation's explicit lifecycle, native libraries,
 and lightweight application skeleton.

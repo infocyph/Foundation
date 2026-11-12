@@ -1,8 +1,8 @@
 .. _technical-guides:
 
-==========================
+===========================
 Foundation technical guides
-==========================
+===========================
 
 The existing technical Markdown guides are intentionally preserved in the
 Foundation repository while the Infbyte RST manual is developed.

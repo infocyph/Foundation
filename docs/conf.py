@@ -28,7 +28,7 @@ lexers["php"] = PhpLexer(startinline=True)
 
 # Legacy engineering Markdown remains available in GitHub, and will be migrated
 # one verified chapter at a time. This avoids publishing orphan pages.
-exclude_patterns = ["_build", "**/*.md"]
+exclude_patterns = ["_build", "*.md", "**/*.md"]
 html_theme = "sphinx_book_theme"
 html_title = "Infbyte — PHP Application Framework"
 html_theme_options = {

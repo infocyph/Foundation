@@ -1,8 +1,8 @@
 .. _installation:
 
-===========================
+============================
 Installation & prerequisites
-===========================
+============================
 
 Infbyte requires PHP 8.4 or newer and Composer 2. The PHP extensions and
 external services needed depend on which optional capabilities are enabled.
