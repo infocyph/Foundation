@@ -39,6 +39,15 @@ the application lifecycle and providers.
    start/first-application
 
 .. toctree::
+   :caption: Step-by-step tutorials
+   :maxdepth: 2
+
+   tutorials/validate-an-api-request
+   tutorials/secure-browser-session
+   tutorials/database-migrations
+   tutorials/durable-queue
+
+.. toctree::
    :caption: HTTP development
    :maxdepth: 2
 

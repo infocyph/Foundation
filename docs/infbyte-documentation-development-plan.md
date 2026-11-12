@@ -53,6 +53,7 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D5-A | CLI, scheduling, worker lifecycle and testing | Detailed RST tutorials, real command/schedule contracts, PHP examples and test doubles | **Done — documented PHP fixed, full QA subsequently passed** |
 | D5-B | Runtime, production deployment and operations | Production hosting, releases, performance, rollback, readiness and troubleshooting | **Done — Sphinx, Psalm and PHPForge QA passed** |
 | D6 | Final audit and publication handoff | Navigation/link/example audit, cross-version wording, skeleton compatibility verified, docs preview and publication readiness reviewed | **Docs QA passed; blocked on external compatibility/publication gates** |
+| D7-A | Detailed application tutorials | Four source-verified, task-oriented, cross-linked tutorials: validation, browser sessions, migrations, durable queues; strict Sphinx/PHP lint | **In progress — exact-head QA pending** |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
 
@@ -86,6 +87,7 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 | D5-A | `9ef4e41ed6faddf9eae7fc2a6b2f8a1743b49625`, correction `3bca6676613fe438121f85c68b12e0ce8e93a002` | Sphinx jobs `131314992272` and `131321699842` **passed**; follow-up full PHPForge analysis/QA matrix verified on D5-B SHA. | Three docs-only PHP examples converted to linted `.php.txt` assets; no analyzer suppressions. |
 | D5-B | `1e138ff22f725a9cdf16177fb609061e851e5639` | **Success:** strict Sphinx `131324845876`; PHPForge analysis `131324970467`, `131324970504`; QA `131324970470`, `131324970488`, `131324970560`, `131324970578` (PHP 8.4/8.5, both dependency policies) | Ten detailed runtime/deployment/security/reference guides; no failed jobs in verified matrix. |
 | D6 | `f84e46be9c4109a6fdf4d0ebb773d7d6224e78ea` | **Success:** strict Sphinx and PHP 8.4 examples + full RST PHP-block lint, job `131329749069` / workflow `43260300927` | Maintainer guide and automatic complete-PHP syntax audit landed; externally hosted RTD and compatible Infbyte 4 skeleton not yet verified. |
+| D7-A | This batch commit | Four new thorough RST tutorials (step-by-step, production/security gotchas, negative cases, real public API snippets), PHP block lint expected from existing docs CI | Do not mark complete before current-head Sphinx/PHP QA succeeds. |
 
 ## Known risks / decisions
 
@@ -95,6 +97,13 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 - **Read the Docs:** A local Sphinx build validates output but is not proof that the hosted project is connected or published.
 - **Release readiness:** PR #20 has separate unfulfilled sustained host-qualification gates. Do not mark the framework as released based on docs CI.
 
+## Detailed tutorial expansion (D7)
+
+D6's *internal* documentation gates passed, but publication still depends on a released compatible skeleton and externally hosted version. D7 adds instructional depth without altering those release gates.
+
+- D7-A: four complete workflow tutorials with decision points, exact native ownership, source-grounded code snippets, safety constraints, integration-test expectations and failure diagnoses.
+- D7-B: deepen core HTTP/auth/data pages with cross-linked examples and an API/feature truth audit, prioritizing practical workflow gaps discovered during D7-A.
+
 ## Immediate next action
 
-D1 through D6 documentation/Sphinx validation has passed; D5-B PHPForge analysis and QA were green. Keep D6 as **externally blocked** until the compatible Infbyte 4 skeleton, released Foundation 4 contract, hosted Read the Docs project/version and Foundation release qualification have been verified. Do not merge, tag or publish from this tracker alone.
+Verify D7-A strict Sphinx and full-PHP-block lint on its **exact commit**, address any warnings as part of the same documentation effort, then proceed to D7-B. D6 publication remains **externally blocked** until the compatible Infbyte 4 skeleton, released Foundation 4 contract, hosted Read the Docs project/version and Foundation release qualification have been verified. Do not merge, tag or publish from this tracker alone.
