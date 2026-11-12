@@ -92,6 +92,7 @@ final readonly class WebReleaseRuntime
      * @param array<string, mixed> $config
      * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
      * @throws \InvalidArgumentException
+     * @throws \JsonException
      * @throws \LogicException
      * @throws \RuntimeException
      */
@@ -112,6 +113,7 @@ final readonly class WebReleaseRuntime
      *
      * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
      * @throws \InvalidArgumentException
+     * @throws \JsonException
      * @throws \LogicException
      * @throws \RuntimeException
      */

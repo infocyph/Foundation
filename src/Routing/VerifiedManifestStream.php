@@ -8,36 +8,34 @@ use Infocyph\Webrick\Router\Build\ReleaseManifestLoader;
 use RuntimeException;
 
 /**
- * One-shot read-only stream over a previously SHA-256-verified release manifest.
- *
- * Webrick still validates the manifest through its native loader. The stream
- * avoids writing and compiling a fresh PHP file on every FPM request, and
- * closes the original manifest path's check/use race.
+ * Read-only, short-lived stream over previously SHA-256-verified manifest bytes.
+ * Webrick validates these exact bytes without request-time temporary PHP files.
  *
  * @internal
- * @psalm-api
  */
 final class VerifiedManifestStream
 {
     private const string SCHEME = 'foundation-verified-manifest';
 
+    private static bool $registered = false;
+
     /** @var array<string, string> */
     private static array $snapshots = [];
-
-    private static bool $registered = false;
 
     /** @var resource|null */
     public mixed $context = null;
 
-    private string $contents = '';
+    // PHP stream callbacks are invoked by the runtime, not a PHP caller.
+    // Their public state is confined to this internal wrapper instance.
+    public string $contents = '';
 
-    private int $offset = 0;
+    public int $offset = 0;
 
     /**
      * @return array<string, mixed>
+     * @throws \JsonException
      * @throws RuntimeException
      * @throws \UnexpectedValueException
-     * @throws \JsonException
      */
     public static function load(string $verifiedBytes, bool $runtimePhp): array
     {
@@ -62,11 +60,23 @@ final class VerifiedManifestStream
         }
     }
 
-    /**
-     * PHP invokes this stream-wrapper callback indirectly.
-     * @psalm-api
-     * @return bool
-     */
+    /** @return array<int|string, int> */
+    public static function stat(int $size): array
+    {
+        return [
+            0 => 0, 1 => 0, 2 => 0100444, 3 => 1, 4 => 0, 5 => 0, 6 => 0, 7 => $size,
+            8 => 0, 9 => 0, 10 => 0, 11 => 4096, 12 => 1,
+            'dev' => 0, 'ino' => 0, 'mode' => 0100444, 'nlink' => 1, 'uid' => 0,
+            'gid' => 0, 'rdev' => 0, 'size' => $size, 'atime' => 0, 'mtime' => 0,
+            'ctime' => 0, 'blksize' => 4096, 'blocks' => 1,
+        ];
+    }
+
+    public function stream_eof(): bool
+    {
+        return $this->offset >= strlen($this->contents);
+    }
+
     public function stream_open(string $path, string $mode, int $options, ?string &$opened_path): bool
     {
         unset($options, $opened_path);
@@ -80,7 +90,6 @@ final class VerifiedManifestStream
         return true;
     }
 
-    /** @psalm-api */
     public function stream_read(int $count): string
     {
         $chunk = substr($this->contents, $this->offset, $count);
@@ -89,19 +98,6 @@ final class VerifiedManifestStream
         return $chunk;
     }
 
-    /** @psalm-api */
-    public function stream_eof(): bool
-    {
-        return $this->offset >= strlen($this->contents);
-    }
-
-    /** @psalm-api */
-    public function stream_tell(): int
-    {
-        return $this->offset;
-    }
-
-    /** @psalm-api */
     public function stream_seek(int $offset, int $whence = SEEK_SET): bool
     {
         $position = match ($whence) {
@@ -119,29 +115,6 @@ final class VerifiedManifestStream
         return true;
     }
 
-    /**
-     * @psalm-api
-     * @return array<int|string, int>
-     */
-    public function stream_stat(): array
-    {
-        return self::stat(strlen($this->contents));
-    }
-
-    /**
-     * @psalm-api
-     * @return array<int|string, int>|false
-     */
-    public function url_stat(string $path, int $flags): array|false
-    {
-        unset($flags);
-
-        return isset(self::$snapshots[$path])
-            ? self::stat(strlen(self::$snapshots[$path]))
-            : false;
-    }
-
-    /** @psalm-api */
     public function stream_set_option(int $option, int $arg1, int $arg2): bool
     {
         unset($option, $arg1, $arg2);
@@ -150,14 +123,23 @@ final class VerifiedManifestStream
     }
 
     /** @return array<int|string, int> */
-    private static function stat(int $size): array
+    public function stream_stat(): array
     {
-        return [
-            0 => 0, 1 => 0, 2 => 0100444, 3 => 1, 4 => 0, 5 => 0, 6 => 0, 7 => $size,
-            8 => 0, 9 => 0, 10 => 0, 11 => 4096, 12 => 1,
-            'dev' => 0, 'ino' => 0, 'mode' => 0100444, 'nlink' => 1, 'uid' => 0,
-            'gid' => 0, 'rdev' => 0, 'size' => $size, 'atime' => 0, 'mtime' => 0,
-            'ctime' => 0, 'blksize' => 4096, 'blocks' => 1,
-        ];
+        return self::stat(strlen($this->contents));
+    }
+
+    public function stream_tell(): int
+    {
+        return $this->offset;
+    }
+
+    /** @return array<int|string, int>|false */
+    public function url_stat(string $path, int $flags): array|false
+    {
+        unset($flags);
+
+        return isset(self::$snapshots[$path])
+            ? self::stat(strlen(self::$snapshots[$path]))
+            : false;
     }
 }
