@@ -91,6 +91,30 @@ it('persists session data and expires flash data after its next request', functi
         ->and($first->getHeaderLine('Set-Cookie'))->toContain('Secure', 'HttpOnly', 'SameSite=Lax');
 });
 
+it('preserves mixed session values across requests without narrowing them to observed samples', function (): void {
+    [$middleware] = browserSessionStack();
+    $values = ['disabled' => false, 'missing' => null, 'ratio' => 1.25, 'negative' => -7, 'nested' => [false, null]];
+    $first = $middleware(
+        Request::fake(headers: ['Host' => 'example.test'], uri: 'https://example.test/write'),
+        static function (Request $request) use ($values): Response {
+            $session = BrowserSession::fromRequest($request);
+            foreach ($values as $key => $value) {
+                $session->put($key, $value);
+            }
+            $session->flash('mixed_flash', false);
+
+            return Response::json([]);
+        },
+    );
+    $second = $middleware(
+        Request::fake(headers: ['Host' => 'example.test'], uri: 'https://example.test/read')
+            ->withCookieParams(['infbyte_session' => browserSessionCookieId($first)]),
+        static fn(Request $request): Response => Response::json(BrowserSession::fromRequest($request)->all()),
+    );
+
+    expect(browserSessionJson($second))->toBe([...$values, 'mixed_flash' => false]);
+});
+
 it('finalizes abandoned browser sessions when their native request scope is discarded', function (): void {
     [, $manager, , , $container] = browserSessionStack();
 

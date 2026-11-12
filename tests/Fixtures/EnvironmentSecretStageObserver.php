@@ -18,6 +18,8 @@ final class EnvironmentSecretStageObserver
 
     /**
      * @throws \RuntimeException
+     *
+     * @param resource $stream
      */
     public static function inspect(mixed $stream): void
     {
@@ -25,9 +27,6 @@ final class EnvironmentSecretStageObserver
             return;
         }
 
-        if (!is_resource($stream)) {
-            throw new RuntimeException('Environment stage observer requires an open stream.');
-        }
         $details = stream_get_meta_data($stream);
         if (!str_ends_with($details['uri'] ?? '', '.tmp')) {
             return;

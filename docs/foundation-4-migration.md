@@ -39,6 +39,34 @@ graphs retain their native cache, storage, auth and OAuth application services
 without registering or loading those HTTP adapters. Each operation initializes
 only the backends it actually uses.
 
+## Typed command and authentication state boundaries
+
+Command output uses `CommandIO::json(array $value)` and the matching
+`TerminalIO` signature. Pass an object/map or list as a PHP array; wrap a
+standalone scalar or object in a result field. Nested values keep native JSON
+encoding behavior. Custom command IO implementations may accept the same array
+contract or a wider parameter type.
+
+Authentication TTL stores accept arrays, scalar values and null for `put()` and
+`get()` defaults. `TtlStoreInterface`, `ArrayTtlStore` and `CacheLayerTtlStore`
+share that native union. Custom stores must accept this complete domain;
+boolean passwordless/MFA markers and integer step-up timestamps are retained.
+Direct object/resource inputs are outside this authentication-state contract.
+The atomic `pull(string $key, ?string $default = null): mixed` contract is
+unchanged.
+
+JSON success envelopes and JSON-path expectations accept array, scalar, object
+and null values through explicit native unions. `JsonResource`, resource
+collections and other JSON-serializable objects retain their transformations.
+Browser-session values retain their mixed boundary and the selected store's
+persistence behavior.
+
+Development CLI fixtures read server metadata through
+`ProbeInput::fromServer($_SERVER)`. That boundary validates raw values before
+calling `arguments(array|string|null)`, which returns a list of strings or
+throws an argument validation exception. It does not change runtime hosting or
+Runwire ownership.
+
 ## Version and package requirements
 
 Foundation 4 requires 64-bit PHP 8.4+ and Composer 2. The candidate's direct production

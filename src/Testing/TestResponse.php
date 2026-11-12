@@ -52,9 +52,12 @@ final readonly class TestResponse
     }
 
     /**
+     * Compare strictly so an incompatible expectation is an assertion failure.
+     *
+     * @param array<array-key, mixed>|string|int|float|bool|object|null $expected
      * @throws \RuntimeException
      */
-    public function assertJsonPath(string $path, mixed $expected): self
+    public function assertJsonPath(string $path, array|string|int|float|bool|object|null $expected): self
     {
         $value = $this->json();
         foreach (explode('.', $path) as $segment) {

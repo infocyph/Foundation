@@ -281,7 +281,7 @@ final readonly class OAuthClientManager
     }
 
     /**
-     * @param list<string> $redirectUris
+     * @param list<mixed> $redirectUris
      * @param array<string, mixed> $metadata
      * @return list<string>
      * @throws \InvalidArgumentException
@@ -294,7 +294,7 @@ final readonly class OAuthClientManager
 
         $normalized = [];
         foreach ($redirectUris as $uri) {
-            if (!$this->validRedirectUri($uri, $metadata) || isset($normalized[$uri])) {
+            if (!is_string($uri) || !$this->validRedirectUri($uri, $metadata) || isset($normalized[$uri])) {
                 throw new \InvalidArgumentException('OAuth redirect URI policy is invalid.');
             }
             $normalized[$uri] = true;
@@ -328,9 +328,9 @@ final readonly class OAuthClientManager
     /**
      * @param array<string, mixed> $metadata
      */
-    private function validRedirectUri(mixed $uri, array $metadata): bool
+    private function validRedirectUri(string $uri, array $metadata): bool
     {
-        if (!is_string($uri) || $uri === '' || strlen($uri) > 2048 || str_contains($uri, '*')) {
+        if ($uri === '' || strlen($uri) > 2048 || str_contains($uri, '*')) {
             return false;
         }
         $parts = parse_url($uri);

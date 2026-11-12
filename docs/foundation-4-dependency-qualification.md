@@ -11,13 +11,13 @@ under P1/P6.
 
 ## Current maintenance disposition
 
-2026-11-11 local CI qualification, based on source `365425bc` plus uncommitted remediation:
+2026-11-12 update review, based on source `9603a1ee` plus uncommitted contract repairs:
 
-- Full `composer ic:ci`: **exit 0, 13/13 checks pass**, including PHPStan, Psalm and the complete functional suite. See the [canonical implementation tracker](foundation-4-library-upgrade-plan.md) for scope, evidence and the remaining release boundary.
-- Current installed graph: **172 packages**, lock SHA256 `51cabd616ef81d302607e336cb9aed2ea1bcb43b49a18df94d3ccbb10e1ba6b7`. Composer normalization changed only manifest/lock metadata; all package versions and source/dist references were compared before/after and remain identical.
+- Full `composer ic:ci`: **exit 0, 13/13 checks pass**, including the **1,023-test** functional suite, PHPStan and Psalm. The maintainer's native type changes are integrated through owning interfaces and caller validation. See the [canonical implementation tracker](foundation-4-library-upgrade-plan.md) for scope, evidence and the remaining release boundary.
+- Current installed graph: **172 packages**, lock SHA256 `7ee8352f3aae7d7a94c416310826300c5d91bded588cdeaa46698f22aa772e1f`. The reviewed sanitizer policy changed only manifest/lock metadata; all package versions and source/dist references were compared before/after and remain identical.
 - Installed Runwire **3.0.1**, source `be84df6bc599798f4407df1ef5beb23afd5ceb3e`; required floor remains `^3.0.1`.
 - Installed PHPForge **dev-main**, source `ba2ffc3ba608207129883187e57c56c20e112ad4`; its existing `dev-main@dev` requirement is unchanged.
-- Current `composer audit --locked --format=json`: **zero advisories**, one abandoned package, **exit 1**. The failed audit status is attributable to abandonment and is kept separate from the passing thirteen-task `ic:ci` suite.
+- Latest dependency audit (2026-11-11), `composer audit --locked --format=json`: **zero advisories**, one abandoned package, **exit 1**. The failed audit status is attributable to abandonment and is kept separate from local source-check results; this dependency audit was not repeated on 2026-11-12.
 - This task repaired CI against the installed graph. A latest-published-version survey and exact-commit hosted/consumer qualification were not repeated; historical latest-version claims below do not become current claims by implication. `composer.lock` remains gitignored.
 
 | Tracker | Current external maintenance item | Verified installed owner/constraint | Disposition |

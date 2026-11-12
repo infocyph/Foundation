@@ -24,8 +24,9 @@ final class ArrayTtlStore implements TtlStoreInterface
         unset($this->items[$key]);
     }
 
+    /** @param array<array-key, mixed>|string|float|int|bool|null $default */
     #[\Override]
-    public function get(string $key, mixed $default = null): mixed
+    public function get(string $key, array|string|float|int|bool|null $default = null): mixed
     {
         $item = $this->items[$key] ?? null;
 
@@ -45,8 +46,9 @@ final class ArrayTtlStore implements TtlStoreInterface
         return $value;
     }
 
+    /** @param array<array-key, mixed>|string|float|int|bool|null $value */
     #[\Override]
-    public function put(string $key, mixed $value, int $ttlSeconds): void
+    public function put(string $key, array|string|float|int|bool|null $value, int $ttlSeconds): void
     {
         $this->items[$key] = [
             'value' => $value,

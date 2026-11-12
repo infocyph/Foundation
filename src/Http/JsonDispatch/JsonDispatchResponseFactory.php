@@ -127,10 +127,13 @@ final readonly class JsonDispatchResponseFactory
     }
 
     /**
+     * Resources and JSON-serializable objects are resolved before rendering.
+     *
+     * @param array<array-key, mixed>|string|int|float|bool|object|null $data
      * @throws \InvalidArgumentException
      */
     public function success(
-        mixed $data = null,
+        array|string|int|float|bool|object|null $data = null,
         int $status = 200,
         ?string $message = null,
     ): Response {
@@ -150,7 +153,8 @@ final readonly class JsonDispatchResponseFactory
         return sprintf('application/vnd.%s.jd.v3+json; charset=utf-8', $this->vendor);
     }
 
-    private function normalize(mixed $value): mixed
+    /** @param array<array-key, mixed>|string|int|float|bool|object|null $value */
+    private function normalize(array|string|int|float|bool|object|null $value): mixed
     {
         if ($value instanceof JsonResource) {
             return $value->resolve();

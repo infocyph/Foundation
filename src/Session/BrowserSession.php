@@ -133,9 +133,7 @@ final class BrowserSession
      * @throws \LogicException
      * @throws \RuntimeException
      *
-     * @param array|string $value
-     *
-     * @psalm-param 'saved'|array<string, mixed> $value
+     * @param mixed $value Flash data follows the same value contract as persistent session state.
      */
     public function flash(string $key, mixed $value): void
     {
@@ -267,9 +265,13 @@ final class BrowserSession
     }
 
     /**
+     * Values retain their types; persistence follows the selected session store.
+     *
      * @throws \InvalidArgumentException
      * @throws \LogicException
      * @throws \RuntimeException
+     *
+     * @param mixed $value Session state is encoded by the selected store at persistence.
      */
     public function put(string $key, mixed $value): void
     {

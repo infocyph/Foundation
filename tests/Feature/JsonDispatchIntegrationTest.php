@@ -25,6 +25,8 @@ it('emits JsonDispatch 3 success envelopes and resource transformations', functi
         }
     };
 
+    (new TestResponse($factory->success($resource)))->assertJsonPath('data', ['id' => 7]);
+
     $response = new TestResponse($factory->success(
         new ResourceCollection([$resource], static fn(mixed $item): mixed => $item),
         message: 'Ready',
@@ -144,4 +146,17 @@ it('preserves the public mixed JSON success and JSON-path assertion contracts', 
         $response = new TestResponse($factory->success($value));
         expect($response->assertJsonPath('data', $value))->toBe($response);
     }
+
+    $serializable = new class implements JsonSerializable {
+        #[\Override]
+        public function jsonSerialize(): mixed
+        {
+            return ['id' => 13];
+        }
+    };
+    (new TestResponse($factory->success($serializable)))->assertJsonPath('data', ['id' => 13]);
+    $object = (object) ['id' => 17];
+    $response = new TestResponse($factory->success($object));
+    $response->assertJsonPath('data', ['id' => 17]);
+    expect(fn() => $response->assertJsonPath('data', $object))->toThrow(RuntimeException::class);
 });

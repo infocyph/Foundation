@@ -46,13 +46,10 @@ final class FoundationEnvironmentStorageIO implements CommandIO
         return false;
     }
 
-    /** @throws \UnexpectedValueException */
+    /** @param array<array-key, mixed> $value */
     #[\Override]
-    public function json(mixed $value): void
+    public function json(array $value): void
     {
-        if (!is_array($value)) {
-            throw new \UnexpectedValueException('Environment command output must be a JSON object.');
-        }
         $this->json[] = $value;
     }
 

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../tests/Fixtures/ProbeInput.php';
-$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::arguments($_SERVER['argv'] ?? []);
+$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::fromServer($_SERVER);
 
 if (count($argv) !== 5) {
     throw new InvalidArgumentException('Usage: php foundation4-host-load.php URL REQUESTS CONCURRENCY OUTPUT');

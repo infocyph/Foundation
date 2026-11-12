@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/ProbeInput.php';
-$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::arguments($_SERVER['argv'] ?? []);
+$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::fromServer($_SERVER);
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
 

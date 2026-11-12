@@ -26,6 +26,15 @@ it('aligns nullable string pull defaults across memory and atomic TTL stores', f
         $store->put('payload', ['id' => 'one'], 30);
         expect($store->pull('payload', '__miss__'))->toBe(['id' => 'one'])
             ->and($store->pull('payload', '__miss__'))->toBe('__miss__');
+
+        foreach ([false, true, 1.25, -7, null, ['nested' => [false, 1.25]]] as $value) {
+            $store->put('mixed-payload', $value, 30);
+            expect($store->get('mixed-payload'))->toBe($value)
+                ->and($store->pull('mixed-payload'))->toBe($value);
+        }
+        foreach ([false, 1.25, -7, ['absent' => true]] as $default) {
+            expect($store->get('absent', $default))->toBe($default);
+        }
     }
 });
 

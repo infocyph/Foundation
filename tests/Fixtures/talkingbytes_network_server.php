@@ -7,7 +7,7 @@ declare(strict_types=1);
  * No production code, external network or HTTP fixture substitution involved.
  */
 require_once __DIR__ . '/ProbeInput.php';
-$arguments = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::arguments($_SERVER['argv'] ?? []);
+$arguments = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::fromServer($_SERVER);
 $readyPath = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::path($arguments[1] ?? '');
 if ($readyPath === '') {
     throw new RuntimeException('Missing TalkingBytes HTTP fixture handshake path.');

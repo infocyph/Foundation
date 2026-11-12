@@ -46,12 +46,16 @@ final readonly class CacheLayerTtlStore implements TtlStoreInterface
     }
 
     /**
+     * The caller's default passes through unchanged when the key is absent.
+     *
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     *
+     * @param array<array-key, mixed>|string|float|int|bool|null $default
      */
     #[\Override]
-    public function get(string $key, mixed $default = null): mixed
+    public function get(string $key, array|string|float|int|bool|null $default = null): mixed
     {
         return $this->cache->get($this->key($key), $default);
     }
@@ -67,13 +71,17 @@ final readonly class CacheLayerTtlStore implements TtlStoreInterface
     }
 
     /**
+     * Authentication state uses array, scalar, or null values.
+     *
      * @throws \InvalidArgumentException
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
      * @throws \LogicException
+     *
+     * @param array<array-key, mixed>|string|float|int|bool|null $value
      */
     #[\Override]
-    public function put(string $key, mixed $value, int $ttlSeconds): void
+    public function put(string $key, array|string|float|int|bool|null $value, int $ttlSeconds): void
     {
         if ($ttlSeconds < 1) {
             throw new \InvalidArgumentException('Foundation auth TTL must be at least one second.');

@@ -99,7 +99,7 @@
                         "reason": "Canonical local workspace paths and reconstructed loopback HTTP URLs reject remote wrappers, traversal, symlink escapes and file URI selection.",
                         "security": {
                             "sanitizer": "tests/Fixtures/ProbeInput.php",
-                            "sha256": "4889f5cec4ffa08c01d13348c2c7c3029b8573af46b31a3dc218a601aac0c6f6",
+                            "sha256": "5469a5fe8820559bd624098850a9f283c512f1b6783c5232f60ec00342da8cd8",
                             "tests": [
                                 "tests/Feature/ProbeInputTest.php"
                             ]
@@ -114,7 +114,7 @@
                         "reason": "Local path authorities and fixed 127.0.0.1 HTTP endpoints reject remote hosts, credentials, queries and fragments.",
                         "security": {
                             "sanitizer": "tests/Fixtures/ProbeInput.php",
-                            "sha256": "4889f5cec4ffa08c01d13348c2c7c3029b8573af46b31a3dc218a601aac0c6f6",
+                            "sha256": "5469a5fe8820559bd624098850a9f283c512f1b6783c5232f60ec00342da8cd8",
                             "tests": [
                                 "tests/Feature/ProbeInputTest.php"
                             ]
@@ -129,7 +129,7 @@
                         "reason": "Canonical local paths and rebuilt loopback endpoints reject URL controls; ports are native validated integers and endpoint paths are a finite set.",
                         "security": {
                             "sanitizer": "tests/Fixtures/ProbeInput.php",
-                            "sha256": "4889f5cec4ffa08c01d13348c2c7c3029b8573af46b31a3dc218a601aac0c6f6",
+                            "sha256": "5469a5fe8820559bd624098850a9f283c512f1b6783c5232f60ec00342da8cd8",
                             "tests": [
                                 "tests/Feature/ProbeInputTest.php"
                             ]
@@ -144,7 +144,7 @@
                         "reason": "Canonical local containment and finite rebuilt loopback endpoint paths reject traversal, wrappers, query and fragment injection.",
                         "security": {
                             "sanitizer": "tests/Fixtures/ProbeInput.php",
-                            "sha256": "4889f5cec4ffa08c01d13348c2c7c3029b8573af46b31a3dc218a601aac0c6f6",
+                            "sha256": "5469a5fe8820559bd624098850a9f283c512f1b6783c5232f60ec00342da8cd8",
                             "tests": [
                                 "tests/Feature/ProbeInputTest.php"
                             ]
@@ -159,7 +159,7 @@
                         "reason": "Only project() authorizes operator-selected source directories after canonical containment and non-world-writable permission checks; data-file paths retain include taint.",
                         "security": {
                             "sanitizer": "tests/Fixtures/ProbeInput.php",
-                            "sha256": "4889f5cec4ffa08c01d13348c2c7c3029b8573af46b31a3dc218a601aac0c6f6",
+                            "sha256": "5469a5fe8820559bd624098850a9f283c512f1b6783c5232f60ec00342da8cd8",
                             "tests": [
                                 "tests/Feature/ProbeInputTest.php"
                             ]
@@ -174,7 +174,7 @@
                         "reason": "Only project() clears shell taint after canonical containment and an explicit shell-inert character allowlist; data-file paths retain shell taint.",
                         "security": {
                             "sanitizer": "tests/Fixtures/ProbeInput.php",
-                            "sha256": "4889f5cec4ffa08c01d13348c2c7c3029b8573af46b31a3dc218a601aac0c6f6",
+                            "sha256": "5469a5fe8820559bd624098850a9f283c512f1b6783c5232f60ec00342da8cd8",
                             "tests": [
                                 "tests/Feature/ProbeInputTest.php"
                             ]

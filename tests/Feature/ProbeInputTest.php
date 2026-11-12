@@ -45,8 +45,19 @@ it('rejects absolute paths and symlinks escaping every authorized local workspac
 
 it('validates CLI argument lists and fixed-host benchmark URLs', function (): void {
     expect(ProbeInput::arguments(['probe.php', 'one', 'two']))->toBe(['probe.php', 'one', 'two']);
-    foreach ([null, 'probe.php', ['named' => 'value'], ['probe.php', 1]] as $arguments) {
-        expect(fn() => ProbeInput::arguments($arguments))->toThrow(InvalidArgumentException::class);
+    expect(ProbeInput::fromServer(['argv' => ['probe.php', 'one']]))->toBe(['probe.php', 'one']);
+    expect(fn() => ProbeInput::fromServer([]))->toThrow(InvalidArgumentException::class);
+    foreach ([null, false, true, 0, 1.25, new stdClass(), 'probe.php', ['named' => 'value'], ['probe.php', 1]] as $arguments) {
+        expect(fn() => ProbeInput::fromServer(['argv' => $arguments]))->toThrow(InvalidArgumentException::class);
+    }
+    $stream = fopen('php://temp', 'r+');
+    if ($stream === false) {
+        throw new RuntimeException('Unable to prepare a non-CLI resource input.');
+    }
+    try {
+        expect(fn() => ProbeInput::fromServer(['argv' => $stream]))->toThrow(InvalidArgumentException::class);
+    } finally {
+        fclose($stream);
     }
     foreach (['/', '/json', '/native', '/authenticated', '/auth', '/benchmark'] as $path) {
         expect(ProbeInput::loopbackHttp('http://127.0.0.1:18080' . $path))->toBe('http://127.0.0.1:18080' . $path);

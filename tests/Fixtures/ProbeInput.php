@@ -19,11 +19,15 @@ final class ProbeInput
     /**
      * Validate the PHP CLI argument boundary, including embedded runners that
      * may populate the server array themselves.
+     * Invalid values are rejected here with an argument validation exception.
      *
      * @return list<string>
+     *
      * @throws \InvalidArgumentException
+     *
+     * @param array<array-key, mixed>|string|null $input
      */
-    public static function arguments(mixed $input): array
+    public static function arguments(array|string|null $input): array
     {
         if (!is_array($input) || !array_is_list($input)) {
             throw new \InvalidArgumentException('CLI arguments must be a list of strings.');
@@ -37,6 +41,23 @@ final class ProbeInput
         }
 
         return $arguments;
+    }
+
+    /**
+     * Read untrusted server metadata before entering the typed CLI contract.
+     *
+     * @param array<array-key, mixed> $server
+     * @return list<string>
+     * @throws \InvalidArgumentException
+     */
+    public static function fromServer(array $server): array
+    {
+        $input = $server['argv'] ?? null;
+        if (!is_array($input) && !is_string($input) && $input !== null) {
+            throw new \InvalidArgumentException('CLI arguments must be a list of strings.');
+        }
+
+        return self::arguments($input);
     }
 
     /**

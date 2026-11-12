@@ -70,12 +70,8 @@ final readonly class WebAuthnConfigValidator
             && $path === '';
     }
 
-    private function isLocalWebAuthnHost(mixed $host): bool
+    private function isLocalWebAuthnHost(string $host): bool
     {
-        if (!is_string($host) || $host === '') {
-            return false;
-        }
-
         return in_array(strtolower($host), ['localhost', '127.0.0.1', '::1'], true);
     }
 

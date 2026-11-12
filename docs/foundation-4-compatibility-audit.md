@@ -7,14 +7,18 @@ This audit concerns **library-major runtime/API compatibility**; it does not
 require altering application data formats, key-rotation policies or deliberate
 public configuration.
 
-Current maintenance status (2026-11-11): the
+Current maintenance status (2026-11-12): the
 [canonical implementation tracker](foundation-4-library-upgrade-plan.md)
-records **local `composer ic:ci` exit 0, 13/13 checks passing** for the uncommitted
-working tree based on `365425bc`, with required isolated integration services.
-The functional suite contains 1,021 passing tests; both PHPStan and Psalm pass.
-The CI repair preserves current-major APIs, ordinary PHP operation, host-owned
-Runwire contexts and behavioral validation. Broad public JSON contracts were
-restored and hostile CLI/path/loopback regressions were added.
+records **local `composer ic:ci` exit 0, 13/13 checks passing**, including the
+**1,023-test** functional suite and zero blocking PHPStan/Psalm errors, for the
+uncommitted working tree based on `9603a1ee`, with isolated integration services.
+All 1,003 checked source/configuration inputs remained unchanged during the gate.
+The integration retains native types, aligns owning command/TTL interfaces and
+validates external CLI/OAuth data before typed helpers. JSON unions include
+resource and serializable objects; session state keeps its mixed boundary.
+Regression coverage includes cache defaults, persisted session types, resource
+and object responses, malformed CLI values and closed standard input.
+Ordinary PHP operation and host-owned Runwire contexts remain unchanged.
 
 Implementation remains **93/95, P0 25/25**: both P6 release certifications and
 exact-commit hosted/consumer verification remain open. Development toolchain

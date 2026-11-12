@@ -117,8 +117,13 @@ final readonly class TerminalIO implements CommandIO
         return $this->interactiveMode;
     }
 
+    /**
+     * Encode a structured command result; nested values follow JSON encoding rules.
+     *
+     * @param array<array-key, mixed> $value
+     */
     #[\Override]
-    public function json(mixed $value): void
+    public function json(array $value): void
     {
         if ($this->quietMode || $this->silentMode) {
             return;
@@ -255,6 +260,9 @@ final readonly class TerminalIO implements CommandIO
         return strlen($plain);
     }
 
+    /**
+     * @param resource|closed-resource $stream
+     */
     private static function isTty(mixed $stream): bool
     {
         return is_resource($stream)
