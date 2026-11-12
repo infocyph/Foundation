@@ -128,3 +128,4 @@ the application lifecycle and providers.
    architecture/service-providers
    internals/native-boundaries
    reference/technical-guides
+   reference/maintenance

@@ -10,8 +10,12 @@ use Infocyph\InterMix\DI\ContainerBuilder;
 
 final class ClockProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $builder->value('app.timezone', 'UTC');
+        $configured = $context->config['app']['timezone'] ?? 'UTC';
+        $timezone = is_string($configured) && $configured !== '' ? $configured : 'UTC';
+
+        $builder->value('app.timezone', $timezone);
     }
 }

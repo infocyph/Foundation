@@ -50,9 +50,9 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D2 | Onboarding and architecture | Foundation-4-aware versioning, guided installation, directory structure, first request, configuration, app/provider lifecycle; examples validated | **Done — strict docs job passed** |
 | D3 | HTTP and security | Focused Webrick routing/middleware/controllers/validation, authentication/authorization and sessions/CSRF guides with explicit modules | **Done — strict docs job passed** |
 | D4 | Data and application services | DBLayer/cache/filesystem/Omnibus/TalkingBytes/notification guides split by developer task; native ownership linked | **Done — strict docs job passed** |
-| D5-A | CLI, scheduling, worker lifecycle and testing | Detailed RST tutorials, real command/schedule contracts, PHP examples and test doubles | **Sphinx + Psalm green; full PHPForge QA running** |
-| D5-B | Runtime, production deployment and operations | Production hosting, releases, performance, rollback, readiness and troubleshooting | **In progress — hosted QA pending** |
-| D6 | Final audit and publication handoff | Navigation/link/example audit, cross-version wording, skeleton compatibility verified, docs preview and publication readiness reviewed | Pending |
+| D5-A | CLI, scheduling, worker lifecycle and testing | Detailed RST tutorials, real command/schedule contracts, PHP examples and test doubles | **Done — documented PHP fixed, full QA subsequently passed** |
+| D5-B | Runtime, production deployment and operations | Production hosting, releases, performance, rollback, readiness and troubleshooting | **Done — Sphinx, Psalm and PHPForge QA passed** |
+| D6 | Final audit and publication handoff | Navigation/link/example audit, cross-version wording, skeleton compatibility verified, docs preview and publication readiness reviewed | **In progress — publishing and compatible Infbyte 4 skeleton external gates remain** |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
 
@@ -83,8 +83,9 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 | D2 | `10418cb345d70ac6cf02ba05b7acf200ffecd369` | **Success:** strict Sphinx job `131283174224` / workflow `43247106040`; verified provider contract and source examples | Eight new onboarding, architecture and PHP example files; PHP 8.4 provider syntax check in docs job. |
 | D3 | `1d7ed1b069685f2df9acfe422d611c28ce3d2d29` | **Success:** strict Sphinx job `131286418314` / workflow `43248110945` | Nine RST HTTP/security guides and version-accurate native ownership references. |
 | D4 | `95cbccc171299094d5057a6b026fe7fec328733a` | **Success:** strict Sphinx job `131289281083` / workflow `43248911748` | Eight RST data/service chapters and native ownership links. |
-| D5-A | `9ef4e41ed6faddf9eae7fc2a6b2f8a1743b49625`, correction `3bca6676613fe438121f85c68b12e0ce8e93a002` | Sphinx jobs `131314992272` and `131321699842` **passed**; PHPForge analysis PHP 8.4/8.5 succeeded after the fix. | Moved three docs-only examples to PHP-linted `.php.txt` assets; PHPForge QA remains pending as D5-B begins. |
-| D5-B | This batch commit | Created ten RST advanced/runtime/deployment/security/reference guides from current Foundation 4 source | Read the Docs/Sphinx and full workflow evidence pending. |
+| D5-A | `9ef4e41ed6faddf9eae7fc2a6b2f8a1743b49625`, correction `3bca6676613fe438121f85c68b12e0ce8e93a002` | Sphinx jobs `131314992272` and `131321699842` **passed**; follow-up full PHPForge analysis/QA matrix verified on D5-B SHA. | Three docs-only PHP examples converted to linted `.php.txt` assets; no analyzer suppressions. |
+| D5-B | `1e138ff22f725a9cdf16177fb609061e851e5639` | **Success:** strict Sphinx `131324845876`; PHPForge analysis `131324970467`, `131324970504`; QA `131324970470`, `131324970488`, `131324970560`, `131324970578` (PHP 8.4/8.5, both dependency policies) | Ten detailed runtime/deployment/security/reference guides; no failed jobs in verified matrix. |
+| D6 | This batch commit | Add maintainer standards, complete-PHP-block linter, strengthened PHP example conventions, and strict CI validation | Hosted exact-head Sphinx, PHP snippet syntax and ongoing publication/dependency compatibility verification pending. |
 
 ## Known risks / decisions
 
@@ -96,4 +97,4 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 
 ## Immediate next action
 
-D1 through D4 and D5-A strict Sphinx builds passed. Verify D5-B exact-head Sphinx, code quality, link navigation and workflow status. D6 will audit published compatibility and outstanding downstream Infbyte 4 skeleton readiness.
+D1 through D5-B strict Sphinx builds and D5-B PHPForge analysis/QA passed. Verify D6 exact-head build and complete-PHP-block lint. Publication remains gated on a compatible Infbyte 4 skeleton, released Foundation 4 contract, hosted Read the Docs project/version and Foundation release qualification.
