@@ -82,3 +82,6 @@ not the hot path of each HTTP request.
 Read the `Foundation database guide
 <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/database.md>`_
 and `DBLayer <https://github.com/infocyph/DBLayer>`_ for native APIs.
+
+For a guided development-to-deployment sequence with migration manifests,
+seeding, Core schemas and rollback, see :doc:`../tutorials/database-migrations`.

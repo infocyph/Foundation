@@ -75,3 +75,6 @@ and the `Foundation validation guide
 <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/http-and-capabilities.md>`_.
 
 See :doc:`requests-responses`.
+
+For a complete sequence from optional feature installation to typed results,
+negative-path tests and performance notes, follow :doc:`../tutorials/validate-an-api-request`.

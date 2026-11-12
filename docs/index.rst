@@ -46,6 +46,10 @@ the application lifecycle and providers.
    tutorials/secure-browser-session
    tutorials/database-migrations
    tutorials/durable-queue
+   tutorials/json-api-responses
+   tutorials/choose-capabilities
+   tutorials/test-an-application
+   tutorials/release-and-rollback
 
 .. toctree::
    :caption: HTTP development

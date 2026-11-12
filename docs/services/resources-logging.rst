@@ -59,3 +59,6 @@ Review the `JSON resource contracts
 <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/json-responses.md>`_
 and `structured logging
 <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/logging.md>`_.
+
+For an end-to-end JSON API response and error-handling walkthrough,
+see :doc:`../tutorials/json-api-responses`.

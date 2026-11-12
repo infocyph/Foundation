@@ -85,3 +85,6 @@ Do not assume a Laravel command such as ``artisan test`` exists.
 
 For HTTP assertions, continue with :doc:`http`. For fakes, see
 :doc:`fakes`, and for database testing, see :doc:`database`.
+
+For a structured walkthrough of unit, HTTP, native integration, persistent-runtime
+and deployment tests, read :doc:`../tutorials/test-an-application`.

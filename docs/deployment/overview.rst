@@ -139,3 +139,6 @@ security and lifecycle gates.
 
 Next: :doc:`hosting`, :doc:`releases` and
 :doc:`operations`.
+
+For a step-by-step candidate release, trusted digest, worker drain and coherent
+rollback procedure, see :doc:`../tutorials/release-and-rollback`.

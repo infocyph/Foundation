@@ -126,3 +126,6 @@ selection, installed package/version, published config and
 
 Read the complete `Foundation module contract
 <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/modules.md>`_.
+
+For a use-case-first walkthrough of the install/enable/config/ready lifecycle,
+see :doc:`../tutorials/choose-capabilities`.

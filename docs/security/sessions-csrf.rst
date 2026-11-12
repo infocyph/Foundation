@@ -72,3 +72,6 @@ Use bounded maintenance outside request traffic:
 Read the `browser session implementation guide
 <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/browser-sessions.md>`_
 and :doc:`authentication`.
+
+For a production-minded walkthrough of storage selection, privilege rotation,
+CSRF, locking and persistent-host cleanup, see :doc:`../tutorials/secure-browser-session`.

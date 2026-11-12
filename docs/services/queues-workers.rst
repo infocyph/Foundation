@@ -63,3 +63,6 @@ failure data, verify codecs/schema, and test coherent rollback.
 See `Foundation messaging
 <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/messaging.md>`_
 and :doc:`events-jobs`.
+
+For a complete job dispatch, transport, worker, retry and rolling-upgrade
+walkthrough, use :doc:`../tutorials/durable-queue`.

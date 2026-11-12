@@ -11,7 +11,7 @@ python -m pip install -r docs/requirements.txt
 sphinx-build -b html -n -W --keep-going docs docs/_build/html
 ```
 
-For deeper application workflows, the Sphinx manual now includes four task-oriented walkthroughs covering request validation, secure browser sessions, database migrations, and durable messaging (see [the RST navigation](index.rst)).
+For deeper application workflows, the Sphinx manual now includes eight task-oriented walkthroughs covering request validation, secure browser sessions, database migrations, durable messaging, JSON API responses, feature selection, testing, and trusted deployment/rollback (see [the RST navigation](index.rst)).
 
 The legacy Markdown links below remain technical source references during the phased RST conversion. Do not remove them until their content and links are checked and migrated.
 
