@@ -39,6 +39,25 @@ the application lifecycle and providers.
    start/first-application
 
 .. toctree::
+   :caption: HTTP development
+   :maxdepth: 2
+
+   http/routing
+   http/controllers
+   http/middleware
+   http/requests-responses
+   http/validation
+
+.. toctree::
+   :caption: Security
+   :maxdepth: 2
+
+   security/authentication
+   security/authorization
+   security/sessions-csrf
+   security/advanced-authentication
+
+.. toctree::
    :caption: Framework & references
    :maxdepth: 2
 
