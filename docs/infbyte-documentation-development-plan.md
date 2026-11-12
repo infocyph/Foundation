@@ -49,8 +49,9 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D1 | Documentation infrastructure | RTD config, Sphinx+RST, Infbyte branding, book theme, coherent initial navigation, preserved Markdown references, reproducible strict docs build | **Done — hosted Sphinx job passed** |
 | D2 | Onboarding and architecture | Foundation-4-aware versioning, guided installation, directory structure, first request, configuration, app/provider lifecycle; examples validated | **Done — strict docs job passed** |
 | D3 | HTTP and security | Focused Webrick routing/middleware/controllers/validation, authentication/authorization and sessions/CSRF guides with explicit modules | **Done — strict docs job passed** |
-| D4 | Data and application services | DBLayer/cache/filesystem/Omnibus/TalkingBytes/notification guides split by developer task; native ownership linked | **In progress — exact-head CI pending** |
-| D5 | CLI, testing, advanced/runtime and deployment | End-to-end workflows, credible production/host notes, upgrade and troubleshooting guides, complete quality gates | Pending |
+| D4 | Data and application services | DBLayer/cache/filesystem/Omnibus/TalkingBytes/notification guides split by developer task; native ownership linked | **Done — strict docs job passed** |
+| D5-A | CLI, scheduling, worker lifecycle and testing | Detailed RST tutorials, real command/schedule contracts, PHP examples and test doubles | **In progress — CI pending** |
+| D5-B | Runtime, production deployment and operations | Production hosting, releases, performance, rollback, readiness and troubleshooting | Pending |
 | D6 | Final audit and publication handoff | Navigation/link/example audit, cross-version wording, skeleton compatibility verified, docs preview and publication readiness reviewed | Pending |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
@@ -81,7 +82,8 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 | D1 | `6df4619ee9e0fd210700eca79060476c4dcbef72` (correction after first D1 commits) | **Success:** strict Sphinx job `131277336677` / workflow `43245447050` | All earlier title, Markdown toctree, cross-reference and highlighting warnings excluded or resolved; engineering guides retained. |
 | D2 | `10418cb345d70ac6cf02ba05b7acf200ffecd369` | **Success:** strict Sphinx job `131283174224` / workflow `43247106040`; verified provider contract and source examples | Eight new onboarding, architecture and PHP example files; PHP 8.4 provider syntax check in docs job. |
 | D3 | `1d7ed1b069685f2df9acfe422d611c28ce3d2d29` | **Success:** strict Sphinx job `131286418314` / workflow `43248110945` | Nine RST HTTP/security guides and version-accurate native ownership references. |
-| D4 | This batch commit | Source review of Foundation DBLayer, CacheLayer, Pathwise, Omnibus, TalkingBytes, notifications, JsonDispatch and logging guides | Eight new RST data/service chapters and grouped toctrees; exact-head Sphinx QA pending. |
+| D4 | `95cbccc171299094d5057a6b026fe7fec328733a` | **Success:** strict Sphinx job `131289281083` / workflow `43248911748` | Eight RST data/service chapters and native ownership links. |
+| D5-A | This batch commit | Checked current CommandDefinition/Context/IO, ScheduledCommand, WorkerRuntime, TestKit, HttpTestClient, TestResponse and DatabaseTestManager source contracts | Nine detailed CLI/testing guides, two syntax-checkable example files and expanded doc QA; hosted build pending. |
 
 ## Known risks / decisions
 
@@ -93,4 +95,4 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 
 ## Immediate next action
 
-D1 through D3 strict Sphinx jobs passed. Verify D4's exact-head Sphinx build, correct any warnings, then close D4 and move to D5.
+D1 through D4 strict Sphinx jobs passed. Verify D5-A exact-head Sphinx build and PHP example lint, then start D5-B.

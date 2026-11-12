@@ -76,6 +76,25 @@ the application lifecycle and providers.
    services/resources-logging
 
 .. toctree::
+   :caption: Console and scheduling
+   :maxdepth: 2
+
+   console/overview
+   console/commands
+   console/scheduling
+   console/workers
+
+.. toctree::
+   :caption: Testing
+   :maxdepth: 2
+
+   testing/overview
+   testing/http
+   testing/fakes
+   testing/database
+   testing/persistent-runtimes
+
+.. toctree::
    :caption: Framework & references
    :maxdepth: 2
 

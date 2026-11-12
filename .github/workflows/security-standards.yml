@@ -656,5 +656,10 @@ jobs:
         with:
           php-version: "8.4"
           coverage: none
-      - name: Syntax-check the service-provider example
-        run: php -l docs/examples/infbyte-clock-provider.php
+      - name: Syntax-check documented command, schedule and provider examples
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l docs/examples/infbyte-clock-provider.php
+          php -l docs/examples/infbyte-report-command.php
+          php -l docs/examples/infbyte-schedule.php
