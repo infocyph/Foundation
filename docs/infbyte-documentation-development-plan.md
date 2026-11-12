@@ -1,6 +1,6 @@
 # Infbyte documentation development plan
 
-Status: **in progress** (documentation work on Foundation PR #20).
+Status: **internal documentation work complete** (D0–D8-B); publication externally blocked and Foundation PR #20 remains draft.
 Owner repository: `infocyph/Foundation`.
 Branch: `feature/foundation-3`.
 Documentation identity: **Infbyte — PHP Application Framework**.
@@ -56,7 +56,7 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D7-A | Detailed application tutorials | Four source-verified, task-oriented, cross-linked tutorials: validation, browser sessions, migrations, durable queues; strict Sphinx/PHP lint | **Done — exact-head documentation CI passed** |
 | D7-B | Advanced developer recipes and crosslinks | Four more detailed task guides (JSON APIs, feature lifecycle, testing, release/rollback) and links from core reference pages | **Done — exact-head documentation CI passed** |
 | D8-A | Public API and configuration reference | Verify current source signatures and add structured reference for application, providers, HTTP/auth, console/scheduling/testing, and configuration | **Done — Sphinx and PHP lint passed** |
-| D8-B | Consistency, link and example audit | Automated public-API drift guard, internal navigation and version truth audit; final publication blockers recorded | **In progress — exact-head QA pending** |
+| D8-B | Consistency, link and example audit | Automated public-API drift guard, internal navigation and version truth audit; final publication blockers recorded | **Done — exact-head strict QA passed** |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
 
@@ -93,7 +93,7 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 | D7-A | `946c61fccccfb80f3597029b09cf0c6b1fd5e184` | **Success:** Sphinx / PHP block lint documentation job `131337191338` in Security & Standards run `43262417970`; no failed jobs observed | Four source-verified 200–325-line walkthroughs, no changes to runtime PHP. |
 | D7-B | `7a3fc6cac8776bbd27f1590d41b5ba3d80ffd90f` | **Success:** strict Sphinx / complete-PHP-block validation job `131343691579`, Security & Standards run `43264259735`; no failed jobs in inspected result | Four detailed workflows and eight chapter crosslinks; runtime PHP unchanged. |
 | D8-A | `e6f86469304e078be04925debb7d3a8193f25921` | **Success:** Infbyte Sphinx job `131366938794` on Security & Standards run `43270866746` | Four source-checked API/config reference pages; PHP example syntax also verified. |
-| D8-B | This batch commit | Python source-contract CI audit, publication gate page, exact version re-verification (Infbyte main still Foundation ^3.0.1), documentation wording/navigation audit | Hosted Read the Docs and compatible application integration remain external. Await exact-head CI result. |
+| D8-B | `996bc3f507be0585358d3920cea7023a6b881596` | **Success:** documentation job `131370206001` / Security & Standards `43271797475`: Sphinx strict build succeeded; 118 methods, 12 templates, 3 groups/8 features, 38 complete PHP blocks, zero drift or syntax errors | Read the Docs hosting, Infbyte 4 starter and Foundation release qualification remain external blockers; linkcheck/consumer runtime tests are not represented by this job. |
 
 ## Known risks / decisions
 
@@ -117,4 +117,4 @@ D6's *internal* documentation gates passed, but publication still depends on a r
 
 ## Immediate next action
 
-D7-A strict Sphinx/PHP-block validation passed. D8-A strict Sphinx/PHP documentation job passed. Verify D8-B source-drift guard, strict Sphinx and PHP syntax checks on its exact head. If green, mark internal docs complete; keep externally hosted RTD, final Foundation release qualification and matching Infbyte 4 skeleton as explicit publication blockers. D6 publication remains **externally blocked** until the compatible Infbyte 4 skeleton, released Foundation 4 contract, hosted Read the Docs project/version and Foundation release qualification have been verified. Do not merge, tag or publish from this tracker alone.
+D7-A strict Sphinx/PHP-block validation passed. All internal D0–D8-B documentation work and exact-head Sphinx/public-method/feature/PHP-block checks passed. The next action is an **external publication handoff**, not an unverified documentation code change: release/verify the matching Infbyte 4 skeleton, complete the independent Foundation 4 exact-source/host/retained-state gates, connect and verify an actual Read the Docs Infbyte project, and test representative consumer examples and external links against the published versions. Do not merge/tag/release from documentation evidence alone. D6 publication remains **externally blocked** until the compatible Infbyte 4 skeleton, released Foundation 4 contract, hosted Read the Docs project/version and Foundation release qualification have been verified. Do not merge, tag or publish from this tracker alone.
