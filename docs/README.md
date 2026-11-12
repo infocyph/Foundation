@@ -1,6 +1,6 @@
 # Infbyte documentation
 
-The public-facing framework manual is built with Sphinx from [`index.rst`](index.rst) and published as **Infbyte — PHP Application Framework**.
+The public-facing framework manual is built with Sphinx from [`index.rst`](index.rst) and prepared for publication as **Infbyte — PHP Application Framework**.
 
 > **Version status:** the new manual currently targets the *unpublished Foundation 4 development branch*. The Infbyte starter application on its `main` branch still requires Foundation 3. The Foundation 4 onboarding examples must be validated against a compatible Infbyte skeleton before publication.
 

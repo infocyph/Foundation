@@ -3,8 +3,8 @@
 Maintaining the Infbyte manual
 ==============================
 
-This manual is the **Infbyte developer documentation**, published from the
-Foundation repository. Its public identity must not be confused with the
+This manual is the **Infbyte developer documentation**, maintained in the
+Foundation repository for publication. A hosted project is not yet verified. Its public identity must not be confused with the
 Foundation package itself. It explains how developers build applications;
 Foundation's older engineering Markdown guides remain implementation references
 during the RST migration.
@@ -86,6 +86,20 @@ by ``docs/tools/lint_php_blocks.py``. Code fragments without the PHP open tag
 are **contextual snippets**; they need manual API review. A PHP syntax pass is
 not a claim that the example runs against an unpublished Infbyte 4 skeleton.
 
+Documented public-contract drift guard
+======================================
+
+The documentation workflow also runs
+``python docs/tools/check_public_contracts.py``. This fails the docs job when
+named public Foundation methods, the approved three-module/eight-feature
+catalog or expected Core/optional config templates drift away from the
+reference pages. It is intentionally a narrow source-declaration check,
+not a PHP parser or a runtime/integration guarantee.
+
+Maintain its checked contract list alongside reference updates; do not
+paper over deleted methods by deleting their guard entries without
+reviewing the affected public documentation.
+
 Publication and handoff
 =======================
 
@@ -106,3 +120,6 @@ performance, security or release source-qualification gates.
 For the running implementation ledger, see the
 `Infbyte documentation development plan
 <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/infbyte-documentation-development-plan.md>`_.
+
+For the explicit external blocker checklist, see
+:doc:`publication-readiness`.

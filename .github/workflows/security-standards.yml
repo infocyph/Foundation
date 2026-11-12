@@ -663,5 +663,7 @@ jobs:
           php -l docs/examples/infbyte-clock-provider.php.txt
           php -l docs/examples/infbyte-report-command.php.txt
           php -l docs/examples/infbyte-schedule.php.txt
+      - name: Audit documented public API, features and configuration
+        run: python docs/tools/check_public_contracts.py
       - name: Syntax-check complete PHP examples in RST
         run: python docs/tools/lint_php_blocks.py

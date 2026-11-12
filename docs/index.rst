@@ -135,6 +135,7 @@ the application lifecycle and providers.
    reference/http-security-api
    reference/console-testing-api
    reference/configuration
+   reference/publication-readiness
 
 .. toctree::
    :caption: Framework & internals
