@@ -2,7 +2,9 @@
 
 The public-facing framework manual is built with Sphinx from [`index.rst`](index.rst) and prepared for publication as **Infbyte — PHP Application Framework**.
 
-> **Version status:** the new manual currently targets the *unpublished Foundation 4 development branch*. The Infbyte starter application on its `main` branch still requires Foundation 3. The Foundation 4 onboarding examples must be validated against a compatible Infbyte skeleton before publication.
+> **Version status:** the new manual currently targets the *unpublished Foundation 4 development branch*. The Infbyte starter application on its `main` branch still requires Foundation 3. A Foundation 4 candidate already exists on Infbyte PR #11; its older integration run must be repeated against the current Foundation source before publication.
+
+For candidate installation, start with [the Foundation 4 development application guide](start/foundation4-candidate.rst). The published `composer create-project` still targets Foundation 3.
 
 Build the manual with:
 

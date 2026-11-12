@@ -30,7 +30,9 @@ when deciding which native package owns a capability.
 Current version status
 ======================
 
-This website is being prepared for Foundation 4. The current Infbyte
-application skeleton on GitHub `main` still targets Foundation 3. Examples
-specific to Foundation 4 must be verified against the updated skeleton before
-they become published quick-start instructions.
+This website is being prepared for Foundation 4. The public Infbyte application skeleton on GitHub ``main`` still targets
+Foundation 3. An **unpublished Foundation 4 application candidate** exists in
+Infbyte PR #11 (``feature/infbyte-4``); its earlier CI ran against an older
+Foundation source. For the development application, follow
+:doc:`foundation4-candidate`. Treat its commands as candidate-only until fresh
+exact-source tests and stable package publication have been verified.

@@ -22,21 +22,21 @@ starter, run:
 
 This sequence is **not** a Foundation 4 installation procedure.
 
-Foundation 4 development branch
-===============================
+Foundation 4 candidate (development only)
+=========================================
 
-The Foundation 4 source currently lives in Foundation PR #20 and is not
-represented by the public Infbyte 3 installation command. Foundation is also
-independently installable as the underlying PHP package:
+**Infbyte PR #11 already contains the Foundation 4 application candidate** on
+the ``feature/infbyte-4`` branch. Its Composer manifest temporarily requires
+the unpublished Foundation ``dev-feature/foundation-3`` from GitHub, and its
+older green CI runs do not certify the latest Foundation commit.
 
-.. code-block:: bash
+Use :doc:`foundation4-candidate` for the actual clone, dependency resolution,
+CLI, native Webrick routes, and current compatibility caveats. Do **not** use
+``composer create-project infocyph/infbyte`` as a Foundation 4 installation.
 
-   composer require infocyph/foundation
-
-That command installs the package, **not** a populated Infbyte application.
-Do not infer the currently published package version from this example.
-Wait for a compatible downstream Infbyte skeleton before using this guide
-as a Foundation 4 application-creation tutorial.
+The underlying Foundation package is independently installable via Composer,
+but ``composer require infocyph/foundation`` does **not** create an Infbyte
+application skeleton, and the currently published package is not Foundation 4.
 
 Next, see :doc:`first-route` for the existing skeleton's example route.
 

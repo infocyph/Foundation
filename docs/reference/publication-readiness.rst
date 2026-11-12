@@ -9,10 +9,12 @@ application experience; **Foundation** is the PHP package and source
 repository that houses this manual.
 
 This is the **Foundation 4 development manual**, not a notice that
-Foundation 4 has been released. The current upstream Infbyte
-application skeleton on ``main`` still requires
-``infocyph/foundation: ^3.0.1``. This was verified from its
-``composer.json`` during the documentation audit.
+Foundation 4 has been released. The public Infbyte skeleton on ``main``
+still requires ``infocyph/foundation: ^3.0.1``. **An Infbyte 4 candidate
+already exists** on draft PR #11, branch ``feature/infbyte-4``, requiring
+the unpublished ``dev-feature/foundation-3``. Its previous green candidate
+integration checks predate the current Foundation branch and cannot be
+promoted to stable compatibility evidence.
 
 What has been verified
 ======================
@@ -23,11 +25,12 @@ CI builds HTML with warnings treated as errors, validates complete
 PHP example code blocks with PHP 8.4 syntax checks, and runs a
 lightweight public API/feature drift check.
 
-Previous documentation batches (D1 through D8-A) have recorded
+Documentation batches D1 through D8-B have recorded
 successful Sphinx jobs in the
 `documentation development plan
 <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/infbyte-documentation-development-plan.md>`_.
-D8-B records its own check once the exact-head job has completed.
+The final documentation tracker commit has also passed strict Sphinx/contract
+checks. Application-level current-source integration remains a separate gate.
 
 The source audit checks the **declared existence** of reference
 methods, configuration templates and qualified optional feature IDs.
@@ -47,7 +50,8 @@ What is still blocked
      - The actual Infbyte application skeleton targets a released,
        compatible Foundation 4 package and its CLI/route/provisioning
        behavior is validated end to end
-     - **Blocked:** public skeleton still requires Foundation 3
+     - **Candidate exists in Infbyte PR #11**, but stable cutover and fresh
+       exact-source integration remain blocked; public ``main`` is Foundation 3.
    * - Foundation release qualification
      - Exact final source/vendor SHA, security/lifecycle readiness,
        retained-state rehearsal and required sustained host comparison
@@ -59,7 +63,8 @@ What is still blocked
    * - Runnable consumer examples
      - Tutorial and reference examples tested against the matching
        application skeleton and native packages
-     - **Only source/syntax-checked so far**
+     - **Manual:** source/syntax-checked; **application:** candidate integration
+       passed on October 18 against older Foundation source; fresh tests pending
    * - External link health
      - Official owner docs and outgoing URLs audited against an
        actual published version
@@ -109,9 +114,10 @@ broken public contract.
 Publish the matching application first
 ======================================
 
-A downstream Infbyte 4 starter migration should be a separately
-reviewed and tested change, **not** an automatic dependency edit
-performed by documentation work. It should cover:
+The downstream Infbyte 4 migration **already has an implementation
+candidate** in Infbyte PR #11. Its prepared stable cutover must be
+separately reviewed and tested, **not** an automatic dependency edit
+performed by documentation work. The remaining verification includes:
 
 1. Composer Foundation major constraint, platform requirements and
    native package compatibility;
@@ -125,9 +131,9 @@ performed by documentation work. It should cover:
 7. Migration, retained-state and rollback rehearsal using selected
    production-like backends.
 
-Once the compatible starter is released, repeat tutorial commands on
-that *exact* tagged application and dependency lock and capture
-the results. Do not copy instructions from the Foundation 3
+Before a stable release, rerun the candidate against the current Foundation
+source and record the resolved commit, then repeat the tutorial commands
+against the eventual *exact* tagged application and dependency lock. Do not copy instructions from the Foundation 3
 starter and describe them as tested Foundation 4 usage.
 
 Read the Docs handoff
@@ -155,7 +161,7 @@ When a stable version is ready:
 * run an external-link audit and test representative code/CLI
   examples against the released application.
 
-See :doc:`maintenance`,
+See :doc:`../start/foundation4-candidate`, :doc:`maintenance`,
 :doc:`../deployment/overview`,
 :doc:`../tutorials/release-and-rollback`, and
 :doc:`../start/installation`.

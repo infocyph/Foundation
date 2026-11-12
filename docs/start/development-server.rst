@@ -5,8 +5,9 @@ Local development server
 
 The published Infbyte starter (Foundation 3) includes an application CLI
 named ``infbyte``, not Laravel's Artisan console. It supports a local
-server for development; a Foundation 4-compatible starter must be
-validated after its independent migration.
+server for development. The separate Foundation 4 candidate exists in
+Infbyte PR #11, but needs fresh exact-source validation; see
+:doc:`foundation4-candidate`.
 
 Start the published starter
 ---------------------------

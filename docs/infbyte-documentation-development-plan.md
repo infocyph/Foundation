@@ -1,6 +1,6 @@
 # Infbyte documentation development plan
 
-Status: **internal documentation work complete** (D0–D8-B); publication externally blocked and Foundation PR #20 remains draft.
+Status: **internal manual completed through D8-B; D9 publication/compatibility verification active**. Foundation PR #20 and Infbyte PR #11 remain draft, unpublished and unmerged.
 Owner repository: `infocyph/Foundation`.
 Branch: `feature/foundation-3`.
 Documentation identity: **Infbyte — PHP Application Framework**.
@@ -57,6 +57,9 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D7-B | Advanced developer recipes and crosslinks | Four more detailed task guides (JSON APIs, feature lifecycle, testing, release/rollback) and links from core reference pages | **Done — exact-head documentation CI passed** |
 | D8-A | Public API and configuration reference | Verify current source signatures and add structured reference for application, providers, HTTP/auth, console/scheduling/testing, and configuration | **Done — Sphinx and PHP lint passed** |
 | D8-B | Consistency, link and example audit | Automated public-API drift guard, internal navigation and version truth audit; final publication blockers recorded | **Done — exact-head strict QA passed** |
+| D9-A | Existing Infbyte 4 candidate discovery | Actual candidate installation/source guide, corrected version/publication status, cross-repository evidence and documentation navigation | **In progress — exact-head Sphinx QA pending** |
+| D9-B | Exact-current-source Infbyte candidate CI | Rerun PHP 8.4/8.5 + optional feature/host verification against exact Foundation source; repair drift in Infbyte PR #11 | **Blocked — GitHub integration rejects Infbyte writes (403)** |
+| D9-C | Stable release/Read the Docs hosting | Foundation P6 and exact SHA qualification, published ^4.0 Composer cutover, externally hosted RTD build/version routing | **Blocked — external release/publication prerequisites** |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
 
@@ -118,3 +121,48 @@ D6's *internal* documentation gates passed, but publication still depends on a r
 ## Immediate next action
 
 D7-A strict Sphinx/PHP-block validation passed. All internal D0–D8-B documentation work and exact-head Sphinx/public-method/feature/PHP-block checks passed. The next action is an **external publication handoff**, not an unverified documentation code change: release/verify the matching Infbyte 4 skeleton, complete the independent Foundation 4 exact-source/host/retained-state gates, connect and verify an actual Read the Docs Infbyte project, and test representative consumer examples and external links against the published versions. Do not merge/tag/release from documentation evidence alone. D6 publication remains **externally blocked** until the compatible Infbyte 4 skeleton, released Foundation 4 contract, hosted Read the Docs project/version and Foundation release qualification have been verified. Do not merge, tag or publish from this tracker alone.
+
+## D9 — Publication and cross-repository compatibility handoff (2026-11-12)
+
+**Findings:** An unpublished Infbyte 4 candidate **already exists** in
+`infocyph/Infbyte` PR #11, branch `feature/infbyte-4`, at
+`cf91ad9e17307e4325cbabd09000eb73abb835d5` before this verification.
+Its development Composer manifest requires Foundation
+`dev-feature/foundation-3` with a GitHub VCS override. Public
+Infbyte `main` still uses Foundation `^3.0.1`. Foundation PR #20
+head at discovery: `94966baa0c4ff0d0c6c1f5144b87a8a61c951cd0`.
+
+- **Historical success:** Infbyte PR #11 candidate workflow
+  `39106180694` passed **13/13** jobs on October 18, against an
+  **older** Foundation dev branch source. It does not requalify
+  the current Foundation branch.
+- **Preserved policy failure:** Infbyte Security & Standards workflow
+  `39106181013` reported four PHPForge QA failures, all from the
+  enforced stable-runtime constraint rejecting
+  `dev-feature/foundation-3`. Do not hide or rename these checks.
+- **Concrete drift:** Infbyte's `Foundation4ModuleIntegrationTest.php`
+  asserts DBLayer `^6.1.1`; the latest Foundation 4
+  `ModuleArchitectureCatalog` declares `^6.1.4`. Requalify against
+  the selected catalog rather than pin outdated expectations.
+- **Read the Docs:** no verified hosted Infbyte URL/project build was
+  found; absence from search is **not** proof that an admin project
+  does not exist. Connection, version route and final build remain
+  unverified.
+- **Write barrier:** The connected GitHub integration returned HTTP
+  403 `Resource not accessible by integration` for both a tree write
+  and a contents-create attempt against Infbyte's `feature/infbyte-4`.
+  No changes were pushed to Infbyte PR #11 in this turn. Grant the
+  GitHub integration write access before attempting Infbyte D9-B.
+
+**D9-A** updates the Infbyte manual inside Foundation with a real
+candidate-oriented development route, without claiming an installable
+stable version. D9-B must capture exact resolved Foundation SHA in
+fresh Infbyte candidate CI, fix stale test expectations, exercise
+TestKit against the registered Webrick health endpoint, and run all
+13 candidate jobs. The strict published-package guard remains unchanged
+until Foundation 4 is truly published. D9-C remains blocked by
+Foundation's independent P6 performance and final-release qualification,
+real Composer `^4.0` cutover, and hosted Read the Docs verification.
+
+No PR merge, tag, release, or Read the Docs publication is authorized
+by this evidence alone.

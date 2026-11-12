@@ -7,8 +7,10 @@ The Infbyte application skeleton supplies the application code and configuration
 Foundation supplies reusable runtime behavior. Most developers work inside
 ``app/``, ``routes/``, ``config/`` and ``tests/``.
 
-This layout describes **Infbyte main (Foundation 3)**. A compatible
-Foundation 4 starter has not yet been published and must be verified separately.
+This layout describes **Infbyte main (Foundation 3)**. A development
+Foundation 4 candidate already exists in Infbyte PR #11 and additionally
+contains ``config/modules.php`` for explicit feature selection. It is
+**not a published stable starter**; see :doc:`foundation4-candidate`.
 
 .. code-block:: text
 

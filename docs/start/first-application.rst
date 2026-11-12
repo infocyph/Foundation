@@ -4,8 +4,10 @@ Build your first API endpoint
 =============================
 
 This tutorial follows source from the **currently published Infbyte 3
-application skeleton**. It is deliberately not presented as a tested
-Foundation 4 starter tutorial.
+application skeleton**. A separate, unpublished Foundation 4 candidate
+exists on Infbyte PR #11; follow :doc:`foundation4-candidate` for the
+candidate's actual route registration and development installation.
+The published version below is not a Foundation 4 release tutorial.
 
 Install and start
 -----------------
@@ -83,5 +85,5 @@ does not automatically change the active production router.
 
 Next, read :doc:`../architecture/service-providers` and
 :doc:`../architecture/request-lifecycle`. The example above has been
-matched against the current starter source, but has **not** been executed
-against a Foundation 4 application in this batch.
+matched against the current starter source, but the current Foundation 4 candidate's **latest** dependency graph has
+not been requalified by this documentation batch.

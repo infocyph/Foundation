@@ -14,6 +14,8 @@ and lightweight application skeleton.
    `feature/foundation-3` branch. The Infbyte starter application's
    published `main` branch still requires Foundation 3. Do not assume the
    current `composer create-project` command creates a Foundation 4 application.
+   A Foundation 4 **development candidate** is available on Infbyte PR #11;
+   it is not a stable published starter.
 
 This manual is written for application developers. When a feature belongs to
 a specialist Infocyph package, its guide shows how it fits into Infbyte
@@ -32,6 +34,7 @@ the application lifecycle and providers.
 
    start/overview
    start/installation
+   start/foundation4-candidate
    start/directory-structure
    start/configuration
    start/development-server

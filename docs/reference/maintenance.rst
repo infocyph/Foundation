@@ -12,10 +12,11 @@ during the RST migration.
 Version and compatibility policy
 ================================
 
-The current Infbyte application skeleton on GitHub ``main`` requires
-Foundation ``^3.0.1``. The RST manual documents the **Foundation 4
-development contract**. Until the downstream skeleton and Foundation 4
-release are available together:
+The public Infbyte application on GitHub ``main`` requires
+Foundation ``^3.0.1``. An **Infbyte 4 candidate already exists** on
+``feature/infbyte-4`` / draft PR #11, but requires an unreleased Foundation
+branch. The RST manual documents the **Foundation 4 development contract**.
+Until a matching stable Infbyte/Foundation release is available:
 
 * Mark installation and first-route examples from the published starter as
   **Infbyte 3**, not Infbyte 4.
