@@ -58,6 +58,24 @@ the application lifecycle and providers.
    security/advanced-authentication
 
 .. toctree::
+   :caption: Data & storage
+   :maxdepth: 2
+
+   data/database
+   data/cache
+   data/filesystem
+
+.. toctree::
+   :caption: Application services
+   :maxdepth: 2
+
+   services/events-jobs
+   services/queues-workers
+   services/communication
+   services/notifications
+   services/resources-logging
+
+.. toctree::
    :caption: Framework & references
    :maxdepth: 2
 

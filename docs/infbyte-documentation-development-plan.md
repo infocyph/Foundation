@@ -48,8 +48,8 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D0 | Plan and review baseline | Plan checked in; constraints and batch gates recorded | **Done** |
 | D1 | Documentation infrastructure | RTD config, Sphinx+RST, Infbyte branding, book theme, coherent initial navigation, preserved Markdown references, reproducible strict docs build | **Done — hosted Sphinx job passed** |
 | D2 | Onboarding and architecture | Foundation-4-aware versioning, guided installation, directory structure, first request, configuration, app/provider lifecycle; examples validated | **Done — strict docs job passed** |
-| D3 | HTTP and security | Focused Webrick routing/middleware/controllers/validation, authentication/authorization and sessions/CSRF guides with explicit modules | **In progress — CI pending** |
-| D4 | Data and application services | DBLayer/cache/filesystem/Omnibus/TalkingBytes/notification guides split by developer task; native ownership linked | Pending |
+| D3 | HTTP and security | Focused Webrick routing/middleware/controllers/validation, authentication/authorization and sessions/CSRF guides with explicit modules | **Done — strict docs job passed** |
+| D4 | Data and application services | DBLayer/cache/filesystem/Omnibus/TalkingBytes/notification guides split by developer task; native ownership linked | **In progress — exact-head CI pending** |
 | D5 | CLI, testing, advanced/runtime and deployment | End-to-end workflows, credible production/host notes, upgrade and troubleshooting guides, complete quality gates | Pending |
 | D6 | Final audit and publication handoff | Navigation/link/example audit, cross-version wording, skeleton compatibility verified, docs preview and publication readiness reviewed | Pending |
 
@@ -80,7 +80,8 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 | D0 | `38c947ef9e3596674bada66ae1271c6549c02145` | Review of PR #20, InterMix docs build, and current Foundation/Infbyte docs | Documented Foundation 3 skeleton vs Foundation 4 pre-release mismatch |
 | D1 | `6df4619ee9e0fd210700eca79060476c4dcbef72` (correction after first D1 commits) | **Success:** strict Sphinx job `131277336677` / workflow `43245447050` | All earlier title, Markdown toctree, cross-reference and highlighting warnings excluded or resolved; engineering guides retained. |
 | D2 | `10418cb345d70ac6cf02ba05b7acf200ffecd369` | **Success:** strict Sphinx job `131283174224` / workflow `43247106040`; verified provider contract and source examples | Eight new onboarding, architecture and PHP example files; PHP 8.4 provider syntax check in docs job. |
-| D3 | This batch commit | Reviewed Foundation HTTP, authentication, FormRequest, session and OTP guides, plus native Webrick/ReqShield docs | Nine new RST guides, updated navigation; strict docs QA pending. |
+| D3 | `1d7ed1b069685f2df9acfe422d611c28ce3d2d29` | **Success:** strict Sphinx job `131286418314` / workflow `43248110945` | Nine RST HTTP/security guides and version-accurate native ownership references. |
+| D4 | This batch commit | Source review of Foundation DBLayer, CacheLayer, Pathwise, Omnibus, TalkingBytes, notifications, JsonDispatch and logging guides | Eight new RST data/service chapters and grouped toctrees; exact-head Sphinx QA pending. |
 
 ## Known risks / decisions
 
@@ -92,4 +93,4 @@ Status convention: Pending → In progress → Done/Blocked (include concrete re
 
 ## Immediate next action
 
-D1 and D2 strict docs jobs passed. Verify the D3 strict Sphinx build, correct any warnings, then close D3 and proceed to D4.
+D1 through D3 strict Sphinx jobs passed. Verify D4's exact-head Sphinx build, correct any warnings, then close D4 and move to D5.
