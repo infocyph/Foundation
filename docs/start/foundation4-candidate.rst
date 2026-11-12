@@ -145,8 +145,14 @@ Current evidence and drift
 The candidate's October 18 integration workflow passed all
 13 jobs (PHP 8.4/8.5, selected native hosts, packaged project
 and optional feature consumers) using an older Foundation
-development SHA. It has not been rerun against the latest
-Foundation 4 branch in this documentation batch.
+development SHA. A **new independent Core compatibility probe**
+on the Foundation PR verified the Infbyte candidate against
+Foundation source commit
+``d278059502db1e48cf825328d1a5b2582a8f0770`` on
+**PHP 8.4 and PHP 8.5** (workflow 43276200146, two successful
+jobs). It checked exact resolved dependency identity, the native
+three-group/eight-feature catalog, the Webrick health endpoint
+through Foundation TestKit, and a trusted Core release build.
 
 The current Foundation feature catalog requires DBLayer
 ``^6.1.4``, but an Infbyte candidate module test still asserts
@@ -159,9 +165,11 @@ has four failed QA matrix jobs because its development Composer
 constraint violates the intentionally strict stable-runtime
 guard. Keep the guard intact until the genuine stable cutover.
 
-The Foundation 4 development documentation still requires a fresh
-Infbyte candidate CI run against the **current** dependency graph.
-Historic green checks are retained as historical evidence only.
+The new Core smoke is **not** a rerun of the full Infbyte
+13-job native/optional-feature acceptance matrix, and it does
+not make the development dependency suitable for publication.
+The existing Infbyte PR #11 needs updated assertions and all
+required release checks on the actual stable-cutover commit.
 
 Stable release remains gated
 ----------------------------

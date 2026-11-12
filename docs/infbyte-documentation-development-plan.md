@@ -58,7 +58,7 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D8-A | Public API and configuration reference | Verify current source signatures and add structured reference for application, providers, HTTP/auth, console/scheduling/testing, and configuration | **Done — Sphinx and PHP lint passed** |
 | D8-B | Consistency, link and example audit | Automated public-API drift guard, internal navigation and version truth audit; final publication blockers recorded | **Done — exact-head strict QA passed** |
 | D9-A | Existing Infbyte 4 candidate discovery | Actual candidate installation/source guide, corrected version/publication status, cross-repository evidence and documentation navigation | **Done — strict Sphinx QA passed** |
-| D9-B1 | Current-source Infbyte candidate probe | Read-only Foundation PR workflow resolves Infbyte 4 candidate on PHP 8.4/8.5, verifies exact Foundation SHA, Core module inventory, Webrick/TestKit health and trusted release readiness | **In progress — exact-head CI pending** |
+| D9-B1 | Current-source Infbyte candidate probe | Read-only Foundation PR workflow resolves Infbyte 4 candidate on PHP 8.4/8.5, verifies exact Foundation SHA, Core module inventory, Webrick/TestKit health and trusted release readiness | **Done — both PHP 8.4/8.5 jobs passed** |
 | D9-B2 | Infbyte candidate remediation | Refresh full 13-job candidate QA and repair drift directly in Infbyte PR #11 | **Blocked — GitHub integration rejects Infbyte writes/reruns (403)** |
 | D9-C | Stable release/Read the Docs hosting | Foundation P6 and exact SHA qualification, published ^4.0 Composer cutover, externally hosted RTD build/version routing | **Blocked — external release/publication prerequisites** |
 
@@ -174,3 +174,10 @@ by this evidence alone.
 - **D9-B1 (this commit):** Add a standalone **read-only** Foundation PR workflow that checks out Infbyte `feature/infbyte-4`, resolves its genuine development dependency on PHP 8.4/8.5, requires the Composer-installed Foundation source SHA to equal the current Foundation PR head SHA, checks the three-group/eight-feature catalog, tests the real Webrick health route through Foundation TestKit, and verifies Core compiled-release manifest integrity. This is supplemental current-source evidence; it is **not** the complete 13-job Infbyte acceptance matrix or the stable-runtime release gate.
 - **D9-B2:** Infbyte PR #11 source mutations and GitHub Actions reruns were both rejected by the connected app with 403. The affected stale DBLayer `^6.1.1` test versus Foundation `^6.1.4` remains **unresolved in Infbyte**. No branch writes or CI reruns were claimed there.
 - **D9-C:** Foundation's full P6 acceptance, stable Composer release/cutover, hosted Infbyte Read the Docs version and all native consumer examples remain prerequisites.
+
+### D9-B1 validation closure
+
+- Foundation commit `d278059502db1e48cf825328d1a5b2582a8f0770` added the cross-repository **read-only** candidate workflow.
+- Workflow `43276200146` passed **both** PHP 8.4 and PHP 8.5 jobs: `131385131893` (8.4) and `131385131142` (8.5).
+- Both jobs' Composer lock references matched the exact Foundation PR head `d278059502db1e48cf825328d1a5b2582a8f0770`. Module topology, Infbyte Webrick health/TestKit dispatch, and trusted Core release manifest integrity passed. These checks were executed from Infbyte `feature/infbyte-4` in a read-only checkout.
+- The **full Infbyte 13-job matrix was not rerun**; the October 18 success remains historical only. Four PHPForge stable-runtime failures on Infbyte's development branch are policy-expected until a real `^4.0` cutover. Infbyte branch source fixes remain blocked by 403 GitHub integration write permission. No stable release or hosted Read the Docs publication was performed.

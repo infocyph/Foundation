@@ -12,9 +12,10 @@ This is the **Foundation 4 development manual**, not a notice that
 Foundation 4 has been released. The public Infbyte skeleton on ``main``
 still requires ``infocyph/foundation: ^3.0.1``. **An Infbyte 4 candidate
 already exists** on draft PR #11, branch ``feature/infbyte-4``, requiring
-the unpublished ``dev-feature/foundation-3``. Its previous green candidate
-integration checks predate the current Foundation branch and cannot be
-promoted to stable compatibility evidence.
+the unpublished ``dev-feature/foundation-3``. Its earlier 13-job candidate integration checks predate the current Foundation
+branch. A separate **Core smoke** has now passed on PHP 8.4 and PHP 8.5
+against Foundation source ``d278059502db1e48cf825328d1a5b2582a8f0770``
+(workflow 43276200146), without replacing the complete application matrix.
 
 What has been verified
 ======================
@@ -63,8 +64,9 @@ What is still blocked
    * - Runnable consumer examples
      - Tutorial and reference examples tested against the matching
        application skeleton and native packages
-     - **Manual:** source/syntax-checked; **application:** candidate integration
-       passed on October 18 against older Foundation source; fresh tests pending
+     - **Manual:** source/syntax-checked; **application:** current-source Core
+       smoke passed on PHP 8.4/8.5, but full optional-feature/host matrix and
+       stable consumer examples remain pending
    * - External link health
      - Official owner docs and outgoing URLs audited against an
        actual published version
@@ -131,8 +133,9 @@ performed by documentation work. The remaining verification includes:
 7. Migration, retained-state and rollback rehearsal using selected
    production-like backends.
 
-Before a stable release, rerun the candidate against the current Foundation
-source and record the resolved commit, then repeat the tutorial commands
+The Core candidate has been rerun against the exact Foundation source, but
+Infbyte's complete 13-job candidate matrix and stale DBLayer assertion
+remain unresolved. Repeat the full matrix and tutorial commands
 against the eventual *exact* tagged application and dependency lock. Do not copy instructions from the Foundation 3
 starter and describe them as tested Foundation 4 usage.
 
