@@ -1,6 +1,6 @@
 # Infbyte documentation development plan
 
-Status: **internal manual completed through D8-B; D9 publication/compatibility verification active**. Foundation PR #20 and Infbyte PR #11 remain draft, unpublished and unmerged.
+Status: **Infbyte application manual developed through D14-A; final depth and consistency audit in progress.** Strict Sphinx and current read-only Infbyte candidate verification pass; publication and full downstream consumer QA remain separate gates.
 Owner repository: `infocyph/Foundation`.
 Branch: `feature/foundation-3`.
 Documentation identity: **Infbyte — PHP Application Framework**.
@@ -59,7 +59,7 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D8-B | Consistency, link and example audit | Automated public-API drift guard, internal navigation and version truth audit; final publication blockers recorded | **Done — exact-head strict QA passed** |
 | D9-A | Existing Infbyte 4 candidate discovery | Actual candidate installation/source guide, corrected version/publication status, cross-repository evidence and documentation navigation | **Done — strict Sphinx QA passed** |
 | D9-B1 | Current-source Infbyte candidate probe | Read-only Foundation PR workflow resolves Infbyte 4 candidate on PHP 8.4/8.5, verifies exact Foundation SHA, Core module inventory, Webrick/TestKit health and trusted release readiness | **Done — both PHP 8.4/8.5 jobs passed** |
-| D9-B2 | Infbyte candidate remediation | Refresh full 13-job candidate QA and repair drift directly in Infbyte PR #11 | **Blocked — GitHub integration rejects Infbyte writes/reruns (403)** |
+| D9-B2 | Infbyte candidate remediation | Refresh full 13-job candidate QA and repair drift directly in Infbyte PR #11 | **Open — Infbyte PR #11 full CI failing; read-only Foundation compatibility is green but not an equivalent release gate** |
 | D9-C | Stable release/Read the Docs hosting | Foundation P6 and exact SHA qualification, published ^4.0 Composer cutover, externally hosted RTD build/version routing | **Blocked — external release/publication prerequisites** |
 | D10-A | Infbyte-first paths and config depth | Verify exact Infbyte 4 config files, rewrite setup/config reference/project structure with examples and production advice, correct related guides | **Done — strict Sphinx and app-path contract QA passed** |
 | D10-B | Laravel-depth user guides | Expand route/controller and task-oriented application chapters with real sample code, middleware, tests, pitfalls and production treatment | **Done — strict Sphinx/PHP docs QA passed** |
@@ -71,7 +71,10 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D12-B | MFA/passkeys and production security guide depth | Detailed optional feature selection, enrollment/verification boundaries, recovery, replay, testing, and operations | **Done — strict documentation and candidate CI passed** |
 | D13-A | Application service providers | Infbyte bootstrap/providers.php, native InterMix DI examples, per-runtime group selection, scoping, compilation, verification, troubleshooting | **Done — strict docs and Infbyte candidate CI passed** |
 | D13-B | Application test strategy and native fakes | Infbyte tests/ structure, real health TestKit fixture, selected optional TestKit helpers, fake/real transport boundaries, failure-path, persistent-host and release tests | **Done — strict docs and Infbyte candidate CI passed** |
-| D14-A | CLI commands and scheduler walkthroughs | Deepen actual Infbyte routes/console.php and routes/schedule.php, command definitions, schedules, locking, job/worker distinction and production checks | **In progress — exact-head CI pending** |
+| D14-A | CLI commands and scheduler walkthroughs | Deepen actual Infbyte routes/console.php and routes/schedule.php, command definitions, schedules, locking, job/worker distinction and production checks | **Done — strict Sphinx / complete PHP documentation QA passed on exact head** |
+| D14-B | Core onboarding and lifecycle expansion | Explain application creation, developer setup, first route, application/request runtime lifecycle, exact Infbyte project paths and failure diagnoses | Pending |
+| D15-A | Operational, testing and service guide sweep | Deepen short logging, database testing, worker operations, persistent-host guidance and deployment/advanced chapters | Pending |
+| D15-B | Final consistency and publication readiness audit | Scan every RST/link/filename/CLI/API/example, run strict Sphinx/complete-PHP, cross-repo Infbyte candidate CI, close tracker and flag external release gates accurately | Pending |
 | D12-C | Native HTTP middleware and requests/responses depth | Expand developer-facing Webrick middleware/request/response chapters with actual Infbyte routes, auth/CSRF policy, typed request inputs, immutable responses, host tests and production gotchas | **Done — strict docs and Infbyte candidate CI passed** |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
@@ -304,3 +307,9 @@ Deepen the remaining short user-facing services guides using actual Infbyte app 
 - **Source verified:** Actual Infbyte 4 candidate `routes/console.php` is an empty application command list; `routes/schedule.php` is an empty `Schedule` callback. Foundation's source-defined `CommandHandlerInterface`, `CommandDefinition::argument/option`, `CommandContext`, `ParsedInput`, `Schedule` and `ScheduledCommand` were checked before documenting code and CLI behavior.
 - **D14-A (this commit):** rewrite `docs/console/commands.rst` and `docs/console/scheduling.rst` with explicit application file location, existing CI-linted command/schedule examples, actual registration keys, options, execution scopes, CLI inspection, recurrence, shared CacheLayer locks, supervision, production generation, security, negative tests and troubleshooting. Developer-created `reports:daily` is clearly identified as absent from a fresh Infbyte starter until the user registers it. No Laravel Artisan claim.
 - **Acceptance:** strict Sphinx `-n -W --keep-going`, complete PHP example syntax, documented public API/config-path guard and PHP 8.4/8.5 read-only Infbyte candidate integration. This does not waive the Foundation P6 and published Infbyte 4 release gates.
+
+### Tracker reconciliation — November 13, 2026
+
+- **Current source checkpoint:** `156c5d63f4a7e7474b8148eaa93b8f9e6a96cfc6` on Foundation PR #20. D14-A strict Sphinx docs job `131671742661` in workflow `43360201386` **passed**. The same SHA's read-only Infbyte 4 candidate compatibility workflow `43360201049` and native HTTP host smoke `43360201234` **passed**. Full Foundation source qualification is still separately evaluated.
+- **Infbyte PR #11:** `d4dc214dce55e8c0217dd39a24c1e50878e0320f` has failing Security & Standards `43352044978` and Foundation 4 Candidate Integration `43352044897` runs. Previous recorded plugin 403 permissions failure is no longer treated as the sole blocker. Successful *read-only* cross-repository checks on Foundation do **not** erase those failures. Do not present the Infbyte app as released or the whole consumer suite as green.
+- **Remaining docs batches:** D14-B (developer onboarding/lifecycle), D15-A (short operations and testing chapters), D15-B (strict full navigation/content/example/path/publication audit). Finish each batch with a single commit, a synchronized plan row and exact-head CI proof. Keep separate Foundation P6 and downstream Infbyte release gates open until genuinely qualified.
