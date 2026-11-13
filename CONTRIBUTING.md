@@ -92,9 +92,9 @@ export IC_MEMCACHED_HOST=127.0.0.1 IC_MEMCACHED_PORT=11211
 ```
 
 These are disposable test credentials. If your test backends use different
-ports or credentials, supply their actual settings. The Redis and Valkey
-extensions and both PDO database drivers must be available in the CLI PHP
-used by Composer; Memcached also requires its PHP extension. Never point
+ports or credentials, supply their actual settings. The `redis` PHP extension
+serves both Redis and Valkey. Install `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`
+and `memcached` in the CLI PHP used by Composer as well. Never point
 this suite at production data. Missing connections are prerequisite failures;
 keep the integration assertions enabled.
 

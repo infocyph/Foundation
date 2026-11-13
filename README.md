@@ -147,6 +147,9 @@ on `main` still targets Foundation 3. Configuration templates under
 
 Run the complete release guard before publishing:
 
+Prepare the disposable integration services and connection environment described
+in [Contributing](CONTRIBUTING.md#validation) before running the full suite or Git hooks.
+
 ```bash
 composer ic:release:guard
 ```
@@ -162,3 +165,7 @@ composer benchmark:representative
 
 Only compare numeric benchmark results from matching, explicitly stable
 environments.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
