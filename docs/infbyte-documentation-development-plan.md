@@ -66,7 +66,9 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D10-C | Project-path and public API audit | Scan all developer RST pages for misleading Foundation-internal paths; verify docs against Infbyte candidate source and strict Sphinx/PHP lint | **Done — strict docs and cross-repo CI passed** |
 | D11-A | Developer-oriented data and storage guides | Detailed application-path-first database, cache, and filesystem guides: selection, native usage, security, performance, tests, troubleshooting | **Done — strict docs QA passed** |
 | D11-B | Detailed messaging and communication services | Deepen notifications, TalkingBytes communication, Omnibus events/jobs, queue workers, deployment/failure semantics and app-owned config | **Done — strict docs QA passed** |
-| D11-C | Detailed security and validation | Deepen authentication, authorization and request validation from actual Infbyte config and public PHP contracts | **In progress — exact-head CI pending** |
+| D11-C | Detailed security and validation | Deepen authentication, authorization and request validation from actual Infbyte config and public PHP contracts | **Done — strict documentation QA passed** |
+| D12-A | Browser session and middleware developer recipes | Infbyte-first route-selected web/session/CSRF/authorization lifecycle, config ownership, tested examples and production state coordination | Pending |
+| D12-B | MFA/passkeys and production security guide depth | Detailed optional feature selection, enrollment/verification boundaries, recovery, replay, testing, and operations | Pending |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
 
@@ -244,3 +246,9 @@ Deepen the remaining short user-facing services guides using actual Infbyte app 
 - **D11-B:** `0b214e1a0058bf1a5edc8d58f238809ca4e87eca` expanded communication, notification, events/jobs, and queue/worker chapters with accurate Infbyte configuration paths and production guidance. Strict docs/Sphinx job `131660222759` from workflow `43356593371` **passed**. No runtime PHP code changed.
 - **D11-C (this commit):** rewritten, source-checked `docs/security/authentication.rst`, `docs/security/authorization.rst`, and `docs/http/validation.rst` with real Infbyte Core auth settings, optional validation config, typed `AuthServices` and `FormRequest` APIs, security/middleware ordering, typed validation results, production concurrency, test coverage, and troubleshooting. No invented Laravel facades.
 - **QA gate:** exact-head Sphinx -W, PHP example lint, public-contract drift and read-only Infbyte PHP 8.4/8.5 compatibility must be checked before declaring D11-C green. Foundation P6 and Infbyte full QA/security-stability still remain independent release gates.
+
+### D11-C documentation QA closure
+
+- **D11-C source:** `c0be0d5abea4986bebbd7654c6e4744ff9206ecd`.
+- **Exact-head documentation QA:** Sphinx/public API/PHP example documentation job `131661982863` from Security & Standards run `43357169898` **passed**. This verifies documentation; it does **not** certify the surrounding Foundation security/static-analysis/performance matrix or release.
+- **Next developer-focused sections:** browser sessions/CSRF, selective middleware and persistent-host isolation (D12-A); advanced authentication, passkeys/MFA/replay, and production readiness (D12-B). Both should use **Infbyte project paths** and the actual application-owned `config/auth.php`; never direct a developer to edit Foundation `resources/config/`.
