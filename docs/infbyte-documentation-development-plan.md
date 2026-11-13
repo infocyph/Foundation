@@ -63,7 +63,9 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D9-C | Stable release/Read the Docs hosting | Foundation P6 and exact SHA qualification, published ^4.0 Composer cutover, externally hosted RTD build/version routing | **Blocked — external release/publication prerequisites** |
 | D10-A | Infbyte-first paths and config depth | Verify exact Infbyte 4 config files, rewrite setup/config reference/project structure with examples and production advice, correct related guides | **Done — strict Sphinx and app-path contract QA passed** |
 | D10-B | Laravel-depth user guides | Expand route/controller and task-oriented application chapters with real sample code, middleware, tests, pitfalls and production treatment | **Done — strict Sphinx/PHP docs QA passed** |
-| D10-C | Project-path and public API audit | Scan all developer RST pages for misleading Foundation-internal paths; verify docs against Infbyte candidate source and strict Sphinx/PHP lint | **In progress — exact-head CI pending** |
+| D10-C | Project-path and public API audit | Scan all developer RST pages for misleading Foundation-internal paths; verify docs against Infbyte candidate source and strict Sphinx/PHP lint | **Done — strict docs and cross-repo CI passed** |
+| D11-A | Developer-oriented data and storage guides | Detailed application-path-first database, cache, and filesystem guides: selection, native usage, security, performance, tests, troubleshooting | **In progress — exact-head CI pending** |
+| D11-B | Deep application services and security | Deepen notifications, communication, queues, and selected security/validation reference pages with real Infbyte application examples | Pending |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
 
@@ -210,3 +212,22 @@ by this evidence alone.
 - **D10-B:** `fe178147dacc1d21f2087d30dcd58644240f232a` rewritten first-application, first-route, HTTP routing/controllers and HTTP TestKit chapters. Strict Sphinx/PHP documentation job `131652936888` in workflow `43354369553` **passed**. The registered `/api/health` endpoint is sourced from Infbyte; example `/api/welcome` and `/api/search` routes are explicitly application-created.
 - **D10-C (this batch):** expand the Infbyte 4 development-server guide; correct optional feature config wording in modules; check remaining RST chapters for misleading `resources/config/` references, stale published-starter assertions and application path ambiguity. Add an independent CI step in the read-only candidate integration workflow verifying the six Core config files and actual routes/controllers/entrypoints exist in Infbyte; verify optional feature config files are absent in the Core-only starting skeleton. This is **real cross-repository layout validation**, not a static documentation-only assertion.
 - **Current publication gates remain:** Foundation 4 P6 exact-source/host qualification, fresh green Infbyte 4 full matrix and stable `^4.0` cutover, and hosted Read the Docs version routing. Documentation CI cannot waive those gates.
+
+## D11 — Laravel-depth data and service manual (2026-11-13)
+
+### D10-C closeout
+
+- **Commit:** `904d227aa1b651099333e2f9da393b4f7a772971`.
+- **Passed:** strict documentation/Sphinx job `131654822648` in Security & Standards `43354957754`; read-only Infbyte candidate compatibility `43354957265` passed PHP 8.4 and PHP 8.5. The cross-repository check asserts the actual six Core config files, selected route/controller/entrypoint files and absence of optional configs in an untouched Core-only Infbyte checkout.
+- **Source-ownership rule:** every ordinary `config/`, `routes/`, `app/`, `bootstrap/`, `storage/` reference is relative to the **Infbyte project root**. Foundation's `resources/config/` must be labeled only as the underlying framework template source.
+
+### D11-A implementation (this batch)
+
+- [x] Rework `docs/data/cache.rst` from short architecture notes into a detailed **Infbyte `config/cache.php`** guide: actual Core configuration, CacheLayer PSR SimpleCache `get/set` and `remember`, named stores and locks, shared versus process-local backend selection, schema CLI, performance, tests and diagnostics.
+- [x] Rework `docs/data/filesystem.rst` into a detailed **optional `data.filesystem` / Infbyte `config/filesystem.php`** guide: actual Pathwise disk roots, native `StorageRegistry`, bounded uploads/downloads, malware policy, public link management, safe persistent hosting and tests.
+- [x] Rework `docs/data/database.rst` into a detailed **optional `data.database` / Infbyte `config/database.php`** guide: source-derived connection/migration/seed settings, native DBLayer ownership, CLI inspection, transactional safety, schema provision, deployment and rollback.
+- [ ] Verify the D11-A exact-head strict Sphinx build, application-path/public-method guard and full PHP block lint before marking Done. Do not conflate documentation QA with Foundation release qualification or current Infbyte full QA.
+
+### D11-B follow-up scope
+
+Deepen the remaining short user-facing services guides using actual Infbyte app paths and relevant specialist APIs. Do not add unsupported Laravel features. Retain Foundation technical guides only as explicitly labeled maintainer references. Keep both PRs draft and unmerged; D11 does not waive the independent Foundation P6 or Infbyte stable-cutover gates.
