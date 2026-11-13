@@ -13,6 +13,11 @@ if ($readyPath === '') {
     throw new RuntimeException('Missing TalkingBytes HTTP fixture handshake path.');
 }
 
+if (($arguments[2] ?? null) === 'delay-ready') {
+    // Exercise a parent observing the created file before its payload is ready.
+    usleep(100_000);
+}
+
 $listener = stream_socket_server('tcp://127.0.0.1:0', $errno, $message);
 if ($listener === false) {
     throw new RuntimeException(sprintf('Unable to create loopback server: %s (%d)', $message, $errno));

@@ -8,15 +8,17 @@ use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Http\HttpRequest;
 use Infocyph\TalkingBytes\Http\HttpResponse;
 
-it('runs configured TalkingBytes HTTP retries, redirects, multipart uploads and a concurrent pool against a real loopback peer', function (): void {
+it('runs configured TalkingBytes HTTP retries, redirects, multipart uploads and a concurrent pool against a real loopback peer', function (bool $precreatedHandshake): void {
     $ready = tempnam(sys_get_temp_dir(), 'foundation-talkingbytes-http-');
     if ($ready === false) {
         throw new RuntimeException('Unable to allocate TalkingBytes HTTP fixture handshake.');
     }
-    unlink($ready);
+    if (!$precreatedHandshake) {
+        unlink($ready);
+    }
 
     $process = proc_open(
-        [PHP_BINARY, dirname(__DIR__) . '/Fixtures/talkingbytes_network_server.php', $ready],
+        [PHP_BINARY, dirname(__DIR__) . '/Fixtures/talkingbytes_network_server.php', $ready, $precreatedHandshake ? 'delay-ready' : 'ready'],
         [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
         $pipes,
     );
@@ -27,17 +29,21 @@ it('runs configured TalkingBytes HTTP retries, redirects, multipart uploads and 
     stream_set_blocking($pipes[2], false);
 
     try {
-        // A slow CI scheduler must not turn a healthy loopback peer into a false failure.
-        $until = microtime(true) + 10.0;
-        while (!is_file($ready) && microtime(true) < $until) {
+        $until = hrtime(true) + 10_000_000_000;
+        $port = null;
+        do {
+            clearstatcache(true, $ready);
+            $server = is_file($ready) ? json_decode((string) file_get_contents($ready), true) : null;
+            $port = is_array($server) ? ($server['port'] ?? null) : null;
+            if (is_int($port) && $port > 0 && $port <= 65535) {
+                break;
+            }
             if (!proc_get_status($process)['running']) {
                 break;
             }
             usleep(10_000);
-        }
-        $server = is_file($ready) ? json_decode((string) file_get_contents($ready), true) : null;
-        $port = is_array($server) ? ($server['port'] ?? null) : null;
-        if (!is_int($port) || $port < 1) {
+        } while (hrtime(true) < $until);
+        if (!is_int($port) || $port < 1 || $port > 65535) {
             $diagnostics = trim((string) stream_get_contents($pipes[2]));
             throw new RuntimeException('TalkingBytes loopback HTTP server did not become ready.'
                 . ($diagnostics === '' ? '' : ' Child stderr: ' . $diagnostics));
@@ -129,4 +135,4 @@ it('runs configured TalkingBytes HTTP retries, redirects, multipart uploads and 
             unlink($ready);
         }
     }
-});
+})->with(['unpublished handshake' => false, 'empty handshake before publication' => true]);

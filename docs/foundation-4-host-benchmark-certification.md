@@ -14,8 +14,10 @@ this proves paired VM reuse, not dedicated physical infrastructure or production
 capacity. Other matrix cases may use different runners.
 
 The twelve cases cover FPM/Runwire, one/four workers and concurrency 1/10/50.
-Each revision has a recorded 60-second warm-up followed by five >=120-second
-trials. Two independent complete batches run all twelve cases; the confirmation
+Each revision has a recorded 300-second warm-up followed by five >=300-second
+trials. The longer windows improve measurement precision on the available shared
+runners; they do not make an unstable comparison acceptable. Two independent
+complete batches run all twelve cases; the confirmation
 batch reverses baseline/candidate order. Four-worker/concurrency-10 jobs include
 two >=120-second soak windows per host/revision and batch, continuous live CPU/RSS,
 response/query/cache checks and recovery. The controller and load generator use
@@ -24,6 +26,8 @@ The allocation requires four reported cores without SMT siblings; standard x64
 workers reporting two cores with SMT are rejected before measurement. The default
 manual runner is `ubuntu-24.04-arm`.
 
+The paired job allows 85 minutes for both revisions, including their warm-ups,
+trials, diagnostics and soak windows, within a 95-minute job limit.
 Both complete batches must pass the unchanged 2.5% CV and 2% median successful-RPM
 regression limits. Passing cases from different batches or attempts are never
 combined. Unstable or failed comparisons cannot be certified by the environment
@@ -145,25 +149,27 @@ Preparation normally resolves current dependencies. To repeat a reviewed source-
 
 `candidate_ref` selects an immutable measured source SHA independently of the workflow's tooling revision. The same selected tools and input fixture are overlaid into both source checkouts. Reports record the actual measured source identities and the shared tooling SHA. Keep the workflow dispatch ref stable while collecting evidence.
 
-Example:
+Set `FOUNDATION_REPLAY_RUN_ID` and `FOUNDATION_REPLAY_LOCK_SHA256` from the
+reviewed lock receipt in the release pull request before replaying the current
+commit:
 
 ```bash
 gh workflow run foundation4-host-certification.yml \
   --repo infocyph/Foundation --ref feature/foundation-3 \
-  -f candidate_ref=cd4fba90d6e415bbe7af04400c59ff5374be1cac \
+  -f candidate_ref="$(git rev-parse HEAD)" \
   -f baseline_ref=c220759fcbd6654fead843599712a5b79685f02d \
   -f comparison_mode=source-only -f host_runner=ubuntu-24.04-arm \
-  -f replay_run_id=43217583759 \
-  -f replay_lock_sha256=fcfff7349f7e19bfd76687ec94184ba508ac573abff84b5c2ccd9cc61444f793
+  -f replay_run_id="${FOUNDATION_REPLAY_RUN_ID:?Set the reviewed workflow run ID}" \
+  -f replay_lock_sha256="${FOUNDATION_REPLAY_LOCK_SHA256:?Set the reviewed lock SHA-256}"
 ```
 
 For the unresolved Runwire w1/c50 signal, add `-f diagnostic_case=runwire-w1-c50` to run both order-reversed batches for that case. This mode is explicitly non-certifying: it publishes `foundation4-diagnostic-pair-*` artifacts with a diagnostic-only scope marker, and does not invoke the complete-matrix qualification job. A successful diagnostic run cannot close P6. Ordinary PR certification and the default manual mode still require all 24 pairs and both comparison verdicts.
 
 Each measured trial now records diagnostic snapshots immediately before and after its timed load: CPU counters including steal time, pressure totals, cgroup throttling and I/O counters, available CPU frequencies, PostgreSQL activity, Redis activity, and selected Docker service image IDs/resource gauges. These probes execute outside the load window. Unavailable host counters are explicitly marked; credentials and DSNs are not included in output. Use matching before/after deltas to distinguish application work from host/backend contention. Diagnostic snapshots do not change acceptance calculations or budgets.
 
-## Current qualification evidence
+## Historical qualification evidence
 
-Complete source-only sustained performance certification remains open; the historical independent-lock comparison is optional. The [completed source-only run #43217583759](https://github.com/infocyph/Foundation/actions/runs/43217583759) compared candidate `cd4fba90d6e415bbe7af04400c59ff5374be1cac` with Foundation 4 baseline `c220759fcbd6654fead843599712a5b79685f02d`. All 24 measurement jobs and 240 measured trials completed with zero failed requests. Primary classified 7 pass / 4 high-variance / 1 regression; confirmation classified 9 pass / 3 high-variance / 0 regressions. Both acceptance jobs failed.
+These receipts describe earlier attempts, not qualification of the current release candidate. Current source identities and complete comparison verdicts belong in the release pull request. The historical independent-lock comparison is optional. The [completed source-only run #43217583759](https://github.com/infocyph/Foundation/actions/runs/43217583759) compared candidate `cd4fba90d6e415bbe7af04400c59ff5374be1cac` with Foundation 4 baseline `c220759fcbd6654fead843599712a5b79685f02d`. All 24 measurement jobs and 240 measured trials completed with zero failed requests. Primary classified 7 pass / 4 high-variance / 1 regression; confirmation classified 9 pass / 3 high-variance / 0 regressions. Both acceptance jobs failed.
 
 The earlier failed scenarios passed both fresh batches: FPM w1/c50 +0.626%/-1.003%, Runwire w4/c1 +0.887%/-1.728%. A new primary Runwire w1/c50 signal (-8.318%, CV 1.316%) was not established by the noisy confirmation (+1.969%, CV 2.788%). A Composer HTTP 429 error cleared on retry before the final confirmation comparison. No runtime repair or performance pass is claimed.
 

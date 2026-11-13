@@ -274,7 +274,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || inputs.certify_source == true
     needs: prepare-paired-host
     runs-on: ${{ inputs.host_runner || 'ubuntu-24.04-arm' }}
-    timeout-minutes: 50
+    timeout-minutes: 95
     strategy:
       fail-fast: false
       matrix:
@@ -304,8 +304,8 @@ jobs:
       FOUNDATION_HOST_FILTER_CONCURRENCY: ${{ matrix.concurrency }}
       FOUNDATION_HOST_REQUESTS: "1000"
       FOUNDATION_HOST_REPEATS: "5"
-      FOUNDATION_HOST_MIN_SECONDS: "120"
-      FOUNDATION_HOST_WARMUP_SECONDS: "60"
+      FOUNDATION_HOST_MIN_SECONDS: "300"
+      FOUNDATION_HOST_WARMUP_SECONDS: "300"
       FOUNDATION_HOST_SOAK_SECONDS: ${{ matrix.workers == 4 && matrix.concurrency == 10 && '120' || '0' }}
       FOUNDATION_HOST_SERVER_CPU_SET: ${{ matrix.workers == 1 && '2' || '2,3' }}
       FOUNDATION_HOST_LOAD_CPU_SET: "0"
@@ -397,7 +397,7 @@ jobs:
           PHP
           printf 'FOUNDATION_CERTIFICATION_HOST_ID=github-%s-%s-%s-server%s-load0-backend1\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$(cat /proc/sys/kernel/random/boot_id)" "$FOUNDATION_HOST_SERVER_CPU_SET" >> "$GITHUB_ENV"
       - name: Run baseline and candidate on this same physical runner
-        timeout-minutes: 38
+        timeout-minutes: 85
         env:
           BASELINE_SHA: ${{ inputs.baseline_ref || 'c220759fcbd6654fead843599712a5b79685f02d' }}
           CANDIDATE_SHA: ${{ needs.prepare-paired-host.outputs.candidate }}

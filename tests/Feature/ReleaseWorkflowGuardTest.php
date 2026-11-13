@@ -46,8 +46,8 @@ it('enforces independent complete performance batches without mixing their artif
         ->and($measure['strategy']['matrix']['host'])->toBe(['fpm', 'runwire'])
         ->and($measure['strategy']['matrix']['workers'])->toBe([1, 4])
         ->and($measure['strategy']['matrix']['concurrency'])->toBe([1, 10, 50])
-        ->and(foundationFixtureInteger($measure['env']['FOUNDATION_HOST_MIN_SECONDS']))->toBeGreaterThanOrEqual(120)
-        ->and(foundationFixtureInteger($measure['env']['FOUNDATION_HOST_WARMUP_SECONDS']))->toBeGreaterThanOrEqual(30);
+        ->and(foundationFixtureInteger($measure['env']['FOUNDATION_HOST_MIN_SECONDS']))->toBeGreaterThanOrEqual(300)
+        ->and(foundationFixtureInteger($measure['env']['FOUNDATION_HOST_WARMUP_SECONDS']))->toBeGreaterThanOrEqual(300);
 
     $download = [];
     $runScripts = [];

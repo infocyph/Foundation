@@ -36,19 +36,27 @@ if (!is_resource($process)) {
     throw new RuntimeException('Unable to spawn the real gRPC server.');
 }
 fclose($pipes[0]);
+stream_set_blocking($pipes[2], false);
 
 try {
-    $until = microtime(true) + 10.0;
-    while (!is_file($ready) && microtime(true) < $until) {
+    $until = hrtime(true) + 10_000_000_000;
+    $port = null;
+    do {
+        clearstatcache(true, $ready);
+        $decoded = is_file($ready) ? json_decode((string) file_get_contents($ready), true) : null;
+        $port = is_array($decoded) ? ($decoded['port'] ?? null) : null;
+        if (is_int($port) && $port > 0 && $port <= 65535) {
+            break;
+        }
         if (!proc_get_status($process)['running']) {
             break;
         }
         usleep(20_000);
-    }
-    $decoded = is_file($ready) ? json_decode((string) file_get_contents($ready), true) : null;
-    $port = is_array($decoded) ? ($decoded['port'] ?? null) : null;
-    if (!is_int($port) || $port < 1) {
-        throw new RuntimeException('Real gRPC server did not become ready.');
+    } while (hrtime(true) < $until);
+    if (!is_int($port) || $port < 1 || $port > 65535) {
+        $diagnostics = trim((string) stream_get_contents($pipes[2]));
+        throw new RuntimeException('Real gRPC server did not become ready.'
+            . ($diagnostics === '' ? '' : ' Child stderr: ' . $diagnostics));
     }
 
     $app = Foundation::worker([
