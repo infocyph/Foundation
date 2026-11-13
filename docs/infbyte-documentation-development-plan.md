@@ -69,7 +69,7 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D11-C | Detailed security and validation | Deepen authentication, authorization and request validation from actual Infbyte config and public PHP contracts | **Done — strict documentation QA passed** |
 | D12-A | Browser session and middleware developer recipes | Infbyte-first route-selected web/session/CSRF/authorization lifecycle, config ownership, tested examples and production state coordination | **In progress — exact-head docs QA pending** |
 | D12-B | MFA/passkeys and production security guide depth | Detailed optional feature selection, enrollment/verification boundaries, recovery, replay, testing, and operations | Pending |
-| D12-C | Native HTTP middleware and requests/responses depth | Expand developer-facing Webrick middleware/request/response chapters with actual Infbyte routes, auth/CSRF policy, typed request inputs, immutable responses, host tests and production gotchas | **In progress — exact-head CI pending** |
+| D12-C | Native HTTP middleware and requests/responses depth | Expand developer-facing Webrick middleware/request/response chapters with actual Infbyte routes, auth/CSRF policy, typed request inputs, immutable responses, host tests and production gotchas | **Done — strict docs and Infbyte candidate CI passed** |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
 
@@ -266,3 +266,9 @@ Deepen the remaining short user-facing services guides using actual Infbyte app 
 - Expanded `docs/security/sessions-csrf.rst` as a full Infbyte application tutorial, sourced against `src/Session/BrowserSession.php` and Foundation Core `resources/config/session.php` (template provenance **only**). The starting Infbyte 4 app does **not** ship `config/session.php`; when custom configuration is needed, copy the installed template to the **Infbyte project's `config/session.php`** and edit it there, never in Foundation/vendor.
 - Covers route-selected `web` and `web-auth` middleware, browser session API, session fixation rotation, actual CSRF header/body/origin policy, store selection, concurrency/lease coordination, prune CLI, persistent host isolation and negative-path tests. Example controller is explicitly developer-created.
 - Exact-head strict Sphinx/public-method contract/PHP syntax and read-only Infbyte candidate compatibility must pass before closing D12-A. This is not Foundation final release qualification.
+
+### D12-C verification recorded
+
+- Commit `183ba0e3eeaa72e0e6101c8427b0edf9f5bd4991` passed exact-head strict Sphinx/public-contract/PHP example documentation job `131663990251` in workflow `43357781203`.
+- Foundation's read-only Infbyte candidate workflow `43357780650` passed for PHP 8.4 and 8.5 on the same Foundation SHA.
+- Both reports validate documentation/Core compatibility, **not** full Infbyte #11 PHPForge QA, Foundation P6 sustained host certification, a stable Foundation 4 package or hosted Read the Docs publication.
