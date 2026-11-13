@@ -65,8 +65,8 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D10-B | Laravel-depth user guides | Expand route/controller and task-oriented application chapters with real sample code, middleware, tests, pitfalls and production treatment | **Done — strict Sphinx/PHP docs QA passed** |
 | D10-C | Project-path and public API audit | Scan all developer RST pages for misleading Foundation-internal paths; verify docs against Infbyte candidate source and strict Sphinx/PHP lint | **Done — strict docs and cross-repo CI passed** |
 | D11-A | Developer-oriented data and storage guides | Detailed application-path-first database, cache, and filesystem guides: selection, native usage, security, performance, tests, troubleshooting | **Done — strict docs QA passed** |
-| D11-B | Detailed messaging and communication services | Deepen notifications, TalkingBytes communication, Omnibus events/jobs, queue workers, deployment/failure semantics and app-owned config | **In progress — exact-head CI pending** |
-| D11-C | Detailed security and validation | Expand authentication, middleware/request validation and configuration coverage from Infbyte 4 application perspective | Pending |
+| D11-B | Detailed messaging and communication services | Deepen notifications, TalkingBytes communication, Omnibus events/jobs, queue workers, deployment/failure semantics and app-owned config | **Done — strict docs QA passed** |
+| D11-C | Detailed security and validation | Deepen authentication, authorization and request validation from actual Infbyte config and public PHP contracts | **In progress — exact-head CI pending** |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
 
@@ -238,3 +238,9 @@ Deepen the remaining short user-facing services guides using actual Infbyte app 
 - **D11-A:** `765b8b03a5df048f5c8537f46aa90524bd3203f2` committed detailed database, CacheLayer and Pathwise chapters. The strict docs/Sphinx job `131657739449` in Security & Standards `43355853411` **passed**. These chapters document true Infbyte project config locations and optional feature ownership, and retain actual native API examples.
 - **D11-B (this commit):** rewrite `docs/services/communication.rst`, `notifications.rst`, `events-jobs.rst` and `queues-workers.rst` as substantive task-oriented developer guides. Explain that `config/notifications.php` ships in Infbyte Core, while `config/communication.php` and `config/messaging.php` appear only after selecting optional features. Show sourced application/Omnibus/TalkingBytes contracts, the distinction between sync/volatile/durable delivery, safe retries, codec policy, host lifecycle, tests, performance, and failure/operational response. Every non-shipped application class/profile is labeled illustrative. Exact-head Sphinx and PHP example checks are pending.
 - **D11-C:** next detailed expansion focuses on auth/security/validation where overview pages remain short; this is documentation, not release approval.
+
+### D11-B validation and D11-C execution
+
+- **D11-B:** `0b214e1a0058bf1a5edc8d58f238809ca4e87eca` expanded communication, notification, events/jobs, and queue/worker chapters with accurate Infbyte configuration paths and production guidance. Strict docs/Sphinx job `131660222759` from workflow `43356593371` **passed**. No runtime PHP code changed.
+- **D11-C (this commit):** rewritten, source-checked `docs/security/authentication.rst`, `docs/security/authorization.rst`, and `docs/http/validation.rst` with real Infbyte Core auth settings, optional validation config, typed `AuthServices` and `FormRequest` APIs, security/middleware ordering, typed validation results, production concurrency, test coverage, and troubleshooting. No invented Laravel facades.
+- **QA gate:** exact-head Sphinx -W, PHP example lint, public-contract drift and read-only Infbyte PHP 8.4/8.5 compatibility must be checked before declaring D11-C green. Foundation P6 and Infbyte full QA/security-stability still remain independent release gates.
