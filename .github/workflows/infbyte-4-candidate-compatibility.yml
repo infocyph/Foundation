@@ -58,9 +58,11 @@ jobs:
               config/messaging.php \
               config/communication.php \
               config/validation.php \
-              config/security.php; do
+              config/security.php \
+              config/session.php \
+              config/logging.php; do
             if [[ -e "$file" ]]; then
-              printf 'Core-only candidate now ships optional config; update Infbyte docs: %s\n' "$file" >&2
+              printf 'Core-only candidate now ships a previously absent config override; update Infbyte docs: %s\n' "$file" >&2
               exit 1
             fi
           done

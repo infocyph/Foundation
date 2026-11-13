@@ -1,6 +1,6 @@
 # Infbyte documentation development plan
 
-Status: **Infbyte application manual developed through D14-A; final depth and consistency audit in progress.** Strict Sphinx and current read-only Infbyte candidate verification pass; publication and full downstream consumer QA remain separate gates.
+Status: **Infbyte manual authoring and core documentation QA complete through D15-A; D15-B final source/version/publication audit in progress.** Hosting, full downstream Infbyte CI and Foundation 4 release qualification remain independently gated.
 Owner repository: `infocyph/Foundation`.
 Branch: `feature/foundation-3`.
 Documentation identity: **Infbyte — PHP Application Framework**.
@@ -72,9 +72,9 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D13-A | Application service providers | Infbyte bootstrap/providers.php, native InterMix DI examples, per-runtime group selection, scoping, compilation, verification, troubleshooting | **Done — strict docs and Infbyte candidate CI passed** |
 | D13-B | Application test strategy and native fakes | Infbyte tests/ structure, real health TestKit fixture, selected optional TestKit helpers, fake/real transport boundaries, failure-path, persistent-host and release tests | **Done — strict docs and Infbyte candidate CI passed** |
 | D14-A | CLI commands and scheduler walkthroughs | Deepen actual Infbyte routes/console.php and routes/schedule.php, command definitions, schedules, locking, job/worker distinction and production checks | **Done — strict Sphinx / complete PHP documentation QA passed on exact head** |
-| D14-B | Core onboarding and lifecycle expansion | Explain application creation, developer setup, first route, application/request runtime lifecycle, exact Infbyte project paths and failure diagnoses | **In progress — exact-head docs QA pending** |
-| D15-A | Operational, testing and service guide sweep | Deepen short logging, database testing, worker operations, persistent-host guidance and deployment/advanced chapters | **In progress — exact-head documentation CI pending** |
-| D15-B | Final consistency and publication readiness audit | Scan every RST/link/filename/CLI/API/example, run strict Sphinx/complete-PHP, cross-repo Infbyte candidate CI, close tracker and flag external release gates accurately | Pending |
+| D14-B | Core onboarding and lifecycle expansion | Explain application creation, developer setup, first route, application/request runtime lifecycle, exact Infbyte project paths and failure diagnoses | **Done — strict Sphinx and Infbyte candidate CI passed** |
+| D15-A | Operational, testing and service guide sweep | Deepen short logging, database testing, worker operations, persistent-host guidance and deployment/advanced chapters | **Done — strict Sphinx and Infbyte candidate CI passed** |
+| D15-B | Final consistency and publication readiness audit | Scan every RST/link/filename/CLI/API/example, run strict Sphinx/complete-PHP, cross-repo Infbyte candidate CI, close tracker and flag external release gates accurately | **In progress — exact-head CI pending; external link/hosting remains publication-gated** |
 | D12-C | Native HTTP middleware and requests/responses depth | Expand developer-facing Webrick middleware/request/response chapters with actual Infbyte routes, auth/CSRF policy, typed request inputs, immutable responses, host tests and production gotchas | **Done — strict docs and Infbyte candidate CI passed** |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
@@ -236,7 +236,7 @@ by this evidence alone.
 - [x] Rework `docs/data/cache.rst` from short architecture notes into a detailed **Infbyte `config/cache.php`** guide: actual Core configuration, CacheLayer PSR SimpleCache `get/set` and `remember`, named stores and locks, shared versus process-local backend selection, schema CLI, performance, tests and diagnostics.
 - [x] Rework `docs/data/filesystem.rst` into a detailed **optional `data.filesystem` / Infbyte `config/filesystem.php`** guide: actual Pathwise disk roots, native `StorageRegistry`, bounded uploads/downloads, malware policy, public link management, safe persistent hosting and tests.
 - [x] Rework `docs/data/database.rst` into a detailed **optional `data.database` / Infbyte `config/database.php`** guide: source-derived connection/migration/seed settings, native DBLayer ownership, CLI inspection, transactional safety, schema provision, deployment and rollback.
-- [ ] Verify the D11-A exact-head strict Sphinx build, application-path/public-method guard and full PHP block lint before marking Done. Do not conflate documentation QA with Foundation release qualification or current Infbyte full QA.
+- [x] Verify the D11-A exact-head strict Sphinx build, application-path/public-method guard and full PHP block lint before marking Done. Do not conflate documentation QA with Foundation release qualification or current Infbyte full QA.
 
 ### D11-B follow-up scope
 
@@ -327,3 +327,10 @@ Deepen the remaining short user-facing services guides using actual Infbyte app 
 - Expanded `docs/testing/persistent-runtimes.rst` with TestKit and true host/cancellation/lease/generation test distinctions.
 - Expanded `docs/console/workers.rst` with source-checked application `WorkerProvider::run(WorkerRuntime):int`, `WorkerRuntime::execute()`, maintenance versus Omnibus workers, supervision and recovery.
 - Strict Sphinx, complete PHP syntax, path/source contracts and read-only Infbyte candidate compatibility must pass at the exact head. Foundation release qualification remains independent.
+
+### D15-A validation and D15-B final audit
+
+- **D14-B:** `25a0921d72894964f02446e3e6faefd3b1c2dc1e`; strict Sphinx/PHP document job `131678158442` in workflow `43362186547` **passed**, and read-only candidate workflow `43362186226` passed PHP 8.4/8.5.
+- **D15-A:** `0f30110ded3f02c2c7d7d44daecfb3e03ae05c8d`; strict documentation job `131679285797` in workflow `43362530815` **passed**, read-only candidate workflow `43362530538` passed PHP 8.4/8.5. Other Foundation host/source qualification jobs are tracked separately.
+- **D15-B (this batch):** refresh `docs/start/foundation4-candidate.rst` and `docs/reference/publication-readiness.rst` to remove obsolete October compatibility evidence; show actual `feature/infbyte-4` / `dev-feature/foundation-3` state, the latest passing read-only Core probe, and **still failing** downstream Infbyte PR #11 CI on `d4dc214dce55e8c0217dd39a24c1e50878e0320f`. Add checks to the read-only cross-repo workflow for absence of `config/session.php` and `config/logging.php` in the fresh Core-only app, distinguishing optional Core override templates from shipped application files. Fix 2026 copyright rendering in the Sphinx theme.
+- **Final docs QA required:** strict Sphinx HTML with warnings-as-errors, existing local `:doc:` and reference validation, PHP example lint, source-contract guard and Infbyte current-source candidate check on **both PHP 8.4/8.5**. Hosted Read the Docs version alias/external link health and any stable `^4.0` consumer test depend on external release/publication gates and must **not** be marked green from docs CI.

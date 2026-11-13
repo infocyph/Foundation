@@ -9,7 +9,7 @@ from sphinx.highlighting import lexers
 
 project = "Infbyte"
 author = "Infocyph"
-copyright = f"2026-{date.today():%Y}, Infocyph"
+copyright = f"2026–{date.today():%Y}, Infocyph" if date.today().year > 2026 else "2026, Infocyph"
 version = os.getenv("READTHEDOCS_VERSION", "4.x-dev")
 release = version
 language = "en"

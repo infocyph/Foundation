@@ -17,10 +17,11 @@ reference for a Foundation 4 application skeleton.
 
    **Development-only instructions.** The candidate currently requires
    ``dev-feature/foundation-3`` via a Composer VCS override, not a
-   published stable Foundation 4 version. Earlier candidate CI jobs
-   passed against an October 18 Foundation source; those results do
-   not certify compatibility with the latest Foundation commit.
-   PHPForge's stable-runtime constraint remains unfulfilled.
+   published stable Foundation 4 version. The Foundation-side
+   read-only candidate integration is current-source checked, but
+   Infbyte PR #11's separate full Security & Standards and candidate
+   integration jobs still fail. PHPForge's stable-runtime release
+   constraint remains unfulfilled.
    Do not merge, tag or publish this development integration.
 
 Prerequisites
@@ -142,34 +143,47 @@ distinct, deliberate decisions. See :doc:`../tutorials/choose-capabilities`.
 Current evidence and drift
 --------------------------
 
-The candidate's October 18 integration workflow passed all
-13 jobs (PHP 8.4/8.5, selected native hosts, packaged project
-and optional feature consumers) using an older Foundation
-development SHA. A **new independent Core compatibility probe**
-on the Foundation PR verified the Infbyte candidate against
-Foundation source commit
-``d278059502db1e48cf825328d1a5b2582a8f0770`` on
-**PHP 8.4 and PHP 8.5** (workflow 43276200146, two successful
-jobs). It checked exact resolved dependency identity, the native
-three-group/eight-feature catalog, the Webrick health endpoint
-through Foundation TestKit, and a trusted Core release build.
+The **Infbyte 4 candidate** at ``feature/infbyte-4`` is a real
+application skeleton. Its ``composer.json`` still requires the
+moving Foundation ``dev-feature/foundation-3`` reference,
+so every test must record the **resolved immutable Foundation SHA**.
 
-The current Foundation feature catalog requires DBLayer
-``^6.1.4``, but an Infbyte candidate module test still asserts
-``^6.1.1`. That stale test expectation needs to follow the
-actual Foundation ``ModuleArchitectureCatalog`` mapping. Do not
-downgrade Foundation to accommodate an outdated application test.
+As of November 13, 2026, the Foundation PR's **read-only
+Infbyte 4 compatibility workflow** successfully checked the
+candidate with PHP 8.4 and PHP 8.5 at the exact Foundation
+source under test. The D15-A documentation checkpoint
+``0f30110ded3f02c2c7d7d44daecfb3e03ae05c8d``
+passed its candidate workflow (``43362530538``);
+the workflow verifies the Core-only application layout,
+feature catalog, Webrick/TestKit health endpoint and
+trusted Core release against that source.
 
-The candidate's separate PHPForge Security & Standards workflow
-has four failed QA matrix jobs because its development Composer
-constraint violates the intentionally strict stable-runtime
-guard. Keep the guard intact until the genuine stable cutover.
+**This is a scoped compatibility probe, not the full consumer
+release matrix.** Infbyte draft PR #11 at source
+``d4dc214dce55e8c0217dd39a24c1e50878e0320f``
+has its own failing Security & Standards
+(``43352044978``) and Foundation 4 Candidate Integration
+(``43352044897``) workflows. Inspect those job logs on
+the actual consumer head; older October successes do not
+cancel a newer failure. Do not weaken the intentionally
+stable-version guard merely to label a development branch
+as release-ready.
 
-The new Core smoke is **not** a rerun of the full Infbyte
-13-job native/optional-feature acceptance matrix, and it does
-not make the development dependency suitable for publication.
-The existing Infbyte PR #11 needs updated assertions and all
-required release checks on the actual stable-cutover commit.
+The source-of-truth Infbyte starter currently ships exactly six
+Core configuration files: ``config/app.php``, ``auth.php``,
+``cache.php``, ``modules.php``, ``notifications.php``
+and ``router.php``. Optional configurations such as
+``config/database.php`` are published to the application
+only after feature selection. Core customization templates such
+as ``config/session.php`` or ``config/logging.php``
+are not preinstalled files in the candidate.
+
+The final publication gate requires a **released Foundation 4
+constraint**, no moving VCS override, a locked compatible Infbyte
+application dependency graph and green consumer QA across actual
+selected native hosts/capabilities. Documentation syntax and the
+read-only probe cannot replace that acceptance.
+
 
 Stable release remains gated
 ----------------------------

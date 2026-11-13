@@ -8,14 +8,19 @@ Publication and compatibility
 application experience; **Foundation** is the PHP package and source
 repository that houses this manual.
 
-This is the **Foundation 4 development manual**, not a notice that
-Foundation 4 has been released. The public Infbyte skeleton on ``main``
-still requires ``infocyph/foundation: ^3.0.1``. **An Infbyte 4 candidate
-already exists** on draft PR #11, branch ``feature/infbyte-4``, requiring
-the unpublished ``dev-feature/foundation-3``. Its earlier 13-job candidate integration checks predate the current Foundation
-branch. A separate **Core smoke** has now passed on PHP 8.4 and PHP 8.5
-against Foundation source ``d278059502db1e48cf825328d1a5b2582a8f0770``
-(workflow 43276200146), without replacing the complete application matrix.
+This is the **Foundation 4 development manual**, not a release
+announcement. Infbyte's published ``main`` starter still requires
+Foundation 3 (``^3.0.1``); Infbyte PR #11 on
+``feature/infbyte-4`` is an unpublished candidate
+requiring ``dev-feature/foundation-3``.
+
+The Foundation PR currently verifies that candidate on PHP 8.4/8.5
+through a **read-only, exact-source Core compatibility workflow**.
+As of November 13, 2026 the corresponding Infbyte PR #11 full
+Security & Standards and Candidate Integration workflows have
+**failures**, and neither PR is merged or published. The Core probe
+does not replace full consumer acceptance or a stable Composer cutover.
+
 
 What has been verified
 ======================
@@ -26,12 +31,11 @@ CI builds HTML with warnings treated as errors, validates complete
 PHP example code blocks with PHP 8.4 syntax checks, and runs a
 lightweight public API/feature drift check.
 
-Documentation batches D1 through D8-B have recorded
-successful Sphinx jobs in the
+Documentation batches through D15-A have recorded
+successful strict Sphinx jobs in the
 `documentation development plan
 <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/infbyte-documentation-development-plan.md>`_.
-The final documentation tracker commit has also passed strict Sphinx/contract
-checks. Application-level current-source integration remains a separate gate.
+Current-source read-only Infbyte candidate compatibility has passed on PHP 8.4/8.5, but the full downstream Infbyte security/integration matrix is still red. Documentation QA and consumer qualification must be reported separately.
 
 The source audit checks the **declared existence** of reference
 methods, configuration templates and qualified optional feature IDs.
@@ -133,9 +137,9 @@ performed by documentation work. The remaining verification includes:
 7. Migration, retained-state and rollback rehearsal using selected
    production-like backends.
 
-The Core candidate has been rerun against the exact Foundation source, but
-Infbyte's complete 13-job candidate matrix and stale DBLayer assertion
-remain unresolved. Repeat the full matrix and tutorial commands
+The Core candidate is regularly checked against the exact Foundation PR source, but
+Infbyte's own full candidate/security jobs remain failing and the stable cutover
+is incomplete. Reconcile the current failing jobs and rerun tutorial commands
 against the eventual *exact* tagged application and dependency lock. Do not copy instructions from the Foundation 3
 starter and describe them as tested Foundation 4 usage.
 
