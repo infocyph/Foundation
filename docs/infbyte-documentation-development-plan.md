@@ -69,6 +69,7 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D11-C | Detailed security and validation | Deepen authentication, authorization and request validation from actual Infbyte config and public PHP contracts | **Done — strict documentation QA passed** |
 | D12-A | Browser session and middleware developer recipes | Infbyte-first route-selected web/session/CSRF/authorization lifecycle, config ownership, tested examples and production state coordination | Pending |
 | D12-B | MFA/passkeys and production security guide depth | Detailed optional feature selection, enrollment/verification boundaries, recovery, replay, testing, and operations | Pending |
+| D12-C | Native HTTP middleware and requests/responses depth | Expand developer-facing Webrick middleware/request/response chapters with actual Infbyte routes, auth/CSRF policy, typed request inputs, immutable responses, host tests and production gotchas | **In progress — exact-head CI pending** |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
 
@@ -252,3 +253,10 @@ Deepen the remaining short user-facing services guides using actual Infbyte app 
 - **D11-C source:** `c0be0d5abea4986bebbd7654c6e4744ff9206ecd`.
 - **Exact-head documentation QA:** Sphinx/public API/PHP example documentation job `131661982863` from Security & Standards run `43357169898` **passed**. This verifies documentation; it does **not** certify the surrounding Foundation security/static-analysis/performance matrix or release.
 - **Next developer-focused sections:** browser sessions/CSRF, selective middleware and persistent-host isolation (D12-A); advanced authentication, passkeys/MFA/replay, and production readiness (D12-B). Both should use **Infbyte project paths** and the actual application-owned `config/auth.php`; never direct a developer to edit Foundation `resources/config/`.
+
+### D12-C — HTTP guide enrichment (separate from D12-A/B)
+
+- Expanded `docs/http/middleware.rst` with native Webrick execution order, Infbyte application route options, selected session/CSRF/principal policy, error handling, performance and persistent-host testing.
+- Expanded `docs/http/requests-responses.rst` with a full application-owned query-controller example, typed Webrick request accessors, validation/authorization separation, immutable `Response` factories, content negotiation, safe streaming, JSON resources and negative tests.
+- All `config/`, `routes/`, `app/`, and `storage/` paths are in the **Infbyte project**, not Foundation package internals. The guides distinguish actual Infbyte starter routes from developer-created examples.
+- **Gate:** verify strict exact-head Sphinx, public-contract drift, complete PHP syntax and read-only candidate compatibility. Do not mark published Foundation/Infbyte release gates complete from docs CI alone.
