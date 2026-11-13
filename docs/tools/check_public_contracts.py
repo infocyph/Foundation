@@ -148,8 +148,9 @@ def main() -> int:
     for name in CONFIG_TEMPLATES:
         if not (ROOT / "resources/config" / name).is_file():
             failures.append(f"resources/config/{name}: template missing")
-        if f"``{name}``" not in config:
-            failures.append(f"docs/reference/configuration.rst: {name} missing")
+        # Foundation owns the template, but Infbyte developers edit config/<name>.
+        if f"``config/{name}``" not in config:
+            failures.append(f"docs/reference/configuration.rst: Infbyte app path config/{name} missing")
 
     for failure in failures:
         print(f"FAIL: {failure}", file=sys.stderr)

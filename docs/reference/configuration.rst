@@ -333,9 +333,9 @@ adding their own generic ``config/mfa.php`` or
 ``config/passkey.php`` unless a real application creates
 additional settings.
 
-Some Foundation Core policies have optional template
-files such as ``session.php``, ``logging.php``,
-``operations.php`` or ``responses.php``. They are
+Some Foundation Core policies have optional application-level template
+files at ``config/session.php``, ``config/logging.php``,
+``config/operations.php`` and ``config/responses.php``. They are
 **not part of the six-file Infbyte candidate checkout**.
 Do not claim a user must edit those files until an actual
 selected project has published/provisioned them. Core
