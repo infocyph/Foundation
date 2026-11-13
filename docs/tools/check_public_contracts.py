@@ -115,6 +115,53 @@ def load(path: Path, failures: list[str]) -> str:
     return path.read_text(encoding="utf-8")
 
 
+
+# Keep public Markdown links and source-linked Sphinx pages in sync when
+# superseded documentation is removed. Sphinx validates :doc: references,
+# but GitHub / Markdown links otherwise fail silently.
+MARKDOWN_FILE_LINK = re.compile(r"\]\(([^)\s]+)(?:\s+[^)]*)?\)")
+FOUNDATION_SOURCE_LINK = re.compile(
+    r"https://github\.com/infocyph/Foundation/blob/"
+    r"(?:feature/foundation-3|main)/"
+    r"((?:docs|\.github)/[A-Za-z0-9_./-]+)"
+)
+
+
+def check_document_links(failures: list[str]) -> int:
+    checked = 0
+    markdown_pages = [ROOT / "README.md", ROOT / "CONTRIBUTING.md"]
+    markdown_pages.extend(sorted(DOCS.rglob("*.md")))
+
+    for page in markdown_pages:
+        if not page.is_file():
+            continue
+        for match in MARKDOWN_FILE_LINK.finditer(page.read_text(encoding="utf-8")):
+            reference = match.group(1).split("#", 1)[0].split("?", 1)[0]
+            if not reference or "://" in reference or reference.startswith(
+                ("#", "mailto:", "tel:", "/", "data:")
+            ):
+                continue
+            target = (page.parent / reference).resolve()
+            if not target.is_relative_to(ROOT):
+                continue
+            checked += 1
+            if not target.is_file():
+                failures.append(
+                    f"{page.relative_to(ROOT)}: broken relative link {reference}"
+                )
+
+    for page in sorted(DOCS.rglob("*.rst")):
+        for match in FOUNDATION_SOURCE_LINK.finditer(page.read_text(encoding="utf-8")):
+            reference = match.group(1).rstrip(".,")
+            checked += 1
+            if not (ROOT / reference).is_file():
+                failures.append(
+                    f"{page.relative_to(ROOT)}: stale Foundation source URL {reference}"
+                )
+
+    return checked
+
+
 def main() -> int:
     failures: list[str] = []
     checked_methods = 0
@@ -152,11 +199,13 @@ def main() -> int:
         if f"``config/{name}``" not in config:
             failures.append(f"docs/reference/configuration.rst: Infbyte app path config/{name} missing")
 
+    checked_links = check_document_links(failures)
+
     for failure in failures:
         print(f"FAIL: {failure}", file=sys.stderr)
     print(f"Documentation public contracts: {checked_methods} methods, "
           f"12 configuration templates, 3 feature groups / 8 features; "
-          f"failures: {len(failures)}")
+          f"local source links: {checked_links}; failures: {len(failures)}")
     return 1 if failures else 0
 
 
