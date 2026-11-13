@@ -17,8 +17,11 @@ and lightweight application skeleton.
    A Foundation 4 **development candidate** is available on Infbyte PR #11;
    it is not a stable published starter.
 
-This manual is written for application developers. When a feature belongs to
-a specialist Infocyph package, its guide shows how it fits into Infbyte
+This manual is written for **Infbyte application developers**. Unless a page
+explicitly says **Foundation internal source**, paths such as ``config/app.php``,
+``routes/api.php`` and ``app/Http/Controllers/`` refer to files in **your
+Infbyte project**, not paths inside the Foundation repository. When a feature
+belongs to a specialist library, its guide explains how it fits into Infbyte
 without inventing a replacement framework API.
 
 Start here

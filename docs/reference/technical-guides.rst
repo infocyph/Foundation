@@ -7,8 +7,11 @@ Foundation technical guides
 The existing technical Markdown guides are intentionally preserved in the
 Foundation repository while the Infbyte RST manual is developed.
 
-They document the current Foundation 4 development branch and should be
-read with that version context. The links below point to the source guides
+They document **Foundation package internals** on the current Foundation 4
+development branch and should be read with that version context. For files
+in a runnable Infbyte application, prefer :doc:`../start/directory-structure`
+and :doc:`configuration`: an internal ``resources/config/`` template does not
+replace an application's ``config/`` directory. The links below point to the source guides
 directly; this page does not claim that they are already converted to RST.
 
 * `Architecture and lifecycle <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/architecture.md>`_

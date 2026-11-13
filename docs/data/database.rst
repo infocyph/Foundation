@@ -16,6 +16,7 @@ In a compatible Foundation 4 application:
 
    php infbyte module:plan data.database
    php infbyte module:install data.database
+   php infbyte module:enable data.database
    php infbyte module:doctor data.database
 
 This installs the selected DBLayer integration and publishes its
@@ -31,8 +32,11 @@ default connection. Use the native DBLayer query, transaction,
 replica and schema APIs directly. Foundation does not provide
 an Active Record ORM or a parallel database facade.
 
-Use the configured ``database.php`` file for connection names,
-migration classes and seeders; do not embed credentials into code.
+After the selected feature publishes it, edit **``config/database.php`` in
+your Infbyte project root** for connection names, migration classes and seeders.
+A fresh Core-only Infbyte 4 application does not yet have this file; Foundation's
+``resources/config/database.php`` is framework template source only. Never
+embed database credentials into source code.
 
 Register and run migrations
 ---------------------------

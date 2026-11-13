@@ -61,6 +61,9 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D9-B1 | Current-source Infbyte candidate probe | Read-only Foundation PR workflow resolves Infbyte 4 candidate on PHP 8.4/8.5, verifies exact Foundation SHA, Core module inventory, Webrick/TestKit health and trusted release readiness | **Done — both PHP 8.4/8.5 jobs passed** |
 | D9-B2 | Infbyte candidate remediation | Refresh full 13-job candidate QA and repair drift directly in Infbyte PR #11 | **Blocked — GitHub integration rejects Infbyte writes/reruns (403)** |
 | D9-C | Stable release/Read the Docs hosting | Foundation P6 and exact SHA qualification, published ^4.0 Composer cutover, externally hosted RTD build/version routing | **Blocked — external release/publication prerequisites** |
+| D10-A | Infbyte-first paths and config depth | Verify exact Infbyte 4 config files, rewrite setup/config reference/project structure with examples and production advice, correct related guides | **In progress — exact-head docs QA pending** |
+| D10-B | Laravel-depth user guides | Expand route/controller and task-oriented application chapters with real sample code, middleware, tests, pitfalls and production treatment | Pending |
+| D10-C | Project-path and public API audit | Scan all developer RST pages for misleading Foundation-internal paths; verify docs against Infbyte candidate source and strict Sphinx/PHP lint | Pending |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
 
@@ -181,3 +184,17 @@ by this evidence alone.
 - Workflow `43276200146` passed **both** PHP 8.4 and PHP 8.5 jobs: `131385131893` (8.4) and `131385131142` (8.5).
 - Both jobs' Composer lock references matched the exact Foundation PR head `d278059502db1e48cf825328d1a5b2582a8f0770`. Module topology, Infbyte Webrick health/TestKit dispatch, and trusted Core release manifest integrity passed. These checks were executed from Infbyte `feature/infbyte-4` in a read-only checkout.
 - The **full Infbyte 13-job matrix was not rerun**; the October 18 success remains historical only. Four PHPForge stable-runtime failures on Infbyte's development branch are policy-expected until a real `^4.0` cutover. Infbyte branch source fixes remain blocked by 403 GitHub integration write permission. No stable release or hosted Read the Docs publication was performed.
+
+## D10 — Infbyte application documentation correction (2026-11-13)
+
+**Editorial direction:** This is an **Infbyte developer manual living inside Foundation**, not a Foundation internal-source manual. Every ordinary `config/`, `app/`, `routes/`, `bootstrap/`, `storage/` example must describe the Infbyte project checkout. Never claim that Foundation's `resources/config/` is the location to edit application configuration.
+
+**Source verified:** Infbyte `feature/infbyte-4` ships exactly six Core application config files: `config/app.php`, `auth.php`, `cache.php`, `modules.php`, `notifications.php`, `router.php`; optional feature configuration such as `config/database.php` is absent until requested. Foundation `resources/config/` provides internal templates, not user-editable project config.
+
+**D10-A:** replace the previously short getting-started configuration, project directory and configuration-reference chapters with detailed source-grounded explanations, representative PHP/CLI examples, optional-feature publication, debugging, security, production and rollback notes. Amend the database walkthrough and maintainer guidance. Keep source links for maintainers explicitly marked internal.
+
+**D10-B:** use verified Infbyte route/controller examples and the real file layout to expand the onboarding/HTTP and testing instructions; add realistic success/failure paths rather than only listing methods. Full examples must pass PHP syntax lint and no unsupported Laravel facades, Eloquent or Blade APIs may be claimed.
+
+**D10-C:** review all RST chapters for misleading paths and stale source assertions; keep independent external Infbyte/Packagist/hosted RTD publication gates open.
+
+**Infbyte PR #11 access restored** during D10: commit `d4dc214dce55e8c0217dd39a24c1e50878e0320f` added a native TestKit/health smoke, corrected stale DBLayer planner fixture, and CI source provenance to the existing candidate branch. Its fresh full QA has new failures; do not claim green until those are resolved. No merges or releases.

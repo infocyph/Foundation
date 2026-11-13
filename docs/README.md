@@ -6,6 +6,8 @@ The public-facing framework manual is built with Sphinx from [`index.rst`](index
 
 For candidate installation, start with [the Foundation 4 development application guide](start/foundation4-candidate.rst). The published `composer create-project` still targets Foundation 3.
 
+**Path rule:** All developer-facing `config/`, `app/`, `routes/`, `bootstrap/`, and `storage/` paths refer to the **Infbyte application project**. Foundation's `resources/config/` is framework-owned template source only, not a live application configuration directory.
+
 Build the manual with:
 
 ```bash

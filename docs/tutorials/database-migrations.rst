@@ -41,10 +41,14 @@ Inspect the explicit Foundation 4 module plan:
    php infbyte module:list
    php infbyte module:plan data.database
    php infbyte module:install data.database
+   php infbyte module:enable data.database
    php infbyte module:doctor data.database
 
-Review the published ``config/database.php``, the configured
-connection names and the actual target database. Do not assume that
+Review **``config/database.php`` in the Infbyte application project** after
+the selected DBLayer feature publishes it. The Core-only Infbyte candidate
+does not ship this file; the Foundation package's internal
+``resources/config/database.php`` is the template source. Inspect connection
+names and the actual target database. Do not assume that
 a local SQLite connection implies identical semantics to a
 PostgreSQL or MySQL production connection.
 

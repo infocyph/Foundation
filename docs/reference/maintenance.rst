@@ -29,6 +29,36 @@ Until a matching stable Infbyte/Foundation release is available:
 * Keep the source branch visible in technical references; use versioned
   documentation targets when real releases become available.
 
+Application paths versus framework internals
+=========================================
+
+**The primary audience is an Infbyte application developer.**
+Every page must distinguish application paths from the internal
+Foundation repository that stores this documentation.
+
+* Developer paths such as ``config/app.php``, ``routes/api.php``,
+  ``app/Http/Controllers/`` and ``storage/releases/`` must be checked
+  against the *Infbyte* candidate repository.
+* Foundation's ``resources/config/`` is a template-source path, **not**
+  a place where an Infbyte user should configure the application.
+* Six configuration files ship with the Core-only Infbyte 4 candidate:
+  ``config/app.php``, ``config/auth.php``, ``config/cache.php``,
+  ``config/modules.php``, ``config/notifications.php``, and
+  ``config/router.php``.
+* Optional feature configuration files belong under the Infbyte project's
+  ``config/`` after actual feature installation/publication.
+* Generated files under ``storage/releases/`` and
+  ``bootstrap/cache/`` are build products, not handwritten source files.
+* If an internal Foundation file path is relevant, identify it explicitly as
+  an **internal reference** and show the corresponding Infbyte application
+  path or state that no application file exists by default.
+
+Docs must follow a Laravel-level **instructional progression**:
+give the exact app file path, a small accurate example, the reason for the
+setting or API, alternatives, gotchas, a way to test it, operational/security
+considerations and links to deeper references. Do not turn an internal PHP
+template catalog into the user-facing project structure.
+
 Sources of truth
 ================
 
