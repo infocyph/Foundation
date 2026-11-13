@@ -136,8 +136,8 @@ A runnable standalone *demonstration* that owns and completes its own test
 request is [`examples/foundation-4-runwire-worker.php`](examples/foundation-4-runwire-worker.php).
 Production hosts own their request completion instead. For HTTP hosts, Webrick
 retains response and request-scope ownership; see [Runtime hosting](runtime-hosting.md),
-[OTP](otp.md), [Messaging](messaging.md), [Communication](communication.md)
-and [Filesystem](filesystem.md).
+[OTP](otp.md), [Messaging](services/queues-workers.rst), [Communication](services/communication.rst)
+and [Filesystem](data/filesystem.rst).
 
 ## Feature-owned config and schema
 
@@ -156,4 +156,4 @@ Config publishing creates only missing feature-owned templates and never force-o
 
 The former 11-entry public catalog is removed: names such as `auth`, `database`, `filesystem`, `validation`, `messaging`, `communication`, `logging`, `operations`, `resources` and `session` are **not** installable aliases. This is a major-version contract change without an older-major shim. Replace `module:install database` with `module:install data.database`, `module:install auth --feature=otp` with `module:install security.mfa` (and `security.crypto` when OTP is selected), and `module:config:publish messaging` with `module:config:publish execution.messaging`.
 
-Upgrade by declaring current Composer package majors in the application's root manifest, selecting only the required `modules.features` and their conditional dependencies, validating plans/extension constraints, publishing missing owner configuration, and compiling a new immutable release generation. Migrate automated scripts and JSON parsers from v1 to **v2**. See [Configuration](configuration.md) and [Architecture](architecture.md). See the [host certification procedure](foundation-4-host-benchmark-certification.md) for release validation. A candidate is **not release-ready** until the complete performance matrix and final source/dependency QA gates pass.
+Upgrade by declaring current Composer package majors in the application's root manifest, selecting only the required `modules.features` and their conditional dependencies, validating plans/extension constraints, publishing missing owner configuration, and compiling a new immutable release generation. Migrate automated scripts and JSON parsers from v1 to **v2**. See [Configuration](reference/configuration.rst) and [Architecture](architecture/application-lifecycle.rst). See the [host certification procedure](foundation-4-host-benchmark-certification.md) for release validation. A candidate is **not release-ready** until the complete performance matrix and final source/dependency QA gates pass.

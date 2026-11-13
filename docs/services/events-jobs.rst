@@ -228,6 +228,5 @@ handler contracts:
 
 https://github.com/infocyph/Omnibus
 
-And the Foundation implementation reference:
-
-https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/messaging.md
+For the Infbyte application integration, see :doc:`queues-workers`
+(in addition to the Omnibus native manual).

@@ -321,5 +321,4 @@ See :doc:`../services/events-jobs`,
 :doc:`../services/queues-workers`,
 :doc:`../console/workers`,
 :doc:`../testing/persistent-runtimes`, and the
-`Foundation messaging contract
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/messaging.md>`_.
+:doc:`../services/queues-workers` application integration guide.

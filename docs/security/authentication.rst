@@ -290,6 +290,5 @@ Read :doc:`authorization`,
 :doc:`sessions-csrf`,
 :doc:`../services/notifications`,
 :doc:`../tutorials/secure-browser-session` and
-the detailed Foundation authentication internals:
-
-https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/authentication.md
+the :doc:`advanced-authentication` and
+:doc:`../reference/http-security-api` guides.

@@ -58,11 +58,11 @@ return [
 Providers contribute deterministic graph definitions before production
 compilation; production boot does not reopen the mutable development container.
 
-See [Architecture and lifecycle](docs/architecture.md),
-[Configuration](docs/configuration.md), and the
-[Foundation 4 setup guide](docs/foundation-4-migration.md),
-[current 4.0 public/provider/configuration contract](docs/foundation-4-api-map.md), and
-[Foundation 4 persistence/recovery guide](docs/foundation-4-retained-data-rehearsal.md).
+See the [Infbyte application lifecycle](docs/architecture/application-lifecycle.rst),
+[application configuration](docs/start/configuration.rst),
+[public API reference](docs/reference/application-api.rst),
+[Foundation 4 migration guide](docs/foundation-4-migration.md), and
+[retained-data recovery guide](docs/foundation-4-retained-data-rehearsal.md).
 See the [Foundation 4 release notes](docs/foundation-4.0-release-notes.md) for breaking changes.
 
 ## Runtime hosts
@@ -129,14 +129,16 @@ deployment-owned and should not be committed. Use `php infbyte optimize:clear`
 for explicit build-plane cleanup.
 
 Operational behavior and safety constraints are documented in
-[CLI, schedules, and workers](docs/console.md),
-[Messaging](docs/messaging.md), and [Operations](docs/operations.md).
+[CLI commands](docs/console/commands.rst),
+[scheduling](docs/console/scheduling.rst),
+[queue workers](docs/services/queues-workers.rst), and
+[operations](docs/deployment/operations.rst).
 
 ## Documentation
 
 The [Infbyte framework manual](docs/index.rst) provides developer-facing
-RST/Sphinx guides, while the [Foundation technical reference](docs/README.md)
-retains detailed implementation guidance. The Infbyte manual currently covers
+RST/Sphinx guides. The [Foundation technical reference](docs/reference/technical-guides.rst)
+retains only deep implementation, migration and certification guidance. The Infbyte manual currently covers
 **unpublished Foundation 4 development contracts**; the public Infbyte skeleton
 on `main` still targets Foundation 3. Configuration templates under
 `resources/config/` are the canonical key-by-key reference.

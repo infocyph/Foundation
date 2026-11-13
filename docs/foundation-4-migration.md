@@ -4,9 +4,9 @@ This guide describes Foundation 4.0 setup and production runtime contracts. Foun
 breaking major release; prior-version API signatures, legacy configuration,
 schema conversions and downgrade support are outside its release acceptance.
 
-Read [architecture](architecture.md), [modules](modules.md),
-[configuration](configuration.md), the
-[current 4.0 public/provider/configuration contract](foundation-4-api-map.md),
+Read [architecture](architecture/application-lifecycle.rst), [modules](modules.md),
+[configuration](reference/configuration.rst), the
+[current 4.0 public/provider/configuration contract](reference/application-api.rst),
 and [4.0-native state integrity and recovery](foundation-4-retained-data-rehearsal.md)
 before production deployment.
 
@@ -23,7 +23,7 @@ the auth TTL store and matching `auth.passwordless_ttl` constructor arguments.
 Use shared persistent atomic auth state across PHP/FPM requests or workers;
 process-local state cannot carry a link across processes. Previously issued
 stateless links have no redemption marker and must be reissued. See the
-[authentication contract](authentication.md) for expiry, replay and cache-loss
+[authentication contract](security/authentication.rst) for expiry, replay and cache-loss
 behavior. Low-level token adapters still verify cryptography; they do not grant
 login redemption independently of the manager.
 
@@ -96,7 +96,7 @@ published versions are resolvable by Composer/Packagist. In particular,
 Webrick 6.0.4 requires InterMix 11.2.1 and its compiled ABI 3; generate a fresh trusted InterMix/Webrick release from the current 4.0 source. Do not work
 around missing package-index versions with transient dev aliases for release QA.
 
-Use [the module catalog](modules.md) and the application Composer lock for selected package and platform requirements. The [API map](foundation-4-api-map.md) identifies native replacements; the current contracts below distinguish application security/data policy from retired library-major APIs.
+Use [the module catalog](modules.md) and the application Composer lock for selected package and platform requirements. The [current public API reference](reference/application-api.rst) describes Foundation's supported entrypoints; the contracts below and owning library manuals explain required migrations from retired majors.
 
 ## Explicit runtime and provider ownership
 
@@ -279,7 +279,7 @@ production consumers must first pass the release gates and publish Foundation 4.
 3. **Remove excluded API and configuration usage.** Replace Runwire 2 context,
    old InterMix/DBLayer/Omnibus service calls, old module aliases and JSON-v1
    feature identifiers with the current contracts in
-   [the API replacement map](foundation-4-api-map.md). Treat missing explicitly
+   [the current public API reference](reference/application-api.rst). Treat missing explicitly
    selected packages as actionable errors. Do not add compatibility shims,
    automatically enable installed features, or silently substitute synchronous
    behavior after a stale/cancelled native context.
@@ -325,7 +325,7 @@ any Infbyte migration or retained-data rehearsal has been executed.
 
 ## Foundation-first release boundary
 
-Foundation 4.0 is implemented and verified independently of the Infbyte application skeleton. Integrating an Infbyte application is a **separate follow-up after Foundation is ready**. The Foundation CI consumer matrix verifies core-only, database-only and published optional-package/Runwire deployments without cloning or rewriting Infbyte. The [API replacement map](foundation-4-api-map.md) remains the downstream migration reference. Operators must still validate their own selected production recovery and durable-state procedures; unit/synthetic fixtures alone do not certify external deployments.
+Foundation 4.0 is implemented and verified independently of the Infbyte application skeleton. Integrating an Infbyte application is a **separate follow-up after Foundation is ready**. The Foundation CI consumer matrix verifies core-only, database-only and published optional-package/Runwire deployments without cloning or rewriting Infbyte. The [current public API reference](reference/application-api.rst) documents supported entrypoints; it is not an exhaustive removed-symbol migration map. Operators must still validate their own selected production recovery and durable-state procedures; unit/synthetic fixtures alone do not certify external deployments.
 
 ## Production no-dev compiled-release smoke
 

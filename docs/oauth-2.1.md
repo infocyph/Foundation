@@ -310,7 +310,7 @@ A production rollout should use this order:
 
 4. Provision and inspect the Core auth/OAuth schema through
    `AuthSchemaInstaller::install()` and `readiness()` inside a CLI execution,
-   with `auth.oauth.enabled=true`; see [Core schema provisioning](database.md).
+   with `auth.oauth.enabled=true`; see [Core schema provisioning](data/database.rst).
    Optional `module:schema:sync` does not provision Core auth tables.
 5. Check the active signing key and full application readiness before traffic:
 

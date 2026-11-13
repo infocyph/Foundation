@@ -198,7 +198,7 @@ installations. Runwire supports FPM, FrankenPHP, RoadRunner, explicit
 Swoole/OpenSwoole hosting and portable native CLI without PCNTL/POSIX.
 The package's presence does not start listeners, workers or an event loop.
 Omnibus's optional Runwire process-pool backend
-is a separate selection from HTTP hosting; see [messaging](messaging.md).
+is a separate selection from HTTP hosting; see [messaging](services/queues-workers.rst).
 
 HTTP/2, HTTP/3/QUIC and native transport supervision remain Runwire concerns.
 Advertise them for a Foundation deployment only after testing its selected

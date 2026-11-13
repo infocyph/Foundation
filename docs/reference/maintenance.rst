@@ -6,8 +6,8 @@ Maintaining the Infbyte manual
 This manual is the **Infbyte developer documentation**, maintained in the
 Foundation repository for publication. A hosted project is not yet verified. Its public identity must not be confused with the
 Foundation package itself. It explains how developers build applications;
-Foundation's older engineering Markdown guides remain implementation references
-during the RST migration.
+Selected deeper Markdown references remain for Foundation internals and
+release qualification; redundant application guides are consolidated here.
 
 Version and compatibility policy
 ================================
@@ -148,9 +148,7 @@ Before labelling a documentation version stable, verify:
 Do not use documentation CI to waive Foundation's separate sustained runtime,
 performance, security or release source-qualification gates.
 
-For the running implementation ledger, see the
-`Infbyte documentation development plan
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/infbyte-documentation-development-plan.md>`_.
-
-For the explicit external blocker checklist, see
-:doc:`publication-readiness`.
+The completed documentation-authoring ledger is preserved in Git history.
+For remaining compatibility, certification, hosting and publication gates,
+see :doc:`publication-readiness`. The documentation-content milestone
+does not declare Foundation or Infbyte 4 released.

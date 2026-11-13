@@ -204,7 +204,7 @@ overwrite newer factor state.
 Sensitive factor metadata is persisted only where required for verification; it
 is redacted from enrollment/audit context. Protection of durable symmetric MFA
 secrets at rest uses Epicrypt at the DBLayer persistence boundary. See
-[MFA secret protection](security.md#mfa-secret-protection-and-migration) for
+[MFA secret protection](security/advanced-authentication.rst) for
 the independent key domains and rotation policy.
 
 ## Passkey / WebAuthn
@@ -247,7 +247,7 @@ the platform authenticator/security key.
 ## Auth schema
 
 When durable auth storage is selected, use Core `AuthSchemaInstaller::install()`
-and `readiness()` inside a CLI execution; see [Core schema provisioning](database.md).
+and `readiness()` inside a CLI execution; see [Core schema provisioning](data/database.rst).
 Optional module schema commands do not provision Core auth.
 
 The current Foundation 4 passkey schema contains `revision`, `credential_record`

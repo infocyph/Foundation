@@ -247,5 +247,4 @@ See :doc:`../services/resources-logging`,
 :doc:`../http/requests-responses`,
 :doc:`../http/controllers`,
 :doc:`../testing/http`, and the
-`Foundation JsonDispatch contract
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/json-responses.md>`_.
+:doc:`../services/resources-logging` resource and logging guide.

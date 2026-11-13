@@ -225,7 +225,4 @@ Further reading
 
 See :doc:`authentication`,
 :doc:`sessions-csrf`,
-:doc:`../testing/http` and the
-detailed Foundation authorization source guide:
-
-https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/authentication.md
+:doc:`../testing/http` and the source-checked :doc:`../reference/http-security-api` guide.

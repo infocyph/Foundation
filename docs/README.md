@@ -1,60 +1,48 @@
 # Infbyte documentation
 
-The public-facing framework manual is built with Sphinx from [`index.rst`](index.rst) and prepared for publication as **Infbyte — PHP Application Framework**.
+The developer manual is [Infbyte — PHP Application Framework](index.rst), built
+with Sphinx in the **Foundation** repository. Its paths `config/`, `routes/`,
+`app/`, `bootstrap/` and `storage/` refer to **the Infbyte application
+checkout**, not the Foundation package. The package's
+`resources/config/` contains internal templates.
 
-> **Version status:** the new manual currently targets the *unpublished Foundation 4 development branch*. The Infbyte starter application on its `main` branch still requires Foundation 3. A Foundation 4 candidate already exists on Infbyte PR #11; a new read-only Core smoke passed against the current Foundation source on PHP 8.4/8.5, but the full application matrix and published-package checks remain pending.
+**Version:** This manual documents the unpublished Foundation/Infbyte 4
+development candidate. Infbyte `main` still requires Foundation 3.
+[Candidate setup](start/foundation4-candidate.rst) and
+[publication gates](reference/publication-readiness.rst) explain the difference;
+do not assume `composer create-project` currently installs version 4.
 
-For candidate installation, start with [the Foundation 4 development application guide](start/foundation4-candidate.rst). The published `composer create-project` still targets Foundation 3.
-
-**Path rule:** All developer-facing `config/`, `app/`, `routes/`, `bootstrap/`, and `storage/` paths refer to the **Infbyte application project**. Foundation's `resources/config/` is framework-owned template source only, not a live application configuration directory.
-
-Build the manual with:
+## Build and check
 
 ```bash
 python -m pip install -r docs/requirements.txt
-sphinx-build -b html -n -W --keep-going docs docs/_build/html
+python -m sphinx -b html -n -W --keep-going docs docs/_build/html
+python docs/tools/check_public_contracts.py
+python docs/tools/lint_php_blocks.py
 ```
 
-For deeper application workflows, the Sphinx manual now includes eight task-oriented walkthroughs covering request validation, secure browser sessions, database migrations, durable messaging, JSON API responses, feature selection, testing, and trusted deployment/rollback (see [the RST navigation](index.rst)).
+The Sphinx manual includes practical HTTP, database, auth, queue, testing,
+runtime and deployment tutorials, together with the
+[CLI](reference/cli.rst), [configuration](reference/configuration.rst) and
+[API](reference/application-api.rst) references.
 
-The manual also includes source-checked [application](reference/application-api.rst), [HTTP/security](reference/http-security-api.rst), [console/testing](reference/console-testing-api.rst), and [configuration](reference/configuration.rst) references.
+## Retained Foundation technical references
 
-The legacy Markdown links below remain technical source references during the phased RST conversion. Do not remove them until their content and links are checked and migrated.
+Deep internal contracts and release/operational evidence are retained as
+source documentation, separate from the application-facing manual:
 
-## Foundation technical reference
-
-Foundation is the application composition layer for the Infocyph packages. It
-owns application lifecycle and integration policy; standalone libraries retain
-their domain behavior.
-
-- [Architecture and lifecycle](architecture.md)
+- [Foundation 4 setup and migration](foundation-4-migration.md)
 - [Foundation 4 release notes](foundation-4.0-release-notes.md)
-- [Foundation 4 setup and runtime guide](foundation-4-migration.md)
-- [Foundation 4 public/provider/config contract](foundation-4-api-map.md)
-- [Foundation 4 state-integrity and recovery](foundation-4-retained-data-rehearsal.md)
-- [Foundation 4 host performance certification](foundation-4-host-benchmark-certification.md)
-- [Runtime hosting and Runwire](runtime-hosting.md)
-- [Configuration](configuration.md)
-- [HTTP and optional capabilities](http-and-capabilities.md)
-- [Communication and email](communication.md)
-- [CLI, schedules, and workers](console.md)
-- [Authentication and authorization](authentication.md)
-- [OAuth 2.1 extension](oauth-2.1.md)
-- [OTP-backed MFA](otp.md)
-- [Browser sessions and CSRF](browser-sessions.md)
-- [Database migrations and seeding](database.md)
-- [Filesystem and storage](filesystem.md)
-- [Events, queues, and scheduled messages](messaging.md)
-- [JSON resources and JsonDispatch](json-responses.md)
-- [Structured logging](logging.md)
-- [Testing](testing.md)
-- [Modules](modules.md)
-- [Operations](operations.md)
-- [Security boundaries](security.md)
+- [Retained-state rehearsal](foundation-4-retained-data-rehearsal.md)
+- [Native-host performance certification](foundation-4-host-benchmark-certification.md)
+- [Optional feature internals](modules.md)
+- [OAuth 2.1/OIDC/PAT internals](oauth-2.1.md)
+- [OTP and passkey internals](otp.md)
+- [Runtime hosting internals](runtime-hosting.md)
+- [Operations internals](operations.md)
+- [Foundation ownership boundaries](architecture/ownership-boundaries.md)
 
-The configuration templates under `resources/config/` are the canonical
-key-by-key reference for publishable configuration. Runtime behavior and public
-command/module names in these guides follow the Foundation source on the current
-branch; release verification is enforced by the
-[QA workflow](../.github/workflows/security-standards.yml) and
-[native host certification](foundation-4-host-benchmark-certification.md).
+The primary implementation and release gates are independently verified in
+[Security & Standards](../.github/workflows/security-standards.yml). Hosted
+Read the Docs publication, stable package cutover and external link health
+are not certified by a local Sphinx build.

@@ -117,8 +117,7 @@ Operations
 The exact option set is available through
 ``php infbyte help <command>``. For an authoritative,
 feature-specific list refer to the
-`Foundation CLI guide
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/console.md>`_
+:doc:`../console/overview` and :doc:`../console/commands`
 and `operations guide
 <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/operations.md>`_.
 

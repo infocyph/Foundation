@@ -31,11 +31,16 @@ CI builds HTML with warnings treated as errors, validates complete
 PHP example code blocks with PHP 8.4 syntax checks, and runs a
 lightweight public API/feature drift check.
 
-Documentation batches through D15-A have recorded
-successful strict Sphinx jobs in the
-`documentation development plan
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/infbyte-documentation-development-plan.md>`_.
-Current-source read-only Infbyte candidate compatibility has passed on PHP 8.4/8.5, but the full downstream Infbyte security/integration matrix is still red. Documentation QA and consumer qualification must be reported separately.
+The Infbyte manual's planned authoring work was completed through D15-B.
+The final content commit ``81834190c863918425b2f4d9b2603fd6441ddea4``
+passed strict Sphinx, 118 declared method checks, 12 configuration-template
+checks, 90 complete PHP snippets and the read-only Infbyte candidate
+compatibility workflow on PHP 8.4/8.5. The completed development tracker is
+available in Git history; it is intentionally not shipped as an active plan.
+
+Current-source read-only Core candidate compatibility has passed, but the
+full downstream Infbyte PR #11 security/integration matrix is still failing.
+Documentation QA and consumer qualification must be reported separately.
 
 The source audit checks the **declared existence** of reference
 methods, configuration templates and qualified optional feature IDs.

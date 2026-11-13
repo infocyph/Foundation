@@ -211,5 +211,4 @@ Related guides
 Continue with :doc:`../security/sessions-csrf`,
 :doc:`../security/authentication`,
 :doc:`../testing/http` and the
-`Foundation browser-session contract
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/browser-sessions.md>`_.
+:doc:`../security/sessions-csrf` browser session and CSRF guide.

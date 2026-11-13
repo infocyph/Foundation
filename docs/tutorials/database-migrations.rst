@@ -262,7 +262,6 @@ Related documentation
 
 Read :doc:`../data/database`, :doc:`../data/cache`,
 :doc:`../services/queues-workers` and the
-`Foundation DBLayer integration guide
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/database.md>`_.
+:doc:`../data/database` application integration guide.
 For queries, schema builders and transactions, use
 `DBLayer's own documentation <https://github.com/infocyph/DBLayer>`_.

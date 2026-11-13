@@ -132,6 +132,5 @@ Where to go next
 Read :doc:`commands` to register an application command,
 :doc:`scheduling` to run it on a schedule, and
 :doc:`workers` for continuous processes.
-The maintained `Foundation CLI contract
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/console.md>`_
-has the full command list.
+Use :doc:`../reference/cli` for the maintained command catalog
+and :doc:`../reference/console-testing-api` for typed CLI contracts.
