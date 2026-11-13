@@ -59,29 +59,6 @@ on:
         options:
           - ubuntu-24.04
           - ubuntu-24.04-arm
-  pull_request:
-    branches: [main, master]
-    paths:
-      - .github/workflows/foundation4-host-certification.yml
-      - composer.json
-      - composer.lock
-      - src/**
-      - resources/**
-      - tests/Feature/WebReleaseRuntimeTest.php
-      - tests/Feature/ServeCommandIntegrationTest.php
-      - tests/Feature/Foundation4HostLoadTest.php
-      - tests/Feature/Foundation4HostReportTest.php
-      - tests/Fixtures/ServeProbe.php
-      - tests/Fixtures/HostLoadProbe.php
-      - benchmarks/foundation4-host-certify.sh
-      - benchmarks/foundation4-host-load.php
-      - benchmarks/foundation4-host-report.php
-      - benchmarks/Foundation4AuthenticatedWorkload.php
-      - benchmarks/foundation4-host-merge.php
-      - benchmarks/foundation4-module-cli-*.php
-      - benchmarks/Support/Foundation*Comparison.php
-      - benchmarks/Phase9NativeReadHandler.php
-      - benchmarks/phase9-server-compile.php
 
 permissions:
   contents: read

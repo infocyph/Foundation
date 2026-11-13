@@ -5,7 +5,7 @@ This procedure certifies **Foundation 4 only**. It is not a legacy-version compa
 
 ## Paired GitHub qualification
 
-Use GitHub Actions for the paired comparison and Docker for local diagnostics. Before PR merge, an authorized maintainer can apply the `foundation4-certify-source` label to the same-repository PR; the next PR head update runs **only the source-only** full paired matrix via Security & Standards' reusable workflow call against the immutable Foundation 4 baseline. It uses the exact PR head and ARM runner. The independent-lock upgrade mode still requires separate attested inputs and qualification. Labeling is an execution request, not a passing verdict.
+Use GitHub Actions for the paired comparison and Docker for local diagnostics. Before PR merge, an authorized maintainer can apply the `foundation4-certify-source` label to the same-repository PR; the next PR head update runs **only the source-only** full paired matrix via Security & Standards' reusable workflow call against the immutable Foundation 4 baseline. It uses the exact PR head and ARM runner. Historical independent-lock upgrade benchmarking is optional for this release; when requested, it requires separate attested inputs and qualification. Labeling is an execution request, not a passing verdict.
 The [manual workflow](../.github/workflows/foundation4-host-certification.yml) supports a full `authenticated-read`
 PostgreSQL/Redis profile, distinct immutable baseline/candidate sources, one
 resolved dependency lock and benchmark revision, and the same runner for each
@@ -42,6 +42,8 @@ and deployment-specific capacity validation. Routine PR smoke and local Docker
 results remain diagnostic.
 
 ## Separate source-only and dependency-upgrade verdicts
+
+Historical whole-upgrade benchmarking is optional for Foundation 4. The last 2.x release, `2.1.1`, is the maintainer-selected historical reference if that additional comparison is performed. Its source, dependency lock provenance and compatible workload need independent qualification; a reconstructed lock must remain labelled as reconstructed. This optional comparison does not change configured CI budgets or turn incomplete measurements into a performance certification.
 
 The manual paired-host workflow accepts **two distinct modes**. The default
 `source-only` mode uses the same resolved Composer lock in both checkouts and
@@ -86,8 +88,8 @@ verdict.
 
 This distinction matters: a source-only pass cannot validate the old-to-new
 dependency cutover, and a whole-upgrade pass cannot substitute for a same-lock
-source attribution result. Record both immutable locks and both comparisons
-with the PR. No benchmark certification is claimed until the two primary and
+source attribution result. Record both immutable locks and any requested upgrade
+comparison with the PR. No benchmark certification is claimed until the two primary and
 confirmation matrices actually finish with acceptable evidence.
 
 
@@ -127,7 +129,7 @@ php benchmarks/foundation4-host-compare.php \
   build/foundation4-host-comparison.json
 ```
 
-The comparator fails closed unless both reports contain the complete matching host/concurrency/worker matrix, matching declared physical host identity, PHP version, workload profile and sample configuration. Source-only comparisons require an identical dependency-lock SHA-256; upgrade comparisons require different locks and a reviewed exact dependency delta. Each case must contain at least five response-correct sustained observations of at least 120 seconds. It recalculates successful RPM from completed requests and elapsed time; rejects missing telemetry and internal inconsistencies; and refuses unstable evidence with RPM coefficient of variation greater than 2.5%. For every comparable stable case, the candidate median successful RPM must be at least **98%** of the baseline. A high-variance result is *inconclusive*, not a pass.
+The comparator fails closed unless both reports contain the complete matching host/concurrency/worker matrix, matching declared physical host identity, PHP version, workload profile, immutable benchmark-tooling SHA, workload fixture identity and sample configuration. Both source-only and upgrade comparisons reject missing, invalid or differing tooling/fixture identities. Source-only comparisons require an identical dependency-lock SHA-256; upgrade comparisons require different locks and a reviewed exact dependency delta. Each case must contain at least five response-correct sustained observations of at least 120 seconds. It recalculates successful RPM from completed requests and elapsed time; rejects missing telemetry and internal inconsistencies; and refuses unstable evidence with RPM coefficient of variation greater than 2.5%. For every comparable stable case, the candidate median successful RPM must be at least **98%** of the baseline. A high-variance result is *inconclusive*, not a pass.
 
 ## Release acceptance
 
@@ -161,10 +163,12 @@ Each measured trial now records diagnostic snapshots immediately before and afte
 
 ## Current qualification evidence
 
-Both sustained performance certifications remain open. The [completed source-only run #43217583759](https://github.com/infocyph/Foundation/actions/runs/43217583759) compared candidate `cd4fba90d6e415bbe7af04400c59ff5374be1cac` with Foundation 4 baseline `c220759fcbd6654fead843599712a5b79685f02d`. All 24 measurement jobs and 240 measured trials completed with zero failed requests. Primary classified 7 pass / 4 high-variance / 1 regression; confirmation classified 9 pass / 3 high-variance / 0 regressions. Both acceptance jobs failed.
+Complete source-only sustained performance certification remains open; the historical independent-lock comparison is optional. The [completed source-only run #43217583759](https://github.com/infocyph/Foundation/actions/runs/43217583759) compared candidate `cd4fba90d6e415bbe7af04400c59ff5374be1cac` with Foundation 4 baseline `c220759fcbd6654fead843599712a5b79685f02d`. All 24 measurement jobs and 240 measured trials completed with zero failed requests. Primary classified 7 pass / 4 high-variance / 1 regression; confirmation classified 9 pass / 3 high-variance / 0 regressions. Both acceptance jobs failed.
 
-The earlier failed scenarios passed both fresh batches: FPM w1/c50 +0.626%/-1.003%, Runwire w4/c1 +0.887%/-1.728%. A new primary Runwire w1/c50 signal (-8.318%, CV 1.316%) was not established by the noisy confirmation (+1.969%, CV 2.788%). Its cause remains unresolved. A Composer HTTP 429 error cleared on retry before the final confirmation comparison. No runtime repair or performance pass is claimed.
+The earlier failed scenarios passed both fresh batches: FPM w1/c50 +0.626%/-1.003%, Runwire w4/c1 +0.887%/-1.728%. A new primary Runwire w1/c50 signal (-8.318%, CV 1.316%) was not established by the noisy confirmation (+1.969%, CV 2.788%). A Composer HTTP 429 error cleared on retry before the final confirmation comparison. No runtime repair or performance pass is claimed.
+
+The [frozen-lock diagnostic run #43237331915](https://github.com/infocyph/Foundation/actions/runs/43237331915) subsequently repeated only Runwire w1/c50 with those exact measured sources and lock, using shared tooling `6f9a34e2e689d6b0155cc78157ca5c349efb955b`. Primary measured +1.813% median successful RPM but remained inconclusive (baseline CV 3.205%); reversed-order confirmation measured +2.991% with maximum CV 1.800%. All 20 sustained trials completed with zero failed requests. Captured counters showed no CPU steal, PostgreSQL deadlocks/conflicts/temp spill, or Redis rejected connections/evictions/cache misses. The earlier negative signal was not reproduced; its original cause is not established. These explicitly diagnostic-only artifacts cover one case and cannot certify either complete performance matrix or a later source revision.
 
 [Primary artifact 13947562197](https://github.com/infocyph/Foundation/actions/runs/43217583759/artifacts/13947562197) and [confirmation artifact 13947492490](https://github.com/infocyph/Foundation/actions/runs/43217583759/artifacts/13947492490) retain the full reports and trial evidence. Both sources used lock `fcfff7349f7e19bfd76687ec94184ba508ac573abff84b5c2ccd9cc61444f793`. Compared with [earlier run #43172457224](https://github.com/infocyph/Foundation/actions/runs/43172457224), lock `28ca535ff6f08595a48613384f874a5192dee335188247129d007fd2cb63c263`, only development psalm/plugin-laravel changed 4.19.1 to 4.19.3; all other package references and production entries were unchanged. This fresh run is not an exact old-lock repeat. Earlier primary/confirmation counts were 4/7/1 and 7/4/1 (pass/variance/regression); their two stable negative cases were -2.520% and -2.560%. Keep both attempts' evidence.
 
-Before release, freeze the final source SHA and qualify PHP 8.4/8.5 latest/lowest quality checks, specialist operations, native hosts, the actual Composer archive and isolated production consumers. Source-only and independent-lock dependency-upgrade comparisons are separate requirements; neither substitutes for the other. Merge, tagging, package publication and downstream Infbyte deployment remain manual release decisions.
+Before release, freeze the final source SHA and qualify PHP 8.4/8.5 latest/lowest quality checks, specialist operations, native hosts, the actual Composer archive and isolated production consumers. Source-only and independent-lock dependency-upgrade comparisons provide separate verdicts; neither substitutes for the other. Historical dependency-upgrade benchmarking is optional for this release. Merge, tagging, package publication and downstream Infbyte deployment remain manual release decisions.

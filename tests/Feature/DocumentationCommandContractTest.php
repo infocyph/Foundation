@@ -2,17 +2,23 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Command\CommandCatalog;
 use Infocyph\Foundation\Command\CommandRegistry;
 use Infocyph\Foundation\Command\CompletionGenerator;
+use Symfony\Component\Process\Process;
 
 it('keeps documented infbyte command examples dispatchable', function (): void {
     $root = dirname(__DIR__, 2);
-    $paths = glob($root . '/docs/*.md');
-    if ($paths === false) {
-        throw new RuntimeException('Unable to list documentation files.');
+    $files = new RecursiveIteratorIterator(new RecursiveCallbackFilterIterator(
+        new RecursiveDirectoryIterator($root . '/docs', FilesystemIterator::SKIP_DOTS),
+        static fn(SplFileInfo|string $file): bool => $file instanceof SplFileInfo
+            && (!$file->isDir() || !str_starts_with($file->getFilename(), '_')),
+    ));
+    $documents = [$root . '/README.md'];
+    foreach ($files as $file) {
+        if ($file instanceof SplFileInfo && $file->isFile() && in_array($file->getExtension(), ['md', 'rst'], true)) {
+            $documents[] = $file->getPathname();
+        }
     }
-    $documents = [$root . '/README.md', ...$paths];
     $documented = [];
 
     foreach ($documents as $path) {
@@ -26,8 +32,20 @@ it('keeps documented infbyte command examples dispatchable', function (): void {
         }
     }
 
+    $probe = new Process([PHP_BINARY, '-r', <<<'PHP'
+        require $argv[1];
+        require $argv[2];
+        $registry = new \Infocyph\Foundation\Command\CommandRegistry([
+            'reports:daily' => \App\Command\Reports\DailyCommand::class,
+        ]);
+        echo implode("\n", array_keys($registry->all()));
+        PHP,
+        $root . '/vendor/autoload.php',
+        $root . '/docs/examples/infbyte-report-command.php.txt',
+    ]);
+    $probe->mustRun();
     $available = [
-        ...array_keys(new CommandCatalog()->all()),
+        ...explode("\n", trim($probe->getOutput())),
         'list',
         'help',
         'completion',

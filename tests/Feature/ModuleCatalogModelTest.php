@@ -78,13 +78,13 @@ it('keeps Composer core and specialist module floors on one supported generation
 
 it('keeps all publishable module templates aligned with the configuration guide', function (): void {
     $root = dirname(__DIR__, 2);
-    $documentation = file_get_contents($root . '/docs/configuration.md');
+    $documentation = file_get_contents($root . '/docs/reference/configuration.rst');
     \PHPUnit\Framework\Assert::assertIsString($documentation);
 
     foreach (new ModuleCatalog()->all() as $module) {
         foreach ($module['config'] as $filename) {
             expect($root . '/resources/config/' . $filename)->toBeFile()
-                ->and($documentation)->toContain('`resources/config/' . $filename . '`');
+                ->and($documentation)->toContain('``config/' . $filename . '``');
         }
     }
 });

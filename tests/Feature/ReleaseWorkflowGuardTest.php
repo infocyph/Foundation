@@ -8,7 +8,7 @@ it('requires tagged Foundation releases to pass quality and production consumers
     $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
     $jobs = $workflow['jobs'];
 
-    expect($jobs['release']['needs'] ?? [])->toContain('phpforge', 'production-consumer', 'release-evidence', 'runtime-hosts')
+    expect($jobs['release']['needs'] ?? [])->toContain('phpforge', 'production-consumer', 'release-evidence', 'runtime-hosts', 'redis-cluster', 'documentation')
         ->and($jobs['release']['if'])->toContain("startsWith(github.ref, 'refs/tags/')")
         ->not->toContain('always(', 'failure(', 'cancelled(');
 
@@ -21,6 +21,8 @@ it('requires tagged Foundation releases to pass quality and production consumers
         ->and($jobs['runtime-hosts']['if'])->toContain("startsWith(github.ref, 'refs/tags/')");
     $hosts = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/foundation4-host-certification.yml');
     expect($hosts['on'])->toHaveKey('workflow_call');
+    expect($hosts['on'])->not->toHaveKey('pull_request');
+    expect($jobs['runtime-hosts']['if'])->toContain("github.event_name == 'pull_request'", 'foundation4-certify-source');
 });
 
 it('enforces independent complete performance batches without mixing their artifacts', function (): void {

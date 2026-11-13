@@ -40,7 +40,7 @@ final class Foundation4HostComparison
             ? []
             : Foundation4HostUpgradeEvidence::verify($baseline, $candidate, $upgradeEvidence);
 
-        $identityFields = ['hardware_id', 'php', 'protocol', 'workload_profile', 'request_count', 'repetitions'];
+        $identityFields = ['hardware_id', 'php', 'protocol', 'workload_profile', 'tool_sha', 'fixture_id', 'request_count', 'repetitions'];
         if ($upgradeEvidence === null) {
             $identityFields[] = 'composer_lock_sha256';
         }
@@ -250,7 +250,7 @@ final class Foundation4HostComparison
 
     /**
      * @param array<string,mixed> $report
-     * @phpstan-return array{hosts:array<array-key,mixed>,schema:2,sha:string,php:string,request_count:int,repetitions:int,hardware_id:string,composer_lock_sha256:string,protocol:string,workload_profile:string,warmup_seconds:int,...<string,mixed>}
+     * @phpstan-return array{hosts:array<array-key,mixed>,schema:2,sha:string,php:string,request_count:int,repetitions:int,hardware_id:string,composer_lock_sha256:string,protocol:string,workload_profile:string,tool_sha:string,fixture_id:string,warmup_seconds:int,...<string,mixed>}
      * @return array<string,mixed>
      * @throws InvalidArgumentException
      */
@@ -271,6 +271,10 @@ final class Foundation4HostComparison
             || ($report['protocol'] ?? null) !== 'HTTP/1.1 with per-response status/body checks'
             || !is_string($report['workload_profile'] ?? null)
             || $report['workload_profile'] === ''
+            || !is_string($report['tool_sha'] ?? null)
+            || preg_match('/^[a-f0-9]{40}$/D', $report['tool_sha']) !== 1
+            || !is_string($report['fixture_id'] ?? null)
+            || $report['fixture_id'] === ''
             || !is_array($report['hosts'] ?? null)
             || $report['repetitions'] < self::MIN_REPETITIONS
             || !is_int($report['warmup_seconds'] ?? null)
@@ -290,6 +294,8 @@ final class Foundation4HostComparison
             'composer_lock_sha256' => $report['composer_lock_sha256'],
             'protocol' => $report['protocol'],
             'workload_profile' => $report['workload_profile'],
+            'tool_sha' => $report['tool_sha'],
+            'fixture_id' => $report['fixture_id'],
             'warmup_seconds' => $report['warmup_seconds'],
         ] + $report;
     }

@@ -12,6 +12,8 @@ use Infocyph\Foundation\Benchmarks\Support\Foundation4HostComparison;
  *     php:string,
  *     protocol:string,
  *     workload_profile:string,
+ *     tool_sha:string,
+ *     fixture_id:string,
  *     composer_lock_sha256:string,
  *     request_count:int,
  *     repetitions:int,
@@ -61,6 +63,8 @@ function foundationHostFixture(float $rpm = 1000.0, bool $candidate = false): ar
         'php' => '8.4.26',
         'protocol' => 'HTTP/1.1 with per-response status/body checks',
         'workload_profile' => 'auth-db-cache-v1',
+        'tool_sha' => str_repeat('d', 40),
+        'fixture_id' => 'auth-db-cache-fixture-v1',
         'composer_lock_sha256' => str_repeat('b', 64),
         'request_count' => 1000,
         'repetitions' => 5,
@@ -148,6 +152,31 @@ it('rejects mismatched host identities and runtime dependencies', function (): v
     expect(fn(): array => Foundation4HostComparison::compare(foundationHostFixture(), $candidate))
         ->toThrow(InvalidArgumentException::class, 'composer_lock_sha256 differs.');
 });
+
+it('rejects source-only comparisons with different tooling or workload fixtures', function (string $field, string $value): void {
+    $candidate = foundationHostFixture(candidate: true);
+    $candidate[$field] = $value;
+
+    expect(fn(): array => Foundation4HostComparison::compare(foundationHostFixture(), $candidate))
+        ->toThrow(InvalidArgumentException::class, $field . ' differs.');
+})->with([
+    'benchmark tooling' => ['tool_sha', str_repeat('e', 40)],
+    'workload fixture' => ['fixture_id', 'different-workload'],
+]);
+
+it('rejects missing or invalid benchmark tooling and fixture identities', function (string $field, ?string $value): void {
+    $baseline = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
+    $baseline[$field] = $candidate[$field] = $value;
+
+    expect(fn(): array => Foundation4HostComparison::compare($baseline, $candidate))
+        ->toThrow(InvalidArgumentException::class, 'incomplete or non-certifiable');
+})->with([
+    'missing tooling' => ['tool_sha', null],
+    'invalid tooling digest' => ['tool_sha', 'not-a-commit'],
+    'missing fixture' => ['fixture_id', null],
+    'empty fixture' => ['fixture_id', ''],
+]);
 
 it('rejects short runs, invalid responses and missing benchmark scenarios', function (): void {
     $candidate = foundationHostFixture(candidate: true);
