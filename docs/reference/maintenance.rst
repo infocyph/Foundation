@@ -30,7 +30,7 @@ Until a matching stable Infbyte/Foundation release is available:
   documentation targets when real releases become available.
 
 Application paths versus framework internals
-=========================================
+============================================
 
 **The primary audience is an Infbyte application developer.**
 Every page must distinguish application paths from the internal
