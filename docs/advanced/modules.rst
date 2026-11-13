@@ -80,12 +80,16 @@ For a database-backed application:
 .. code-block:: bash
 
    php infbyte module:install data.database --dry-run
-   php infbyte module:install data --feature=database
+   php infbyte module:install data.database
+   php infbyte module:enable data.database
    php infbyte module:config:publish data.database
    php infbyte module:doctor data.database
 
-Use the resulting published ``config/database.php`` as the
-application-owned configuration. Publication does not overwrite
+Use the resulting **``config/database.php`` in your Infbyte project** as
+application-owned configuration. The Core-only Infbyte candidate does not
+ship this file until the selected feature provisions it. The Foundation
+package's ``resources/config/database.php`` is only internal template source.
+Publication does not overwrite
 an existing application file; it cannot safely infer your real
 credentials, schema or production topology.
 

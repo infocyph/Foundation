@@ -28,6 +28,44 @@ jobs:
           ref: feature/infbyte-4
           persist-credentials: false
 
+      - name: Verify documented Infbyte application file locations
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in \
+              config/app.php \
+              config/auth.php \
+              config/cache.php \
+              config/modules.php \
+              config/notifications.php \
+              config/router.php \
+              routes/api.php \
+              routes/console.php \
+              routes/schedule.php \
+              routes/workers.php \
+              bootstrap/app.php \
+              bootstrap/providers.php \
+              app/Http/Controllers/SystemController.php \
+              public/index.php; do
+            if [[ ! -f "$file" ]]; then
+              printf 'Infbyte manual path is absent from candidate: %s\n' "$file" >&2
+              exit 1
+            fi
+          done
+          for file in \
+              config/database.php \
+              config/filesystem.php \
+              config/messaging.php \
+              config/communication.php \
+              config/validation.php \
+              config/security.php; do
+            if [[ -e "$file" ]]; then
+              printf 'Core-only candidate now ships optional config; update Infbyte docs: %s\n' "$file" >&2
+              exit 1
+            fi
+          done
+          printf 'Verified Infbyte project layout: %s\n' "$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Set up PHP and Composer
         uses: shivammathur/setup-php@v2
         with:
