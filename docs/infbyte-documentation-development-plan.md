@@ -67,8 +67,8 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D11-A | Developer-oriented data and storage guides | Detailed application-path-first database, cache, and filesystem guides: selection, native usage, security, performance, tests, troubleshooting | **Done — strict docs QA passed** |
 | D11-B | Detailed messaging and communication services | Deepen notifications, TalkingBytes communication, Omnibus events/jobs, queue workers, deployment/failure semantics and app-owned config | **Done — strict docs QA passed** |
 | D11-C | Detailed security and validation | Deepen authentication, authorization and request validation from actual Infbyte config and public PHP contracts | **Done — strict documentation QA passed** |
-| D12-A | Browser session and middleware developer recipes | Infbyte-first route-selected web/session/CSRF/authorization lifecycle, config ownership, tested examples and production state coordination | **In progress — exact-head docs QA pending** |
-| D12-B | MFA/passkeys and production security guide depth | Detailed optional feature selection, enrollment/verification boundaries, recovery, replay, testing, and operations | Pending |
+| D12-A | Browser session and middleware developer recipes | Infbyte-first route-selected web/session/CSRF/authorization lifecycle, config ownership, tested examples and production state coordination | **Done — strict documentation QA passed** |
+| D12-B | MFA/passkeys and production security guide depth | Detailed optional feature selection, enrollment/verification boundaries, recovery, replay, testing, and operations | **In progress — exact-head docs QA pending** |
 | D12-C | Native HTTP middleware and requests/responses depth | Expand developer-facing Webrick middleware/request/response chapters with actual Infbyte routes, auth/CSRF policy, typed request inputs, immutable responses, host tests and production gotchas | **Done — strict docs and Infbyte candidate CI passed** |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
@@ -272,3 +272,9 @@ Deepen the remaining short user-facing services guides using actual Infbyte app 
 - Commit `183ba0e3eeaa72e0e6101c8427b0edf9f5bd4991` passed exact-head strict Sphinx/public-contract/PHP example documentation job `131663990251` in workflow `43357781203`.
 - Foundation's read-only Infbyte candidate workflow `43357780650` passed for PHP 8.4 and 8.5 on the same Foundation SHA.
 - Both reports validate documentation/Core compatibility, **not** full Infbyte #11 PHPForge QA, Foundation P6 sustained host certification, a stable Foundation 4 package or hosted Read the Docs publication.
+
+### D12-A QA and D12-B execution (2026-11-13)
+
+- **D12-A:** browser session guide commit `c543aaa1ff4890640dbf2018cd2521ae5ce9741a` (the initial run was cancelled after a newer docs tracker commit); strict Sphinx/public-contract/PHP example job `131664752353` in workflow `43358040818` on later exact Foundation head `e3190144d6f55404f259aff46947f5cfe9e5a7b1` **passed**. This validates the session guide alongside the D12-C HTTP changes; read-only candidate compatibility also passed on the same head.
+- **D12-B (this batch):** expand `docs/security/advanced-authentication.rst` and `docs/security/production.rst` into Infbyte application-first guides, source-checking `AuthServices`, `MfaManager`, `PasskeyManager`, actual `config/auth.php` and Foundation's optional feature catalog. Show exact feature selection, OTP challenge/replay, passkey initiation/completion boundaries, recovery, app security settings, trusted release, persistent-host isolation, deployment tests and safe rollback. Examples that require an app-specific ceremony or backend are explicitly contextual.
+- **QA:** run strict Sphinx, complete-PHP-block lint, source contract guard, and read-only Infbyte PHP 8.4/8.5 candidate checks on exact D12-B head. These **do not** satisfy Foundation P6 host qualification, Infbyte full PHPForge static analysis, stable ^4.0 Composer cutover or actual hosted Read the Docs publication.
