@@ -67,7 +67,7 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D11-A | Developer-oriented data and storage guides | Detailed application-path-first database, cache, and filesystem guides: selection, native usage, security, performance, tests, troubleshooting | **Done — strict docs QA passed** |
 | D11-B | Detailed messaging and communication services | Deepen notifications, TalkingBytes communication, Omnibus events/jobs, queue workers, deployment/failure semantics and app-owned config | **Done — strict docs QA passed** |
 | D11-C | Detailed security and validation | Deepen authentication, authorization and request validation from actual Infbyte config and public PHP contracts | **Done — strict documentation QA passed** |
-| D12-A | Browser session and middleware developer recipes | Infbyte-first route-selected web/session/CSRF/authorization lifecycle, config ownership, tested examples and production state coordination | Pending |
+| D12-A | Browser session and middleware developer recipes | Infbyte-first route-selected web/session/CSRF/authorization lifecycle, config ownership, tested examples and production state coordination | **In progress — exact-head docs QA pending** |
 | D12-B | MFA/passkeys and production security guide depth | Detailed optional feature selection, enrollment/verification boundaries, recovery, replay, testing, and operations | Pending |
 | D12-C | Native HTTP middleware and requests/responses depth | Expand developer-facing Webrick middleware/request/response chapters with actual Infbyte routes, auth/CSRF policy, typed request inputs, immutable responses, host tests and production gotchas | **In progress — exact-head CI pending** |
 
@@ -260,3 +260,9 @@ Deepen the remaining short user-facing services guides using actual Infbyte app 
 - Expanded `docs/http/requests-responses.rst` with a full application-owned query-controller example, typed Webrick request accessors, validation/authorization separation, immutable `Response` factories, content negotiation, safe streaming, JSON resources and negative tests.
 - All `config/`, `routes/`, `app/`, and `storage/` paths are in the **Infbyte project**, not Foundation package internals. The guides distinguish actual Infbyte starter routes from developer-created examples.
 - **Gate:** verify strict exact-head Sphinx, public-contract drift, complete PHP syntax and read-only candidate compatibility. Do not mark published Foundation/Infbyte release gates complete from docs CI alone.
+
+### D12-A — Infbyte browser session and CSRF guide
+
+- Expanded `docs/security/sessions-csrf.rst` as a full Infbyte application tutorial, sourced against `src/Session/BrowserSession.php` and Foundation Core `resources/config/session.php` (template provenance **only**). The starting Infbyte 4 app does **not** ship `config/session.php`; when custom configuration is needed, copy the installed template to the **Infbyte project's `config/session.php`** and edit it there, never in Foundation/vendor.
+- Covers route-selected `web` and `web-auth` middleware, browser session API, session fixation rotation, actual CSRF header/body/origin policy, store selection, concurrency/lease coordination, prune CLI, persistent host isolation and negative-path tests. Example controller is explicitly developer-created.
+- Exact-head strict Sphinx/public-method contract/PHP syntax and read-only Infbyte candidate compatibility must pass before closing D12-A. This is not Foundation final release qualification.
