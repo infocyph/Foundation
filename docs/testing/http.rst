@@ -1,99 +1,246 @@
 .. _http-testing:
 
-HTTP integration testing
-========================
+Test HTTP endpoints in an Infbyte application
+=============================================
 
-Foundation's HTTP test client creates **native Webrick requests** and
-dispatches through the Foundation web application's normal HTTP
-kernel and middleware. It is useful for verifying controller output,
-routing, authorization decisions and request cleanup without opening
-a public listening socket.
+Infbyte tests live in **your project's ``tests/`` directory**.
+Foundation's ``TestKit`` runs real Webrick routes through
+the configured in-process web application. It is not a
+separate fake router or a replacement for external host tests.
 
-Set up a web application
-------------------------
+This chapter follows the Infbyte 4 **development candidate**.
+It uses the existing ``/api/health`` endpoint that is actually
+registered by ``my-app/routes/api.php``.
 
-This example assumes a configured web application is available to
-the test and the expected route has been explicitly registered.
-Use the same build/configuration fixtures as other web integration
-tests in your application. A plain ``Foundation::cli()`` application
-cannot provide an HTTP test client.
+What the HTTP test covers
+-------------------------
+
+The in-process client checks the native router,
+selected middleware, controller/handler dispatch,
+response mapping, and application-scope cleanup.
+
+It does **not** open TCP sockets, verify TLS termination,
+test reverse-proxy configuration or guarantee native
+Runwire throughput. Those belong to separate host tests.
+
+Step 1 — create a test application
+----------------------------------
+
+Create ``my-app/tests/Feature/HealthEndpointTest.php``:
 
 .. code-block:: php
 
+   <?php
+
+   declare(strict_types=1);
+
+   use Infocyph\Foundation\Foundation;
    use Infocyph\Foundation\Testing\TestKit;
 
-   $testing = $app->make(TestKit::class);
-   $response = $testing->http()->get('/api/health');
+   it('serves Infbyte health through Webrick', function (): void {
+       $app = Foundation::web([
+           'base_path' => dirname(__DIR__, 2),
+           '_config_cache' => false,
+           'app' => [
+               'env' => 'testing',
+               'capabilities' => [],
+           ],
+       ])->boot();
 
-   $response
-       ->assertStatus(200)
-       ->assertJson(['status' => 'ok']);
+       $testing = $app->make(TestKit::class);
 
-The ``/api/health`` endpoint is defined in the current published
-Infbyte 3 skeleton. For Foundation 4, this snippet is an API illustration
-until the corresponding downstream skeleton and route have been verified.
+       $testing->http()->get('/api/health')
+           ->assertStatus(200)
+           ->assertJson(['status' => 'ok']);
+   });
 
-Submit input and headers
-------------------------
+The ``base_path`` points to **this Infbyte checkout**,
+not Foundation's repository root. The test selects the web
+runtime and leaves optional features inactive because the
+health route does not need them.
 
-The current ``HttpTestClient`` supports
-``get()``, ``post()``, ``put()``, ``patch()``,
-``delete()``, ``request()`` and ``withHeaders()``.
+This is the same real API pattern exercised in the
+candidate's application verification work. A CLI-only
+``Foundation::cli()`` graph cannot provide HTTP route
+dispatch.
+
+Step 2 — understand the response assertions
+--------------------------------------------
+
+The native ``TestResponse`` provides:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - Assertion/accessor
+     - What it verifies
+   * - ``assertStatus(200)``
+     - Exact HTTP transport status
+   * - ``assertHeader('Content-Type')``
+     - Response header presence or expected value
+   * - ``assertJson(['status' => 'ok'])``
+     - JSON contains the asserted fragment
+   * - ``assertJsonPath('data.id', 42)``
+     - Dot-path exists and has the exact value
+   * - ``status()`` / ``body()`` / ``json()``
+     - Inspect response state without constructing a new response
+   * - ``response()``
+     - Access the underlying Webrick response
+
+``assertJsonPath`` is appropriate for an application
+envelope that actually contains the requested key.
+The default ``/api/health`` route returns
+``{"status":"ok"}`` without a JsonDispatch ``data``
+wrapper. Do **not** assert ``data.status`` on that route.
+
+Step 3 — test a route you added yourself
+----------------------------------------
+
+If you followed :doc:`../start/first-application`
+and registered ``/api/welcome``, add a second test
+inside your ``tests/Feature/`` project tree:
+
+.. code-block:: php
+
+   <?php
+
+   declare(strict_types=1);
+
+   use Infocyph\Foundation\Foundation;
+   use Infocyph\Foundation\Testing\TestKit;
+
+   it('returns the application welcome fields', function (): void {
+       $app = Foundation::web([
+           'base_path' => dirname(__DIR__, 2),
+           '_config_cache' => false,
+           'app' => [
+               'env' => 'testing',
+               'capabilities' => [],
+           ],
+       ])->boot();
+
+       $app->make(TestKit::class)->http()
+           ->get('/api/welcome')
+           ->assertStatus(200)
+           ->assertJson([
+               'message' => 'Welcome to Infbyte',
+               'framework' => 'Infbyte',
+           ]);
+   });
+
+This test will fail until you have **created the handler
+and route**. A docs tutorial is not evidence that the
+starter already ships that endpoint.
+
+Step 4 — test invalid requests
+------------------------------
+
+For your own ``POST /accounts`` route you might need
+validation, authentication and a selected database.
+First configure those features in your Infbyte app;
+then test both success and failure, including
+side effects.
+
+A contextual HTTP call looks like:
 
 .. code-block:: php
 
    $response = $testing->http()
-       ->withHeaders(['Authorization' => 'Bearer test'])
-       ->post('/accounts', ['email' => 'user@example.test']);
+       ->withHeaders(['Accept' => 'application/json'])
+       ->post('/accounts', ['email' => 'invalid']);
 
-   $response->assertStatus(201);
+   $response->assertStatus(422);
 
-This requires your application to define a compatible
-``POST /accounts`` route and to configure its auth test driver.
-The token text is **illustrative**, not a pre-authorized credential.
+``/accounts`` is not a route in the initial candidate,
+and ``422`` requires your route to enforce the intended
+validation policy. This demonstrates TestKit's public
+method surface, not a preinstalled fixture.
 
-``HttpTestClient`` supplies a JSON ``Accept`` header and
-``localhost`` host by default. Headers from a call to
-``withHeaders()`` are applied to the client clone, leaving other
-tests' client settings unchanged.
+For a failed write, assert **no database record, job
+dispatch or outgoing notification** occurred. Merely
+checking a 422 response does not prove the boundary
+prevented a side effect.
 
-Response assertions
--------------------
+Step 5 — isolate application state
+----------------------------------
 
-``TestResponse`` includes:
+A test may use in-memory CacheLayer storage, native
+TalkingBytes HTTP fakes, Omnibus recording senders
+or a frozen Foundation application clock. Those are
+valid for focused unit/integration tests **when the
+corresponding feature is selected**.
 
-* ``assertStatus(int)`` for exact HTTP status.
-* ``assertHeader(string, ?string)`` for presence or exact value.
-* ``assertJson(array)`` for a contained JSON fragment.
-* ``assertJsonPath(string, mixed)`` for an exact dot-path value.
-* ``json()``, ``body()``, ``response()`` and ``status()``
-  for further inspection.
+They do not establish shared durability, Redis lease
+ownership, production SMTP delivery or multi-worker
+coordination.
 
-Example for a route with a JSON envelope:
+Persistent hosts require a second class of test:
+send a successful request, a failed request and a
+different successful request through the **same**
+execution process, verifying no principal,
+session, transaction or request-local resources leak
+between them.
 
-.. code-block:: php
+See :doc:`persistent-runtimes`.
 
-   $response->assertJsonPath('data.email', 'user@example.test');
+Step 6 — run representative production host checks
+---------------------------------------------------
 
-This is a **strict** value comparison. Use ``assertJson()`` to
-check partial nested fragments without requiring every response key.
+After the application test passes, verify a compiled
+release and start the selected real host:
 
-Test negative paths too
------------------------
+.. code-block:: bash
 
-Write tests for:
+   php infbyte config:validate --production
+   php infbyte optimize
+   php infbyte optimize:report
+   php infbyte app:ready
 
-1. Unknown routes and wrong HTTP methods.
-2. Missing or malformed request fields.
-3. Authentication/authorization failures.
-4. CSRF rejection for selected browser routes.
-5. A middleware exception followed by another successful request.
-6. Correct response headers, content types and error envelopes.
+For ordinary nginx/Apache PHP-FPM, serve the
+application from ``public/index.php`` with an
+**externally trusted** Foundation release manifest.
+For Runwire, use the selected native host and current
+extension requirements.
 
-If a fake HTTP request passes but a deployed host fails, investigate
-headers/proxy normalization, trusted release identity, body sizes
-and the selected native adapter; do not treat in-process tests as
-full host certification.
+A passing in-process TestKit run is not proof of a
+correct FPM FastCGI environment, trusted proxy,
+TLS peer identity or host memory/resource behavior.
+Those are separate acceptance gates.
 
-Related: :doc:`../http/validation`,
-:doc:`../security/authentication`, and :doc:`persistent-runtimes`.
+Common mistakes
+---------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 31 34 35
+
+   * - Problem
+     - Consequence
+     - Correction
+   * - Test bootstraps Foundation's source directory
+     - Wrong route/provider/config graph
+     - Use the actual Infbyte project ``base_path``
+   * - Test uses CLI graph for HTTP
+     - No web kernel
+     - Select ``Foundation::web()``
+   * - Expecting a JsonDispatch envelope on all routes
+     - False negatives and wrong public contract
+     - Assert the response actually emitted by the route
+   * - Fake broker proves delivery
+     - Durable acknowledgment not verified
+     - Test selected real Omnibus transport separately
+   * - Tests only happy paths
+     - Auth and side-effect regressions
+     - Include invalid/unauthorized/repeated requests
+   * - Reused persistent state
+     - Cross-user leakage
+     - Verify scope cleanup across executions
+
+Related
+-------
+
+Continue with :doc:`../start/first-application`,
+:doc:`../http/routing`,
+:doc:`../tutorials/test-an-application` and
+:doc:`persistent-runtimes`.

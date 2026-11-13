@@ -61,8 +61,8 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D9-B1 | Current-source Infbyte candidate probe | Read-only Foundation PR workflow resolves Infbyte 4 candidate on PHP 8.4/8.5, verifies exact Foundation SHA, Core module inventory, Webrick/TestKit health and trusted release readiness | **Done — both PHP 8.4/8.5 jobs passed** |
 | D9-B2 | Infbyte candidate remediation | Refresh full 13-job candidate QA and repair drift directly in Infbyte PR #11 | **Blocked — GitHub integration rejects Infbyte writes/reruns (403)** |
 | D9-C | Stable release/Read the Docs hosting | Foundation P6 and exact SHA qualification, published ^4.0 Composer cutover, externally hosted RTD build/version routing | **Blocked — external release/publication prerequisites** |
-| D10-A | Infbyte-first paths and config depth | Verify exact Infbyte 4 config files, rewrite setup/config reference/project structure with examples and production advice, correct related guides | **In progress — exact-head docs QA pending** |
-| D10-B | Laravel-depth user guides | Expand route/controller and task-oriented application chapters with real sample code, middleware, tests, pitfalls and production treatment | Pending |
+| D10-A | Infbyte-first paths and config depth | Verify exact Infbyte 4 config files, rewrite setup/config reference/project structure with examples and production advice, correct related guides | **Done — strict Sphinx and app-path contract QA passed** |
+| D10-B | Laravel-depth user guides | Expand route/controller and task-oriented application chapters with real sample code, middleware, tests, pitfalls and production treatment | **In progress — exact-head CI pending** |
 | D10-C | Project-path and public API audit | Scan all developer RST pages for misleading Foundation-internal paths; verify docs against Infbyte candidate source and strict Sphinx/PHP lint | Pending |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
@@ -198,3 +198,9 @@ by this evidence alone.
 **D10-C:** review all RST chapters for misleading paths and stale source assertions; keep independent external Infbyte/Packagist/hosted RTD publication gates open.
 
 **Infbyte PR #11 access restored** during D10: commit `d4dc214dce55e8c0217dd39a24c1e50878e0320f` added a native TestKit/health smoke, corrected stale DBLayer planner fixture, and CI source provenance to the existing candidate branch. Its fresh full QA has new failures; do not claim green until those are resolved. No merges or releases.
+
+### D10-A validation and D10-B scope
+
+- **D10-A** source commit `eda1c7a94354c6c9dd6bf6b4bde122bccc843cbd`, heading correction `dcf779b004bd586e19a6891c0fe474279509c0ed`, and stronger application-path contract guard `31d2bd73ef4ad713b5e149b9df3fc459ed6d1c3f`. Strict Sphinx and documentation public-contract checks **passed** in doc job `131650619734` (Security & Standards `43353677084`); the guard checks `config/<file>` application targets alongside Foundation-owned templates.
+- **D10-B (this batch):** replace short onboarding/routing/controller/HTTP testing pages with detailed task-first examples grounded in real Infbyte `feature/infbyte-4` files; cover new routes and controllers, CLI registration, in-process TestKit, 404/405, middleware and auth boundaries, production compiled routing, file placement, performance and troubleshooting. Each developer-created route is explicitly labeled and not claimed as preinstalled. Strict Sphinx and complete PHP block lint required before closing.
+- **Independent Infbyte CI:** write access restored, and Infbyte PR #11 commit `d4dc214dce55e8c0217dd39a24c1e50878e0320f` triggered fresh matrix. Candidate PHP 8.4/8.5 core and PHPForge jobs reported failures beyond the previous stable guard, including analysis of generated `storage/releases/` products. Do not mark full consumer integration green or suppress QA. Address in independent Infbyte remediation batches.
