@@ -26,6 +26,14 @@ The allocation requires four reported cores without SMT siblings; standard x64
 workers reporting two cores with SMT are rejected before measurement. The default
 manual runner is `ubuntu-24.04-arm`.
 
+Native-host and paired jobs share one prerequisite installer. Repository setup
+retries recognized transient Launchpad transport errors and timeouts up to three
+times, with a 90-second command deadline and five-second termination grace per
+attempt. Other repository errors fail immediately; exhausted retries remain a
+failed job before any measurements. Package-manager calls have a 180-second
+deadline and bounded network acquisition retries. Package repositories and
+signature checks are unchanged.
+
 The paired job allows 85 minutes for both revisions, including their warm-ups,
 trials, diagnostics and soak windows, within a 95-minute job limit.
 Both complete batches must pass the unchanged 2.5% CV and 2% median successful-RPM

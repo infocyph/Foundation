@@ -4,6 +4,67 @@ declare(strict_types=1);
 
 use Symfony\Component\Yaml\Yaml;
 
+it('bounds transient repository setup retries and preserves fatal setup failures', function (string $mode, int $expectedExit, int $expectedAttempts): void {
+    $root = dirname(__DIR__, 2);
+    $directory = sys_get_temp_dir() . '/foundation-host-setup-' . bin2hex(random_bytes(8));
+    if (!mkdir($directory . '/bin', 0700, true)) {
+        throw new \RuntimeException('Unable to allocate the isolated host-setup test directory.');
+    }
+    $sudo = <<<'SH'
+    #!/usr/bin/env bash
+    set -euo pipefail
+    printf '%s\n' "$*" >> "$FOUNDATION_SETUP_FIXTURE_DIRECTORY/calls"
+    if [[ "$1" != add-apt-repository ]]; then exit 0; fi
+    count=0
+    if [[ -f "$FOUNDATION_SETUP_FIXTURE_DIRECTORY/attempts" ]]; then
+        read -r count < "$FOUNDATION_SETUP_FIXTURE_DIRECTORY/attempts"
+    fi
+    count=$((count + 1))
+    printf '%s\n' "$count" > "$FOUNDATION_SETUP_FIXTURE_DIRECTORY/attempts"
+    case "$FOUNDATION_SETUP_FIXTURE_MODE" in
+      fatal) printf 'Invalid PPA specification.\n' >&2; exit 2 ;;
+      timeout) if (( count < 3 )); then exit 124; fi ;;
+      flaky|exhausted)
+        if (( count < 3 )) || [[ "$FOUNDATION_SETUP_FIXTURE_MODE" == exhausted ]]; then
+          printf "%s\n" "ValueError: invalid literal for int() with base 16: b''" >&2
+          exit 1
+        fi
+        ;;
+      *) exit 99 ;;
+    esac
+    SH;
+    try {
+        foreach (['sudo' => $sudo, 'sleep' => "#!/bin/sh\nexit 0\n"] as $name => $contents) {
+            $executable = $directory . '/bin/' . $name;
+            if (file_put_contents($executable, $contents) !== strlen($contents)
+                || !chmod($executable, 0700)
+                || !is_executable($executable)) {
+                throw new \RuntimeException('Unable to install the isolated host-setup command fixtures.');
+            }
+        }
+        $path = getenv('PATH');
+        $process = new \Symfony\Component\Process\Process([
+            'bash', $root . '/benchmarks/foundation4-host-prerequisites.sh',
+        ], $root, [
+            'PATH' => $directory . '/bin:' . (is_string($path) ? $path : ''),
+            'FOUNDATION_SETUP_FIXTURE_DIRECTORY' => $directory,
+            'FOUNDATION_SETUP_FIXTURE_MODE' => $mode,
+        ]);
+        $process->run();
+        expect($process->getExitCode())->toBe($expectedExit, $process->getOutput() . $process->getErrorOutput())
+            ->and((int) file_get_contents($directory . '/attempts'))->toBe($expectedAttempts);
+        $calls = (string) file_get_contents($directory . '/calls');
+        expect(str_contains($calls, 'nginx php8.4-fpm'))->toBe($expectedExit === 0);
+    } finally {
+        \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($directory);
+    }
+})->with([
+    'truncated transport recovers' => ['flaky', 0, 3],
+    'transport retry budget is exhausted' => ['exhausted', 1, 3],
+    'fatal repository failure is not retried' => ['fatal', 2, 1],
+    'repository timeout recovers' => ['timeout', 0, 3],
+]);
+
 it('requires tagged Foundation releases to pass quality and production consumers', function (): void {
     $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
     $jobs = $workflow['jobs'];
@@ -22,6 +83,12 @@ it('requires tagged Foundation releases to pass quality and production consumers
     $hosts = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/foundation4-host-certification.yml');
     expect($hosts['on'])->toHaveKey('workflow_call');
     expect($hosts['on'])->not->toHaveKey('pull_request');
+    $nativeSteps = foundationReleaseWorkflowSteps($hosts, 'native-host');
+    $pairedSteps = foundationReleaseWorkflowSteps($hosts, 'paired-host');
+    expect($nativeSteps['Install native host and load tools'])->toContain('bash benchmarks/foundation4-host-prerequisites.sh')
+        ->not->toContain('add-apt-repository');
+    expect($pairedSteps['Install host prerequisites'])->toContain('bash host-tools/benchmarks/foundation4-host-prerequisites.sh')
+        ->not->toContain('add-apt-repository');
     expect($jobs['runtime-hosts']['if'])->toContain("github.event_name == 'pull_request'", 'foundation4-certify-source');
     expect($jobs['source-certification']['needs'] ?? [])->toContain('phpforge', 'production-consumer', 'release-evidence');
     expect($jobs['source-certification']['if'])->not->toContain('always(', 'failure(');
