@@ -1,31 +1,60 @@
 .. _request-lifecycle:
 
-HTTP request lifecycle
-======================
+From HTTP request to Infbyte response
+=====================================
 
-An HTTP request crosses three responsibilities: the selected HTTP host,
-the compiled Foundation application, and Webrick's HTTP execution engine.
-This separation avoids redundant middleware, duplicate emitters and
-unnecessary work on simple routes.
+An Infbyte HTTP request crosses **three distinct systems**:
+the host handles incoming connections, **Foundation** composes
+the application and selected policy, and **Webrick** owns
+routing, middleware, request/response semantics and the
+single response writer.
 
-Registration during build
--------------------------
+No separate Foundation routing facade or HTTP emitter
+is introduced.
 
-Application route files are selected explicitly in the router
-configuration. The current Infbyte skeleton's ``config/router.php``
-includes ``api.php``, where the native Webrick ``Registrar``
-registers routes.
+Step 1 — configure the route sources
+------------------------------------
 
-Foundation arranges application composition; Webrick compiles HTTP
-routing and execution metadata. Production requests use the compiled
-artifacts rather than rescanning application route files.
+In the Infbyte 4 candidate, ``my-app/config/router.php``
+explicitly selects ``api.php``. The file
+``my-app/routes/api.php`` registers the real
+Core health endpoint using the Webrick Registrar:
 
-Trusted web bootstrap
----------------------
+.. code-block:: php
 
-The current Infbyte starter's ``public/index.php`` uses the
-``FoundationReleaseBootstrap`` entrypoint, illustrating the trusted
-release boundary. This shortened example retains the same API calls:
+   <?php
+
+   declare(strict_types=1);
+
+   use App\Http\Controllers\SystemController;
+   use Infocyph\Webrick\Router\Definition\Registrar;
+
+   /** @var Registrar $router */
+   $router->get('/api/health', SystemController::health(...));
+
+The controller is an Infbyte application class at
+``app/Http/Controllers/SystemController.php``;
+it returns ``['status' => 'ok']``.
+No route or controller is auto-discovered simply because
+a PHP file exists in a directory.
+
+Step 2 — choose an HTTP host
+----------------------------
+
+The candidate can use an eligible development/native Runwire
+host or ordinary PHP/FPM with a configured Webrick SAPI adapter.
+The **application mode** is web in both cases. Runwire being
+installed does not mean it is always the active HTTP listener.
+
+The selected host adapts the request and supplies it to Webrick.
+Runwire owns native event-loop admission/deadlines when used.
+Webrick retains one request/response execution path.
+
+Step 3 — load a trusted production generation
+---------------------------------------------
+
+The actual ``my-app/public/index.php`` includes
+a trusted release bootstrap:
 
 .. code-block:: php
 
@@ -39,41 +68,100 @@ release boundary. This shortened example retains the same API calls:
 
    $config = ['base_path' => dirname(__DIR__)];
    $release = FoundationReleaseBootstrap::fromEnvironment($config)
-       ?? throw new RuntimeException('No trusted release generation configured.');
+       ?? throw new RuntimeException('No trusted release configured.');
 
    $release->web($config)->server->handle();
 
-External deployment/service configuration supplies the trusted release
-manifest identity. Never consider a checksum read solely from a writable
-generation to be independent trust evidence.
+This is an **abbreviated but API-accurate** version of the
+candidate's entrypoint. The external deployment supplies the
+expected trusted manifest digest. A digest only obtained from
+the same writable generated directory is *not* independent trust.
 
-From request to response
-------------------------
+On a trust mismatch, production fails rather than silently
+building a new mutable route/container graph on the web request.
 
-1. The selected host chooses the HTTP adapter. Plain PHP/FPM may use
-   Webrick's SAPI path without a live Runwire context.
-2. Webrick finds the compiled route and invokes selected middleware
-   and handler logic.
-3. If scoped services are needed, Webrick enters and exits the
-   appropriate InterMix request scope.
-4. Webrick adapts the handler result to its response contract and
-   owns the single native response write.
-5. Foundation completes its own scoped application cleanup.
+Step 4 — match and authorize the route
+--------------------------------------
 
-Foundation does not wrap each route in a separate universal outer
-scope. Do not globally enable authentication, sessions, CSRF or
-database work for routes that do not need them.
+Webrick finds the selected compiled route, applies route
+constraints and enters selected middleware. Foundation
+provides aliases/presets for auth and browser sessions.
 
-Troubleshooting
----------------
+A stateless health route does **not** need a browser session
+or database connection. A protected cookie route may select
+``web-auth``, whose order is:
 
-* A new route is missing: check the explicit route file list and rebuild.
-* Production bootstrap rejects an artifact: verify external manifest
-  identity and Composer/dependency fingerprints; do not bypass trust.
-* State survives across persistent-host requests: examine scoped
-  lifetimes and release behavior.
-* Runwire is installed but not active: this may be entirely correct for
-  the selected plain PHP/FPM path.
+.. code-block:: text
 
-See :doc:`application-lifecycle` and
-:doc:`../start/first-application`.
+   session -> csrf -> resolve-auth -> auth
+
+First match an acceptable method/path, then establish the
+needed principal, enforce resource-specific authorization
+and validate untrusted values. A typed route parameter is
+not proof that the caller may access the referenced record.
+
+Step 5 — invoke the handler and write once
+------------------------------------------
+
+Webrick invokes the registered callable. It can receive a
+Webrick ``Request``, a constrained route parameter or
+an eligible scoped dependency when needed. A handler can
+return a supported representation or a native immutable
+``Response``; Webrick owns final HTTP normalization,
+headers, streaming policy and emission.
+
+For application-owned JSON APIs, JsonDispatch and
+``JsonResource`` can contribute a selected envelope,
+but they do not replace the Webrick transport layer.
+The default ``/api/health`` route is a bare JSON
+object, not a universal JsonDispatch ``data`` wrapper.
+
+Step 6 — leave the execution scope
+----------------------------------
+
+After completion, Webrick and Foundation finalize
+request-scoped resources. A session, auth principal,
+DBLayer transaction, request-specific HTTP client or
+temporary file handle cannot safely be retained in a
+global singleton for the next unrelated request.
+
+When a response is streamed later, **do not mutate a
+finalized browser session**. Release scope-owned
+resources as required by their native owner even
+when the handler throws or is cancelled.
+
+Troubleshooting matrix
+----------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 29 36 35
+
+   * - Problem
+     - Likely stage
+     - Inspect
+   * - 404 on new path
+     - Route file absent or matcher stale
+     - ``config/router.php`` and ``route:list``
+   * - Wrong method returns 405
+     - Route method constraint
+     - Registrar method and client request
+   * - Unauthorized 401/403
+     - Principal resolution or resource policy
+     - Selected middleware and auth backend
+   * - Browser 419
+     - Session/CSRF token/origin
+     - Same-origin request and trusted proxy
+   * - Stale production handler
+     - Old immutable release active
+     - ``optimize:report`` and manifest SHA
+   * - User state leaks across requests
+     - Invalid InterMix lifetime
+     - Per-execution test under real host
+
+To follow the complete request as an application developer:
+:doc:`../start/first-application`,
+:doc:`../http/routing`,
+:doc:`../http/middleware`,
+:doc:`../http/requests-responses` and
+:doc:`../testing/http`.
