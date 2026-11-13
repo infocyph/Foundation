@@ -128,6 +128,7 @@ remain unpublished.
 - OIDC authentication freshness uses genuine authentication evidence, including the zero-age case; consent approval enforces the same interaction policy as its initial request.
 - Borrowed Runwire cancellation remains active for every lazy download read and for abandoned or truncated streams.
 - Environment-secret staging is private before the first write. Primary command failures remain the reported failure when cleanup also fails.
+- Release config staging starts with private `0600` files and rejects temporary-directory fallback. Config caches use `0640`; complete generations build inside `0700` staging and publish as `0750`, protecting scalar credentials embedded in native compiled containers. New standalone compiler output directories use `0750`; application owners must also keep existing output directories private. Rebuild and retire older caches/generations and align deployment/PHP-worker ownership; see the [release privacy guidance](deployment/releases.rst).
 - Passwordless redemption consumes shared expiring markers atomically; replay, missing state and store failures fail closed.
 
 These implemented corrections do not replace final source, package, consumer and sustained-host verification.

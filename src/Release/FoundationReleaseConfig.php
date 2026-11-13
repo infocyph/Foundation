@@ -53,9 +53,16 @@ final class FoundationReleaseConfig
             'config' => $config,
         ];
         $contents = "<?php\n\ndeclare(strict_types=1);\n\nreturn " . var_export($payload, true) . ";\n";
-        $temporary = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';
+        // Native temporary-file creation restricts access before any config byte is written.
+        $temporary = tempnam($directory, '.foundation-config-');
+        if (!is_string($temporary)) {
+            throw new \RuntimeException('Unable to create private Foundation release config staging.');
+        }
 
         try {
+            if (dirname($temporary) !== realpath($directory)) {
+                throw new \RuntimeException('Foundation release config staging directory is invalid.');
+            }
             if (file_put_contents($temporary, $contents, LOCK_EX) !== strlen($contents)
                 || !chmod($temporary, 0640)
                 || !rename($temporary, $path)

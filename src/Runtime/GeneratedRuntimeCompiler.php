@@ -43,7 +43,7 @@ final class GeneratedRuntimeCompiler
 
         $artifactPath = GeneratedRuntimeMetadata::resolvePath($graph->application, $artifactPath);
         $directory = dirname($artifactPath);
-        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+        if (!is_dir($directory) && !mkdir($directory, 0750, true) && !is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create generated runtime directory "%s".', $directory));
         }
 

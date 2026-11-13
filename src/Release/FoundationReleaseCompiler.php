@@ -368,7 +368,7 @@ final readonly class FoundationReleaseCompiler
         if (file_exists($final)) {
             throw new \RuntimeException(sprintf('Foundation release generation "%s" already exists.', $generation));
         }
-        $this->mkdir($stage);
+        $this->mkdir($stage, 0700);
 
         return [$stage, $final];
     }
@@ -414,9 +414,9 @@ final readonly class FoundationReleaseCompiler
     /**
      * @throws \RuntimeException
      */
-    private function mkdir(string $directory): void
+    private function mkdir(string $directory, int $mode = 0775): void
     {
-        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+        if (!is_dir($directory) && !mkdir($directory, $mode, true) && !is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create Foundation release directory "%s".', $directory));
         }
     }
@@ -460,7 +460,7 @@ final readonly class FoundationReleaseCompiler
             }
         }
 
-        if (!rename($stage, $final)) {
+        if (!chmod($stage, 0750) || !rename($stage, $final)) {
             throw new \RuntimeException(sprintf('Unable to publish Foundation release generation "%s".', $generation));
         }
     }

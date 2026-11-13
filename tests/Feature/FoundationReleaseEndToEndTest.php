@@ -19,6 +19,7 @@ use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 use Infocyph\Foundation\Release\FoundationReleaseRuntime;
 use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Scheduling\SchedulerRuntime;
+use Infocyph\Foundation\Tests\Fixtures\EnvironmentSecretStageObserver;
 use Infocyph\Foundation\Worker\WorkerManager;
 use Infocyph\Foundation\Worker\WorkerProvider;
 use Infocyph\Foundation\Worker\WorkerRuntime;
@@ -31,6 +32,9 @@ use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Matching\FusedMatcher;
 use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
 use Infocyph\Webrick\Router\Matching\ShardedMatcher;
+
+require_once dirname(__DIR__) . '/Fixtures/EnvironmentSecretStageObserver.php';
+require_once dirname(__DIR__) . '/Fixtures/environment_secret_stage_hooks.php';
 
 final readonly class FoundationPhase8ReleaseProbe
 {
@@ -290,6 +294,44 @@ final class FoundationPhase8ReleaseWebHandler
         return Response::json(['generation' => 'phase8-e2e']);
     }
 }
+
+it('keeps generated configuration inside private staging and a restricted published generation', function (): void {
+    $project = foundationPhase8ReleaseProject();
+    $releaseRoot = $project . '/storage/releases';
+    $config = foundationPhase8ReleaseConfig($project);
+    $config['app'] = [
+        ...\foundationStringMap($config['app'] ?? null),
+        'release_secret_marker' => 'private-generation-test-secret',
+    ];
+    $previousUmask = umask(0000);
+
+    try {
+        EnvironmentSecretStageObserver::$active = true;
+        EnvironmentSecretStageObserver::$configDirectoryMode = null;
+        new FoundationReleaseCompiler()->buildAndActivate(
+            $config,
+            $releaseRoot,
+            capabilities: ['web' => [], 'cli' => [], 'worker' => [], 'scheduler' => []],
+            generation: 'private-generation',
+        );
+        $generation = $releaseRoot . '/generations/private-generation';
+        $mode = fileperms($generation);
+        \PHPUnit\Framework\Assert::assertIsInt($mode);
+        $artifact = file_get_contents($generation . '/cli/container.php');
+        \PHPUnit\Framework\Assert::assertIsString($artifact);
+        expect(EnvironmentSecretStageObserver::$configDirectoryMode)->toBe(0700)
+            ->and($mode & 0777)->toBe(0750)
+            ->and($artifact)->toContain('private-generation-test-secret');
+    } finally {
+        EnvironmentSecretStageObserver::$active = false;
+        EnvironmentSecretStageObserver::$configDirectoryMode = null;
+        EnvironmentSecretStageObserver::$modeAtFirstWrite = null;
+        EnvironmentSecretStageObserver::$writes = 0;
+        umask($previousUmask);
+        \foundationResetWebrickProductionRegistries();
+        foundationPhase8ReleaseRemove($project);
+    }
+});
 
 it('builds activates and boots all four runtimes from one immutable Foundation generation', function (): void {
     $project = foundationPhase8ReleaseProject();

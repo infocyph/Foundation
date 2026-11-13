@@ -81,7 +81,7 @@ final class ArrayKitConfigCache
         }
 
         $path = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::SINGLE_FILE;
-        if (!$native->exportCache($path) || !is_file($path) || !chmod($path, 0664)) {
+        if (!$native->exportCache($path) || !is_file($path) || !chmod($path, 0640)) {
             throw new \RuntimeException(sprintf(
                 'Unable to publish ArrayKit single config cache "%s".',
                 $path,
@@ -232,7 +232,7 @@ final class ArrayKitConfigCache
     private function validateNamespace(string $directory, string $namespace): void
     {
         $file = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $namespace . '.php';
-        if (!is_file($file) || !chmod($file, 0664)) {
+        if (!is_file($file) || !chmod($file, 0640)) {
             throw new \RuntimeException(sprintf(
                 'Unable to finalize ArrayKit namespace config cache "%s".',
                 $file,

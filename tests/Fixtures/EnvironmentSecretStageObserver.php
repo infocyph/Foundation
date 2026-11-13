@@ -16,6 +16,10 @@ final class EnvironmentSecretStageObserver
 
     public static int $writes = 0;
 
+    public static ?string $temporaryDirectory = null;
+
+    public static ?int $configDirectoryMode = null;
+
     /**
      * @throws \RuntimeException
      *
@@ -28,7 +32,8 @@ final class EnvironmentSecretStageObserver
         }
 
         $details = stream_get_meta_data($stream);
-        if (!str_ends_with($details['uri'] ?? '', '.tmp')) {
+        $path = $details['uri'] ?? '';
+        if (!str_ends_with($path, '.tmp') && !str_starts_with(basename($path), '.foundation-config-')) {
             return;
         }
 

@@ -56,6 +56,7 @@ final readonly class WebReleaseCompiler
         $intermixPath = $settings->resolvePath($intermixPath);
         $routerPath = $settings->resolvePath($routerPath);
         $releaseManifestPath = $settings->resolvePath($releaseManifestPath);
+        $this->prepareOutputDirectories([$intermixPath, $routerPath, $releaseManifestPath]);
 
         $release = $this->compiler->compile(
             builder: $builder,
@@ -167,6 +168,20 @@ final readonly class WebReleaseCompiler
         $reader->middlewareRequirements();
 
         return $cachePath;
+    }
+
+    /**
+     * @param list<string> $paths
+     * @throws \RuntimeException
+     */
+    private function prepareOutputDirectories(array $paths): void
+    {
+        foreach ($paths as $path) {
+            $directory = dirname($path);
+            if (!is_dir($directory) && !mkdir($directory, 0750, true) && !is_dir($directory)) {
+                throw new \RuntimeException(sprintf('Unable to create private web release directory "%s".', $directory));
+            }
+        }
     }
 
     private function writableMatcher(string $name, string $cachePath): MatcherInterface

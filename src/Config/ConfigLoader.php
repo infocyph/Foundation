@@ -457,7 +457,9 @@ final class ConfigLoader
             if (file_put_contents($temporary, $content, LOCK_EX) === false || !rename($temporary, $target)) {
                 throw new \RuntimeException(sprintf('Unable to publish config cache manifest "%s".', $target));
             }
-            chmod($target, 0664);
+            if (!chmod($target, 0640)) {
+                throw new \RuntimeException('Unable to secure config cache manifest.');
+            }
         } finally {
             if (is_file($temporary)) {
                 unlink($temporary);

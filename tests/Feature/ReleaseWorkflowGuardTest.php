@@ -23,6 +23,8 @@ it('requires tagged Foundation releases to pass quality and production consumers
     expect($hosts['on'])->toHaveKey('workflow_call');
     expect($hosts['on'])->not->toHaveKey('pull_request');
     expect($jobs['runtime-hosts']['if'])->toContain("github.event_name == 'pull_request'", 'foundation4-certify-source');
+    expect($jobs['source-certification']['needs'] ?? [])->toContain('phpforge', 'production-consumer', 'release-evidence');
+    expect($jobs['source-certification']['if'])->not->toContain('always(', 'failure(');
 });
 
 it('enforces independent complete performance batches without mixing their artifacts', function (): void {

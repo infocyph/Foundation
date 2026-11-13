@@ -26,6 +26,32 @@ Build/clear/prune operations serialize through a release-root lock.
 A losing concurrent build must fail before publication rather than
 racing the active pointer.
 
+Configuration privacy and filesystem ownership
+-----------------------------------------------
+
+Generated configuration and container code can contain resolved database or
+application credentials. Keep release and cache artifacts outside the public
+document root and readable only by the deployment identity and trusted PHP
+worker group.
+
+On POSIX hosts, Foundation builds a generation inside a ``0700`` staging
+directory and publishes the generation directory as ``0750``. Configuration
+snapshots and cache files use ``0640``; temporary configuration files start at
+``0600`` before any bytes are written. Align deployment ownership and the PHP
+worker group rather than granting access to all local users.
+
+The lower-level web and non-web compiler APIs create new output directories
+with ``0750``. Existing caller-owned directories retain their permissions:
+prepare those paths privately before compiling, or provide the equivalent
+filesystem ACL on hosts using ACL-based access control. Native compiler
+artifacts can embed the composed configuration even when their filenames look
+like ordinary PHP source.
+
+Rebuild caches and generations created with older permissions, then retire
+obsolete copies after their runtime leases are released. Restrict access to
+existing copies during the transition. A manifest digest protects integrity;
+it does not provide confidentiality for readable artifact files.
+
 Verifying the active generation
 -------------------------------
 

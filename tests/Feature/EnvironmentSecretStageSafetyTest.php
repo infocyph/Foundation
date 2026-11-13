@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Config\ConfigCacheManager;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Release\FoundationReleaseConfig;
 use Infocyph\Foundation\Security\EnvironmentSecretManager;
 use Infocyph\Foundation\Tests\Fixtures\EnvironmentSecretStageObserver;
 
@@ -53,3 +54,56 @@ it('protects .env stage before first plaintext write and retains old file on rej
         rmdir($root);
     }
 });
+
+it('keeps release configuration private throughout staging and preserves the old artifact on failure', function (int $mask): void {
+    $root = sys_get_temp_dir() . '/foundation-config-stage-' . bin2hex(random_bytes(8));
+    mkdir($root, 0755, true);
+    mkdir($root . '/outside', 0755);
+    $path = $root . '/config.php';
+    $previousUmask = umask($mask);
+
+    try {
+        EnvironmentSecretStageObserver::$active = true;
+        EnvironmentSecretStageObserver::$modeAtFirstWrite = null;
+        EnvironmentSecretStageObserver::$writes = 0;
+        $sha256 = FoundationReleaseConfig::write($path, ['database' => ['password' => 'release-stage-test-secret']]);
+        expect(EnvironmentSecretStageObserver::$modeAtFirstWrite)->toBe(0600)
+            ->and(EnvironmentSecretStageObserver::$writes)->toBeGreaterThan(0)
+            ->and(FoundationReleaseConfig::load($path, $sha256)->get('database.password'))->toBe('release-stage-test-secret')
+            ->and(glob($root . '/.foundation-config-*'))->toBe([]);
+
+        $saved = file_get_contents($path);
+        EnvironmentSecretStageObserver::$failChmod = true;
+        expect(fn() => FoundationReleaseConfig::write($path, ['database' => ['password' => 'replacement-secret']]))
+            ->toThrow(RuntimeException::class, 'Unable to publish Foundation release config');
+        expect(file_get_contents($path))->toBe($saved)
+            ->and(glob($root . '/.foundation-config-*'))->toBe([]);
+
+        EnvironmentSecretStageObserver::$failChmod = false;
+        EnvironmentSecretStageObserver::$temporaryDirectory = $root . '/outside';
+        EnvironmentSecretStageObserver::$writes = 0;
+        expect(fn() => FoundationReleaseConfig::write($path, ['database' => ['password' => 'replacement-secret']]))
+            ->toThrow(RuntimeException::class, 'staging directory');
+        expect(EnvironmentSecretStageObserver::$writes)->toBe(0)
+            ->and(file_get_contents($path))->toBe($saved)
+            ->and(glob($root . '/outside/.foundation-config-*'))->toBe([]);
+    } finally {
+        EnvironmentSecretStageObserver::$active = false;
+        EnvironmentSecretStageObserver::$failChmod = false;
+        EnvironmentSecretStageObserver::$modeAtFirstWrite = null;
+        EnvironmentSecretStageObserver::$writes = 0;
+        EnvironmentSecretStageObserver::$temporaryDirectory = null;
+        EnvironmentSecretStageObserver::$configDirectoryMode = null;
+        umask($previousUmask);
+        $localStages = glob($root . '/.foundation-config-*');
+        $outsideStages = glob($root . '/outside/.foundation-config-*');
+        foreach ([...($localStages === false ? [] : $localStages), ...($outsideStages === false ? [] : $outsideStages)] as $temporary) {
+            unlink($temporary);
+        }
+        if (is_file($path)) {
+            unlink($path);
+        }
+        rmdir($root . '/outside');
+        rmdir($root);
+    }
+})->with(['default umask' => 0022, 'permissive umask' => 0000]);

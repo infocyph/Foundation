@@ -195,6 +195,7 @@ jobs:
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
   source-certification:
+    needs: [phpforge, production-consumer, release-evidence]
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'foundation4-certify-source')
     uses: ./.github/workflows/foundation4-host-certification.yml
     permissions:
