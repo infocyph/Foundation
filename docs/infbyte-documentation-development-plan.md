@@ -73,7 +73,7 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D13-B | Application test strategy and native fakes | Infbyte tests/ structure, real health TestKit fixture, selected optional TestKit helpers, fake/real transport boundaries, failure-path, persistent-host and release tests | **Done — strict docs and Infbyte candidate CI passed** |
 | D14-A | CLI commands and scheduler walkthroughs | Deepen actual Infbyte routes/console.php and routes/schedule.php, command definitions, schedules, locking, job/worker distinction and production checks | **Done — strict Sphinx / complete PHP documentation QA passed on exact head** |
 | D14-B | Core onboarding and lifecycle expansion | Explain application creation, developer setup, first route, application/request runtime lifecycle, exact Infbyte project paths and failure diagnoses | **In progress — exact-head docs QA pending** |
-| D15-A | Operational, testing and service guide sweep | Deepen short logging, database testing, worker operations, persistent-host guidance and deployment/advanced chapters | Pending |
+| D15-A | Operational, testing and service guide sweep | Deepen short logging, database testing, worker operations, persistent-host guidance and deployment/advanced chapters | **In progress — exact-head documentation CI pending** |
 | D15-B | Final consistency and publication readiness audit | Scan every RST/link/filename/CLI/API/example, run strict Sphinx/complete-PHP, cross-repo Infbyte candidate CI, close tracker and flag external release gates accurately | Pending |
 | D12-C | Native HTTP middleware and requests/responses depth | Expand developer-facing Webrick middleware/request/response chapters with actual Infbyte routes, auth/CSRF policy, typed request inputs, immutable responses, host tests and production gotchas | **Done — strict docs and Infbyte candidate CI passed** |
 
@@ -319,3 +319,11 @@ Deepen the remaining short user-facing services guides using actual Infbyte app 
 - Expanded `docs/start/overview.rst` and `installation.rst`, distinguishing published Foundation 3 from the development Infbyte 4 candidate and documenting real `my-app/` entrypoints and the initial Core-only layout. Added a practical install/health/route/config/driver failure matrix.
 - Expanded `docs/architecture/application-lifecycle.rst` and `request-lifecycle.rst` with exact candidate `bootstrap/app.php`, `bootstrap/providers.php`, `config/router.php`, `routes/api.php`, CLI/public entrypoints, scoped InterMix runtime ownership, selected middleware, trusted releases, and troubleshooting. Examples sourced against current Infbyte PR #11; no Laravel facade or automatic discovery is claimed.
 - Acceptance requires **strict Sphinx warnings-as-errors**, complete PHP syntax, cross-repo Infbyte path/API checks, and current source checks; this work must not make false Foundation 4/Infbyte 4 release claims.
+
+### D15-A — Operational, test and worker guides
+
+- Rewrote application-oriented `docs/services/resources-logging.rst`: source-checked PSR-3 logger, JsonResource contract, Core default `null` logging driver, safe application `my-app/config/logging.php` customization, redaction, file policy and negative tests. Initial Core-only Infbyte candidate does not ship this optional override file.
+- Reworked `docs/testing/database.rst` around real `TestKit::database()` / `DatabaseTestManager::begin/rollback/transaction/refresh` contracts, disposable Infbyte test connection, rollback and retained-state scenarios.
+- Expanded `docs/testing/persistent-runtimes.rst` with TestKit and true host/cancellation/lease/generation test distinctions.
+- Expanded `docs/console/workers.rst` with source-checked application `WorkerProvider::run(WorkerRuntime):int`, `WorkerRuntime::execute()`, maintenance versus Omnibus workers, supervision and recovery.
+- Strict Sphinx, complete PHP syntax, path/source contracts and read-only Infbyte candidate compatibility must pass at the exact head. Foundation release qualification remains independent.

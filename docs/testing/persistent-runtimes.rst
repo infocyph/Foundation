@@ -1,71 +1,151 @@
 .. _persistent-runtime-testing:
 
-Testing long-lived runtimes
-===========================
+Test persistent hosts and execution isolation
+=============================================
 
-A persistent host reuses process infrastructure across multiple
-requests or work items. A test that passes for one request under
-plain FPM can still fail because another request inherits mutable
-state, an expired lock, or a stale compiled generation.
+An Infbyte HTTP endpoint can pass under one-off PHP/FPM requests
+yet fail when a persistent Runwire worker handles many unrelated
+users. A long-running worker can also fail after cancellation,
+stale-generation reload or lost distributed coordination.
 
-Verify several executions in one process
+**Do not treat one TestKit request as full persistent-runtime
+verification.** In-process tests are useful for application
+behavior; actual host lifecycle, sockets and resource ownership
+need real host tests.
+
+What must be isolated?
+----------------------
+
+At the end of each request or job, no later execution should
+inherit the previous one's:
+
+* current principal, authentication, browser session or CSRF token;
+* DBLayer transaction, sticky read, deadline or reserved pool lease;
+* uploaded temporary file or open stream;
+* outbound request cookies, auth headers or mutable client state;
+* queue reservation/acknowledgment or old generation ownership;
+* pending cancellation, worker execution ID or response emitter.
+
+The host may reuse safe infrastructure (compiled definitions,
+immutable config, connection pools under controlled leases).
+The **mutable execution state** must be scoped through
+Webrick/InterMix and cleaned before the next request/job.
+
+Test a sequence, not a singleton request
 ----------------------------------------
 
-Use a single selected runtime and execute a sequence that includes:
+Use a **single running worker** to execute:
 
-1. A successful request/job setting request-local values.
-2. A failing or cancelled request/job that opens external state.
-3. Another successful request/job in the same worker process.
-4. A shutdown/reload signal while a longer unit is still active.
+1. A successful request that sets scoped user/session data.
+2. A failing request that opens a transaction or lock.
+3. A separate principal's successful request, still in the
+   same worker process.
+4. A long-running operation receiving cancellation/reload.
+5. A fresh request after the worker is replaced.
 
-After every step assert that:
+After each step assert that the next unit starts with clean
+principal/session/transaction state, correct response headers
+and a valid matching generation identity.
 
-* no previous principal, CSRF/browser session or authenticated account
-  remains available to the next execution;
-* transactions and resource handles are released or rolled back;
-* a stale generation cannot accept new work after a newer generation
-  becomes active;
-* cancellation is propagated through native Runwire/Omnibus callbacks;
-* a completed request does not emit a second response or leak a
-  previous response body into the next one.
+In the Infbyte candidate, ``GET /api/health``
+is a useful low-cost control route. It is not an
+authentication isolation test on its own: add application-owned
+protected routes and selected middleware before asserting
+cross-principal behavior.
 
-Scope and borrowed context
---------------------------
+Application-level smoke
+-----------------------
 
-A web request scope is owned by Webrick. CLI/worker/scheduler scopes
-are owned by Foundation through InterMix. A borrowed Runwire request
-or coroutine context must be forwarded **as received**, not recreated
-just to make a library think it is running under a persistent host.
+For a booted **web** application in a TestKit context:
 
-Avoid testing a synthetic "persistent" flag that bypasses actual
-host lifecycle behavior. Test the selected host adapter, resource
-ownership and cancellation policy in integration workflows.
+.. code-block:: php
 
-Load and performance tests are different
-----------------------------------------
+   use Infocyph\Foundation\Testing\TestKit;
 
-Measure latency, throughput, memory and worker utilization without
-changing the production graph merely to make a benchmark pass.
-Run multiple trials under a fixed source SHA, dependency lock,
-host mode and workload. Attribute differences to actual code
-changes before proposing optimizations.
+   $testing = $app->make(TestKit::class);
 
-The Foundation 4 source qualification has additional sustained
-matrices and acceptance budgets. Those remain release gates;
-they are **not** certified by these documentation examples
-or a quick application HTTP test.
+   $testing->http()->get('/api/health')
+       ->assertStatus(200)
+       ->assertJson(['status' => 'ok']);
 
-Useful failure injections
--------------------------
+   $testing->http()->get('/route-that-does-not-exist')
+       ->assertStatus(404);
 
-* Invalid/expired authentication marker under shared storage.
-* Session lock expiration between read and commit.
-* Queue reservation whose process is cancelled before ACK.
-* Missing or stale generated container/router manifest.
-* Worker restart signal during a long scoped operation.
-* Backend loss in a failure path followed by a new execution.
+This tests native Webrick route handling without a network
+socket. It does **not** prove a real Runwire process survived
+a cancellation or that FPM forwarded all FastCGI headers.
 
-See :doc:`../architecture/request-lifecycle`,
-:doc:`../console/workers`, and
-`Foundation runtime hosting
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/runtime-hosting.md>`_.
+Production host verification
+----------------------------
+
+Build a trusted generation and run against the actual
+selected host:
+
+.. code-block:: bash
+
+   php infbyte config:validate --production
+   php infbyte app:ready
+   php infbyte optimize
+   php infbyte optimize:report
+
+For FPM, use an external reverse proxy with the project's
+``public/index.php`` and independent trusted manifest
+identity. For native Runwire, start the correct supported
+driver and record its installed extension/host version.
+
+Record source SHA, dependency graph, host, number of workers,
+concurrency, request sequence, response/error counts,
+latency distribution, memory growth and process restarts.
+
+Inject the failures you expect in production
+--------------------------------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 31 35 34
+
+   * - Fault
+     - Correct behavior
+     - Measure
+   * - Session lease expires before save
+     - Stale owner does not overwrite newer data
+     - Lock provider and user state
+   * - DB transaction throws
+     - Connection is rolled back/sanitized
+     - Next request has clean transaction
+   * - Queue worker dies before ACK
+     - Reservation recovered or retried per transport policy
+     - Receipt, visibility and idempotency
+   * - New generation activates
+     - Old worker drains and stops new acceptance
+     - Generation token and supervisor restart
+   * - Trusted manifest digest mismatch
+     - Production fails closed
+     - No dynamic fallback compile
+   * - Remote backend disappears
+     - Failure visible and correctly cleaned up
+     - Resource handle and subsequent success
+
+Borrowed native runtime context is **not** permission to
+create a second Runwire loop or fabricate request IDs.
+Pass the actual host-provided objects to native library
+bindings where appropriate.
+
+Performance tests are a separate qualification
+-----------------------------------------------
+
+Measure throughput/latency under the *same* routes, workload,
+network, cache state, selected capabilities and security policy.
+Warm-up and cold-start measurements should be labeled distinctly.
+Do not disable correctness checks to make a performance
+benchmark look green.
+
+Foundation's P6 source/host acceptance matrix and retained-state
+rehearsal remain **independent release gates**. A green docs CI
+or short host smoke cannot replace sustained stress,
+soak, cancellation/race or rollback verification.
+
+Next: :doc:`../architecture/request-lifecycle`,
+:doc:`../advanced/runtime-modes`,
+:doc:`../console/workers` and
+:doc:`../deployment/releases`.
