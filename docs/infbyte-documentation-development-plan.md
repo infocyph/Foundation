@@ -64,8 +64,9 @@ Build an approachable, Laravel-style *learning experience* for the Infbyte appli
 | D10-A | Infbyte-first paths and config depth | Verify exact Infbyte 4 config files, rewrite setup/config reference/project structure with examples and production advice, correct related guides | **Done — strict Sphinx and app-path contract QA passed** |
 | D10-B | Laravel-depth user guides | Expand route/controller and task-oriented application chapters with real sample code, middleware, tests, pitfalls and production treatment | **Done — strict Sphinx/PHP docs QA passed** |
 | D10-C | Project-path and public API audit | Scan all developer RST pages for misleading Foundation-internal paths; verify docs against Infbyte candidate source and strict Sphinx/PHP lint | **Done — strict docs and cross-repo CI passed** |
-| D11-A | Developer-oriented data and storage guides | Detailed application-path-first database, cache, and filesystem guides: selection, native usage, security, performance, tests, troubleshooting | **In progress — exact-head CI pending** |
-| D11-B | Deep application services and security | Deepen notifications, communication, queues, and selected security/validation reference pages with real Infbyte application examples | Pending |
+| D11-A | Developer-oriented data and storage guides | Detailed application-path-first database, cache, and filesystem guides: selection, native usage, security, performance, tests, troubleshooting | **Done — strict docs QA passed** |
+| D11-B | Detailed messaging and communication services | Deepen notifications, TalkingBytes communication, Omnibus events/jobs, queue workers, deployment/failure semantics and app-owned config | **In progress — exact-head CI pending** |
+| D11-C | Detailed security and validation | Expand authentication, middleware/request validation and configuration coverage from Infbyte 4 application perspective | Pending |
 
 Status convention: Pending → In progress → Done/Blocked (include concrete reasons). Do not mark Done on a speculative or unchecked command.
 
@@ -231,3 +232,9 @@ by this evidence alone.
 ### D11-B follow-up scope
 
 Deepen the remaining short user-facing services guides using actual Infbyte app paths and relevant specialist APIs. Do not add unsupported Laravel features. Retain Foundation technical guides only as explicitly labeled maintainer references. Keep both PRs draft and unmerged; D11 does not waive the independent Foundation P6 or Infbyte stable-cutover gates.
+
+### D11-A validation and D11-B execution
+
+- **D11-A:** `765b8b03a5df048f5c8537f46aa90524bd3203f2` committed detailed database, CacheLayer and Pathwise chapters. The strict docs/Sphinx job `131657739449` in Security & Standards `43355853411` **passed**. These chapters document true Infbyte project config locations and optional feature ownership, and retain actual native API examples.
+- **D11-B (this commit):** rewrite `docs/services/communication.rst`, `notifications.rst`, `events-jobs.rst` and `queues-workers.rst` as substantive task-oriented developer guides. Explain that `config/notifications.php` ships in Infbyte Core, while `config/communication.php` and `config/messaging.php` appear only after selecting optional features. Show sourced application/Omnibus/TalkingBytes contracts, the distinction between sync/volatile/durable delivery, safe retries, codec policy, host lifecycle, tests, performance, and failure/operational response. Every non-shipped application class/profile is labeled illustrative. Exact-head Sphinx and PHP example checks are pending.
+- **D11-C:** next detailed expansion focuses on auth/security/validation where overview pages remain short; this is documentation, not release approval.
