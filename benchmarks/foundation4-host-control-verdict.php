@@ -145,6 +145,13 @@ function controlTelemetry(string $directory, string $host, array &$totals): void
 }
 
 $root = rtrim($argv[1], '/');
+$expectedToolSha = getenv('FOUNDATION_CONTROL_TOOL_SHA');
+if ($expectedToolSha === false) {
+    $expectedToolSha = CONTROL_TOOL_SHA;
+}
+if (preg_match('/^[a-f0-9]{40}$/D', $expectedToolSha) !== 1) {
+    throw new InvalidArgumentException('Expected immutable 40-hex benchmark tooling SHA.');
+}
 $cases = [];
 $reference = [];
 $consistent = true;
@@ -170,7 +177,7 @@ foreach (['fpm', 'runwire'] as $host) {
         $summaries = [];
         foreach (['baseline' => CONTROL_BASELINE_SHA, 'candidate' => CONTROL_CANDIDATE_SHA] as $variant => $sha) {
             $report = controlJson($pair . '/' . $variant . '/report.json');
-            foreach (['schema' => 3, 'sha' => $sha, 'tool_sha' => CONTROL_TOOL_SHA,
+            foreach (['schema' => 3, 'sha' => $sha, 'tool_sha' => $expectedToolSha,
                 'composer_lock_sha256' => CONTROL_LOCK_SHA256,
                 'request_count' => 1000, 'repetitions' => 5, 'warmup_seconds' => 300,
             ] as $field => $expected) {
@@ -243,7 +250,7 @@ $result = [
     'release_certified' => false,
     'baseline_sha' => CONTROL_BASELINE_SHA,
     'candidate_sha' => CONTROL_CANDIDATE_SHA,
-    'tool_sha' => CONTROL_TOOL_SHA,
+    'tool_sha' => $expectedToolSha,
     'composer_lock_sha256' => CONTROL_LOCK_SHA256,
     'control_absolute_drift_limit_percent' => 2.0,
     'control_cv_limit_percent' => 2.5,

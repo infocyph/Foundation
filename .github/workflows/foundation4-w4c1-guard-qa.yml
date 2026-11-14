@@ -30,7 +30,7 @@ jobs:
           php -l benchmarks/foundation4-host-control-verdict.php
       - name: Install repository QA dependencies
         run: composer update --no-interaction --no-progress --prefer-dist --prefer-stable
-      - name: Run workflow and physical-core isolation regression tests
+      - name: Run workflow, dedicated runner and source certification guards
         run: |
           cp vendor/infocyph/phpforge/resources/pest.xml .foundation-diagnostic-pest.xml
           vendor/bin/pest -c .foundation-diagnostic-pest.xml tests/Feature/ReleaseWorkflowGuardTest.php

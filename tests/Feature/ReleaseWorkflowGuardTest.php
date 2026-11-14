@@ -191,7 +191,7 @@ it('runs frozen identical-runtime controls only on diagnostic-branch pushes', fu
         ->and($job['with']['comparison_mode'] ?? null)->toBe('source-only')
         ->and($job['with']['replay_run_id'] ?? null)->toBe('43570637823')
         ->and($job['with']['replay_lock_sha256'] ?? null)->toBe('47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7')
-        ->and($job['with']['host_runner'] ?? null)->toBe('ubuntu-24.04')
+        ->and($job['with']['host_runner'] ?? null)->toBe('foundation4-perf-dedicated')
         ->and(array_keys($inputs))->toContain('certify_source', 'diagnostic_case', 'baseline_ref', 'candidate_ref', 'replay_run_id', 'replay_lock_sha256', 'comparison_mode', 'host_runner');
 
     foreach (['baseline_ref', 'candidate_ref', 'replay_run_id', 'replay_lock_sha256', 'comparison_mode', 'host_runner', 'diagnostic_case'] as $name) {
@@ -241,6 +241,44 @@ it('permits dedicated isolated-CPU certification without weakening existing benc
         ->and($measure['env']['FOUNDATION_HOST_REPEATS'] ?? null)->toBe('5')
         ->and($install)->toContain('thread_siblings_list', 'refusing this allocation')
         ->not->toContain('|| true');
+});
+
+
+it('gates dedicated performance source certification behind immutable stable controls', function (): void {
+    $root = dirname(__DIR__, 2);
+    $controls = foundationReleaseWorkflow($root . '/.github/workflows/foundation4-w4c1-control.yml');
+    $release = foundationReleaseWorkflow($root . '/.github/workflows/foundation4-dedicated-certify.yml');
+    $baseline = $controls['jobs']['frozen-controls'] ?? null;
+    $calibration = $controls['jobs']['qualify-calibration'] ?? null;
+    $gate = $release['jobs']['validate-calibration'] ?? null;
+    $full = $release['jobs']['qualify-complete-source-matrix'] ?? null;
+
+    if (!is_array($baseline) || !is_array($calibration) || !is_array($gate) || !is_array($full)) {
+        throw new \UnexpectedValueException('Dedicated runner calibration and source certification stages must exist.');
+    }
+
+    expect($controls['on']['push']['branches'] ?? null)->toBe(['diagnostics/foundation4-w4c1-controls'])
+        ->and($release['on']['push']['branches'] ?? null)->toBe(['diagnostics/foundation4-w4c1-controls'])
+        ->and($baseline['if'] ?? null)->toContain('perf: qualify dedicated controls')
+        ->and($baseline['with']['host_runner'] ?? null)->toBe('foundation4-perf-dedicated')
+        ->and($baseline['with']['diagnostic_case'] ?? null)->toBe('hosts-w4-c1')
+        ->and($calibration['needs'] ?? null)->toBe('frozen-controls')
+        ->and($gate['if'] ?? null)->toContain('perf: certify Foundation 4')
+        ->and($full['needs'] ?? null)->toBe('validate-calibration')
+        ->and($full['with']['host_runner'] ?? null)->toBe('foundation4-perf-dedicated')
+        ->and($full['with']['diagnostic_case'] ?? null)->toBe('full-matrix')
+        ->and($full['with']['baseline_ref'] ?? null)->toBe('c220759fcbd6654fead843599712a5b79685f02d')
+        ->and($full['with']['candidate_ref'] ?? null)->toBe('3fcebbfe06165a7363ea9e21ef55831469041fb3')
+        ->and($full['with']['replay_run_id'] ?? null)->toBe('43570637823')
+        ->and($full['with']['replay_lock_sha256'] ?? null)->toBe('47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7');
+
+    $checks = foundationReleaseWorkflowSteps($release, 'validate-calibration');
+    expect($checks['Locate most recent matching dedicated-host controls'] ?? null)->toContain('gh api', 'conclusion', 'success')
+        ->and($checks['Validate immutable inputs and stable control acceptance'] ?? null)->toContain('calibration_stable', 'release_certified', 'control_absolute_drift_limit_percent', 'exit(1)');
+
+    $controlSteps = foundationReleaseWorkflowSteps($controls, 'qualify-calibration');
+    expect($controlSteps['Verify full frozen control evidence on the selected runner'] ?? null)
+        ->toContain('FOUNDATION_CONTROL_TOOL_SHA', 'calibration_stable', 'exit(1)');
 });
 
 it('captures benchmark configuration using only options supported by its PHP version', function (bool $php85): void {

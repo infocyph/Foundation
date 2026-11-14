@@ -1,0 +1,87 @@
+# Strictly opt-in, branch-only release performance qualification. Never tags/merges.
+name: Foundation 4 dedicated source performance qualification
+
+on:
+  push:
+    branches:
+      - diagnostics/foundation4-w4c1-controls
+    paths:
+      - .github/workflows/foundation4-dedicated-certify.yml
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: foundation4-dedicated-source-qualification
+  cancel-in-progress: false
+
+jobs:
+  validate-calibration:
+    name: Require most recent dedicated source-identical controls to be stable
+    if: "${{ github.event.head_commit.message == 'perf: certify Foundation 4' }}"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      control_run_id: ${{ steps.controls.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Locate most recent matching dedicated-host controls
+        id: controls
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs="$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/runs" \
+            -f branch=diagnostics/foundation4-w4c1-controls -f per_page=30)"
+          read -r run_id conclusion control_sha < <(
+            jq -er '[.workflow_runs[] | select(.name == "Foundation 4 frozen w4c1 measurement controls")] | .[0] | [.id, .conclusion, .head_sha] | @tsv' <<<"$runs"
+          )
+          [[ "$run_id" =~ ^[1-9][0-9]*$ && "$conclusion" == success && "$control_sha" =~ ^[a-f0-9]{40}$ ]] || {
+            echo "::error::Most recent dedicated-host control workflow did not pass." >&2
+            exit 1
+          }
+          printf 'run_id=%s\ncontrol_sha=%s\n' "$run_id" "$control_sha" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v7
+        with:
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.controls.outputs.run_id }}
+          github-token: ${{ github.token }}
+          name: foundation4-dedicated-calibration-verdict
+          path: build/calibration
+      - name: Validate immutable inputs and stable control acceptance
+        env:
+          CONTROL_TOOL_SHA: ${{ steps.controls.outputs.control_sha }}
+        run: |
+          php -r '
+            $report = json_decode((string) file_get_contents("build/calibration/calibration.json"), true, flags: JSON_THROW_ON_ERROR);
+            if (!is_array($report)
+                || ($report["scope"] ?? null) !== "identical-runtime non-certifying calibration"
+                || ($report["calibration_stable"] ?? null) !== true
+                || ($report["release_certified"] ?? null) !== false
+                || ($report["baseline_sha"] ?? null) !== "d6ea8a2a33194396d3dfd93089449aab3653ab81"
+                || ($report["candidate_sha"] ?? null) !== "3fcebbfe06165a7363ea9e21ef55831469041fb3"
+                || ($report["tool_sha"] ?? null) !== getenv("CONTROL_TOOL_SHA")
+                || ($report["composer_lock_sha256"] ?? null) !== "47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7"
+                || ($report["control_absolute_drift_limit_percent"] ?? null) !== 2.0
+                || ($report["control_cv_limit_percent"] ?? null) !== 2.5
+                || ($report["telemetry"]["trials"] ?? null) !== 40
+                || count($report["cases"] ?? []) !== 4
+                || count(array_filter($report["cases"], static fn(mixed $case): bool => is_array($case) && ($case["status"] ?? null) === "consistent")) !== 4) {
+                fwrite(STDERR, "::error::Missing or invalid stable source-identical calibration. Full qualification is blocked.\n");
+                exit(1);
+            }
+          '
+  qualify-complete-source-matrix:
+    name: Complete both full source-only matrices and mandatory soaks
+    needs: validate-calibration
+    uses: ./.github/workflows/foundation4-host-certification.yml
+    with:
+      certify_source: true
+      diagnostic_case: full-matrix
+      baseline_ref: c220759fcbd6654fead843599712a5b79685f02d
+      candidate_ref: 3fcebbfe06165a7363ea9e21ef55831469041fb3
+      comparison_mode: source-only
+      replay_run_id: "43570637823"
+      replay_lock_sha256: 47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7
+      host_runner: foundation4-perf-dedicated

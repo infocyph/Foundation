@@ -1,6 +1,6 @@
 # Diagnostic-only. This branch-scoped push trigger does not modify or certify PR #20.
-# This deliberate second hardware-family experiment runs frozen controls on hosted x64.
-# Successful jobs do not prove stable physical host performance.
+# Strictly opt-in: only an explicitly named push requests expensive dedicated-host measurements.
+# No default hosted runner fallback and no source changes to PR #20.
 name: Foundation 4 frozen w4c1 measurement controls
 
 on:
@@ -16,6 +16,7 @@ permissions:
 
 jobs:
   frozen-controls:
+    if: "${{ github.event.head_commit.message == 'perf: qualify dedicated controls' }}"
     name: Frozen FPM and Runwire w4c1 controls (not certification)
     uses: ./.github/workflows/foundation4-host-certification.yml
     with:
@@ -26,4 +27,45 @@ jobs:
       comparison_mode: source-only
       replay_run_id: "43570637823"
       replay_lock_sha256: 47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7
-      host_runner: ubuntu-24.04
+      host_runner: foundation4-perf-dedicated
+
+  qualify-calibration:
+    name: Verify matched frozen controls on dedicated hardware (not certification)
+    needs: frozen-controls
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: foundation4-diagnostic-pair-*
+          path: build/control-artifacts
+      - name: Verify full frozen control evidence on the selected runner
+        env:
+          FOUNDATION_CONTROL_TOOL_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/control-evidence
+          php benchmarks/foundation4-host-control-verdict.php build/control-artifacts             build/control-evidence/calibration.json build/control-evidence/calibration.md
+          cat build/control-evidence/calibration.md >> "$GITHUB_STEP_SUMMARY"
+          php -r '
+            $r = json_decode((string) file_get_contents("build/control-evidence/calibration.json"), true, flags: JSON_THROW_ON_ERROR);
+            if (!is_array($r) || ($r["calibration_stable"] ?? false) !== true
+                || ($r["release_certified"] ?? true) !== false
+                || ($r["telemetry"]["trials"] ?? null) !== 40
+                || count($r["cases"] ?? []) !== 4) {
+                fwrite(STDERR, "::error::Dedicated-host calibration is not stable; full release qualification prohibited.\n");
+                exit(1);
+            }
+          '
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-dedicated-calibration-verdict
+          path: build/control-evidence
+          if-no-files-found: error
+          retention-days: 90
