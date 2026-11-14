@@ -5,7 +5,13 @@ This procedure certifies **Foundation 4 only**. It is not a legacy-version compa
 
 ## Paired GitHub qualification
 
-Use GitHub Actions for the paired comparison and Docker for local diagnostics. Before PR merge, an authorized maintainer can apply the `foundation4-certify-source` label to the same-repository PR; the next PR head update runs **only the source-only** full paired matrix via Security & Standards' reusable workflow call against the immutable Foundation 4 baseline. It uses the exact PR head and ARM runner. Historical independent-lock upgrade benchmarking is optional for this release; when requested, it requires separate attested inputs and qualification. Labeling is an execution request, not a passing verdict.
+Routine PR acceptance requires the configured quality, security, production-consumer,
+documentation and native-host checks. Run sustained throughput qualification separately
+through the manual workflow on the immutable candidate and reviewed dependency locks.
+This keeps an unstable shared-runner comparison from blocking routine PR acceptance;
+it does not turn failed performance evidence into a passing release qualification.
+
+Use GitHub Actions for the paired comparison and Docker for local diagnostics. An authorized maintainer can explicitly opt a same-repository PR back into blocking source qualification by applying the `foundation4-certify-source` label; the next PR head update runs **only the source-only** full paired matrix via Security & Standards' reusable workflow call against the immutable Foundation 4 baseline. It uses the exact PR head and ARM runner. Leave this label off routine PRs when qualification is being managed separately. Historical independent-lock upgrade benchmarking is optional for this release; when requested, it requires separate attested inputs and qualification. Labeling is an execution request, not a passing verdict.
 The [manual workflow](../.github/workflows/foundation4-host-certification.yml) supports a full `authenticated-read`
 PostgreSQL/Redis profile, distinct immutable baseline/candidate sources, one
 resolved dependency lock and benchmark revision, and the same runner for each
@@ -15,8 +21,8 @@ capacity. Other matrix cases may use different runners.
 
 The twelve cases cover FPM/Runwire, one/four workers and concurrency 1/10/50.
 Each revision has a recorded 300-second warm-up followed by five >=300-second
-trials. The longer windows improve measurement precision on the available shared
-runners; they do not make an unstable comparison acceptable. Two independent
+trials. These windows do not establish host stability or make an unstable
+comparison acceptable. Two independent
 complete batches run all twelve cases; the confirmation
 batch reverses baseline/candidate order. Four-worker/concurrency-10 jobs include
 two >=120-second soak windows per host/revision and batch, continuous live CPU/RSS,
