@@ -28,6 +28,18 @@ jobs:
         run: |
           php -l tests/Feature/ReleaseWorkflowGuardTest.php
           php -l benchmarks/foundation4-host-control-verdict.php
+      - name: Install pinned GitHub Actions workflow validator
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.10
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Validate complete diagnostic and certification workflow syntax
+        run: |
+          "$(go env GOPATH)/bin/actionlint" -color -oneline \
+            .github/workflows/foundation4-host-certification.yml \
+            .github/workflows/foundation4-w4c1-control.yml \
+            .github/workflows/foundation4-w4c1-evidence.yml \
+            .github/workflows/foundation4-dedicated-certify.yml \
+            .github/workflows/foundation4-w4c1-guard-qa.yml
       - name: Install repository QA dependencies
         run: composer update --no-interaction --no-progress --prefer-dist --prefer-stable
       - name: Run workflow, dedicated runner and source certification guards
