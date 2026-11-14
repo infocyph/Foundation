@@ -11,6 +11,10 @@ use Infocyph\Foundation\Auth\OAuth\Contract\OAuthConsentStoreInterface;
 
 final readonly class DBLayerOAuthConsentStore extends DBLayerStore implements OAuthConsentStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function find(string $accountId, string $clientId, string $scopeFingerprint): ?OAuthConsent
     {
         return $this->firstMapped(
@@ -23,6 +27,10 @@ final readonly class DBLayerOAuthConsentStore extends DBLayerStore implements OA
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function findActive(string $accountId, string $clientId, string $scopeFingerprint): ?OAuthConsent
     {
         $consent = $this->find($accountId, $clientId, $scopeFingerprint);
@@ -30,6 +38,13 @@ final readonly class DBLayerOAuthConsentStore extends DBLayerStore implements OA
         return $consent instanceof OAuthConsent && $consent->revokedAt === null ? $consent : null;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function revoke(string $accountId, string $clientId, int $revokedAt): int
     {
         return $this->connection()->execute(
@@ -41,6 +56,14 @@ final readonly class DBLayerOAuthConsentStore extends DBLayerStore implements OA
         )->rowCount();
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function save(OAuthConsent $consent): void
     {
         $this->upsertRecord('oauthConsents', 'id', [

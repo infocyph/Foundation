@@ -12,6 +12,7 @@ use Infocyph\Foundation\Messaging\OmnibusWorkerFactory;
 use Infocyph\Foundation\Worker\WorkerManager;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\MessageBus;
 
@@ -26,9 +27,11 @@ final class FoundationWorkerProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
@@ -39,6 +42,9 @@ final class FoundationWorkerMessageHandler
 
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function __invoke(FoundationWorkerMessage $message, Envelope $envelope): void
     {
         self::$handled[] = [
@@ -56,13 +62,15 @@ beforeEach(function (): void {
 
 it('runs bounded Omnibus workers with a fresh Foundation execution scope per message', function (): void {
     $provider = new class extends ServiceProvider {
+        #[\Override]
         public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
             unset($context);
 
-            $builder->scoped(
+            $builder->factory(
                 FoundationWorkerProbe::class,
                 FactoryDefinition::construct(FoundationWorkerProbe::class),
+                LifetimeEnum::Scoped,
             );
         }
     };
@@ -190,21 +198,21 @@ it('requires declarative fork-safe configuration before starting a worker pool',
     }
 
     expect(static fn(): Application => Foundation::worker([
-            'messaging' => [
-                'handlers' => [FoundationWorkerMessage::class => static fn(): null => null],
-                'workers' => [
-                    'parallel' => [
-                        'transport' => 'shared',
-                        'queue' => 'default',
-                        'pool' => [
-                            'enabled' => true,
-                            'concurrency' => 2,
-                        ],
+        'messaging' => [
+            'handlers' => [FoundationWorkerMessage::class => static fn(): null => null],
+            'workers' => [
+                'parallel' => [
+                    'transport' => 'shared',
+                    'queue' => 'default',
+                    'pool' => [
+                        'enabled' => true,
+                        'concurrency' => 2,
                     ],
                 ],
             ],
-        ]))->toThrow(
-            InvalidArgumentException::class,
-            'Declarative factory arguments must be service references or exportable values.',
-        );
+        ],
+    ]))->toThrow(
+        InvalidArgumentException::class,
+        'Declarative factory arguments must be service references or exportable values.',
+    );
 });

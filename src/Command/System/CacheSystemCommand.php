@@ -13,6 +13,7 @@ final class CacheSystemCommand extends SystemCommand
 {
     public function __construct(private readonly Application $application) {}
 
+    #[\Override]
     protected function handle(): int
     {
         return match ($this->canonicalName()) {
@@ -23,6 +24,10 @@ final class CacheSystemCommand extends SystemCommand
         };
     }
 
+    /**
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function forget(): int
     {
         $key = $this->argument(0)

@@ -12,7 +12,7 @@ final class EpicryptOAuthErrorMapper
 {
     public static function exception(?OAuthProtocolError $error): OAuthProtocolException
     {
-        if (!$error instanceof OAuthProtocolError) {
+        if ($error === null) {
             return OAuthProtocolException::invalidRequest();
         }
 

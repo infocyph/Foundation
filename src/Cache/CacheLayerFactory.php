@@ -28,6 +28,7 @@ use Infocyph\CacheLayer\Node\NodeCacheConfig;
 use Infocyph\CacheLayer\Support\RedisConnection;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Cache\Internal\CacheTierDescriptorResolver;
+use Infocyph\Foundation\Cache\Internal\MemcachedConnector;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Filesystem\PathManager;
@@ -41,13 +42,18 @@ use Infocyph\Foundation\Support\ValueNormalizer;
  */
 final readonly class CacheLayerFactory
 {
-    public function __construct(
-        private ConfigRepository $config,
-        private PathManager $paths,
-        /** @var Closure(?string):Connection */
-        private Closure $database,
-    ) {}
+    /** @var Closure(?string):Connection */
+    private Closure $database;
 
+    /** @param callable(?string):Connection $database */
+    public function __construct(private ConfigRepository $config, private PathManager $paths, callable $database)
+    {
+        $this->database = Closure::fromCallable($database);
+    }
+
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function cluster(string $name): ClusterRuntime
     {
         $cluster = $this->named('cache.clusters')[$name] ?? null;
@@ -69,6 +75,7 @@ final readonly class CacheLayerFactory
             new ClusterCacheConfig(
                 cluster: $this->requiredString($cluster, 'cluster', 'cache.clusters.' . $name),
                 nodeId: $this->requiredString($cluster, 'node_id', 'cache.clusters.' . $name),
+                transportIdentity: $this->requiredString($cluster, 'transport_identity', 'cache.clusters.' . $name),
                 consumerBatchSize: max(1, ValueNormalizer::int($cluster['consumer_batch_size'] ?? null, 1_000)),
                 invalidateLocallyFirst: ValueNormalizer::bool($cluster['invalidate_locally_first'] ?? null, true),
             ),
@@ -76,6 +83,9 @@ final readonly class CacheLayerFactory
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function counters(string $name): AtomicCounterStoreInterface
     {
         $counter = $this->named('cache.counters')[$name] ?? null;
@@ -97,11 +107,15 @@ final readonly class CacheLayerFactory
         };
     }
 
-    public function lock(?string $storeName = null): LockProviderInterface
-    {
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
+    public function lock(
+        ?string $storeName = null,
+        CacheInterface|Closure|null $resolvedStore = null,
+    ): LockProviderInterface {
         $lock = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
-        $storeName ??= $this->stringOrNull($lock['store'] ?? null)
-            ?? $this->stringConfig('cache.default', 'memory');
+        $storeName = $this->lockStoreName($storeName);
         $store = $this->stores()[$storeName] ?? ['driver' => $storeName];
         $driver = $this->driver($storeName, $store);
 
@@ -109,7 +123,9 @@ final readonly class CacheLayerFactory
             return $this->lockProvider($store, $lock, $driver);
         }
 
-        $cache = $this->make($storeName);
+        $cache = $resolvedStore instanceof Closure
+            ? $resolvedStore()
+            : ($resolvedStore ?? $this->make($storeName));
         if ($cache instanceof AuthenticationStateCacheInterface) {
             $native = $cache->authenticationStateLock();
             if ($native instanceof LockProviderInterface) {
@@ -123,9 +139,24 @@ final readonly class CacheLayerFactory
         ));
     }
 
+    public function lockStoreName(?string $storeName = null): string
+    {
+        if ($storeName !== null) {
+            return $storeName;
+        }
+
+        $lock = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
+
+        return $this->stringOrNull($lock['store'] ?? null)
+            ?? $this->storeName();
+    }
+
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function make(?string $name = null): CacheInterface
     {
-        $name ??= $this->stringConfig('cache.default', 'memory');
+        $name = $this->storeName($name);
         $store = $this->stores()[$name] ?? ['driver' => $name];
         $driver = $this->driver($name, $store);
 
@@ -136,6 +167,9 @@ final readonly class CacheLayerFactory
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function nodeMaintenance(string $name): NodeCacheMaintenance
     {
         $store = $this->stores()[$name] ?? null;
@@ -146,6 +180,9 @@ final readonly class CacheLayerFactory
         return NodeCache::maintenance($this->nodeConfig($name, $store));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function pruneCluster(string $name, int $retentionSeconds, int $limit = 5_000): int
     {
         if ($retentionSeconds < 0) {
@@ -165,7 +202,15 @@ final readonly class CacheLayerFactory
         return $transport->pruneBefore(time() - $retentionSeconds, max(1, $limit));
     }
 
-    /** @param array<string,mixed> $store */
+    public function storeName(?string $name = null): string
+    {
+        return $name ?? $this->stringConfig('cache.default', 'memory');
+    }
+
+    /**
+     * @param array<string,mixed> $store
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function applyLock(CacheInterface $cache, array $store, CacheDriver $driver): CacheInterface
     {
         $global = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
@@ -181,6 +226,9 @@ final readonly class CacheLayerFactory
         return $cache->setLockProvider($this->lockProvider($lockStore, $lock, $lockDriver));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function assertNodePath(string $file, string $name): void
     {
         $directory = rtrim(str_replace('\\', '/', $this->paths->cache()), '/');
@@ -222,8 +270,8 @@ final readonly class CacheLayerFactory
             maxPayloadBytes: is_numeric($maxPayload) ? max(1, (int) $maxPayload) : 8_388_608,
             compressionThreshold: is_numeric($threshold) && (int) $threshold > 0 ? (int) $threshold : null,
             compressionLevel: max(1, min(9, ValueNormalizer::int($compression['level'] ?? null, 6))),
-            allowClosures: ValueNormalizer::bool($serialization['allow_closure_payloads'] ?? null, true),
-            allowObjects: ValueNormalizer::bool($serialization['allow_object_payloads'] ?? null, true),
+            allowClosures: ValueNormalizer::bool($serialization['allow_closure_payloads'] ?? null, false),
+            allowObjects: ValueNormalizer::bool($serialization['allow_object_payloads'] ?? null, false),
             failOpen: ValueNormalizer::bool($store['fail_open'] ?? null, true),
         );
     }
@@ -240,7 +288,7 @@ final readonly class CacheLayerFactory
             CacheDriver::LOCAL => $this->localCache($namespace, $store, $options),
             CacheDriver::MEMCACHE => Cache::memcached(
                 namespace: $namespace,
-                servers: $this->servers($store['servers'] ?? null),
+                servers: MemcachedConnector::servers($store['servers'] ?? null),
                 client: ($store['client'] ?? null) instanceof \Memcached ? $store['client'] : null,
                 options: $options,
             ),
@@ -356,7 +404,7 @@ final readonly class CacheLayerFactory
         return match ($driver) {
             'file' => new FileLockProvider($this->directory($lock), $retry),
             'memcache', 'memcached' => new MemcachedLockProvider(
-                $this->memcachedClient($store, $lock),
+                MemcachedConnector::client($store, $lock),
                 $prefix,
                 $retry,
             ),
@@ -372,28 +420,6 @@ final readonly class CacheLayerFactory
             ),
             default => throw new ConfigurationException(sprintf('Unsupported cache lock driver "%s".', $driver)),
         };
-    }
-
-    /**
-     * @param array<string,mixed> $store
-     * @param array<string,mixed> $lock
-     */
-    private function memcachedClient(array $store, array $lock): \Memcached
-    {
-        $client = $lock['client'] ?? $store['client'] ?? null;
-        if ($client instanceof \Memcached) {
-            return $client;
-        }
-        if (!class_exists(\Memcached::class)) {
-            throw new ConfigurationException('Memcached lock provider requires the Memcached extension.');
-        }
-
-        $client = new \Memcached();
-        if (!$client->addServers($this->servers($lock['servers'] ?? $store['servers'] ?? null))) {
-            throw new ConfigurationException('Memcached lock provider could not configure its servers.');
-        }
-
-        return $client;
     }
 
     /** @return array<string,array<string,mixed>> */
@@ -421,7 +447,10 @@ final readonly class CacheLayerFactory
             ?? CacheNamespace::derive($this->stringConfig('cache.prefix', 'foundation:'), $name);
     }
 
-    /** @param array<string,mixed> $store */
+    /**
+     * @param array<string,mixed> $store
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function nodeConfig(string $name, array $store): NodeCacheConfig
     {
         $file = $this->sqliteFile($store);
@@ -437,12 +466,15 @@ final readonly class CacheLayerFactory
             lockDirectory: $this->directoryFrom($store, 'lock_directory'),
             busyTimeoutMs: max(0, ValueNormalizer::int($store['busy_timeout_ms'] ?? null, 1_000)),
             apcuEnabled: ValueNormalizer::bool($store['apcu_enabled'] ?? null, true),
-            failOpen: ValueNormalizer::bool($store['fail_open'] ?? null, true),
             lockProvider: $this->nodeLockProvider($store),
+            options: $this->cacheOptions($store),
         );
     }
 
-    /** @param array<string,mixed> $store */
+    /**
+     * @param array<string,mixed> $store
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function nodeLockProvider(array $store): ?LockProviderInterface
     {
         $global = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
@@ -478,7 +510,10 @@ final readonly class CacheLayerFactory
         );
     }
 
-    /** @param array<string,mixed> $store */
+    /**
+     * @param array<string,mixed> $store
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function pdoClient(array $store, CacheDriver $driver): \PDO
     {
         if (($store['client'] ?? null) instanceof \PDO) {
@@ -539,7 +574,10 @@ final readonly class CacheLayerFactory
             : Cache::redis($namespace, $connection['dsn'], $connection['client'], $options);
     }
 
-    /** @param array<string,mixed> $definition */
+    /**
+     * @param array<string,mixed> $definition
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function redisClient(array $definition, string $driver): \Redis
     {
         $connection = $this->redisConnection($definition, $driver);
@@ -588,6 +626,7 @@ final readonly class CacheLayerFactory
      * @param array<string,mixed> $global
      * @param array<string,mixed> $local
      * @return array{array<string,mixed>,CacheDriver}
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     private function resolveLockStore(
         array $fallbackStore,
@@ -628,36 +667,6 @@ final readonly class CacheLayerFactory
             : ['127.0.0.1:6379'];
     }
 
-    /** @return list<array{0:string,1:int,2:int}> */
-    private function servers(mixed $value): array
-    {
-        if (!is_array($value) || $value === []) {
-            return [['127.0.0.1', 11211, 0]];
-        }
-
-        $servers = [];
-        foreach ($value as $server) {
-            if (is_array($server) && isset($server[0], $server[1]) && is_string($server[0])) {
-                $servers[] = [
-                    $server[0],
-                    ValueNormalizer::int($server[1], 11211),
-                    ValueNormalizer::int($server[2] ?? null, 0),
-                ];
-
-                continue;
-            }
-
-            $server = ValueNormalizer::associativeArray($server);
-            $servers[] = [
-                ValueNormalizer::string($server['host'] ?? null, '127.0.0.1'),
-                ValueNormalizer::int($server['port'] ?? null, 11211),
-                ValueNormalizer::int($server['weight'] ?? null, 0),
-            ];
-        }
-
-        return $servers;
-    }
-
     /** @param array<string,mixed> $store */
     private function sqliteFile(array $store): ?string
     {
@@ -686,6 +695,9 @@ final readonly class CacheLayerFactory
         return is_string($value) && $value !== '' ? $value : null;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function transport(string $name): InvalidationTransportInterface
     {
         $transport = $this->named('cache.transports')[$name] ?? null;
@@ -695,13 +707,15 @@ final readonly class CacheLayerFactory
 
         $driver = strtolower($this->requiredString($transport, 'driver', 'cache.transports.' . $name));
 
+        $redisFamily = str_starts_with($driver, 'valkey') ? 'valkey' : 'redis';
+
         return match ($driver) {
             'pdo' => new PdoInvalidationTransport(
                 ($this->database)($this->requiredString($transport, 'connection', 'cache.transports.' . $name))->getPdo(),
                 ValueNormalizer::bool($transport['allow_sqlite_for_testing'] ?? null, false),
             ),
             'redis_stream', 'redis-stream', 'stream', 'valkey_stream', 'valkey-stream' => new RedisStreamInvalidationTransport(
-                $this->redisClient($transport, str_contains($driver, 'valkey') ? 'valkey' : 'redis'),
+                $this->redisClient($transport, $redisFamily),
                 ValueNormalizer::string($transport['prefix'] ?? null, 'cachelayer:invalidation:'),
                 max(1, ValueNormalizer::int($transport['max_length'] ?? null, 100_000)),
             ),

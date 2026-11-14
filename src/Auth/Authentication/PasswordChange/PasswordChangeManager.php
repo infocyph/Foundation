@@ -18,9 +18,13 @@ use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Notification\AuthNotification;
 use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
-use Infocyph\Foundation\Auth\Support\ContextValue;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
+/**
+ * Application-facing password change and notification orchestration.
+ *
+ * @api
+ */
 final readonly class PasswordChangeManager
 {
     public function __construct(
@@ -40,11 +44,12 @@ final readonly class PasswordChangeManager
     {
         $account = $this->accounts->findById($accountId);
 
-        if ($account === null || $account->passwordHash() === null) {
+        $passwordHash = $account?->passwordHash();
+        if ($passwordHash === null) {
             return new PasswordChangeResult(PasswordChangeStatus::ACCOUNT_NOT_FOUND, 'account_not_found', $context);
         }
 
-        $verification = $this->passwords->verify($currentPassword, $account->passwordHash());
+        $verification = $this->passwords->verify($currentPassword, $passwordHash);
 
         if (!$verification->verified) {
             return new PasswordChangeResult(PasswordChangeStatus::INVALID_CREDENTIALS, 'invalid_credentials', $context);
@@ -59,8 +64,6 @@ final readonly class PasswordChangeManager
             $accountId,
             metadata: $context,
             severity: AuthEventSeverity::NOTICE,
-            sessionId: ContextValue::stringOrNull($context, 'session_id'),
-            deviceId: ContextValue::stringOrNull($context, 'device_id'),
         );
         $this->notifier->send(new AuthNotification(AuthNotificationType::PASSWORD_CHANGED, $accountId, $context));
 

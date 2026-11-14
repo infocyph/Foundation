@@ -12,6 +12,9 @@ use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptAsymmetricSigningKeyResolv
 
 final class AuthPersonalAccessTokenGraphFactory
 {
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function keys(
         EpicryptAsymmetricSigningKeyResolver $resolver,
         string $issuer,

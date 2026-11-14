@@ -11,9 +11,11 @@ use Infocyph\Omnibus\Consumer\Consumer;
 use Infocyph\Omnibus\Consumer\ExecutionScope;
 use Infocyph\Omnibus\Failure\FailureStore;
 use Infocyph\Omnibus\Handler\HandlerInvoker;
+use Infocyph\Omnibus\Integration\Runwire\RunwireBinding;
 use Infocyph\Omnibus\Retry\ExponentialRetryStrategy;
 use Infocyph\Omnibus\Transport\Receiver;
 use Infocyph\Omnibus\Transport\TransportRegistry;
+use Psr\Container\ContainerInterface;
 
 final readonly class ConsumerFactory
 {
@@ -21,11 +23,15 @@ final readonly class ConsumerFactory
         private ConfigRepository $config,
         private TransportRegistry $transports,
         private HandlerInvoker $invoker,
-        private FailureStore $failures,
+        private ContainerInterface $services,
         private SystemClock $clock,
         private ExecutionScope $scope,
+        private RunwireBinding $runwire,
     ) {}
 
+    /**
+     * @throws \LogicException
+     */
     public function make(?string $transport = null): Consumer
     {
         $name = $transport ?? ValueNormalizer::string(
@@ -65,10 +71,27 @@ final readonly class ConsumerFactory
                     0.0,
                 ),
             ),
-            failures: $this->failures,
+            failures: null,
             clock: $this->clock,
             scope: $this->scope,
+            runwire: $this->runwire,
+            failureStoreResolver: $this->failureStore(...),
         );
+    }
+
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    private function failureStore(): FailureStore
+    {
+        $failures = $this->services->get(FailureStore::class);
+        if (!$failures instanceof FailureStore) {
+            throw new \LogicException('Messaging FailureStore binding is invalid.');
+        }
+
+        return $failures;
     }
 
     private function float(mixed $value, float $default): float

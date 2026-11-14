@@ -16,6 +16,14 @@ it('produces validated representative results from complete Foundation requests'
         ))->run($output);
         $validation = (new BenchmarkResult())->load($output);
 
+        if (!is_array($document['workloads'] ?? null)) {
+            throw new \UnexpectedValueException('Representative benchmark must contain workload evidence.');
+        }
+        foreach ($document['workloads'] as $workload) {
+            if (!is_array($workload) || !is_array($workload['result'] ?? null)) {
+                throw new \UnexpectedValueException('Benchmark workload must contain a measured result.');
+            }
+        }
         expect($validation['errors'])->toBe([])
             ->and(array_column($document['workloads'], 'name'))->toBe([
                 'minimal-json-warm',

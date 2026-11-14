@@ -24,10 +24,13 @@ final readonly class RouteFileLoader
         private array $files = ['web.php', 'api.php', 'auth.php'],
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
     public function load(Registrar $router): void
     {
-        $this->presets->register();
-        $this->loadRoutes($router);
+        $this->loadRoutes($router, $this->presets);
     }
 
     /**
@@ -38,11 +41,12 @@ final readonly class RouteFileLoader
      * can preserve alias-parameter override semantics. Once discovery is
      * complete, the immutable route collection tells us the exact alias set
      * needed by HandlerCompiler and the generated artifact.
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
      */
     public function loadForRelease(Registrar $router): void
     {
-        $this->presets->register();
-        $this->loadRoutes($router);
+        $this->loadRoutes($router, $this->presets);
         $requirements = $this->releaseMiddlewareRequirements($router);
 
         MiddlewareAliases::reset();
@@ -59,7 +63,6 @@ final readonly class RouteFileLoader
                 continue;
             }
 
-            /** @var class-string $class */
             $resolved[] = $class;
         }
 
@@ -113,8 +116,13 @@ final readonly class RouteFileLoader
         AttributeRouteLoader::registerFromDirs($router, $directories, $filter);
     }
 
-    private function loadRoutes(Registrar $router): void
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
+    private function loadRoutes(Registrar $router, RoutePresetRegistrar $presets): void
     {
+        $presets->register();
         $this->oauth->register($router);
 
         foreach ($this->files as $file) {
@@ -123,8 +131,6 @@ final readonly class RouteFileLoader
             if (!is_file($path)) {
                 continue;
             }
-
-            $presets = $this->presets;
 
             require $path;
         }

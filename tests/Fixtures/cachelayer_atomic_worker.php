@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/ProbeInput.php';
+$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::fromServer($_SERVER);
+
 use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheOptions;
 use Infocyph\CacheLayer\Counter\AtomicCounters;
@@ -11,7 +14,7 @@ use Infocyph\Foundation\Communication\CacheLayerWebhookReplayStore;
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
-[$script, $mode, $namespace, $dsn, $arg1, $arg2] = $argv + [null, null, null, null, null, null];
+[, $mode, $namespace, $dsn, $arg1] = $argv + [null, null, null, null, null, null];
 if (!is_string($mode) || !is_string($namespace) || !is_string($dsn) || !is_string($arg1)) {
     throw new InvalidArgumentException('Invalid CacheLayer atomic worker arguments.');
 }

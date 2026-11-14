@@ -6,8 +6,14 @@ use Infocyph\Foundation\Worker\WorkerProvider;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\Foundation\Worker\WorkerTopology;
 
+/**
+ * Runtime entry point discovered through native provider, route or benchmark metadata.
+ *
+ * @api
+ */
 final class FoundationWorkerTopologyTrustProvider implements WorkerProvider
 {
+    #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
         unset($runtime);
@@ -39,7 +45,7 @@ it('rejects missing or tampered generated worker topology artifacts', function (
 
         file_put_contents($artifact, "<?php\n\nreturn ['format' => 1, 'providers' => []];\n");
         expect(fn() => $topology->load($artifact, $compiled['sha256']))
-            ->toThrow(RuntimeException::class, 'Foundation worker topology trust identity mismatch.');
+            ->toThrow(RuntimeException::class, 'Foundation release artifact trust identity mismatch.');
 
         unlink($artifact);
         expect(fn() => $topology->load($artifact, $compiled['sha256']))
@@ -60,6 +66,7 @@ function foundationWorkerTopologyTrustRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

@@ -34,30 +34,24 @@ it('rejects invalid clients redirects responses PKCE scopes and grants', functio
             'audience' => $audience,
         ];
 
-        expect(oauth21ProtocolError(fn() => $fixture->requests->validate([
-            ...$base,
+        expect(oauth21ProtocolError(fn() => $fixture->requests->validate(array_replace($base, [
             'client_id' => 'oc_unknown',
-        ]))->error)->toBe('unauthorized_client')
-            ->and(oauth21ProtocolError(fn() => $fixture->requests->validate([
-                ...$base,
+        ])))->error)->toBe('unauthorized_client')
+            ->and(oauth21ProtocolError(fn() => $fixture->requests->validate(array_replace($base, [
                 'redirect_uri' => $redirectUri . '?next=https://evil.example.test',
-            ]))->error)->toBe('invalid_request')
-            ->and(oauth21ProtocolError(fn() => $fixture->requests->validate([
-                ...$base,
+            ])))->error)->toBe('invalid_request')
+            ->and(oauth21ProtocolError(fn() => $fixture->requests->validate(array_replace($base, [
                 'response_type' => 'token',
-            ]))->error)->toBe('unsupported_response_type')
-            ->and(oauth21ProtocolError(fn() => $fixture->requests->validate([
-                ...$base,
+            ])))->error)->toBe('unsupported_response_type')
+            ->and(oauth21ProtocolError(fn() => $fixture->requests->validate(array_replace($base, [
                 'code_challenge_method' => 'plain',
-            ]))->error)->toBe('invalid_request')
-            ->and(oauth21ProtocolError(fn() => $fixture->requests->validate([
-                ...$base,
+            ])))->error)->toBe('invalid_request')
+            ->and(oauth21ProtocolError(fn() => $fixture->requests->validate(array_replace($base, [
                 'code_challenge' => 'short',
-            ]))->error)->toBe('invalid_request')
-            ->and(oauth21ProtocolError(fn() => $fixture->requests->validate([
-                ...$base,
+            ])))->error)->toBe('invalid_request')
+            ->and(oauth21ProtocolError(fn() => $fixture->requests->validate(array_replace($base, [
                 'scope' => 'profile.write',
-            ]))->error)->toBe('invalid_scope')
+            ])))->error)->toBe('invalid_scope')
             ->and(oauth21ProtocolError(fn() => $fixture->tokens->exchange([
                 'grant_type' => 'password',
             ], new OAuthClientAuthentication(
@@ -137,10 +131,9 @@ it('rejects client authentication downgrade client mismatch PKCE failure and cod
             'code_verifier' => $verifier,
         ];
 
-        expect(oauth21ProtocolError(fn() => $fixture->tokens->exchange([
-            ...$parameters,
+        expect(oauth21ProtocolError(fn() => $fixture->tokens->exchange(array_replace($parameters, [
             'code_verifier' => str_repeat('x', 64),
-        ], new OAuthClientAuthentication(
+        ]), new OAuthClientAuthentication(
             OAuthClientAuthenticationMethod::None,
             $public->client->clientId,
         )))->error)->toBe('invalid_grant')
@@ -163,7 +156,10 @@ it('rejects client authentication downgrade client mismatch PKCE failure and cod
     }
 });
 
-/** @param callable(): mixed $operation */
+/**
+ * @param callable(): mixed $operation
+ * @throws \RuntimeException
+ */
 function oauth21ProtocolError(callable $operation): OAuthProtocolException
 {
     try {

@@ -4,21 +4,82 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 
+use Infocyph\DBLayer\Exceptions\TransactionException;
+use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailDestinationChanged;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationRequest;
 use Infocyph\Foundation\Auth\Contract\Storage\EmailVerificationStoreInterface;
 
 final readonly class DBLayerEmailVerificationStore extends DBLayerConsumableStore implements EmailVerificationStoreInterface
 {
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function consume(string $requestId): void
     {
         $this->consumeRequest('emailVerifications', $requestId);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws EmailDestinationChanged
+     * @throws TransactionException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
+    #[\Override]
+    public function consumeAndApply(string $requestId, callable $apply): bool
+    {
+        try {
+            return $this->connection()->transaction(function () use ($requestId, $apply): bool {
+                $now = $this->now();
+                $updated = $this->query('emailVerifications')
+                    ->whereRaw('id = ? AND consumed_at IS NULL AND expires_at > ?', [$requestId, $now])
+                    ->update(['consumed_at' => $now]);
+                if ($updated !== 1) {
+                    return false;
+                }
+
+                $apply();
+
+                return true;
+            }, attempts: 3) === true;
+        } catch (TransactionException $exception) {
+            $previous = $exception->getPrevious();
+            // DBLayer wraps application failures after rollback. Unwrap this
+            // specific trusted-denial signal only when rollback succeeded.
+            // Preserve rollback failures and all unrelated transaction errors.
+            if ($previous instanceof EmailDestinationChanged
+                && $exception->getMessage() === 'Transaction failed: ' . $previous->getMessage()
+            ) {
+                throw $previous;
+            }
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function find(string $requestId): ?EmailVerificationRequest
     {
         return $this->findRequest('emailVerifications', $this->mapRequest(...), $requestId);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function save(EmailVerificationRequest $request): void
     {
         $this->upsertRecord('emailVerifications', 'id', [

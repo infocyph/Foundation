@@ -18,6 +18,9 @@ final readonly class OAuthHttpResponseFactory
         'Pragma' => 'no-cache',
     ];
 
+    /**
+     * @throws \LogicException
+     */
     public function authorizationError(
         AuthorizationRedirectContext $redirect,
         OAuthProtocolException $exception,
@@ -39,6 +42,9 @@ final readonly class OAuthHttpResponseFactory
         return Response::redirect($this->appendQuery($redirect->redirectUri, $parameters));
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function authorizationSuccess(AuthorizationRequest $request, string $code, string $issuer): Response
     {
         $parameters = [
@@ -109,7 +115,10 @@ final readonly class OAuthHttpResponseFactory
         ]);
     }
 
-    /** @param array<string, string> $parameters */
+    /**
+     * @param array<string, string> $parameters
+     * @throws \LogicException
+     */
     private function appendQuery(string $redirectUri, array $parameters): string
     {
         if (str_contains($redirectUri, '#')) {

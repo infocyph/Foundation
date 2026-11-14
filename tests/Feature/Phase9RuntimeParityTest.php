@@ -5,12 +5,18 @@ declare(strict_types=1);
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Command\CommandContext;
+use Infocyph\Foundation\Command\CommandDefinition;
+use Infocyph\Foundation\Command\CommandIO;
+use Infocyph\Foundation\Command\ParsedInput;
 use Infocyph\Foundation\Routing\WebGraphFactory;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
+use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\Foundation\Runtime\NonWebGraphFactory;
+use Infocyph\Foundation\Scheduling\ScheduledCommand;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -37,24 +43,27 @@ final class Phase9ParityScopedProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
 final class Phase9ParityProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
 
-        $builder->bind(
+        $builder->factory(
             Phase9ParityLeaf::class,
             FactoryDefinition::construct(Phase9ParityLeaf::class, ['phase-9-parity']),
             LifetimeEnum::Singleton,
         );
-        $builder->bind(
+        $builder->factory(
             Phase9ParityNode::class,
             FactoryDefinition::construct(Phase9ParityNode::class, [
                 new ServiceReference(Phase9ParityLeaf::class),
@@ -62,7 +71,7 @@ final class Phase9ParityProvider extends ServiceProvider
             ]),
             LifetimeEnum::Transient,
         );
-        $builder->bind(
+        $builder->factory(
             Phase9ParityScopedProbe::class,
             FactoryDefinition::construct(Phase9ParityScopedProbe::class),
             LifetimeEnum::Scoped,
@@ -70,6 +79,11 @@ final class Phase9ParityProvider extends ServiceProvider
     }
 }
 
+/**
+ * Runtime entry point discovered through native provider, route or benchmark metadata.
+ *
+ * @api
+ */
 final readonly class Phase9WebParityHandler
 {
     public static function show(string $name): Response
@@ -103,7 +117,15 @@ it('keeps InterMix development and generated production semantics aligned for no
 
             $artifact = $runtimeRoot . '/bootstrap/cache/container.php';
             $report = new GeneratedRuntimeCompiler()->compile($config, $mode, $artifact);
+            $inputIds = [
+                RuntimeMode::Cli->value => [CommandContext::class, CommandDefinition::class, CommandIO::class, ParsedInput::class, ExecutionId::class],
+                RuntimeMode::Worker->value => [ExecutionId::class],
+                RuntimeMode::Scheduler->value => [ExecutionId::class, ScheduledCommand::class],
+            ][$mode->value];
             expect($report['skipped'])->toBe([]);
+            foreach ($inputIds as $inputId) {
+                expect($report['compiled'])->toContain($inputId);
+            }
             $production = GeneratedRuntime::load($config, $mode, $artifact);
             $productionNode = $production->application->make(Phase9ParityNode::class);
             $productionScopes = phase9ParityScopes($production->application);
@@ -176,12 +198,15 @@ PHP);
             $manifest,
             [],
         );
+        if (!is_array($release['intermix'] ?? null)) {
+            throw new \UnexpectedValueException('Compiled release must provide InterMix evidence.');
+        }
         expect($release['intermix']['skipped'] ?? null)->toBe([]);
 
         $productionRuntime = WebReleaseRuntime::loadPrevalidated(
             $config,
             $manifest,
-            (string) $release['release_runtime_manifest_sha256'],
+            $release['release_runtime_manifest_sha256'],
             foundationCapabilities: [],
         );
         $production = $productionRuntime->kernel->handle($request);
@@ -195,7 +220,12 @@ PHP);
     }
 });
 
-/** @return array{same_within_scope:bool,isolated_between_scopes:bool} */
+/**
+ * @return array{same_within_scope:bool,isolated_between_scopes:bool}
+ * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+ * @throws \LogicException
+ * @throws \Throwable
+ */
 function phase9ParityScopes(\Infocyph\Foundation\Application\Application $application): array
 {
     $first = $application->execution()->run(static function () use ($application): array {
@@ -234,6 +264,7 @@ function phase9ParityRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

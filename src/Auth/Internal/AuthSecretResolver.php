@@ -18,6 +18,9 @@ final readonly class AuthSecretResolver
         private ConfigRepository $config,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function environmentName(): string
     {
         $configured = $this->config->get('auth.token_secret_environment', self::DEFAULT_ENVIRONMENT);
@@ -33,6 +36,9 @@ final readonly class AuthSecretResolver
         return $configured;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function tokenSecret(int $minimumBytes = 0): string
     {
         $this->assertNoRawConfiguredSecret();
@@ -50,7 +56,7 @@ final readonly class AuthSecretResolver
         }
 
         $requiredBytes = max($minimumBytes, $this->config->isProduction() ? 32 : 0);
-        if ($requiredBytes > 0 && strlen($resolved) < $requiredBytes) {
+        if (strlen($resolved) < $requiredBytes) {
             throw new ConfigurationException(sprintf(
                 'Authentication token secret must be at least %d bytes for the selected token policy.',
                 $requiredBytes,
@@ -60,6 +66,9 @@ final readonly class AuthSecretResolver
         return $resolved;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function assertNoRawConfiguredSecret(): void
     {
         $configured = $this->config->get('auth.token_secret');

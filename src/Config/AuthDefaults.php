@@ -8,6 +8,7 @@ final class AuthDefaults
 {
     /**
      * @return array<string, mixed>
+     * @throws \UnexpectedValueException
      */
     public static function all(): array
     {
@@ -111,7 +112,10 @@ final class AuthDefaults
         ];
     }
 
-    /** @return list<mixed> */
+    /**
+     * @return list<mixed>
+     * @throws \UnexpectedValueException
+     */
     private static function jsonListEnvironment(string $name, string $message): array
     {
         $encoded = env($name);
@@ -253,7 +257,10 @@ final class AuthDefaults
         ];
     }
 
-    /** @return list<mixed> */
+    /**
+     * @return list<mixed>
+     * @throws \UnexpectedValueException
+     */
     private static function otpSecretProtectionKeys(): array
     {
         return self::jsonListEnvironment(

@@ -12,15 +12,23 @@ use Infocyph\ReqShield\Support\ValidationResult;
 
 it('emits JsonDispatch 3 success envelopes and resource transformations', function (): void {
     $factory = new JsonDispatchResponseFactory('example', '7.4.0');
-    $resource = new class(['id' => 7, 'secret' => 'hidden']) extends JsonResource {
+    $resource = new class (['id' => 7, 'secret' => 'hidden']) extends JsonResource {
+        /** @throws \UnexpectedValueException */
+        #[\Override]
         public function resolve(): mixed
         {
-            return ['id' => $this->resource['id']];
+            if (!is_array($this->resource)) {
+                throw new \UnexpectedValueException('JSON resource must contain structured data.');
+            }
+
+            return ['id' => $this->resource['id'] ?? null];
         }
     };
 
+    (new TestResponse($factory->success($resource)))->assertJsonPath('data', ['id' => 7]);
+
     $response = new TestResponse($factory->success(
-        new ResourceCollection([$resource], static fn(JsonResource $item): JsonResource => $item),
+        new ResourceCollection([$resource], static fn(mixed $item): mixed => $item),
         message: 'Ready',
     ));
 
@@ -68,7 +76,16 @@ it('maps ReqShield field failures without renormalizing validation output', func
         ]),
     ));
 
-    $data = $response->assertStatus(422)->json()['data'];
+    $payload = $response->assertStatus(422)->json();
+    $data = $payload['data'] ?? null;
+    if (!is_array($data) || !array_is_list($data)) {
+        throw new \UnexpectedValueException('Validation envelope must contain a list of errors.');
+    }
+    foreach ($data as $issue) {
+        if (!is_array($issue) || !is_array($issue['source'] ?? null)) {
+            throw new \UnexpectedValueException('Validation error must contain a structured source.');
+        }
+    }
 
     expect($data)->toHaveCount(2)
         ->and($data[0]['code'])->toBe('VALIDATION_FAILED')
@@ -93,6 +110,10 @@ it('preserves DBLayer cursor tokens and replaces existing cursor query values', 
     ));
     $json = $response->json();
 
+    \PHPUnit\Framework\Assert::assertIsArray(($json['_properties'] ?? null));
+    \PHPUnit\Framework\Assert::assertIsArray(($json['_properties']['/data'] ?? null));
+
+    \PHPUnit\Framework\Assert::assertIsArray(($json['_links'] ?? null));
     expect($json['_properties']['/data']['pagination'])->toBe([
         'mode' => 'cursor',
         'limit' => 2,
@@ -102,7 +123,7 @@ it('preserves DBLayer cursor tokens and replaces existing cursor query values', 
         'previous_cursor' => 'previous-token',
     ])->and($json['_links']['next'])
         ->toBe('/users?filter=active&cursor=opaque%2B%2F%3D%20token#results')
-        ->and(substr_count($json['_links']['next'], 'cursor='))
+        ->and(substr_count(foundationFixtureString($json['_links']['next']), 'cursor='))
         ->toBe(1)
         ->and($json['_links']['previous'])
         ->toBe('/users?filter=active&cursor=previous-token#results');
@@ -117,4 +138,25 @@ it('rejects invalid issue and status combinations before rendering', function ()
         ->toThrow(InvalidArgumentException::class)
         ->and(fn() => $factory->error([new Issue('BROKEN', 'Broken')], 422))
         ->toThrow(InvalidArgumentException::class);
+});
+
+it('preserves the public mixed JSON success and JSON-path assertion contracts', function (): void {
+    $factory = new JsonDispatchResponseFactory();
+    foreach ([true, false, 1.25, 7, 'scalar', null] as $value) {
+        $response = new TestResponse($factory->success($value));
+        expect($response->assertJsonPath('data', $value))->toBe($response);
+    }
+
+    $serializable = new class implements JsonSerializable {
+        #[\Override]
+        public function jsonSerialize(): mixed
+        {
+            return ['id' => 13];
+        }
+    };
+    (new TestResponse($factory->success($serializable)))->assertJsonPath('data', ['id' => 13]);
+    $object = (object) ['id' => 17];
+    $response = new TestResponse($factory->success($object));
+    $response->assertJsonPath('data', ['id' => 17]);
+    expect(fn() => $response->assertJsonPath('data', $object))->toThrow(RuntimeException::class);
 });

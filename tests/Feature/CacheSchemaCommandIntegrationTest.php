@@ -14,6 +14,10 @@ final class FoundationCacheSchemaCommandIO implements CommandIO
     /** @var list<mixed> */
     public array $payloads = [];
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
         unset($question, $choices, $default);
@@ -21,6 +25,7 @@ final class FoundationCacheSchemaCommandIO implements CommandIO
         throw new LogicException('Choice input is not expected in cache schema command tests.');
     }
 
+    #[\Override]
     public function confirm(string $question, bool $default = false): bool
     {
         unset($question, $default);
@@ -28,36 +33,46 @@ final class FoundationCacheSchemaCommandIO implements CommandIO
         return false;
     }
 
+    #[\Override]
     public function error(string $message): void
     {
         $this->errors[] = $message;
     }
 
+    #[\Override]
     public function info(string $message): void
     {
         unset($message);
     }
 
+    #[\Override]
     public function interactive(): bool
     {
         return false;
     }
 
+    #[\Override]
     public function json(mixed $value): void
     {
         $this->payloads[] = $value;
     }
 
+    #[\Override]
     public function machineReadable(): bool
     {
         return true;
     }
 
+    #[\Override]
     public function note(string $message): void
     {
         unset($message);
     }
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function password(string $question): string
     {
         unset($question);
@@ -65,11 +80,16 @@ final class FoundationCacheSchemaCommandIO implements CommandIO
         throw new LogicException('Password input is not expected in cache schema command tests.');
     }
 
+    #[\Override]
     public function quiet(): bool
     {
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function read(string $question, ?string $default = null): string
     {
         unset($question, $default);
@@ -77,26 +97,31 @@ final class FoundationCacheSchemaCommandIO implements CommandIO
         throw new LogicException('Text input is not expected in cache schema command tests.');
     }
 
+    #[\Override]
     public function success(string $message): void
     {
         unset($message);
     }
 
+    #[\Override]
     public function table(array $headers, array $rows): void
     {
         unset($headers, $rows);
     }
 
+    #[\Override]
     public function warning(string $message): void
     {
         unset($message);
     }
 
+    #[\Override]
     public function write(string $message): void
     {
         unset($message);
     }
 
+    #[\Override]
     public function writeln(string $message = ''): void
     {
         unset($message);
@@ -141,8 +166,13 @@ it('manages database-backed CacheLayer schemas through core cache commands', fun
             ->toBe(ExitCode::FAILURE);
 
         $beforePayload = $before->lastPayload();
-        expect($beforePayload)->toBeArray()
-            ->and($beforePayload['schemas'][0]['name'] ?? null)->toBe('cache:store:sqlite')
+        if (!is_array($beforePayload)) {
+            throw new \UnexpectedValueException('Expected cache schema status payload.');
+        }
+        if (!is_array($beforePayload['schemas'] ?? null) || !is_array($beforePayload['schemas'][0] ?? null)) {
+            throw new \UnexpectedValueException('Cache schema status must contain a schema record.');
+        }
+        expect($beforePayload['schemas'][0]['name'] ?? null)->toBe('cache:store:sqlite')
             ->and($beforePayload['schemas'][0]['state'] ?? null)->toBe('pending')
             ->and($beforePayload['schemas'][0]['installed'] ?? null)->toBeFalse();
 
@@ -151,20 +181,33 @@ it('manages database-backed CacheLayer schemas through core cache commands', fun
             ->toBe(ExitCode::SUCCESS);
 
         $installPayload = $install->lastPayload();
-        expect($cachePath)->toBeFile()
-            ->and($installPayload)->toBeArray()
-            ->and($installPayload['schemas'][0]['state'] ?? null)->toBe('installed')
+        expect($cachePath)->toBeFile();
+        if (!is_array($installPayload)) {
+            throw new \UnexpectedValueException('Expected cache schema installation payload.');
+        }
+        if (!is_array($installPayload['schemas'] ?? null) || !is_array($installPayload['schemas'][0] ?? null)) {
+            throw new \UnexpectedValueException('Installed cache schema must contain a schema record.');
+        }
+        expect($installPayload['schemas'][0]['state'] ?? null)->toBe('installed')
             ->and($installPayload['schemas'][0]['installed'] ?? null)->toBeTrue();
 
         $after = new FoundationCacheSchemaCommandIO();
         expect($dispatcher->run(['infbyte', 'cache:schema:status'], $after))
-            ->toBe(ExitCode::SUCCESS)
-            ->and($after->lastPayload()['schemas'][0]['state'] ?? null)->toBe('installed');
+            ->toBe(ExitCode::SUCCESS);
+        $afterPayload = $after->lastPayload();
+        if (!is_array($afterPayload)) {
+            throw new \UnexpectedValueException('Cache schema status response must be an array.');
+        }
+        if (!is_array($afterPayload['schemas'] ?? null) || !is_array($afterPayload['schemas'][0] ?? null)) {
+            throw new \UnexpectedValueException('Final cache schema status must contain a schema record.');
+        }
+        expect($afterPayload['schemas'][0]['state'] ?? null)->toBe('installed');
     } finally {
         foundationCacheSchemaCommandRemoveDirectory($basePath);
     }
 });
 
+/** @throws \UnexpectedValueException */
 function foundationCacheSchemaCommandRemoveDirectory(string $directory): void
 {
     if (!is_dir($directory)) {
@@ -176,6 +219,10 @@ function foundationCacheSchemaCommandRemoveDirectory(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!($file instanceof \SplFileInfo)) {
+            throw new \UnexpectedValueException('Unexpected directory iterator entry.');
+        }
+
         $file->isDir() && !$file->isLink() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

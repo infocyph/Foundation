@@ -17,6 +17,7 @@ final class WorkerTopology
     /**
      * @param array<string,mixed> $config
      * @return array{path:string,sha256:string,providers:int}
+     * @throws \RuntimeException
      */
     public function compile(
         array $config,
@@ -53,19 +54,16 @@ final class WorkerTopology
 
     /**
      * @return array<string,array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public function load(string $artifactPath, string $expectedSha256): array
     {
         if (!is_file($artifactPath) || !is_readable($artifactPath)) {
             throw new \RuntimeException(sprintf('Foundation worker topology is not readable: "%s".', $artifactPath));
         }
-        $actualSha256 = hash_file('sha256', $artifactPath);
-        if (!is_string($actualSha256) || !hash_equals($expectedSha256, $actualSha256)) {
-            throw new \RuntimeException('Foundation worker topology trust identity mismatch.');
-        }
-
-        $payload = require $artifactPath;
-        if (!is_array($payload) || ($payload['format'] ?? null) !== self::FORMAT) {
+        $payload = FoundationReleaseManifest::loadTrustedArray($artifactPath, $expectedSha256);
+        if (($payload['format'] ?? null) !== self::FORMAT) {
             throw new \UnexpectedValueException('Foundation worker topology format is invalid.');
         }
         $providers = $payload['providers'] ?? null;
@@ -78,6 +76,7 @@ final class WorkerTopology
 
     /**
      * @return array<string,array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
+     * @throws \RuntimeException
      */
     public function loadGeneration(LoadedReleaseGeneration $release): array
     {
@@ -86,16 +85,9 @@ final class WorkerTopology
             . DIRECTORY_SEPARATOR . $release->generation;
         $manifestPath = $directory . DIRECTORY_SEPARATOR . 'foundation.php';
 
-        if ($release->trustedFoundationManifestSha256 !== null) {
-            $actualManifestSha256 = is_file($manifestPath) ? hash_file('sha256', $manifestPath) : false;
-            if (!is_string($actualManifestSha256)
-                || !hash_equals($release->trustedFoundationManifestSha256, $actualManifestSha256)
-            ) {
-                throw new \RuntimeException('Foundation generation manifest trust identity mismatch.');
-            }
-        }
-
-        $manifest = FoundationReleaseManifest::load($manifestPath);
+        $manifest = $release->trustedFoundationManifestSha256 !== null
+            ? FoundationReleaseManifest::loadTrusted($manifestPath, $release->trustedFoundationManifestSha256)
+            : FoundationReleaseManifest::load($manifestPath);
         if (($manifest['generation'] ?? null) !== $release->generation) {
             throw new \RuntimeException('Loaded Foundation worker topology belongs to a different release generation.');
         }
@@ -118,6 +110,7 @@ final class WorkerTopology
 
     /**
      * @return array<string,array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
+     * @throws \UnexpectedValueException
      */
     public function source(string $routePath, mixed $defaultWait = null, mixed $defaultLease = null): array
     {
@@ -140,6 +133,9 @@ final class WorkerTopology
         );
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function floatValue(mixed $value, float $default, string $key): float
     {
         if ($value === null || $value === '') {
@@ -152,6 +148,9 @@ final class WorkerTopology
         throw new \UnexpectedValueException(sprintf('Worker %s must be numeric.', $key));
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function nonNegativeFloat(mixed $value, float $default, string $key): float
     {
         $resolved = $this->floatValue($value, $default, $key);
@@ -165,6 +164,7 @@ final class WorkerTopology
     /**
      * @param array<array-key,mixed> $configured
      * @return array<string,array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
+     * @throws \UnexpectedValueException
      */
     private function normalize(array $configured, float $defaultWait, float $defaultLease): array
     {
@@ -184,7 +184,6 @@ final class WorkerTopology
                 ));
             }
 
-            /** @var class-string<WorkerProvider> $provider */
             $workers[$name] = [
                 'provider' => $provider,
                 'singleton' => ValueNormalizer::bool($options['singleton'] ?? null, false),
@@ -212,6 +211,9 @@ final class WorkerTopology
             : rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . trim($path, DIRECTORY_SEPARATOR);
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     private function positiveFloat(mixed $value, float $default, string $key): float
     {
         $resolved = $this->floatValue($value, $default, $key);
@@ -222,7 +224,10 @@ final class WorkerTopology
         return $resolved;
     }
 
-    /** @param array<string,mixed> $payload */
+    /**
+     * @param array<string,mixed> $payload
+     * @throws \RuntimeException
+     */
     private function write(string $artifactPath, array $payload): void
     {
         $directory = dirname($artifactPath);

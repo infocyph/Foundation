@@ -6,10 +6,21 @@ namespace Infocyph\Foundation\Notifications;
 
 use Infocyph\TalkingBytes\Email\EmailMessage;
 
+/**
+ * Application notification channel implementation registered by service composition.
+ *
+ * @api
+ */
 final readonly class MailNotificationChannel implements NotificationChannel
 {
     public function __construct(private Mailer $mailer) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
+    #[\Override]
     public function send(
         NotificationRecipient $recipient,
         Notification $notification,
@@ -37,7 +48,10 @@ final readonly class MailNotificationChannel implements NotificationChannel
         return $this->mailer->sendEmail($message->withTo(...$recipients), $profile);
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \InvalidArgumentException
+     */
     private function recipients(mixed $route): array
     {
         if (is_string($route)) {

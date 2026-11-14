@@ -7,8 +7,17 @@ namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenRecord;
 use Infocyph\Foundation\Auth\Contract\Storage\RefreshTokenStoreInterface;
 
+/**
+ * Native DBLayer refresh-token persistence adapter.
+ *
+ * @api
+ */
 final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore implements RefreshTokenStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function find(string $tokenId): ?RefreshTokenRecord
     {
         return $this->firstMapped(
@@ -18,35 +27,74 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function revokeFamily(string $familyId): void
     {
         $this->revokeTokenFamily('refreshTokens', $familyId);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function rotate(string $tokenId, RefreshTokenRecord $replacement): void
     {
-        $this->markTokenRotated('refreshTokens', $tokenId);
-
-        $this->save($replacement);
+        $current = $this->find($tokenId);
+        if ($current === null || !$this->rotateIfActive($current, $replacement)) {
+            throw new \RuntimeException('Token cannot be rotated more than once.');
+        }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
+    #[\Override]
+    public function rotateIfActive(RefreshTokenRecord $current, RefreshTokenRecord $replacement): bool
+    {
+        if ($replacement->id === $current->id
+            || $replacement->accountId !== $current->accountId
+            || $replacement->familyId !== $current->familyId
+        ) {
+            return false;
+        }
+
+        return $this->rotateTokenIfActive(
+            'refreshTokens',
+            $current->id,
+            $current->accountId,
+            $current->familyId,
+            'token_hash',
+            $current->tokenHash,
+            fn() => $this->insertRecord('refreshTokens', $this->record($replacement)),
+        );
+    }
+
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function save(RefreshTokenRecord $record): void
     {
-        $this->upsertRecord('refreshTokens', 'id', [
-            'id' => $record->id,
-            'account_id' => $record->accountId,
-            'token_hash' => $record->tokenHash,
-            'family_id' => $record->familyId,
-            'client_id' => $record->clientId,
-            'device_id' => $record->deviceId,
-            'issued_at' => $record->issuedAt,
-            'expires_at' => $record->expiresAt,
-            'rotated_at' => $record->rotatedAt,
-            'revoked_at' => $record->revokedAt,
-            'metadata' => DBLayerJson::encode($record->metadata),
-        ]);
+        $this->upsertRecord('refreshTokens', 'id', $this->record($record));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function wasFamilyRevoked(string $familyId): bool
     {
         return $this->tokenFamilyWasRevoked('refreshTokens', $familyId);
@@ -70,5 +118,23 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
             revokedAt: $this->intOrNull($row['revoked_at'] ?? null),
             metadata: DBLayerJson::decode($row['metadata'] ?? null),
         );
+    }
+
+    /** @return array<string, mixed> */
+    private function record(RefreshTokenRecord $record): array
+    {
+        return [
+            'id' => $record->id,
+            'account_id' => $record->accountId,
+            'token_hash' => $record->tokenHash,
+            'family_id' => $record->familyId,
+            'client_id' => $record->clientId,
+            'device_id' => $record->deviceId,
+            'issued_at' => $record->issuedAt,
+            'expires_at' => $record->expiresAt,
+            'rotated_at' => $record->rotatedAt,
+            'revoked_at' => $record->revokedAt,
+            'metadata' => DBLayerJson::encode($record->metadata),
+        ];
     }
 }

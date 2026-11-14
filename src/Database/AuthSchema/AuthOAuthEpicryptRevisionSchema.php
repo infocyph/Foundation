@@ -13,17 +13,20 @@ final readonly class AuthOAuthEpicryptRevisionSchema implements Migration
 {
     public function __construct(private AuthTables $tables) {}
 
+    #[\Override]
     public function down(SchemaManager $schema, MigrationContext $context): void
     {
         $schema->dropIfExists($this->tables->oauthAuthorizationCodeStates());
         $context->checkpoint();
     }
 
+    #[\Override]
     public function id(): string
     {
         return '20260910000000_foundation_auth_oauth_epicrypt';
     }
 
+    #[\Override]
     public function up(SchemaManager $schema, MigrationContext $context): void
     {
         $table = $this->tables->oauthAuthorizationCodeStates();

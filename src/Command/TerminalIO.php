@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Command;
 
+/** @api */
 final readonly class TerminalIO implements CommandIO
 {
     private bool $interactiveMode;
@@ -29,6 +30,11 @@ final readonly class TerminalIO implements CommandIO
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
         if ($choices === [] || array_any($choices, static fn(string $choice): bool => $choice === '')) {
@@ -48,16 +54,18 @@ final readonly class TerminalIO implements CommandIO
             if (in_array($answer, $choices, true)) {
                 return $answer;
             }
-            if (preg_match('/^\d+$/D', $answer) === 1) {
-                $selected = $choices[(int) $answer - 1] ?? null;
-                if (is_string($selected)) {
-                    return $selected;
-                }
+            $selected = $this->numberedChoice($answer, $choices);
+            if ($selected !== null) {
+                return $selected;
             }
             $this->error('Select one of the listed choices.');
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function confirm(string $question, bool $default = false): bool
     {
         $this->assertInteractive();
@@ -78,6 +86,7 @@ final readonly class TerminalIO implements CommandIO
         }
     }
 
+    #[\Override]
     public function error(string $message): void
     {
         if ($this->silentMode) {
@@ -96,17 +105,25 @@ final readonly class TerminalIO implements CommandIO
         fwrite(STDERR, $message . PHP_EOL);
     }
 
+    #[\Override]
     public function info(string $message): void
     {
         $this->semantic('INFO', $message);
     }
 
+    #[\Override]
     public function interactive(): bool
     {
         return $this->interactiveMode;
     }
 
-    public function json(mixed $value): void
+    /**
+     * Encode a structured command result; nested values follow JSON encoding rules.
+     *
+     * @param array<array-key, mixed> $value
+     */
+    #[\Override]
+    public function json(array $value): void
     {
         if ($this->quietMode || $this->silentMode) {
             return;
@@ -119,16 +136,22 @@ final readonly class TerminalIO implements CommandIO
         fwrite(STDOUT, $encoded . PHP_EOL);
     }
 
+    #[\Override]
     public function machineReadable(): bool
     {
         return $this->jsonMode;
     }
 
+    #[\Override]
     public function note(string $message): void
     {
         $this->semantic('NOTE', $message);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function password(string $question): string
     {
         $this->assertInteractive();
@@ -148,11 +171,16 @@ final readonly class TerminalIO implements CommandIO
         }
     }
 
+    #[\Override]
     public function quiet(): bool
     {
         return $this->quietMode;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function read(string $question, ?string $default = null): string
     {
         $this->assertInteractive();
@@ -162,11 +190,16 @@ final readonly class TerminalIO implements CommandIO
         return $value === '' && $default !== null ? $default : $value;
     }
 
+    #[\Override]
     public function success(string $message): void
     {
         $this->semantic('OK', $message);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
+    #[\Override]
     public function table(array $headers, array $rows): void
     {
         if ($this->quietMode || $this->silentMode) {
@@ -189,11 +222,13 @@ final readonly class TerminalIO implements CommandIO
         $this->writeTable($rendered, $this->widths($rendered));
     }
 
+    #[\Override]
     public function warning(string $message): void
     {
         $this->semantic('WARN', $message);
     }
 
+    #[\Override]
     public function write(string $message): void
     {
         if (!$this->quietMode && !$this->silentMode) {
@@ -201,6 +236,7 @@ final readonly class TerminalIO implements CommandIO
         }
     }
 
+    #[\Override]
     public function writeln(string $message = ''): void
     {
         if (!$this->quietMode && !$this->silentMode) {
@@ -224,6 +260,9 @@ final readonly class TerminalIO implements CommandIO
         return strlen($plain);
     }
 
+    /**
+     * @param resource|closed-resource $stream
+     */
     private static function isTty(mixed $stream): bool
     {
         return is_resource($stream)
@@ -246,6 +285,9 @@ final readonly class TerminalIO implements CommandIO
         };
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function assertInteractive(): void
     {
         if (!$this->interactiveMode) {
@@ -269,6 +311,21 @@ final readonly class TerminalIO implements CommandIO
         return $data;
     }
 
+    /** @param list<string> $choices */
+    private function numberedChoice(string $answer, array $choices): ?string
+    {
+        if (preg_match('/^\d+$/D', $answer) !== 1) {
+            return null;
+        }
+
+        $selected = $choices[(int) $answer - 1] ?? null;
+
+        return is_string($selected) ? $selected : null;
+    }
+
+    /**
+     * @throws \RuntimeException
+     */
     private function readRaw(string $prompt): string
     {
         fwrite(STDOUT, $prompt);
@@ -339,7 +396,7 @@ final readonly class TerminalIO implements CommandIO
             }
         }
 
-        return array_values($widths);
+        return [...$widths];
     }
 
     /**

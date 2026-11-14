@@ -13,7 +13,10 @@ namespace Infocyph\Foundation\Module\Internal;
  */
 final class ModuleCatalogValidator
 {
-    /** @phpstan-param array<string,ModuleDefinition> $modules */
+    /**
+     * @phpstan-param array<string,ModuleDefinition> $modules
+     * @throws \LogicException
+     */
     public function validate(array $modules): void
     {
         $this->assertAliases($modules);
@@ -39,32 +42,23 @@ final class ModuleCatalogValidator
         }
     }
 
-    /** @phpstan-param array<string,ModuleDefinition> $modules */
+    /**
+     * @phpstan-param array<string,ModuleDefinition> $modules
+     * @throws \LogicException
+     */
     private function assertAliases(array $modules): void
     {
         $owners = [];
 
         foreach ($modules as $name => $definition) {
-            $this->registerAlias($owners, $name, $name);
-            foreach ($definition['aliases'] as $alias) {
-                $this->registerAlias($owners, $alias, $name);
-            }
-            foreach ($definition['features'] as $feature) {
-                foreach ($feature['aliases'] as $alias) {
-                    $this->registerAlias($owners, $alias, $name);
-                }
-            }
-            foreach ($definition['packages'] as $package => $requirement) {
-                if ($requirement['role'] !== 'optional') {
-                    $this->registerAlias($owners, $package, $name);
-                }
-            }
+            $this->registerModuleAliases($owners, $name, $definition);
         }
     }
 
     /**
      * @phpstan-param list<ModuleDependency> $dependencies
      * @phpstan-param array<string,ModuleDefinition> $modules
+     * @throws \LogicException
      */
     private function assertDependencies(
         string $scope,
@@ -79,20 +73,7 @@ final class ModuleCatalogValidator
                 throw new \LogicException(sprintf('Module dependency "%s" must explain why it is required.', $scope));
             }
 
-            if ($dependency['type'] === 'module') {
-                if (!isset($modules[$dependency['target']])) {
-                    throw new \LogicException(sprintf(
-                        'Module dependency "%s" targets unknown module "%s".',
-                        $scope,
-                        $dependency['target'],
-                    ));
-                }
-                if ($dependency['target'] === $owner) {
-                    throw new \LogicException(sprintf('Module "%s" cannot depend on itself.', $owner));
-                }
-            } elseif ($dependency['target'] === '') {
-                throw new \LogicException(sprintf('Capability dependency "%s" has an empty target.', $scope));
-            }
+            $this->assertDependencyTarget($scope, $dependency, $modules, $owner);
 
             $when = $dependency['when'] ?? null;
             if ($when !== null) {
@@ -101,7 +82,37 @@ final class ModuleCatalogValidator
         }
     }
 
-    /** @phpstan-param array<string,ModuleFeature> $features */
+    /**
+     * @phpstan-param ModuleDependency $dependency
+     * @phpstan-param array<string,ModuleDefinition> $modules
+     * @throws \LogicException
+     */
+    private function assertDependencyTarget(
+        string $scope,
+        array $dependency,
+        array $modules,
+        string $owner,
+    ): void {
+        if ($dependency['type'] === 'module') {
+            if (!isset($modules[$dependency['target']])) {
+                throw new \LogicException(sprintf(
+                    'Module dependency "%s" targets unknown module "%s".',
+                    $scope,
+                    $dependency['target'],
+                ));
+            }
+            if ($dependency['target'] === $owner) {
+                throw new \LogicException(sprintf('Module "%s" cannot depend on itself.', $owner));
+            }
+        } elseif ($dependency['target'] === '') {
+            throw new \LogicException(sprintf('Capability dependency "%s" has an empty target.', $scope));
+        }
+    }
+
+    /**
+     * @phpstan-param array<string,ModuleFeature> $features
+     * @throws \LogicException
+     */
     private function assertFeatures(string $module, array $features): void
     {
         foreach ($features as $name => $feature) {
@@ -119,6 +130,7 @@ final class ModuleCatalogValidator
     /**
      * @param list<string> $owners
      * @phpstan-param array<string,ModuleFeature> $features
+     * @throws \LogicException
      */
     private function assertPackageFeatureOwners(
         string $module,
@@ -141,6 +153,7 @@ final class ModuleCatalogValidator
     /**
      * @phpstan-param PackageRequirement $requirement
      * @phpstan-param array<string,ModuleFeature> $features
+     * @throws \LogicException
      */
     private function assertPackageRequirement(
         string $module,
@@ -169,6 +182,7 @@ final class ModuleCatalogValidator
     /**
      * @phpstan-param array<string,PackageRequirement> $packages
      * @phpstan-param array<string,ModuleFeature> $features
+     * @throws \LogicException
      */
     private function assertPackages(string $module, array $packages, array $features): void
     {
@@ -180,6 +194,7 @@ final class ModuleCatalogValidator
     /**
      * @phpstan-param PlatformRequirement $platform
      * @phpstan-param array<string,PackageRequirement> $packages
+     * @throws \LogicException
      */
     private function assertPlatform(string $scope, array $platform, array $packages): void
     {
@@ -202,7 +217,10 @@ final class ModuleCatalogValidator
         }
     }
 
-    /** @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string|null} $predicate */
+    /**
+     * @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string|null} $predicate
+     * @throws \LogicException
+     */
     private function assertPredicate(string $scope, array $predicate): void
     {
         if ($predicate['key'] === '') {
@@ -239,7 +257,10 @@ final class ModuleCatalogValidator
         return $graph;
     }
 
-    /** @param array<string,string> $owners */
+    /**
+     * @param array<string,string> $owners
+     * @throws \LogicException
+     */
     private function registerAlias(array &$owners, string $alias, string $module): void
     {
         $normalized = strtolower(trim($alias));
@@ -261,9 +282,33 @@ final class ModuleCatalogValidator
     }
 
     /**
+     * @param array<string,string> $owners
+     * @phpstan-param ModuleDefinition $definition
+     * @throws \LogicException
+     */
+    private function registerModuleAliases(array &$owners, string $name, array $definition): void
+    {
+        $this->registerAlias($owners, $name, $name);
+        foreach ($definition['aliases'] as $alias) {
+            $this->registerAlias($owners, $alias, $name);
+        }
+        foreach ($definition['features'] as $feature) {
+            foreach ($feature['aliases'] as $alias) {
+                $this->registerAlias($owners, $alias, $name);
+            }
+        }
+        foreach ($definition['packages'] as $package => $requirement) {
+            if ($requirement['role'] !== 'optional') {
+                $this->registerAlias($owners, $package, $name);
+            }
+        }
+    }
+
+    /**
      * @param array<string,list<string>> $graph
      * @param array<string,bool> $visiting
      * @param array<string,bool> $visited
+     * @throws \LogicException
      */
     private function visit(string $module, array $graph, array &$visiting, array &$visited): void
     {

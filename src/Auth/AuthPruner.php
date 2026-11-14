@@ -17,7 +17,14 @@ final readonly class AuthPruner
         private bool $oauthEnabled = false,
     ) {}
 
-    /** @return array<string,int> */
+    /**
+     * @return array<string,int>
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function prune(?string $connection = null, int $retentionHours = 24): array
     {
         if ($retentionHours < 0) {
@@ -26,7 +33,7 @@ final readonly class AuthPruner
         $readiness = $this->schema->readiness($connection);
         if (!$readiness['installed']) {
             throw new \RuntimeException(
-                'Authentication schema is not installed; run "php infbyte module:schema:install auth" first.',
+                'Authentication schema is not installed; provision it with the Core AuthSchemaInstaller before pruning.',
             );
         }
 
@@ -100,6 +107,9 @@ final readonly class AuthPruner
         return $counts;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function table(\Infocyph\DBLayer\Connection\Connection $connection, string $table): string
     {
         $prefix = $connection->getTablePrefix();

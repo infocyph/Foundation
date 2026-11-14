@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Filesystem;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
+use Infocyph\Pathwise\Integration\Runwire\RunwireExecutionContext;
 use Infocyph\Pathwise\Results\DownloadPreparation;
 use Infocyph\Pathwise\StreamHandler\DownloadProcessor;
 use Infocyph\Pathwise\Utils\PathHelper;
@@ -16,6 +18,7 @@ use Infocyph\Webrick\Response\Conditional\ConditionalValidator;
 use Infocyph\Webrick\Response\Conditional\Outcome;
 use Infocyph\Webrick\Response\Response;
 
+/** @api */
 final readonly class FilesystemResponseFactory
 {
     public function __construct(
@@ -25,7 +28,12 @@ final readonly class FilesystemResponseFactory
         private FilesystemPublicFileResolver $publicFiles,
     ) {}
 
-    /** @param array<string, string|list<string>> $headers */
+    /**
+     * @param array<string, string|list<string>> $headers
+     * @throws \Infocyph\Pathwise\Exceptions\DownloadException
+     * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
+     * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     */
     public function download(
         Request $request,
         string $path,
@@ -45,7 +53,12 @@ final readonly class FilesystemResponseFactory
         );
     }
 
-    /** @param array<string, string|list<string>> $headers */
+    /**
+     * @param array<string, string|list<string>> $headers
+     * @throws \Infocyph\Pathwise\Exceptions\DownloadException
+     * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
+     * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     */
     public function inline(
         Request $request,
         string $path,
@@ -65,7 +78,13 @@ final readonly class FilesystemResponseFactory
         );
     }
 
-    /** @param array<string, string|list<string>> $headers */
+    /**
+     * @param array<string, string|list<string>> $headers
+     * @throws \InvalidArgumentException
+     * @throws \Infocyph\Pathwise\Exceptions\DownloadException
+     * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
+     * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     */
     public function publicFile(Request $request, string $relativePath, array $headers = []): Response
     {
         $resolved = $this->publicFiles->resolve($relativePath);
@@ -81,7 +100,14 @@ final readonly class FilesystemResponseFactory
         );
     }
 
-    /** @param array<string, string|list<string>> $headers */
+    /**
+     * @param array<string, string|list<string>> $headers
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Infocyph\Pathwise\Exceptions\DownloadException
+     * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
+     * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     */
     public function xAccelRedirect(
         Request $request,
         string $internalPath,
@@ -111,7 +137,14 @@ final readonly class FilesystemResponseFactory
         );
     }
 
-    /** @param array<string, string|list<string>> $headers */
+    /**
+     * @param array<string, string|list<string>> $headers
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Infocyph\Pathwise\Exceptions\DownloadException
+     * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
+     * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     */
     public function xSendfile(
         Request $request,
         string $path,
@@ -137,6 +170,47 @@ final readonly class FilesystemResponseFactory
         );
     }
 
+    /**
+     * @return \Generator<int, string, mixed, void>
+     */
+    private static function streamBoundChunks(
+        DownloadProcessor $processor,
+        DownloadPreparation $manifest,
+        ?RunwireExecutionContext $context,
+    ): \Generator {
+        if ($context === null) {
+            yield from $processor->streamChunks($manifest);
+
+            return;
+        }
+
+        $chunks = $processor->streamChunks($manifest);
+        $started = false;
+        while (true) {
+            // Bind only while advancing the lazy iterator, not across yield
+            // into the host response emitter or another Fiber.
+            $chunk = $processor->withRunwire($context, static function () use ($chunks, &$started): ?string {
+                if ($started) {
+                    $chunks->next();
+                } else {
+                    $chunks->rewind();
+                    $started = true;
+                }
+
+                return $chunks->valid() ? $chunks->current() : null;
+            });
+
+            if ($chunk === null) {
+                return;
+            }
+
+            yield $chunk;
+        }
+    }
+
+    /**
+     * @throws \LogicException
+     */
     private function assertOffloadEnabled(string $driver, string $label): void
     {
         if (ValueNormalizer::bool(
@@ -198,6 +272,9 @@ final readonly class FilesystemResponseFactory
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function localPath(string $path, ?string $disk): string
     {
         if ($path !== '' && PathHelper::hasScheme($path)) {
@@ -228,7 +305,12 @@ final readonly class FilesystemResponseFactory
         return $merged;
     }
 
-    /** @param array<string, string|list<string>> $headers */
+    /**
+     * @param array<string, string|list<string>> $headers
+     * @throws \Infocyph\Pathwise\Exceptions\DownloadException
+     * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
+     * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     */
     private function offloadResponse(
         Request $request,
         string $path,
@@ -263,8 +345,37 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
+     * @throws \Infocyph\Pathwise\Exceptions\DownloadException
+     * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
+     * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     */
+    private function prepareDownloadWithRunwire(
+        DownloadProcessor $processor,
+        string $path,
+        ?string $downloadName,
+        ?string $rangeHeader = null,
+    ): DownloadPreparation {
+        $borrowed = CacheRunwire::current();
+        if ($borrowed === null) {
+            return $processor->prepareDownload($path, $downloadName, $rangeHeader);
+        }
+
+        return $processor->withRunwire(
+            new RunwireExecutionContext($borrowed->runtime, $borrowed->request, $borrowed->scope),
+            static fn(DownloadProcessor $bound): DownloadPreparation => $bound->prepareDownload(
+                $path,
+                $downloadName,
+                $rangeHeader,
+            ),
+        );
+    }
+
+    /**
      * @param array<string, string|list<string>> $headers
      * @return array{0:DownloadProcessor,1:string,2:DownloadPreparation,3:?Response}
+     * @throws \Infocyph\Pathwise\Exceptions\DownloadException
+     * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
+     * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
      */
     private function prepareInitialDownload(
         Request $request,
@@ -276,7 +387,7 @@ final readonly class FilesystemResponseFactory
         bool $inline,
     ): array {
         [$processor, $resolvedPath] = $this->prepareProcessor($path, $directory, $disk, $inline);
-        $manifest = $processor->prepareDownload($resolvedPath, $downloadName);
+        $manifest = $this->prepareDownloadWithRunwire($processor, $resolvedPath, $downloadName);
 
         return [$processor, $resolvedPath, $manifest, $this->shortCircuitResponse($request, $manifest, $headers)];
     }
@@ -303,7 +414,12 @@ final readonly class FilesystemResponseFactory
         return $this->storage->path($path, $disk);
     }
 
-    /** @param array<string, string|list<string>> $headers */
+    /**
+     * @param array<string, string|list<string>> $headers
+     * @throws \Infocyph\Pathwise\Exceptions\DownloadException
+     * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
+     * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     */
     private function respond(
         Request $request,
         string $path,
@@ -328,7 +444,9 @@ final readonly class FilesystemResponseFactory
         }
 
         $rangeHeader = $this->freshRangeHeader($request, $baseManifest);
-        $manifest = $processor->prepareDownload($resolvedPath, $downloadName, $rangeHeader);
+        $manifest = $rangeHeader === null
+            ? $baseManifest
+            : $this->prepareDownloadWithRunwire($processor, $resolvedPath, $downloadName, $rangeHeader);
         $mergedHeaders = $this->mergeHeaders($manifest->headers, $headers);
 
         if ($this->isHead($request)) {
@@ -348,8 +466,12 @@ final readonly class FilesystemResponseFactory
             );
         }
 
+        $borrowed = CacheRunwire::current();
+        $runwire = $borrowed === null
+            ? null
+            : new RunwireExecutionContext($borrowed->runtime, $borrowed->request, $borrowed->scope);
         $response = Response::stream(
-            producer: $processor->streamChunks($manifest),
+            producer: self::streamBoundChunks($processor, $manifest, $runwire),
             status: $manifest->status,
         );
 

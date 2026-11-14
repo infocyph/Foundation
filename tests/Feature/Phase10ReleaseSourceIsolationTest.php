@@ -49,15 +49,18 @@ it('boots immutable releases without rediscovering application source files', fu
             generation: 'phase10-source-isolation',
         );
         $generation = $releaseRoot . '/generations/phase10-source-isolation';
-        $manifest = require $generation . '/foundation.php';
+        $manifest = \foundationReadPhpFixtureArray($generation . '/foundation.php');
 
+        if (!is_string($manifest['config_sha256'] ?? null)) {
+            throw new \UnexpectedValueException('Release manifest must contain a configuration digest.');
+        }
         expect(is_file($generation . '/config.php'))->toBeTrue()
             ->and($manifest['config_path'] ?? null)->toBe('config.php')
-            ->and($manifest['config_sha256'] ?? null)->toMatch('/^[a-f0-9]{64}$/D');
+            ->and($manifest['config_sha256'])->toMatch('/^[a-f0-9]{64}$/D');
 
         $releaseConfig = FoundationReleaseConfig::load(
             $generation . '/config.php',
-            (string) $manifest['config_sha256'],
+            $manifest['config_sha256'],
         );
         expect($releaseConfig->isCompiled())->toBeTrue()
             ->and($releaseConfig->get('app.base_path'))->toBe($project);
@@ -190,7 +193,7 @@ it('keeps the active generation when a later staged release fails to compile', f
         expect($status['generation'])->toBe('stable')
             ->and($status['manifest_sha256'])->toBe($stable['manifest_sha256'])
             ->and(is_dir($releaseRoot . '/generations/broken'))->toBeFalse()
-            ->and(glob($releaseRoot . '/generations/.staging-broken-*') ?: [])->toBe([]);
+            ->and(((array) glob($releaseRoot . '/generations/.staging-broken-*')))->toBe([]);
     } finally {
         foundationPhase10ReleaseRemove($project);
     }
@@ -225,6 +228,7 @@ PHP,
     return $project;
 }
 
+/** @throws \UnexpectedValueException */
 function foundationPhase10ReleaseRemove(string $directory): void
 {
     if (!is_dir($directory)) {
@@ -236,6 +240,9 @@ function foundationPhase10ReleaseRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!$file instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('Release fixture cleanup requires filesystem entries.');
+        }
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

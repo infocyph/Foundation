@@ -13,7 +13,6 @@ use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Database\DatabaseMigrationManager;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Session\SessionManager;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Event\EventDispatcher;
 use Infocyph\Omnibus\MessageBus;
 use Infocyph\Omnibus\Routing\RouteMap;
@@ -26,20 +25,34 @@ use League\Flysystem\FilesystemOperator;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\EventDispatcher\ListenerProviderInterface;
 
+/**
+ * Public test harness for Foundation application integrations.
+ *
+ * @api
+ */
 final readonly class TestKit
 {
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function auth(): AuthServices
     {
         return $this->application->make(AuthServices::class);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function cache(): CacheManager
     {
         return $this->application->make(CacheManager::class);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function database(): DatabaseTestManager
     {
         return new DatabaseTestManager(
@@ -48,6 +61,9 @@ final readonly class TestKit
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function fakeCache(?CacheInterface $store = null, ?string $name = null): CacheInterface
     {
         return $this->cache()->useStore(
@@ -56,14 +72,23 @@ final readonly class TestKit
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function fakeHttp(?FakeHttpTransport $transport = null): HttpClient
     {
         $client = HttpClient::fake($transport);
-        $this->application->container()->bind(HttpClient::class, $client, LifetimeEnum::Singleton);
+        $this->application->replaceForTesting(HttpClient::class, $client);
 
         return $client;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function fakeMessaging(): RecordingSender
     {
         $sender = new RecordingSender();
@@ -76,47 +101,65 @@ final readonly class TestKit
         $bus = new MessageBus($this->application->make(RouteMap::class), $registry);
         $listeners = $this->application->make(ListenerProviderInterface::class);
         $events = new EventDispatcher($listeners, $bus);
-        $container = $this->application->container();
-
-        $container->bind(TransportRegistry::class, $registry, LifetimeEnum::Singleton);
-        $container->bind(MessageBus::class, $bus, LifetimeEnum::Singleton);
-        $container->bind(EventDispatcher::class, $events, LifetimeEnum::Singleton);
-        $container->bind(EventDispatcherInterface::class, $events, LifetimeEnum::Singleton);
+        $this->application->replaceForTesting(TransportRegistry::class, $registry);
+        $this->application->replaceForTesting(MessageBus::class, $bus);
+        $this->application->replaceForTesting(EventDispatcher::class, $events);
+        $this->application->replaceForTesting(EventDispatcherInterface::class, $events);
 
         return $sender;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function fakeNotifications(): Emailer
     {
         $emailer = Emailer::fake();
-        $this->application->container()->bind(Emailer::class, $emailer, LifetimeEnum::Singleton);
+        $this->application->replaceForTesting(Emailer::class, $emailer);
 
         return $emailer;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function files(): FilesystemOperator
     {
         return $this->application->make(FilesystemOperator::class);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function freezeTime(?int $timestamp = null): FrozenClock
     {
         $clock = new FrozenClock($timestamp ?? time());
-        $this->application->container()->bind(ClockInterface::class, $clock, LifetimeEnum::Singleton);
+        $this->application->replaceForTesting(ClockInterface::class, $clock);
 
         return $clock;
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function http(): HttpTestClient
     {
         return new HttpTestClient($this->application);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function messaging(): MessageBus
     {
         return $this->application->make(MessageBus::class);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function sessions(): SessionManager
     {
         return $this->application->make(SessionManager::class);

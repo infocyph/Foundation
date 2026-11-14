@@ -2,23 +2,32 @@
 
 declare(strict_types=1);
 
+namespace Infocyph\Foundation\Tests\Feature;
+
+use FilesystemIterator;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
+
 use Infocyph\Foundation\Messaging\InterMixExecutionScope;
 use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\Foundation\Runtime\NonWebGraphFactory;
-use Infocyph\Foundation\Runtime\NonWebProductionGraph;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Envelope\MessageIdStamp;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RuntimeException;
+use stdClass;
+use WeakReference;
 
 final readonly class FoundationGeneratedRuntimeProbe
 {
@@ -31,49 +40,92 @@ final class FoundationGeneratedRuntimeScopedProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
 final class FoundationGeneratedRuntimeDynamicProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
-        $builder->bindFactory('foundation.generated.dynamic', static fn(): stdClass => new stdClass());
+        $builder->factory('foundation.generated.dynamic', static fn(): stdClass => new stdClass());
     }
 }
 
 final class FoundationGeneratedRuntimeProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        unset($context);
-        $builder->singleton(FoundationGeneratedRuntimeProbe::class, FactoryDefinition::construct(
+        if ($context->runtimeMode === RuntimeMode::Worker) {
+            $builder->input('foundation.worker.job');
+            $builder->input(stdClass::class);
+        }
+        $builder->factory(FoundationGeneratedRuntimeProbe::class, FactoryDefinition::construct(
             FoundationGeneratedRuntimeProbe::class,
             [new ServiceReference(RuntimeMode::class)],
         ));
-        $builder->scoped(
+        $builder->factory(
             FoundationGeneratedRuntimeScopedProbe::class,
             FactoryDefinition::construct(FoundationGeneratedRuntimeScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
     }
 }
 
-it('keeps InterMix definition caching opt-in when CacheLayer is active', function (): void {
+it('keeps native CacheLayer definitions exportable after graph finalization', function (): void {
     $project = foundationGeneratedRuntimeProject();
     $config = foundationGeneratedRuntimeConfig($project);
     $graph = new NonWebGraphFactory()->compose($config, RuntimeMode::Cli, ['cache']);
 
     try {
-        new NonWebProductionGraph()->prepare($graph->builder);
-
-        expect($graph->builder->definitions()->has(CacheManager::class))->toBeTrue()
-            ->and($graph->builder->development()->getRepository()->getDefinitionCache())->toBeNull();
+        $definitions = $graph->builder->definitionGraph();
+        expect($definitions->hasDefinition(CacheManager::class))->toBeTrue()
+            ->and($definitions->definitions()[CacheManager::class])->toBeInstanceOf(FactoryDefinition::class);
     } finally {
-        $graph->application->container()->unset();
+        foundationGeneratedRuntimeRemove($project);
+    }
+});
+
+it('preserves canonical cache identity in generated non-web runtimes', function (): void {
+    $project = foundationGeneratedRuntimeProject();
+    $config = foundationGeneratedRuntimeConfig($project);
+    $config['cache'] = [
+        'default' => 'memory',
+        'prefix' => 'foundation-generated-cache:',
+        'stores' => [
+            'memory' => ['driver' => 'memory'],
+        ],
+    ];
+    $artifact = $project . '/bootstrap/cache/cache-cli.php';
+
+    try {
+        $report = new GeneratedRuntimeCompiler()->compile(
+            $config,
+            RuntimeMode::Cli,
+            $artifact,
+            ['cache'],
+        );
+        $runtime = GeneratedRuntime::loadPrevalidated(
+            $config,
+            RuntimeMode::Cli,
+            $artifact,
+            $report['metadata_sha256'],
+            $report['digest'],
+            ['cache'],
+        );
+        $manager = $runtime->application->make(CacheManager::class);
+
+        expect($manager->store())->toBe($manager->store('memory'));
+        $manager->store()->set('generated-alias', 'shared', 60);
+        expect($manager->store('memory')->get('generated-alias'))->toBe('shared');
+    } finally {
         foundationGeneratedRuntimeRemove($project);
     }
 });
@@ -87,11 +139,15 @@ it('compiles and reuses minimal generated CLI and scheduler runtimes', function 
         foreach ([RuntimeMode::Cli, RuntimeMode::Scheduler] as $mode) {
             $artifact = $project . '/bootstrap/cache/' . $mode->value . '.php';
             $report = $compiler->compile($config, $mode, $artifact);
+            $runtimeFile = realpath($artifact);
+            if ($runtimeFile === false) {
+                throw new \RuntimeException('Compiled runtime artifact is not accessible.');
+            }
             expect($report['runtime'])->toBe($mode->value)
                 ->and($report['skipped'])->toBe([])
                 ->and($report['capabilities'])->toBe([])
                 ->and(is_file($artifact))->toBeTrue()
-                ->and(is_file($artifact . '.meta.json'))->toBeTrue()
+                ->and(is_file(dirname($runtimeFile) . '/manifest.json'))->toBeTrue()
                 ->and(is_file($artifact . '.foundation.json'))->toBeTrue();
 
             $runtime = GeneratedRuntime::load($config, $mode, $artifact);
@@ -180,12 +236,19 @@ it('leaves InterMix manifest validation to the InterMix production loader', func
 
     try {
         $report = new GeneratedRuntimeCompiler()->compile($config, RuntimeMode::Cli, $artifact);
-        $manifestPath = $artifact . '.meta.json';
+        $runtimeFile = realpath($artifact);
+        if ($runtimeFile === false) {
+            throw new \RuntimeException('Compiled runtime artifact is not accessible.');
+        }
+        $manifestPath = dirname($runtimeFile) . '/manifest.json';
         $manifest = json_decode(
             (string) file_get_contents($manifestPath),
             true,
             flags: JSON_THROW_ON_ERROR,
         );
+        if (!is_array($manifest)) {
+            throw new \UnexpectedValueException('Expected a decoded JSON object.');
+        }
         $manifest['digest'] = str_repeat('0', 32);
         file_put_contents(
             $manifestPath,
@@ -203,7 +266,7 @@ it('leaves InterMix manifest validation to the InterMix production loader', func
             $report['digest'],
         ))->toThrow(
             \Infocyph\InterMix\Exceptions\ContainerException::class,
-            'Prevalidated static runtime does not match the active deployment digest.',
+            'Static runtime manifest does not match its immutable build identity.',
         );
     } finally {
         foundationGeneratedRuntimeRemove($project);
@@ -267,6 +330,7 @@ it('keeps one trusted worker container hot while isolating provider jobs and Omn
             ->and(array_unique(array_column($seen, 2)))->toHaveCount(128);
 
         $failedReference = null;
+
         try {
             $worker->execute(
                 static function () use ($runtime, &$failedReference): never {
@@ -283,8 +347,8 @@ it('keeps one trusted worker container hot while isolating provider jobs and Omn
         }
         gc_collect_cycles();
 
-        expect($failedReference)->toBeInstanceOf(WeakReference::class)
-            ->and($failedReference?->get())->toBeNull()
+        \PHPUnit\Framework\Assert::assertInstanceOf(WeakReference::class, $failedReference);
+        expect($failedReference->get())->toBeNull()
             ->and(fn() => $runtime->application->make(ExecutionId::class))
             ->toThrow(ServiceResolutionException::class);
 
@@ -330,6 +394,8 @@ it('keeps one trusted worker container hot while isolating provider jobs and Omn
             ],
         );
 
+        \PHPUnit\Framework\Assert::assertIsArray($firstMessage);
+        \PHPUnit\Framework\Assert::assertIsArray($secondMessage);
         expect($firstMessage)->toMatchArray([
             'omnibus:message-one',
             true,
@@ -359,20 +425,28 @@ it('keeps the last good artifact when a new build contains skipped definitions',
 
     try {
         $compiler->compile($config, RuntimeMode::Cli, $artifact);
+        $runtimeFile = realpath($artifact);
+        if ($runtimeFile === false) {
+            throw new \RuntimeException('Compiled runtime artifact is not accessible.');
+        }
+        $manifestPath = dirname($runtimeFile) . '/manifest.json';
         $before = [
             hash_file('sha256', $artifact),
-            hash_file('sha256', $artifact . '.meta.json'),
+            hash_file('sha256', $manifestPath),
             hash_file('sha256', $artifact . '.foundation.json'),
         ];
 
         $invalid = $config;
+        if (!is_array($invalid['providers'] ?? null) || !is_array($invalid['providers']['common'] ?? null)) {
+            throw new \UnexpectedValueException('Generated runtime fixture must contain provider configuration.');
+        }
         $invalid['providers']['common'][] = FoundationGeneratedRuntimeDynamicProvider::class;
         expect(fn() => $compiler->compile($invalid, RuntimeMode::Cli, $artifact))
             ->toThrow(RuntimeException::class, 'not statically compiled');
 
         expect([
             hash_file('sha256', $artifact),
-            hash_file('sha256', $artifact . '.meta.json'),
+            hash_file('sha256', $manifestPath),
             hash_file('sha256', $artifact . '.foundation.json'),
         ])->toBe($before);
     } finally {
@@ -392,6 +466,9 @@ it('rejects stale runtime, configuration, and capability identities before loadi
             ->toThrow(RuntimeException::class, 'identity does not match');
 
         $changed = $config;
+        if (!is_array($changed['app'] ?? null)) {
+            throw new \UnexpectedValueException('Generated runtime fixture must contain application configuration.');
+        }
         $changed['app']['name'] = 'Changed generated runtime';
         expect(fn() => GeneratedRuntime::load($changed, RuntimeMode::Cli, $artifact))
             ->toThrow(RuntimeException::class, 'identity does not match');
@@ -428,6 +505,7 @@ function foundationGeneratedRuntimeProject(): string
     return $project;
 }
 
+/** @throws \UnexpectedValueException */
 function foundationGeneratedRuntimeRemove(string $directory): void
 {
     if (!is_dir($directory)) {
@@ -439,7 +517,57 @@ function foundationGeneratedRuntimeRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!$file instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('Expected a filesystem iterator entry.');
+        }
+
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);
 }
+
+it('treats feature selection as trusted immutable generated-runtime identity', function (): void {
+    $project = foundationGeneratedRuntimeProject();
+    $config = foundationGeneratedRuntimeConfig($project);
+    $config['modules'] = ['features' => [
+        'data.database' => false,
+        'execution.messaging' => false,
+    ]];
+    $artifact = $project . '/bootstrap/cache/cli.php';
+
+    try {
+        $report = new GeneratedRuntimeCompiler()->compile($config, RuntimeMode::Cli, $artifact);
+
+        $sameTopology = $config;
+        $sameTopology['modules']['features'] = [
+            'execution.messaging' => false,
+            'data.database' => false,
+        ];
+        expect(GeneratedRuntime::load($sameTopology, RuntimeMode::Cli, $artifact)->runtimeMode)
+            ->toBe(RuntimeMode::Cli);
+
+        $changed = $config;
+        $changed['modules']['features']['data.database'] = true;
+        expect(fn() => GeneratedRuntime::load($changed, RuntimeMode::Cli, $artifact))
+            ->toThrow(RuntimeException::class, 'identity does not match');
+
+        $metadata = $artifact . '.foundation.json';
+        $contents = (string) file_get_contents($metadata);
+        $forged = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($forged)) {
+            throw new \UnexpectedValueException('Generated runtime metadata must be an object.');
+        }
+        $forged['config_fingerprint'] = str_repeat('0', 32);
+        file_put_contents($metadata, json_encode($forged, JSON_THROW_ON_ERROR));
+
+        expect(fn() => GeneratedRuntime::loadPrevalidated(
+            $config,
+            RuntimeMode::Cli,
+            $artifact,
+            $report['metadata_sha256'],
+            $report['digest'],
+        ))->toThrow(RuntimeException::class);
+    } finally {
+        foundationGeneratedRuntimeRemove($project);
+    }
+});

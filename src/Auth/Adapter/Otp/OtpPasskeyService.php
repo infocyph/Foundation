@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\Otp;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
@@ -19,6 +20,11 @@ use Infocyph\OTP\Passkey;
 use Infocyph\OTP\Result\PasskeyResult;
 use Infocyph\OTP\ValueObjects\PasskeyCeremony;
 
+/**
+ * Native OTP/WebAuthn passkey service implementation.
+ *
+ * @api
+ */
 final readonly class OtpPasskeyService implements PasskeyServiceInterface
 {
     private const string AUTHENTICATION_BINDING = 'foundation:passkey:authentication:v1';
@@ -31,6 +37,11 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
         private ClockInterface $clock,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function finishAuthentication(PasskeyAuthenticationResult $result): PasskeyVerificationResult
     {
         $credentialJson = $this->credentialJson($result->metadata);
@@ -51,6 +62,7 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
             credentialRecordJson: $this->credentialRecordJson($credential),
             credentialJson: $credentialJson,
             now: $this->clock->now(),
+            runwire: CacheRunwire::current(),
         );
 
         if (!$verification->matched) {
@@ -71,6 +83,11 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
+    #[\Override]
     public function finishRegistration(PasskeyRegistrationResult $result): PasskeyCredential
     {
         $verification = $this->passkey->finishRegistration(
@@ -78,6 +95,7 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
             ceremonyId: $result->challengeId,
             credentialJson: $this->credentialJson($result->metadata),
             now: $this->clock->now(),
+            runwire: CacheRunwire::current(),
         );
 
         if (!$verification->matched || $verification->credentialId === null || $verification->credentialRecordJson === null) {
@@ -104,6 +122,10 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function startAuthentication(?string $accountId = null): PasskeyChallenge
     {
         $records = [];
@@ -120,11 +142,16 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
             credentialRecordsJson: $records,
             userHandle: $userHandle,
             now: $now,
+            runwire: CacheRunwire::current(),
         );
 
         return $this->challenge($ceremony, $accountId, $now);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function startRegistration(string $accountId): PasskeyChallenge
     {
         $account = $this->accounts->findById($accountId);
@@ -146,12 +173,16 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
             displayName: $displayName,
             existingCredentialRecordsJson: $this->activeCredentialRecords($accountId),
             now: $now,
+            runwire: CacheRunwire::current(),
         );
 
         return $this->challenge($ceremony, $accountId, $now);
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \RuntimeException
+     */
     private function activeCredentialRecords(string $accountId): array
     {
         $records = [];
@@ -167,6 +198,9 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
         return $records;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function challenge(PasskeyCeremony $ceremony, ?string $accountId, int $issuedAt): PasskeyChallenge
     {
         $options = json_decode($ceremony->optionsJson, true, 512, JSON_THROW_ON_ERROR);
@@ -190,7 +224,10 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
         );
     }
 
-    /** @param array<string, mixed> $metadata */
+    /**
+     * @param array<string, mixed> $metadata
+     * @throws \InvalidArgumentException
+     */
     private function credentialJson(array $metadata): string
     {
         $json = $metadata['credential_json'] ?? null;
@@ -206,6 +243,9 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
         return json_encode($credential, JSON_THROW_ON_ERROR);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function credentialRecordJson(PasskeyCredential $credential): string
     {
         if (is_string($credential->credentialRecordJson) && $credential->credentialRecordJson !== '') {

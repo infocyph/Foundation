@@ -12,6 +12,7 @@ final class ConfigExportValidator
 
     /**
      * @param array<string, mixed> $config
+     * @throws \RuntimeException
      */
     public static function assertCacheable(array $config): void
     {
@@ -20,6 +21,7 @@ final class ConfigExportValidator
 
     /**
      * @param array<string, mixed> $config
+     * @throws \RuntimeException
      */
     public static function assertExportable(array $config): void
     {
@@ -47,6 +49,9 @@ final class ConfigExportValidator
             || ($allowDelayed && ($value instanceof EnvReference || $value instanceof \Closure));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private static function walk(
         mixed $value,
         string $path,

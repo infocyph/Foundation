@@ -15,6 +15,12 @@ final readonly class SessionDatabaseSchema
         private DBLayerFactory $database,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function install(?string $connection = null): void
     {
         $schema = $this->schema($connection);
@@ -32,6 +38,10 @@ final readonly class SessionDatabaseSchema
 
     /**
      * @return array{installed:bool,table:string,connection:string|null}
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function readiness(?string $connection = null): array
     {
@@ -42,6 +52,12 @@ final readonly class SessionDatabaseSchema
         ];
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function schema(?string $connection): SchemaManager
     {
         return new SchemaManager(

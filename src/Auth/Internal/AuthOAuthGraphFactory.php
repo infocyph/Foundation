@@ -16,11 +16,17 @@ use Infocyph\Foundation\Exception\ConfigurationException;
 
 final class AuthOAuthGraphFactory
 {
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function authorizationCodeKeys(OAuthProtectionKeyResolver $resolver): KeyRing
     {
         return $resolver->authorizationCodeKeys();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function endpointUri(ConfigRepository $config, string $route): string
     {
         $issuer = $config->get('auth.oauth.issuer');
@@ -32,7 +38,7 @@ final class AuthOAuthGraphFactory
         $parts = parse_url($issuer);
         if (!is_array($parts)
             || !isset($parts['scheme'], $parts['host'])
-            || strtolower((string) $parts['scheme']) !== 'https'
+            || strtolower($parts['scheme']) !== 'https'
         ) {
             throw new ConfigurationException('OAuth issuer must be an absolute HTTPS URI.');
         }
@@ -50,6 +56,9 @@ final class AuthOAuthGraphFactory
         return $keys->epicrypt;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function openIdSigningKeySet(ConfigRepository $config): AsymmetricSigningKeySet
     {
         $issuer = $config->get('auth.oauth.issuer');
@@ -64,11 +73,18 @@ final class AuthOAuthGraphFactory
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function refreshTokenKeys(OAuthProtectionKeyResolver $resolver): KeyRing
     {
         return $resolver->refreshTokenKeys();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Throwable
+     */
     public static function signingKeySet(OAuthSigningKeyResolver $resolver): OAuthSigningKeySet
     {
         return $resolver->resolve();

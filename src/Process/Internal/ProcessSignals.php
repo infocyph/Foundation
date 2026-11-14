@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Process\Internal;
 
 use Infocyph\Foundation\Process\ProcessOptions;
+use Infocyph\Foundation\Runtime\CleanupGuard;
 
 final class ProcessSignals
 {
@@ -15,6 +16,7 @@ final class ProcessSignals
     /**
      * @param callable(int):void $interrupt
      * @return array{async:bool,handlers:array<int,callable|int>}|null
+     * @throws \Throwable
      */
     public function register(ProcessOptions $options, callable $interrupt): ?array
     {
@@ -28,22 +30,33 @@ final class ProcessSignals
 
         $handlers = [];
         foreach ([self::SIGNAL_INTERRUPT, self::SIGNAL_TERMINATE] as $signal) {
-            $handlers[$signal] = pcntl_signal_get_handler($signal);
+            /** @var callable|int $handler */
+            $handler = pcntl_signal_get_handler($signal);
+            $handlers[$signal] = $handler;
         }
 
-        $async = pcntl_async_signals();
-        pcntl_async_signals(true);
-        foreach (array_keys($handlers) as $signal) {
-            pcntl_signal(
-                $signal,
-                static function (int $received) use ($interrupt): void {
-                    $interrupt($received);
-                },
-                false,
-            );
+        $state = ['async' => pcntl_async_signals(), 'handlers' => $handlers];
+
+        try {
+            pcntl_async_signals(true);
+            foreach (array_keys($handlers) as $signal) {
+                if (!pcntl_signal(
+                    $signal,
+                    static function (int $received) use ($interrupt): void {
+                        $interrupt($received);
+                    },
+                    false,
+                )) {
+                    throw new \RuntimeException('Unable to register a process signal handler.');
+                }
+            }
+        } catch (\Throwable $exception) {
+            CleanupGuard::run($exception, fn() => $this->restore($state));
+
+            throw $exception;
         }
 
-        return ['async' => $async, 'handlers' => $handlers];
+        return $state;
     }
 
     /** @param array{async:bool,handlers:array<int,callable|int>}|null $state */

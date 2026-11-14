@@ -8,19 +8,23 @@ use Infocyph\Foundation\Auth\Adapter\Epicrypt\MfaSecretProtector;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
-use Infocyph\Foundation\Database\DBLayerFactory;
+use Psr\Container\ContainerInterface;
 
 final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFactorCompareAndSwapStoreInterface
 {
     public function __construct(
-        DBLayerFactory $db,
+        ContainerInterface $services,
         AuthTables $tables,
         ?string $connection = null,
         private ?MfaSecretProtector $secretProtector = null,
     ) {
-        parent::__construct($db, $tables, $connection);
+        parent::__construct($services, $tables, $connection);
     }
 
+    /**
+     * @throws \Throwable
+     */
+    #[\Override]
     public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool
     {
         if ($expected === null) {
@@ -54,6 +58,13 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
             ->update($record) === 1;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function findForAccount(string $accountId): array
     {
         return array_map(
@@ -65,17 +76,35 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function remove(string $factorId): void
     {
         $this->deleteWhere('mfaFactors', 'id = ?', [$factorId]);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function save(MfaFactor $factor): void
     {
         $this->upsertRecord('mfaFactors', 'id', $this->record($factor));
     }
 
-    /** @param array<string, mixed> $row */
+    /**
+     * @param array<string, mixed> $row
+     * @throws \InvalidArgumentException
+     */
     private function mapFactor(array $row): MfaFactor
     {
         $factor = new MfaFactor(

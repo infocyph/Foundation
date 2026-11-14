@@ -1,0 +1,44 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Infocyph\Foundation\Tests\Feature;
+
+use Infocyph\Foundation\Auth\AuthManager;
+
+use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
+use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
+use Infocyph\Foundation\Auth\Internal\AuthRuntimeRegistrar;
+use Infocyph\Foundation\Auth\Internal\AuthStoreRegistrar;
+use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use RuntimeException;
+
+it('keeps the native authentication and audit-service recipes on their owning registrars', function (): void {
+    $config = new ConfigRepository([
+        'messaging' => ['forward_auth_events' => true],
+    ]);
+
+    $runtimeBuilder = new ContainerBuilder();
+    new AuthRuntimeRegistrar($config, $runtimeBuilder)->register();
+    $runtime = $runtimeBuilder->definitionGraph()->definitions()[AuthManager::class] ?? null;
+    if (!$runtime instanceof FactoryDefinition) {
+        throw new RuntimeException('Authentication runtime factory was not registered.');
+    }
+
+    expect($runtime->signature()['class'])->toBe(AuthRuntimeRegistrar::class)
+        ->and($runtime->signature()['method'])->toBe('manager');
+
+    $storeBuilder = new ContainerBuilder();
+    new AuthStoreRegistrar($config, $storeBuilder)->register(new AuthDriverResolver($config));
+    $audit = $storeBuilder->definitionGraph()->definitions()[AuditEventStoreInterface::class] ?? null;
+    if (!$audit instanceof FactoryDefinition) {
+        throw new RuntimeException('Authentication audit factory was not registered.');
+    }
+
+    expect($audit->signature()['class'])->toBe(AuthStoreRegistrar::class)
+        ->and($audit->signature()['method'])->toBe('forwardingAuditStore')
+        ->and(class_exists('Infocyph\\Foundation\\Auth\\Internal\\AuthRuntimeGraphFactory'))->toBeFalse()
+        ->and(class_exists('Infocyph\\Foundation\\Auth\\Internal\\AuthStoreGraphFactory'))->toBeFalse();
+});

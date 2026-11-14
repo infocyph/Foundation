@@ -12,8 +12,16 @@ use Infocyph\Webrick\Middleware\ThrottleMiddleware;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
+/**
+ * Public OAuth endpoint throttle middleware.
+ *
+ * @api
+ */
 final readonly class OAuthRateLimitMiddleware
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         private string $endpoint,
         private ThrottleMiddleware $throttle,
@@ -24,7 +32,10 @@ final readonly class OAuthRateLimitMiddleware
         }
     }
 
-    /** @param callable(Request): Response $next */
+    /**
+     * @param callable(Request): Response $next
+     * @throws \Infocyph\Webrick\Exceptions\HttpException
+     */
     public function __invoke(Request $request, callable $next): Response
     {
         try {

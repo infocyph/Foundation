@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Command;
 
+/**
+ * Application-facing CLI command registration and resolution.
+ *
+ * @api
+ */
 final class CommandRegistry
 {
     /** @var array<string, CommandDescriptor> */
@@ -12,7 +17,12 @@ final class CommandRegistry
     /** @var array<string, CommandDescriptor> */
     private array $commands = [];
 
-    /** @param array<array-key, mixed> $applicationCommands */
+    /**
+     * @param array<array-key, mixed> $applicationCommands
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \UnexpectedValueException
+     */
     public function __construct(
         array $applicationCommands = [],
         ?CommandCatalog $catalog = null,
@@ -39,7 +49,12 @@ final class CommandRegistry
         }
     }
 
-    /** @param array<string, mixed> $manifest */
+    /**
+     * @param array<string, mixed> $manifest
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public static function fromManifest(array $manifest): self
     {
         $version = $manifest['version'] ?? null;
@@ -86,6 +101,9 @@ final class CommandRegistry
         return isset($this->commands[$name]) || isset($this->aliases[$name]);
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     public function register(CommandDescriptor $descriptor): void
     {
         $name = $descriptor->definition->commandName();
@@ -135,7 +153,10 @@ final class CommandRegistry
         return array_slice(array_keys($candidates), 0, $limit);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \LogicException
+     */
     public function toManifest(): array
     {
         $commands = [];
@@ -161,6 +182,7 @@ final class CommandRegistry
     /**
      * @param array<int|string, mixed> $value
      * @return array<string, mixed>
+     * @throws \UnexpectedValueException
      */
     private static function associative(array $value): array
     {

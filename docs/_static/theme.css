@@ -1,0 +1,7 @@
+:root {
+  --pst-color-primary: #275d91;
+}
+
+.bd-content article {
+  max-width: 100%;
+}

@@ -19,11 +19,19 @@ use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Published Foundation application lifecycle and container entrypoint.
+ *
+ * @api
+ */
 final class Application
 {
     private bool $booted = false;
 
     private ?LoadedReleaseGeneration $loadedReleaseGeneration = null;
+
+    /** @var array<string, object>|null */
+    private ?array $testingOverrides = null;
 
     public function __construct(
         private readonly ConfigRepository $config,
@@ -33,20 +41,27 @@ final class Application
         private readonly RuntimeMode $runtimeMode,
     ) {}
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
+     */
     public static function create(array $config, RuntimeMode $runtimeMode): self
     {
         $sourceConfig = new ConfigLoader()->load($config);
         $context = FoundationBuildContext::fromConfig($sourceConfig, $runtimeMode);
         $builder = FoundationGraph::compose($context);
-        $container = $builder->development();
+        $bootstrapper = new Bootstrapper();
+        $providers = new ServiceRegistry();
+        $bootstrapper->compose($builder, $context, $providers);
+
+        $bindings = DevelopmentRuntimeBindings::register($builder);
+        $container = $builder->build();
         $runtimeConfig = $container->get(ConfigRepository::class);
         if (!$runtimeConfig instanceof ConfigRepository) {
             throw new \LogicException('Foundation graph did not produce a ConfigRepository.');
         }
-
-        $bootstrapper = new Bootstrapper();
-        $providers = new ServiceRegistry();
         $app = new self(
             config: $runtimeConfig,
             container: $container,
@@ -54,17 +69,22 @@ final class Application
             bootstrapper: $bootstrapper,
             runtimeMode: $runtimeMode,
         );
-        DevelopmentRuntimeBindings::register($builder, $app, $container);
-        $bootstrapper->compose($builder, $context, $providers);
+        $bindings->attach($app);
 
         return $app;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function appPath(string $path = ''): string
     {
         return $this->paths()->app($path);
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function attachLoadedReleaseGeneration(LoadedReleaseGeneration $release): self
     {
         $current = $this->loadedReleaseGeneration;
@@ -81,11 +101,19 @@ final class Application
         return $this;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function basePath(string $path = ''): string
     {
         return $this->paths()->base($path);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
     public function boot(): self
     {
         if (!$this->booted) {
@@ -101,11 +129,17 @@ final class Application
         return $this->booted;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function bootstrapPath(string $path = ''): string
     {
         return $this->paths()->bootstrap($path);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function cachePath(string $path = ''): string
     {
         return $this->paths()->cache($path);
@@ -116,12 +150,18 @@ final class Application
         return $this->config;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function configPath(string $path = ''): string
     {
         return $this->paths()->config($path);
     }
 
-    /** Mutable container access is development-only. */
+    /**
+     * Mutable container access is development-only.
+     * @throws \LogicException
+     */
     public function container(): Container
     {
         if (!$this->container instanceof Container) {
@@ -133,6 +173,9 @@ final class Application
         return $this->container;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function databasePath(string $path = ''): string
     {
         return $this->paths()->database($path);
@@ -145,11 +188,19 @@ final class Application
         return is_string($environment) && $environment !== '' ? $environment : null;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function execution(): ExecutionScope
     {
         return $this->make(ExecutionScope::class);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function handle(Request $request): Response
     {
         return $this->http()->handle($request);
@@ -160,6 +211,11 @@ final class Application
         return $this->container->has($id);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function http(): HttpKernel
     {
         if (!$this->runningInWeb()) {
@@ -182,6 +238,9 @@ final class Application
         return $this->loadedReleaseGeneration;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function logsPath(string $path = ''): string
     {
         return $this->paths()->logs($path);
@@ -190,11 +249,24 @@ final class Application
     /**
      * @template T of object
      * @param string|class-string<T> $id
-     * @return ($id is class-string<T> ? T : mixed)
+     * @return ($id is class-string<T> ? (T is \Infocyph\Runwire\RequestContext|\Infocyph\Runwire\Coroutine\CoroutineScope ? T|null : T) : mixed)
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      */
     public function make(string $id): mixed
     {
         try {
+            if ($this->testingOverrides !== null && isset($this->testingOverrides[$id])) {
+                return $this->testingOverrides[$id];
+            }
+
+            if (
+                !$this->container->has($id)
+                && $this->container instanceof \Infocyph\InterMix\DI\RuntimeContainerInterface
+                && class_exists($id)
+            ) {
+                return $this->container->make($id);
+            }
+
             return $this->container->get($id);
         } catch (\Throwable $exception) {
             $message = sprintf('Unable to resolve service "%s".', $id);
@@ -206,6 +278,9 @@ final class Application
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function paths(): PathManager
     {
         return $this->make(PathManager::class);
@@ -216,16 +291,45 @@ final class Application
         return $this->providers;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function publicPath(string $path = ''): string
     {
         return $this->paths()->public($path);
     }
 
+    /**
+     * Supply an application-local fake without mutating the immutable InterMix runtime.
+     * TestKit owns this restricted boundary; compiled and production runtimes reject it.
+     *
+     * @internal
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
+    public function replaceForTesting(string $id, object $service): void
+    {
+        if ($this->config->isProduction() || $this->loadedReleaseGeneration !== null) {
+            throw new \LogicException('Test service replacements require a non-production, non-compiled application.');
+        }
+        if ((class_exists($id) || interface_exists($id)) && !$service instanceof $id) {
+            throw new \InvalidArgumentException(sprintf('Test replacement for "%s" has an incompatible type.', $id));
+        }
+
+        $this->testingOverrides[$id] = $service;
+    }
+
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function resourcesPath(string $path = ''): string
     {
         return $this->paths()->resources($path);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function routesPath(string $path = ''): string
     {
         return $this->paths()->routes($path);
@@ -261,16 +365,25 @@ final class Application
         return $this->runtimeMode;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function sessionsPath(string $path = ''): string
     {
         return $this->paths()->sessions($path);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function storagePath(string $path = ''): string
     {
         return $this->paths()->storage($path);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function uploadsPath(string $path = ''): string
     {
         return $this->paths()->uploads($path);

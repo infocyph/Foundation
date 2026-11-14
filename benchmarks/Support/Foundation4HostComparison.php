@@ -1,0 +1,343 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Infocyph\Foundation\Benchmarks\Support;
+
+use InvalidArgumentException;
+
+/**
+ * Fail-closed comparison of matched Foundation 4 native-host throughput evidence.
+ *
+ * This checks comparable evidence and the 2% regression budget. Release sign-off
+ * additionally requires representative workload coverage and host soak evidence.
+ */
+final class Foundation4HostComparison
+{
+    private const float MAX_VARIATION_PERCENT = 2.5;
+
+    private const int MIN_REPETITIONS = 5;
+
+    private const float MIN_SUSTAINED_SECONDS = 120.0;
+
+    private const int MIN_WARMUP_SECONDS = 30;
+
+    private const float REGRESSION_BUDGET_PERCENT = 2.0;
+
+    /**
+     * @param array<string, mixed> $baseline
+     * @param array<string, mixed> $candidate
+     * @param array<string, mixed>|null $upgradeEvidence
+     * @return array{passed:bool,cases:list<array<string,string|float>>,comparison_kind:string,changed_packages:list<string>,...<string,mixed>}
+     * @throws \InvalidArgumentException
+     */
+    public static function compare(array $baseline, array $candidate, ?array $upgradeEvidence = null): array
+    {
+        $baseline = self::validate($baseline);
+        $candidate = self::validate($candidate);
+
+        $changedPackages = $upgradeEvidence === null
+            ? []
+            : Foundation4HostUpgradeEvidence::verify($baseline, $candidate, $upgradeEvidence);
+
+        $identityFields = ['hardware_id', 'php', 'protocol', 'workload_profile', 'tool_sha', 'fixture_id', 'request_count', 'repetitions'];
+        if ($upgradeEvidence === null) {
+            $identityFields[] = 'composer_lock_sha256';
+        }
+
+        foreach ($identityFields as $field) {
+            if ($baseline[$field] !== $candidate[$field]) {
+                throw new InvalidArgumentException(sprintf('Incomparable host evidence: %s differs.', $field));
+            }
+        }
+
+        if (($baseline['warmup_seconds']) !== ($candidate['warmup_seconds'])) {
+            throw new InvalidArgumentException('Incomparable host evidence: warmup_seconds differs.');
+        }
+
+        if ($baseline['sha'] === $candidate['sha']) {
+            throw new InvalidArgumentException('Matched host comparison requires distinct immutable baseline/candidate commits.');
+        }
+
+        $baselineCases = self::cases($baseline);
+        $candidateCases = self::cases($candidate);
+        if (array_keys($baselineCases) !== array_keys($candidateCases)) {
+            throw new InvalidArgumentException('The host benchmark scenario matrices are different.');
+        }
+
+        $results = [];
+        $passed = true;
+        foreach ($baselineCases as $key => $before) {
+            $after = $candidateCases[$key];
+            $case = self::compareCase($before, $after, $key);
+            $passed = $passed && $case['passed'];
+            $results[] = $case['result'];
+        }
+
+        return [
+            'passed' => $passed,
+            'comparison_kind' => $upgradeEvidence === null ? 'source_only' : 'dependency_upgrade',
+            'changed_packages' => $changedPackages,
+            'regression_budget_percent' => self::REGRESSION_BUDGET_PERCENT,
+            'max_cv_percent' => self::MAX_VARIATION_PERCENT,
+            'min_repetition_seconds' => self::MIN_SUSTAINED_SECONDS,
+            'hardware_id' => $baseline['hardware_id'],
+            'workload_profile' => $baseline['workload_profile'],
+            'baseline_sha' => $baseline['sha'],
+            'candidate_sha' => $candidate['sha'],
+            'cases' => $results,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $report
+     * @return array<string, array{hardware_id:string,auth_fixture_sha256:string,rpms:list<float>}>
+     * @throws \InvalidArgumentException
+     */
+    private static function cases(array $report): array
+    {
+        $result = [];
+        $hosts = $report['hosts'] ?? null;
+        if (!is_array($hosts)) {
+            throw new InvalidArgumentException('Missing native host matrix.');
+        }
+        foreach (['fpm', 'runwire'] as $host) {
+            $entries = $hosts[$host] ?? null;
+            if (!is_array($entries)) {
+                throw new InvalidArgumentException(sprintf('Missing native host: %s.', $host));
+            }
+
+            foreach ($entries as $entry) {
+                $scenario = self::scenario($entry, $host, $report);
+                $key = $scenario['key'];
+                if (isset($result[$key])) {
+                    throw new InvalidArgumentException('Duplicate native host benchmark scenario.');
+                }
+                $result[$key] = ['hardware_id' => $scenario['hardware_id'], 'auth_fixture_sha256' => $scenario['auth_fixture_sha256'], 'rpms' => $scenario['rpms']];
+            }
+        }
+
+        if (count($result) !== 12) {
+            throw new InvalidArgumentException('Complete 1/4-worker, 1/10/50-concurrency coverage is required.');
+        }
+
+        ksort($result);
+
+        return $result;
+    }
+
+    /** @param list<float> $values */
+    private static function coefficientOfVariation(array $values): float
+    {
+        $mean = array_sum($values) / (float) count($values);
+        $variance = 0.0;
+        foreach ($values as $value) {
+            $variance += ($value - $mean) ** 2;
+        }
+
+        return sqrt($variance / (float) count($values)) / $mean * 100.0;
+    }
+
+    /**
+     * @param array{hardware_id:string,auth_fixture_sha256:string,rpms:list<float>} $before
+     * @param array{hardware_id:string,auth_fixture_sha256:string,rpms:list<float>} $after
+     * @return array{passed:bool,result:array<string,string|float>}
+     * @throws InvalidArgumentException
+     */
+    private static function compareCase(array $before, array $after, string $key): array
+    {
+        if ($before['hardware_id'] !== $after['hardware_id']) {
+            throw new InvalidArgumentException('Baseline/candidate scenario hardware differs: ' . $key);
+        }
+        if ($before['auth_fixture_sha256'] !== $after['auth_fixture_sha256']) {
+            throw new InvalidArgumentException('Baseline/candidate authentication fixture differs: ' . $key);
+        }
+        $baselineMedian = self::median($before['rpms']);
+        $candidateMedian = self::median($after['rpms']);
+        $deltaPercent = (($candidateMedian / $baselineMedian) - 1.0) * 100.0;
+        $baselineVariation = self::coefficientOfVariation($before['rpms']);
+        $candidateVariation = self::coefficientOfVariation($after['rpms']);
+        $variation = max($baselineVariation, $candidateVariation);
+        $stable = $variation <= self::MAX_VARIATION_PERCENT;
+        $withinBudget = $deltaPercent >= -self::REGRESSION_BUDGET_PERCENT - 1e-10;
+        $casePassed = $stable && $withinBudget;
+        $result = [
+            'scenario' => $key,
+            'hardware_id' => $before['hardware_id'],
+            'auth_fixture_sha256' => $before['auth_fixture_sha256'],
+            'baseline_median_successful_rpm' => round($baselineMedian, 2),
+            'candidate_median_successful_rpm' => round($candidateMedian, 2),
+            'delta_percent' => round($deltaPercent, 3),
+            'baseline_cv_percent' => round($baselineVariation, 3),
+            'candidate_cv_percent' => round($candidateVariation, 3),
+            'max_cv_percent' => round($variation, 3),
+            'status' => !$stable ? 'inconclusive_variance' : ($withinBudget ? 'pass' : 'regression'),
+        ];
+
+        return ['passed' => $casePassed, 'result' => $result];
+    }
+
+    /** @param list<float> $values */
+    private static function median(array $values): float
+    {
+        sort($values, SORT_NUMERIC);
+        $mid = intdiv(count($values), 2);
+
+        return count($values) % 2 === 0
+            ? ($values[$mid - 1] + $values[$mid]) / 2.0
+            : $values[$mid];
+    }
+
+    /**
+     * @phpstan-assert-if-true int|float $value
+     * @psalm-assert-if-true int|float $value
+     */
+    private static function positiveNumber(mixed $value): bool
+    {
+        return (is_int($value) || is_float($value)) && is_finite((float) $value) && $value > 0;
+    }
+
+    /**
+     * @param array<array-key,mixed> $runs
+     * @param array<string,mixed> $report
+     * @return list<float>
+     * @throws InvalidArgumentException
+     */
+    private static function rpms(array $runs, array $report, string $key): array
+    {
+        $values = [];
+        foreach ($runs as $input) {
+            $run = self::validatedRun($input, $report, $key);
+            $actualRpm = (float) $run['successful'] * 60.0 / (float) $run['duration_seconds'];
+            if (abs($actualRpm - (float) $run['rpm']) / $actualRpm > 0.005) {
+                throw new InvalidArgumentException(sprintf('Inconsistent successful RPM for %s.', $key));
+            }
+
+            $values[] = (float) $run['rpm'];
+        }
+
+        return $values;
+    }
+
+    /**
+     * @param array<string,mixed> $report
+     * @return array{key:string,hardware_id:string,auth_fixture_sha256:string,rpms:list<float>}
+     * @throws InvalidArgumentException
+     */
+    private static function scenario(mixed $entry, string $host, array $report): array
+    {
+        if (!is_array($entry)) {
+            throw new InvalidArgumentException('Malformed native host scenario.');
+        }
+
+        $workers = $entry['workers'] ?? null;
+        $concurrency = $entry['concurrency'] ?? null;
+        $runs = $entry['runs'] ?? null;
+        if (!in_array($workers, [1, 4], true)
+            || !in_array($concurrency, [1, 10, 50], true)
+            || !is_array($runs)
+            || count($runs) !== $report['repetitions']
+        ) {
+            throw new InvalidArgumentException('Missing or unrecognized native host scenario.');
+        }
+
+        $key = sprintf('%s-w%d-c%d', $host, $workers, $concurrency);
+        $values = self::rpms($runs, $report, $key);
+
+        $hardware = $entry['hardware_id'] ?? $report['hardware_id'];
+        if (!is_string($hardware) || $hardware === '') {
+            throw new InvalidArgumentException('Scenario hardware identity is missing.');
+        }
+
+        $fixture = $entry['auth_fixture_sha256'] ?? null;
+        if (!is_string($fixture) || preg_match('/^[a-f0-9]{64}$/D', $fixture) !== 1) {
+            throw new InvalidArgumentException('Scenario authentication fixture identity is missing or malformed.');
+        }
+
+        return ['key' => $key, 'hardware_id' => $hardware, 'auth_fixture_sha256' => $fixture, 'rpms' => $values];
+    }
+
+    /**
+     * @param array<string,mixed> $report
+     * @phpstan-return array{hosts:array<array-key,mixed>,schema:3,sha:string,php:string,request_count:int,repetitions:int,hardware_id:string,composer_lock_sha256:string,protocol:string,workload_profile:string,tool_sha:string,fixture_id:string,warmup_seconds:int,...<string,mixed>}
+     * @return array<string,mixed>
+     * @throws InvalidArgumentException
+     */
+    private static function validate(array $report): array
+    {
+        if (($report['schema'] ?? null) !== 3
+            || !is_string($report['sha'] ?? null)
+            || preg_match('/^[a-f0-9]{40}$/D', $report['sha']) !== 1
+            || !is_string($report['php'] ?? null)
+            || $report['php'] === ''
+            || !is_int($report['request_count'] ?? null)
+            || $report['request_count'] < 100
+            || !is_int($report['repetitions'] ?? null)
+            || !is_string($report['hardware_id'] ?? null)
+            || $report['hardware_id'] === ''
+            || !is_string($report['composer_lock_sha256'] ?? null)
+            || preg_match('/^[a-f0-9]{64}$/D', $report['composer_lock_sha256']) !== 1
+            || ($report['protocol'] ?? null) !== 'HTTP/1.1 with per-response status/body checks'
+            || !is_string($report['workload_profile'] ?? null)
+            || $report['workload_profile'] === ''
+            || !is_string($report['tool_sha'] ?? null)
+            || preg_match('/^[a-f0-9]{40}$/D', $report['tool_sha']) !== 1
+            || !is_string($report['fixture_id'] ?? null)
+            || $report['fixture_id'] === ''
+            || !is_array($report['hosts'] ?? null)
+            || $report['repetitions'] < self::MIN_REPETITIONS
+            || !is_int($report['warmup_seconds'] ?? null)
+            || $report['warmup_seconds'] < self::MIN_WARMUP_SECONDS
+        ) {
+            throw new InvalidArgumentException('Host benchmark evidence is incomplete or non-certifiable.');
+        }
+
+        return [
+            'hosts' => $report['hosts'],
+            'schema' => $report['schema'],
+            'sha' => $report['sha'],
+            'php' => $report['php'],
+            'request_count' => $report['request_count'],
+            'repetitions' => $report['repetitions'],
+            'hardware_id' => $report['hardware_id'],
+            'composer_lock_sha256' => $report['composer_lock_sha256'],
+            'protocol' => $report['protocol'],
+            'workload_profile' => $report['workload_profile'],
+            'tool_sha' => $report['tool_sha'],
+            'fixture_id' => $report['fixture_id'],
+            'warmup_seconds' => $report['warmup_seconds'],
+        ] + $report;
+    }
+
+    /**
+     * @param array<string,mixed> $report
+     * @return array{successful:int,duration_seconds:int|float,rpm:int|float}
+     * @throws InvalidArgumentException
+     */
+    private static function validatedRun(mixed $run, array $report, string $key): array
+    {
+        if (!is_array($run)
+            || !is_int($run['requests'] ?? null)
+            || $run['requests'] < $report['request_count']
+            || ($run['successful'] ?? null) !== $run['requests']
+            || ($run['failed'] ?? null) !== 0
+            || !self::positiveNumber($run['rpm'] ?? null)
+            || !self::positiveNumber($run['duration_seconds'] ?? null)
+            || $run['duration_seconds'] < self::MIN_SUSTAINED_SECONDS
+            || !self::positiveNumber($run['peak_rss_mb'] ?? null)
+            || ($run['samples'] ?? 0) < 10
+        ) {
+            throw new InvalidArgumentException(sprintf('Invalid or unsustained evidence for %s.', $key));
+        }
+
+        if ($report['workload_profile'] === 'authenticated-read'
+            && (($run['authenticated'] ?? false) !== true
+                || ($run['database_queries'] ?? 0) < 2 * $run['successful']
+                || ($run['application_cache_hits'] ?? 0) !== $run['successful'])
+        ) {
+            throw new InvalidArgumentException('Authenticated workload query/cache evidence is incomplete.');
+        }
+
+        return ['successful' => $run['successful'], 'duration_seconds' => $run['duration_seconds'], 'rpm' => $run['rpm']];
+    }
+}

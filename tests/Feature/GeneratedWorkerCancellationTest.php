@@ -13,17 +13,20 @@ use Infocyph\Foundation\Worker\WorkerRestartRequested;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
 final class FoundationGeneratedWorkerCancellationProbe {}
 
 final class FoundationGeneratedWorkerCancellationProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
-        $builder->scoped(
+        $builder->factory(
             FoundationGeneratedWorkerCancellationProbe::class,
             FactoryDefinition::construct(FoundationGeneratedWorkerCancellationProbe::class),
+            LifetimeEnum::Scoped,
         );
     }
 }
@@ -91,6 +94,7 @@ it('releases generated worker scope when restart cancels an active item', functi
             ->toThrow(ServiceResolutionException::class);
 
         $restartRequested = false;
+        expect($worker->stopRequested())->toBe($restartRequested);
         $next = $worker->execute(
             static fn(ExecutionId $id): array => [
                 (string) $id,
@@ -115,6 +119,7 @@ function foundationGeneratedWorkerCancellationProject(): string
     return $project;
 }
 
+/** @throws \UnexpectedValueException */
 function foundationGeneratedWorkerCancellationRemove(string $directory): void
 {
     if (!is_dir($directory)) {
@@ -126,6 +131,10 @@ function foundationGeneratedWorkerCancellationRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!$file instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('Expected a filesystem iterator entry.');
+        }
+
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

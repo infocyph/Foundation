@@ -22,6 +22,7 @@ final readonly class ProcessOptions
      * @param (callable():bool)|null $heartbeat Return false when the child must stop.
      * @param (callable(string):void)|null $onStdout
      * @param (callable(string):void)|null $onStderr
+     * @throws \InvalidArgumentException
      */
     public function __construct(
         public ?string $cwd = null,
@@ -51,6 +52,9 @@ final readonly class ProcessOptions
         $this->onStderr = $onStderr === null ? null : Closure::fromCallable($onStderr);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function validateDurations(): void
     {
         if ($this->timeoutSeconds !== null
@@ -71,6 +75,7 @@ final readonly class ProcessOptions
     /**
      * @param (callable(string):void)|null $onStdout
      * @param (callable(string):void)|null $onStderr
+     * @throws \InvalidArgumentException
      */
     private function validateInteractiveStreams(?callable $onStdout, ?callable $onStderr): void
     {
@@ -91,6 +96,9 @@ final readonly class ProcessOptions
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function validateOutputLimit(): void
     {
         if ($this->maxOutputBytes !== null && $this->maxOutputBytes < 1) {

@@ -12,6 +12,13 @@ final class FoundationMaintenanceWorker implements WorkerProvider
 {
     public static int $runs = 0;
 
+    /**
+     * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     * @throws \Throwable
+     */
+    #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
         $runtime->heartbeat();
@@ -145,6 +152,7 @@ function foundationWorkerRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

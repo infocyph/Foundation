@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Release;
 
 use Infocyph\Foundation\Application\RuntimeMode;
+use Infocyph\Foundation\Config\ConfigLoader;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeMetadata;
@@ -12,7 +14,11 @@ use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
 use Infocyph\Foundation\Worker\WorkerTopology;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 
-/** Coordinates one immutable Foundation release generation across all runtimes. */
+/**
+ * Coordinates immutable Foundation release generations across all runtimes.
+ *
+ * @api
+ */
 final readonly class FoundationReleaseCompiler
 {
     public function __construct(
@@ -35,6 +41,11 @@ final readonly class FoundationReleaseCompiler
      *   active_pointer:string,
      *   release:array<string,mixed>
      * }
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \Exception
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     public function buildAndActivate(
         array $config,
@@ -46,35 +57,43 @@ final readonly class FoundationReleaseCompiler
         $generation ??= gmdate('YmdHis') . '-' . bin2hex(random_bytes(8));
         $this->assertGeneration($generation);
         $lock = FoundationReleaseBuildLock::acquire($releaseRoot);
-        $stage = '';
 
         try {
+            // Keep the release lock even if the generation directory cannot be prepared.
             [$stage, $final] = $this->generationPaths($releaseRoot, $generation);
-            $manifest = $this->compileGeneration($config, $stage, $final, $generation, $capabilities);
-            FoundationReleaseManifest::write($stage . '/foundation.php', $manifest);
-            $this->verifyStage($stage, $manifest);
-            $this->publishStage($stage, $final, $generation);
-            $stage = '';
-            $manifestPath = $final . '/foundation.php';
-            $manifestSha256 = $this->sha256($manifestPath, 'Foundation release manifest');
-            $activePointer = $this->active->activate($releaseRoot, $generation);
 
-            return [
-                'generation' => $generation,
-                'manifest' => $manifestPath,
-                'manifest_sha256' => $manifestSha256,
-                'active_pointer' => $activePointer,
-                'release' => $manifest,
-            ];
-        } finally {
-            if ($stage !== '' && is_dir($stage)) {
-                $this->removeDirectory($stage);
+            try {
+                $manifest = $this->compileGeneration($config, $stage, $final, $generation, $capabilities);
+                FoundationReleaseManifest::write($stage . '/foundation.php', $manifest);
+                $this->verifyStage($stage, $manifest);
+                $this->publishStage($stage, $final, $generation);
+                $manifestPath = $final . '/foundation.php';
+                $manifestSha256 = $this->sha256($manifestPath, 'Foundation release manifest');
+                $activePointer = $this->active->activate($releaseRoot, $generation);
+
+                return [
+                    'generation' => $generation,
+                    'manifest' => $manifestPath,
+                    'manifest_sha256' => $manifestSha256,
+                    'active_pointer' => $activePointer,
+                    'release' => $manifest,
+                ];
+            } finally {
+                // Publication moves the stage out of this path; failures leave it here.
+                if (is_dir($stage)) {
+                    $this->removeDirectory($stage);
+                }
             }
+        } finally {
             $lock->release();
         }
     }
 
-    /** Explicitly remove Foundation-owned release generations and the active pointer. */
+    /**
+     * Explicitly remove Foundation-owned release generations and the active pointer.
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function clear(string $releaseRoot): bool
     {
         $releaseRoot = $this->root($releaseRoot);
@@ -98,6 +117,8 @@ final readonly class FoundationReleaseCompiler
      * Explicit housekeeping; never called from request/job hot paths.
      *
      * @return list<string>
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function prune(string $releaseRoot, int $keep = 2): array
     {
@@ -155,6 +176,8 @@ final readonly class FoundationReleaseCompiler
      *   manifest:?string,
      *   manifest_sha256:?string
      * }
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function status(string $releaseRoot): array
     {
@@ -189,6 +212,9 @@ final readonly class FoundationReleaseCompiler
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function assertGeneration(string $generation): void
     {
         if (preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*$/D', $generation) !== 1) {
@@ -200,6 +226,12 @@ final readonly class FoundationReleaseCompiler
      * @param array<string,mixed> $config
      * @param array<string,array<int|string,mixed>> $capabilities
      * @return array<string,mixed>
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     * @throws \Exception
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     private function compileGeneration(
         array $config,
@@ -210,8 +242,13 @@ final readonly class FoundationReleaseCompiler
     ): array {
         ReleaseGenerationLease::initialize($stage);
         $this->mkdir($stage . '/web');
+        // The deployed release uses an immutable, compiled ConfigRepository.
+        // Compile against that exact graph identity, not the development-only
+        // ConfigRepository(compiled: false) definition.
+        $normalizedConfig = new ConfigLoader()->load($config);
+        $compiledConfig = new ConfigRepository($normalizedConfig->all(), compiled: true);
         $web = $this->web->compile(
-            $config,
+            $compiledConfig,
             $stage . '/web/container.php',
             $stage . '/web/router.php',
             $stage . '/web/release.json',
@@ -221,7 +258,7 @@ final readonly class FoundationReleaseCompiler
         $environment = $this->stringField($web, 'environment');
         $configFingerprint = $this->digestField($web, 'config_fingerprint', 32);
         $webCapabilities = FoundationReleaseManifest::capabilities(
-            $web['foundation_capabilities'] ?? null,
+            $web['foundation_capabilities'],
             'web.capabilities',
         );
         $releaseConfig = $this->releaseConfig($web, $stage);
@@ -266,6 +303,11 @@ final readonly class FoundationReleaseCompiler
      * @param array<string,mixed> $config
      * @param array<int|string,mixed> $capabilities
      * @return array<string,mixed>
+     * @throws \RuntimeException
+     * @throws \Exception
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Cache\InvalidArgumentException
      */
     private function compileNonWebSection(
         array $config,
@@ -292,9 +334,8 @@ final readonly class FoundationReleaseCompiler
                 $name,
             ));
         }
-        if ($report['skipped'] !== []) {
-            throw new \RuntimeException(sprintf('Foundation %s runtime contains skipped definitions.', $name));
-        }
+        // GeneratedRuntimeCompiler already rejects every skipped definition
+        // except an explicitly declared native InterMix scoped input.
 
         return [
             'intermix_path' => $name . '/container.php',
@@ -305,13 +346,19 @@ final readonly class FoundationReleaseCompiler
         ];
     }
 
-    /** @param array<string,mixed> $source */
+    /**
+     * @param array<string,mixed> $source
+     * @throws \UnexpectedValueException
+     */
     private function digestField(array $source, string $field, int $length): string
     {
         return FoundationReleaseManifest::digest($source[$field] ?? null, $length, $field);
     }
 
-    /** @return array{0:string,1:string} */
+    /**
+     * @return array{0:string,1:string}
+     * @throws \RuntimeException
+     */
     private function generationPaths(string $releaseRoot, string $generation): array
     {
         $generations = $releaseRoot . DIRECTORY_SEPARATOR . 'generations';
@@ -321,7 +368,7 @@ final readonly class FoundationReleaseCompiler
         if (file_exists($final)) {
             throw new \RuntimeException(sprintf('Foundation release generation "%s" already exists.', $generation));
         }
-        $this->mkdir($stage);
+        $this->mkdir($stage, 0700);
 
         return [$stage, $final];
     }
@@ -341,7 +388,11 @@ final readonly class FoundationReleaseCompiler
         return $entries;
     }
 
-    /** @param array<string,mixed> $web */
+    /**
+     * @param array<string,mixed> $web
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     private function matcherCacheRelativePath(array $web, string $stage): ?string
     {
         $path = $web['foundation_matcher_cache_path'] ?? null;
@@ -360,20 +411,64 @@ final readonly class FoundationReleaseCompiler
         return str_replace(DIRECTORY_SEPARATOR, '/', substr($path, strlen($prefix)));
     }
 
-    private function mkdir(string $directory): void
+    /**
+     * @throws \RuntimeException
+     */
+    private function mkdir(string $directory, int $mode = 0775): void
     {
-        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+        if (!is_dir($directory) && !mkdir($directory, $mode, true) && !is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create Foundation release directory "%s".', $directory));
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function publishStage(string $stage, string $final, string $generation): void
     {
-        if (!rename($stage, $final)) {
+        // InterMix publishes absolute activation symlinks. The Foundation-owned
+        // generation move must make them relative to their immutable build,
+        // otherwise the symlinks retain the removed staging directory path.
+        foreach (['web', 'cli', 'worker', 'scheduler'] as $mode) {
+            $pointer = $stage . '/' . $mode . '/container.php';
+            $directory = realpath(dirname($pointer));
+            $builds = realpath($pointer . '.builds');
+            $target = realpath($pointer);
+            if (!is_link($pointer)
+                || !is_string($directory)
+                || !is_string($builds)
+                || !is_string($target)
+                || $builds !== $directory . DIRECTORY_SEPARATOR . 'container.php.builds'
+                || dirname($target, 2) !== $builds
+                || basename($target) !== 'runtime.php'
+                || !is_file(dirname($target) . '/manifest.json')
+            ) {
+                throw new \RuntimeException(sprintf('Foundation %s runtime activation pointer is invalid.', $mode));
+            }
+
+            $relativeTarget = substr($target, strlen($directory) + 1);
+            $temporary = $pointer . '.relative-' . bin2hex(random_bytes(8));
+
+            try {
+                if (!symlink($relativeTarget, $temporary) || !rename($temporary, $pointer)) {
+                    throw new \RuntimeException(sprintf('Unable to publish portable %s runtime pointer.', $mode));
+                }
+            } finally {
+                if (is_link($temporary)) {
+                    unlink($temporary);
+                }
+            }
+        }
+
+        if (!chmod($stage, 0750) || !rename($stage, $final)) {
             throw new \RuntimeException(sprintf('Unable to publish Foundation release generation "%s".', $generation));
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     private function rebaseWebReleaseManifest(string $stage, string $final): string
     {
         $releasePath = $stage . '/web/release.json';
@@ -417,6 +512,8 @@ final readonly class FoundationReleaseCompiler
     /**
      * @param array<string,mixed> $web
      * @return array{path:string,sha256:string}
+     * @throws \UnexpectedValueException
+     * @throws \RuntimeException
      */
     private function releaseConfig(array $web, string $stage): array
     {
@@ -459,6 +556,9 @@ final readonly class FoundationReleaseCompiler
         rmdir($directory);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function root(string $releaseRoot): string
     {
         $releaseRoot = rtrim($releaseRoot, DIRECTORY_SEPARATOR);
@@ -469,6 +569,9 @@ final readonly class FoundationReleaseCompiler
         return $releaseRoot;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function sha256(string $path, string $artifact): string
     {
         $sha256 = hash_file('sha256', $path);
@@ -479,13 +582,19 @@ final readonly class FoundationReleaseCompiler
         return $sha256;
     }
 
-    /** @param array<string,mixed> $source */
+    /**
+     * @param array<string,mixed> $source
+     * @throws \UnexpectedValueException
+     */
     private function stringField(array $source, string $field): string
     {
         return FoundationReleaseManifest::nonEmptyString($source[$field] ?? null, $field);
     }
 
-    /** @param array<string,mixed> $manifest */
+    /**
+     * @param array<string,mixed> $manifest
+     * @throws \RuntimeException
+     */
     private function verifyStage(string $stage, array $manifest): void
     {
         FoundationReleaseManifest::assertValid($manifest);
@@ -559,6 +668,9 @@ final readonly class FoundationReleaseCompiler
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function writeAtomic(string $path, string $contents): void
     {
         $temporary = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';

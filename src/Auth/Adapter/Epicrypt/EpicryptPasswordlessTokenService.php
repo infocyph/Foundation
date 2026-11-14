@@ -11,6 +11,10 @@ final readonly class EpicryptPasswordlessTokenService extends AbstractEpicryptTi
 {
     private const string CONTEXT = 'auth.passwordless';
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
+    #[\Override]
     public function issue(string $identifier, array $context = []): string
     {
         return $this->issueTimedToken(self::CONTEXT, [
@@ -21,6 +25,10 @@ final readonly class EpicryptPasswordlessTokenService extends AbstractEpicryptTi
         ]);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
+    #[\Override]
     public function verify(string $token): TokenVerificationResult
     {
         $claims = $this->verifyTimedToken($token, self::CONTEXT, 'passwordless');

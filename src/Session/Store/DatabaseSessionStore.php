@@ -15,11 +15,13 @@ final readonly class DatabaseSessionStore implements SessionStoreInterface
         private string $table = 'sessions',
     ) {}
 
+    #[\Override]
     public function delete(string $id): void
     {
         $this->connection->table($this->table)->where('id', '=', $id)->delete();
     }
 
+    #[\Override]
     public function load(string $id, int $now): ?SessionPayload
     {
         $row = $this->connection->table($this->table)->where('id', '=', $id)->first();
@@ -50,6 +52,7 @@ final readonly class DatabaseSessionStore implements SessionStoreInterface
         return $decoded;
     }
 
+    #[\Override]
     public function prune(int $now, int $limit = 1_000): int
     {
         $ids = $this->connection->table($this->table)
@@ -68,6 +71,7 @@ final readonly class DatabaseSessionStore implements SessionStoreInterface
             : $this->connection->table($this->table)->whereIn('id', $normalized)->delete();
     }
 
+    #[\Override]
     public function save(string $id, SessionPayload $payload): void
     {
         $this->connection->table($this->table)->upsert([

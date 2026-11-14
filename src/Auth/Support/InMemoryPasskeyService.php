@@ -24,6 +24,7 @@ final class InMemoryPasskeyService implements PasskeyServiceInterface
         private readonly int $ttlSeconds = 300,
     ) {}
 
+    #[\Override]
     public function finishAuthentication(PasskeyAuthenticationResult $result): PasskeyVerificationResult
     {
         $challenge = $this->consumeChallenge($result->challengeId, 'authentication');
@@ -52,6 +53,10 @@ final class InMemoryPasskeyService implements PasskeyServiceInterface
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function finishRegistration(PasskeyRegistrationResult $result): PasskeyCredential
     {
         $challenge = $this->consumeChallenge($result->challengeId, 'registration');
@@ -72,11 +77,13 @@ final class InMemoryPasskeyService implements PasskeyServiceInterface
         );
     }
 
+    #[\Override]
     public function startAuthentication(?string $accountId = null): PasskeyChallenge
     {
         return $this->storeChallenge($accountId, 'authentication');
     }
 
+    #[\Override]
     public function startRegistration(string $accountId): PasskeyChallenge
     {
         return $this->storeChallenge($accountId, 'registration');

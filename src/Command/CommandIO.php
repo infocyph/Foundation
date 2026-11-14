@@ -17,7 +17,8 @@ interface CommandIO
 
     public function interactive(): bool;
 
-    public function json(mixed $value): void;
+    /** @param array<array-key, mixed> $value */
+    public function json(array $value): void;
 
     public function machineReadable(): bool;
 

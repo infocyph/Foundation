@@ -19,17 +19,22 @@ use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 use Infocyph\Foundation\Release\FoundationReleaseRuntime;
 use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Scheduling\SchedulerRuntime;
+use Infocyph\Foundation\Tests\Fixtures\EnvironmentSecretStageObserver;
 use Infocyph\Foundation\Worker\WorkerManager;
 use Infocyph\Foundation\Worker\WorkerProvider;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Matching\FusedMatcher;
 use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
 use Infocyph\Webrick\Router\Matching\ShardedMatcher;
+
+require_once dirname(__DIR__) . '/Fixtures/EnvironmentSecretStageObserver.php';
+require_once dirname(__DIR__) . '/Fixtures/environment_secret_stage_hooks.php';
 
 final readonly class FoundationPhase8ReleaseProbe
 {
@@ -42,9 +47,11 @@ final class FoundationPhase8ReleaseScopedProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
@@ -52,11 +59,16 @@ final readonly class FoundationPhase8ReleaseCliCommand implements CommandHandler
 {
     public function __construct(private FoundationPhase8ReleaseProbe $probe) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command->name('phase8:cli')->runtime(RuntimeMode::Cli);
     }
 
+    #[\Override]
     public function run(CommandContext $context): int
     {
         $context->io()->info($this->probe->runtime->value);
@@ -69,11 +81,16 @@ final readonly class FoundationPhase8ReleaseSchedulerCommand implements CommandH
 {
     public function __construct(private FoundationPhase8ReleaseProbe $probe) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command->name('phase8:scheduler')->runtime(RuntimeMode::Scheduler);
     }
 
+    #[\Override]
     public function run(CommandContext $context): int
     {
         $context->io()->info($this->probe->runtime->value);
@@ -88,6 +105,13 @@ final class FoundationPhase8ReleaseWorkerProvider implements WorkerProvider
 
     public function __construct(private readonly FoundationPhase8ReleaseProbe $probe) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
+     * @throws \LogicException
+     * @throws \Throwable
+     */
+    #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
         self::$observedRuntime = $this->probe->runtime;
@@ -105,6 +129,10 @@ final class FoundationPhase8ReleaseIO implements CommandIO
     /** @var list<string> */
     public array $lines = [];
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
         unset($question, $choices, $default);
@@ -112,6 +140,7 @@ final class FoundationPhase8ReleaseIO implements CommandIO
         throw new LogicException('Choice input is not expected in release runtime tests.');
     }
 
+    #[\Override]
     public function confirm(string $question, bool $default = false): bool
     {
         unset($question, $default);
@@ -119,36 +148,46 @@ final class FoundationPhase8ReleaseIO implements CommandIO
         return false;
     }
 
+    #[\Override]
     public function error(string $message): void
     {
         $this->errors[] = $message;
     }
 
+    #[\Override]
     public function info(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function interactive(): bool
     {
         return false;
     }
 
+    #[\Override]
     public function json(mixed $value): void
     {
         $this->lines[] = json_encode($value, JSON_THROW_ON_ERROR);
     }
 
+    #[\Override]
     public function machineReadable(): bool
     {
         return false;
     }
 
+    #[\Override]
     public function note(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function password(string $question): string
     {
         unset($question);
@@ -156,11 +195,16 @@ final class FoundationPhase8ReleaseIO implements CommandIO
         throw new LogicException('Password input is not expected in release runtime tests.');
     }
 
+    #[\Override]
     public function quiet(): bool
     {
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function read(string $question, ?string $default = null): string
     {
         unset($question, $default);
@@ -168,54 +212,66 @@ final class FoundationPhase8ReleaseIO implements CommandIO
         throw new LogicException('Text input is not expected in release runtime tests.');
     }
 
+    #[\Override]
     public function success(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function table(array $headers, array $rows): void
     {
         unset($headers, $rows);
     }
 
+    #[\Override]
     public function warning(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function write(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function writeln(string $message = ''): void
     {
         $this->lines[] = $message;
     }
 }
 
+/**
+ * Runtime entry point discovered through native provider, route or benchmark metadata.
+ *
+ * @api
+ */
 final class FoundationPhase8ReleaseProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
-        $builder->singleton(
+        $builder->factory(
             FoundationPhase8ReleaseProbe::class,
             FactoryDefinition::construct(
                 FoundationPhase8ReleaseProbe::class,
                 [new ServiceReference(RuntimeMode::class)],
             ),
         );
-        $builder->scoped(
+        $builder->factory(
             FoundationPhase8ReleaseScopedProbe::class,
             FactoryDefinition::construct(FoundationPhase8ReleaseScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
         foreach ([
             FoundationPhase8ReleaseCliCommand::class,
             FoundationPhase8ReleaseSchedulerCommand::class,
             FoundationPhase8ReleaseWorkerProvider::class,
         ] as $service) {
-            $builder->singleton(
+            $builder->factory(
                 $service,
                 FactoryDefinition::construct(
                     $service,
@@ -226,6 +282,11 @@ final class FoundationPhase8ReleaseProvider extends ServiceProvider
     }
 }
 
+/**
+ * Runtime entry point discovered through native provider, route or benchmark metadata.
+ *
+ * @api
+ */
 final class FoundationPhase8ReleaseWebHandler
 {
     public function __invoke(): Response
@@ -233,6 +294,44 @@ final class FoundationPhase8ReleaseWebHandler
         return Response::json(['generation' => 'phase8-e2e']);
     }
 }
+
+it('keeps generated configuration inside private staging and a restricted published generation', function (): void {
+    $project = foundationPhase8ReleaseProject();
+    $releaseRoot = $project . '/storage/releases';
+    $config = foundationPhase8ReleaseConfig($project);
+    $config['app'] = [
+        ...\foundationStringMap($config['app'] ?? null),
+        'release_secret_marker' => 'private-generation-test-secret',
+    ];
+    $previousUmask = umask(0000);
+
+    try {
+        EnvironmentSecretStageObserver::$active = true;
+        EnvironmentSecretStageObserver::$configDirectoryMode = null;
+        new FoundationReleaseCompiler()->buildAndActivate(
+            $config,
+            $releaseRoot,
+            capabilities: ['web' => [], 'cli' => [], 'worker' => [], 'scheduler' => []],
+            generation: 'private-generation',
+        );
+        $generation = $releaseRoot . '/generations/private-generation';
+        $mode = fileperms($generation);
+        \PHPUnit\Framework\Assert::assertIsInt($mode);
+        $artifact = file_get_contents($generation . '/cli/container.php');
+        \PHPUnit\Framework\Assert::assertIsString($artifact);
+        expect(EnvironmentSecretStageObserver::$configDirectoryMode)->toBe(0700)
+            ->and($mode & 0777)->toBe(0750)
+            ->and($artifact)->toContain('private-generation-test-secret');
+    } finally {
+        EnvironmentSecretStageObserver::$active = false;
+        EnvironmentSecretStageObserver::$configDirectoryMode = null;
+        EnvironmentSecretStageObserver::$modeAtFirstWrite = null;
+        EnvironmentSecretStageObserver::$writes = 0;
+        umask($previousUmask);
+        \foundationResetWebrickProductionRegistries();
+        foundationPhase8ReleaseRemove($project);
+    }
+});
 
 it('builds activates and boots all four runtimes from one immutable Foundation generation', function (): void {
     $project = foundationPhase8ReleaseProject();
@@ -253,7 +352,8 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         );
 
         $generation = $releaseRoot . '/generations/phase8-e2e';
-        $foundationManifest = require $generation . '/foundation.php';
+        $foundationManifest = \foundationReadPhpFixtureArray($generation . '/foundation.php');
+        \PHPUnit\Framework\Assert::assertIsArray(($foundationManifest['worker'] ?? null));
         expect($release['generation'])->toBe('phase8-e2e')
             ->and(new ActiveGeneration()->current($releaseRoot)['generation'])->toBe('phase8-e2e')
             ->and(is_file($generation . '/foundation.php'))->toBeTrue()
@@ -264,18 +364,23 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
             ->and($foundationManifest['worker']['provider_topology'] ?? null)->toBe('worker/providers.php')
             ->and($foundationManifest['worker']['provider_topology_sha256'] ?? null)->toMatch('/^[a-f0-9]{64}$/D');
 
-        foreach (['cli', 'worker', 'scheduler'] as $runtime) {
-            expect(is_file($generation . '/' . $runtime . '/container.php'))->toBeTrue()
-                ->and(is_file($generation . '/' . $runtime . '/container.php.meta.json'))->toBeTrue()
-                ->and(is_file($generation . '/' . $runtime . '/container.php.foundation.json'))->toBeTrue();
+        foreach (['web', 'cli', 'worker', 'scheduler'] as $runtime) {
+            $pointer = $generation . '/' . $runtime . '/container.php';
+            $target = realpath($pointer);
+            expect(is_link($pointer))->toBeTrue()
+                ->and(is_file($pointer))->toBeTrue()
+                ->and(readlink($pointer))->toStartWith('container.php.builds/')
+                ->and($target)->toBeString()
+                ->and(is_file(dirname((string) $target) . '/manifest.json'))->toBeTrue();
+
+            if ($runtime !== 'web') {
+                expect(is_file($pointer . '.foundation.json'))->toBeTrue();
+            }
         }
 
         $trustedFoundationSha256 = hash_file('sha256', $release['manifest']);
-        expect($trustedFoundationSha256)->toBeString()
-            ->and($trustedFoundationSha256)->toMatch('/^[a-f0-9]{64}$/D');
-        if (!is_string($trustedFoundationSha256)) {
-            throw new RuntimeException('Unable to hash the generated Foundation manifest.');
-        }
+        \PHPUnit\Framework\Assert::assertIsString($trustedFoundationSha256);
+        expect($trustedFoundationSha256)->toMatch('/^[a-f0-9]{64}$/D');
 
         $sourceWorkerSupervisor = Foundation::worker($config);
         expect($sourceWorkerSupervisor->booted())->toBeFalse();
@@ -292,6 +397,34 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         ));
         expect($response->getStatusCode())->toBe(200)
             ->and((string) $response->getBody())->toBe('{"generation":"phase8-e2e"}');
+
+        foundationResetWebrickProductionRegistries();
+        $bootstrap = new FoundationReleaseBootstrap($releaseRoot, $trustedFoundationSha256);
+        $hostRuntime = \Infocyph\Runwire\RuntimeContext::standalone();
+        $host = $bootstrap->create($hostRuntime);
+        $hostRequest = \Infocyph\Runwire\RequestContext::create($hostRuntime);
+        $writer = new \Infocyph\Foundation\Tests\Fixtures\RunwireCollectingWriter();
+        $host->start();
+
+        try {
+            $host->handle(new \Infocyph\Runwire\Http\HttpRequest(
+                method: 'GET',
+                target: '/phase8',
+                version: \Infocyph\Runwire\Http\Enum\ProtocolVersion::HTTP_1_1,
+                headers: \Infocyph\Runwire\Http\Headers::fromArray(['Host' => 'phase8.test']),
+                body: new \Infocyph\Foundation\Tests\Fixtures\RunwireEmptyBody(),
+                context: $hostRequest,
+            ), $writer, completeResponse: true);
+            expect($writer->status)->toBe(200)
+                ->and($writer->endCalls)->toBe(1)
+                ->and($writer->body)->toBe('{"generation":"phase8-e2e"}')
+                ->and($hostRequest->completed())->toBeTrue();
+        } finally {
+            $host->drain();
+            $host->shutdown();
+        }
+        expect(fn() => new FoundationReleaseBootstrap($releaseRoot, str_repeat('0', 64))->create($hostRuntime))
+            ->toThrow(RuntimeException::class);
 
         file_put_contents(
             $project . '/bootstrap/providers.php',
@@ -364,6 +497,7 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         $previousRoot = getenv(FoundationReleaseBootstrap::RELEASE_ROOT_ENV);
         $previousSha256 = getenv(FoundationReleaseBootstrap::MANIFEST_SHA256_ENV);
         FoundationPhase8ReleaseWorkerProvider::$observedRuntime = null;
+
         try {
             foundationPhase8ReleaseSetEnvironment(FoundationReleaseBootstrap::RELEASE_ROOT_ENV, $releaseRoot);
             foundationPhase8ReleaseSetEnvironment(
@@ -384,6 +518,139 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
             );
         }
     } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationPhase8ReleaseRemove($project);
+    }
+});
+
+it('rehearses a trusted four-mode generated-release rollback without losing retained authentication data', function (): void {
+    $project = foundationPhase8ReleaseProject();
+    $releaseRoot = $project . '/storage/releases';
+    $config = foundationPhase8ReleaseConfig($project);
+    \PHPUnit\Framework\Assert::assertIsArray(($config['database'] ?? null));
+    \PHPUnit\Framework\Assert::assertIsArray(($config['database']['connections'] ?? null));
+
+    $config['database']['connections']['primary'] = [
+        'driver' => 'sqlite',
+        'database' => $project . '/storage/retained-auth.sqlite',
+    ];
+    $connection = new \Infocyph\DBLayer\Connection\Connection(
+        \Infocyph\DBLayer\Connection\ConnectionConfig::fromArray($config['database']['connections']['primary']),
+    );
+    $tables = new \Infocyph\Foundation\Database\AuthSchema\AuthTables();
+    $now = time();
+
+    try {
+        (new \Infocyph\DBLayer\Migration\MigrationRunner(
+            $connection,
+            [new \Infocyph\Foundation\Database\AuthSchema\AuthSchema($tables)],
+        ))->run();
+
+        $passwordHash = password_hash('retained-release-password', PASSWORD_BCRYPT);
+        $connection->table($tables->accounts())->insert([
+            'id' => 'retained-owner',
+            'identifier' => 'retained@example.test',
+            'status' => 'active',
+            'password_hash' => $passwordHash,
+            'metadata' => '{"release":"before"}',
+        ]);
+        $connection->table($tables->sessions())->insert([
+            'id' => 'retained-session',
+            'account_id' => 'retained-owner',
+            'device_id' => null,
+            'created_at' => $now,
+            'last_seen_at' => $now,
+            'expires_at' => $now + 3600,
+            'recent_auth_at' => $now,
+            'metadata' => '{"bound":"retained-owner"}',
+        ]);
+        $connection->table($tables->refreshTokens())->insert([
+            'id' => 'retained-refresh',
+            'account_id' => 'retained-owner',
+            'client_id' => 'release-consumer',
+            'device_id' => null,
+            'token_hash' => hash('sha3-256', 'retained-release-token'),
+            'family_id' => 'retained-family',
+            'issued_at' => $now,
+            'expires_at' => $now + 3600,
+            'rotated_at' => null,
+            'revoked_at' => null,
+            'metadata' => null,
+        ]);
+
+        $compiler = new FoundationReleaseCompiler();
+        $capabilities = ['web' => [], 'cli' => [], 'worker' => [], 'scheduler' => []];
+        $previous = $compiler->buildAndActivate(
+            $config,
+            $releaseRoot,
+            capabilities: $capabilities,
+            generation: 'retained-before',
+        );
+        $candidate = $compiler->buildAndActivate(
+            $config,
+            $releaseRoot,
+            capabilities: $capabilities,
+            generation: 'retained-candidate',
+        );
+        $active = new ActiveGeneration();
+        $expectedFingerprint = \Infocyph\Foundation\Release\FoundationReleaseManifest::dependencyFingerprint();
+
+        foreach ([
+            ['retained-candidate', $candidate, $previous],
+            ['retained-before', $previous, $candidate],
+            ['retained-candidate', $candidate, $previous],
+        ] as [$generationName, $selected, $rejected]) {
+            $active->activate($releaseRoot, $generationName);
+            expect($active->current($releaseRoot)['generation'])->toBe($generationName)
+                ->and($selected['release']['dependency_fingerprint'])->toBe($expectedFingerprint)
+                ->and($selected['manifest_sha256'])->toMatch('/^[a-f0-9]{64}$/D');
+
+            foreach (['web', 'cli', 'worker', 'scheduler'] as $mode) {
+                $container = $releaseRoot . '/generations/' . $generationName . '/' . $mode . '/container.php';
+                expect(is_file($container))->toBeTrue()
+                    ->and(is_link($container))->toBeTrue();
+            }
+
+            $loader = new FoundationReleaseRuntime();
+            foundationResetWebrickProductionRegistries();
+            $web = $loader->webPrevalidated(
+                $config,
+                $releaseRoot,
+                $selected['manifest_sha256'],
+            );
+            $response = $web->kernel->handle(Request::fake(
+                headers: ['Host' => 'phase8.test'],
+                uri: 'https://phase8.test/phase8',
+            ));
+            expect($response->getStatusCode())->toBe(200)
+                ->and((string) $response->getBody())->toBe('{"generation":"phase8-e2e"}');
+
+            foreach ([RuntimeMode::Cli, RuntimeMode::Worker, RuntimeMode::Scheduler] as $mode) {
+                $runtime = $loader->nonWebPrevalidated(
+                    $config,
+                    $mode,
+                    $releaseRoot,
+                    $selected['manifest_sha256'],
+                );
+                expect($runtime->application->runtimeMode())->toBe($mode);
+            }
+
+            expect(fn() => $loader->trustedActiveManifest(
+                $releaseRoot,
+                $rejected['manifest_sha256'],
+            ))->toThrow(RuntimeException::class);
+
+            $stored = $connection->select(
+                'SELECT password_hash FROM ' . $tables->accounts() . ' WHERE id = ?',
+                ['retained-owner'],
+            );
+            expect($stored)->toHaveCount(1)
+                ->and(password_verify('retained-release-password', foundationFixtureString($stored[0]['password_hash'])))->toBeTrue()
+                ->and($connection->table($tables->sessions())->count())->toBe(1)
+                ->and($connection->table($tables->refreshTokens())->count())->toBe(1);
+        }
+    } finally {
+        $connection->disconnect();
         foundationResetWebrickProductionRegistries();
         foundationPhase8ReleaseRemove($project);
     }
@@ -412,6 +679,7 @@ it('publishes and boots every production matcher from its native Webrick cache',
         $project = foundationPhase8ReleaseProject();
         $releaseRoot = $project . '/storage/releases';
         $config = foundationPhase8ReleaseConfig($project);
+        \PHPUnit\Framework\Assert::assertIsArray(($config['router'] ?? null));
         $config['router']['matcher'] = $name;
 
         try {
@@ -428,10 +696,11 @@ it('publishes and boots every production matcher from its native Webrick cache',
             );
 
             $generation = $releaseRoot . '/generations/phase8-' . $name;
-            $manifest = require $generation . '/foundation.php';
+            $manifest = \foundationReadPhpFixtureArray($generation . '/foundation.php');
+            \PHPUnit\Framework\Assert::assertIsArray(($manifest['web'] ?? null));
             $cachePath = $manifest['web']['matcher_cache_path'] ?? null;
             $absoluteCachePath = $generation . DIRECTORY_SEPARATOR
-                . str_replace('/', DIRECTORY_SEPARATOR, (string) $cachePath);
+                . str_replace('/', DIRECTORY_SEPARATOR, foundationFixtureString($cachePath));
 
             expect($cachePath)->toBe($case['path'])
                 ->and(array_key_exists('matcher_cache_sha256', $manifest['web']))->toBeFalse();
@@ -457,8 +726,8 @@ it('publishes and boots every production matcher from its native Webrick cache',
             $reflection = new ReflectionProperty($runtime->kernel, 'matcher');
             $matcher = $reflection->getValue($runtime->kernel);
 
-            expect($matcher)->toBeInstanceOf($case['class'])
-                ->and($matcher->canBootFromCache())->toBeTrue();
+            \PHPUnit\Framework\Assert::assertInstanceOf($case['class'], $matcher);
+            expect($matcher->canBootFromCache())->toBeTrue();
 
             $response = $runtime->kernel->handle(Request::fake(
                 headers: ['Host' => 'phase8.test'],
@@ -477,6 +746,7 @@ it('lets Webrick validate route shards lazily on native access', function (): vo
     $project = foundationPhase8ReleaseProject();
     $releaseRoot = $project . '/storage/releases';
     $config = foundationPhase8ReleaseConfig($project);
+    \PHPUnit\Framework\Assert::assertIsArray(($config['router'] ?? null));
     $config['router']['matcher'] = 'sharded';
 
     try {
@@ -500,6 +770,7 @@ it('lets Webrick validate route shards lazily on native access', function (): vo
         );
         $tampered = 0;
         foreach ($files as $file) {
+            \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
             if (!$file->isFile()
                 || !str_ends_with($file->getFilename(), '.php')
                 || str_starts_with($file->getFilename(), '__')
@@ -540,9 +811,9 @@ it('lets Webrick validate route shards lazily on native access', function (): vo
         $reflection = new ReflectionProperty($runtime->kernel, 'matcher');
         $matcher = $reflection->getValue($runtime->kernel);
 
-        expect($matcher)->toBeInstanceOf(ShardedMatcher::class)
-            ->and($matcher->canBootFromCache())->toBeTrue()
-            ->and(fn() => $matcher->matchCompiled('GET', 'phase8.test', '/phase8'))
+        \PHPUnit\Framework\Assert::assertInstanceOf(ShardedMatcher::class, $matcher);
+        expect($matcher->canBootFromCache())->toBeTrue()
+            ->and(fn(): mixed => $matcher->matchCompiled('GET', 'phase8.test', '/phase8'))
             ->toThrow(RuntimeException::class, 'hash mismatch');
     } finally {
         foundationResetWebrickProductionRegistries();
@@ -581,7 +852,10 @@ it('keeps worker run dispatcher parents unbooted before pooled-worker validation
     }
 });
 
-/** @return array<string,mixed> */
+/**
+ * @return array<string,mixed>
+ * @throws \InvalidArgumentException
+ */
 function foundationPhase8ReleaseConfig(string $project): array
 {
     $tokenEnvironment = 'FOUNDATION_TEST_PHASE8_TOKEN_SECRET';
@@ -727,6 +1001,7 @@ PHP,
     return $project;
 }
 
+/** @throws \UnexpectedValueException */
 function foundationPhase8ReleaseRemove(string $directory): void
 {
     if (!is_dir($directory)) {
@@ -738,6 +1013,8 @@ function foundationPhase8ReleaseRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
+
         $file->isLink() || !$file->isDir()
             ? unlink($file->getPathname())
             : rmdir($file->getPathname());
@@ -745,8 +1022,65 @@ function foundationPhase8ReleaseRemove(string $directory): void
     rmdir($directory);
 }
 
+it('uses only process environment to select a trusted release generation', function (): void {
+    $rootName = FoundationReleaseBootstrap::RELEASE_ROOT_ENV;
+    $digestName = FoundationReleaseBootstrap::MANIFEST_SHA256_ENV;
+    $previous = [];
+
+    foreach ([$rootName, $digestName] as $name) {
+        $previous[$name] = [
+            'process' => getenv($name),
+            'envExists' => array_key_exists($name, $_ENV),
+            'env' => $_ENV[$name] ?? null,
+            'serverExists' => array_key_exists($name, $_SERVER),
+            'server' => $_SERVER[$name] ?? null,
+        ];
+    }
+
+    try {
+        putenv($rootName);
+        putenv($digestName);
+        $_ENV[$rootName] = '/request-controlled/one';
+        $_SERVER[$rootName] = '/request-controlled/two';
+        $_ENV[$digestName] = str_repeat('a', 64);
+        $_SERVER[$digestName] = str_repeat('b', 64);
+
+        expect(FoundationReleaseBootstrap::fromEnvironment())->toBeNull();
+
+        $trustedRoot = sys_get_temp_dir() . '/foundation-process-root-' . bin2hex(random_bytes(6));
+        $trustedDigest = str_repeat('c', 64);
+        putenv($rootName . '=' . $trustedRoot);
+        putenv($digestName . '=' . $trustedDigest);
+
+        $bootstrap = FoundationReleaseBootstrap::fromEnvironment();
+        if (!$bootstrap instanceof FoundationReleaseBootstrap) {
+            throw new \RuntimeException('Expected trusted release bootstrap from process environment.');
+        }
+        expect($bootstrap->releaseRoot)->toBe($trustedRoot)
+            ->and($bootstrap->trustedFoundationManifestSha256)->toBe($trustedDigest);
+    } finally {
+        foreach ($previous as $name => $state) {
+            putenv($state['process'] === false ? $name : $name . '=' . $state['process']);
+            if ($state['envExists']) {
+                $_ENV[$name] = $state['env'];
+            } else {
+                unset($_ENV[$name]);
+            }
+            if ($state['serverExists']) {
+                $_SERVER[$name] = $state['server'];
+            } else {
+                unset($_SERVER[$name]);
+            }
+        }
+    }
+});
+
+/** @throws \InvalidArgumentException */
 function foundationPhase8ReleaseSetEnvironment(string $name, ?string $value): void
 {
+    if ($name === '') {
+        throw new \InvalidArgumentException('Environment keys must not be empty.');
+    }
     if ($value === null) {
         unset($_ENV[$name], $_SERVER[$name]);
         putenv($name);

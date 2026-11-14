@@ -36,8 +36,8 @@ it('regrants revoked consent and rolls back partial client registration atomical
     $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
     $tables = new AuthTables();
     $runner = new MigrationRunner($factory->connection(), [new AuthOAuthRevisionSchema($tables)]);
-    $clients = new DBLayerOAuthClientStore($factory, $tables);
-    $consents = new DBLayerOAuthConsentStore($factory, $tables);
+    $clients = new DBLayerOAuthClientStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
+    $consents = new DBLayerOAuthConsentStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $factory]), $tables);
     $now = 1_700_000_100;
     $client = new OAuthClient(
         id: 'client-existing-id',
@@ -72,14 +72,17 @@ it('regrants revoked consent and rolls back partial client registration atomical
 
         $clock = new readonly class($now) implements ClockInterface {
             public function __construct(private int $now) {}
+            #[\Override]
             public function now(): int { return $this->now; }
         };
         $authorizer = new class implements AuthorizerInterface {
+            #[\Override]
             public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void
             {
                 unset($principal, $ability, $resource, $context);
             }
 
+            #[\Override]
             public function can(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): AuthorizationDecision
             {
                 unset($principal, $ability, $resource, $context);

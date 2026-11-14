@@ -9,6 +9,9 @@ final readonly class CronExpression
     /** @var list<string> */
     private array $parts;
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(string $expression)
     {
         $parts = preg_split('/\s+/', trim($expression));
@@ -112,12 +115,18 @@ final readonly class CronExpression
 
             return [$value, $value];
         }
-        [$start, $end] = explode('-', $base, 2);
+        $separator = strpos($base, '-');
+        if ($separator === false) {
+            return [(int) $base, (int) $base];
+        }
 
-        return [(int) $start, (int) $end];
+        return [(int) substr($base, 0, $separator), (int) substr($base, $separator + 1)];
     }
 
-    /** @param array{int,int} $range */
+    /**
+     * @param array{int,int} $range
+     * @throws \InvalidArgumentException
+     */
     private function validate(string $part, array $range): void
     {
         foreach (explode(',', $part) as $segment) {
@@ -125,6 +134,9 @@ final readonly class CronExpression
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function validateRangeOrder(string $base): void
     {
         if (!str_contains($base, '-')) {
@@ -136,7 +148,10 @@ final readonly class CronExpression
         }
     }
 
-    /** @param array{int,int} $range */
+    /**
+     * @param array{int,int} $range
+     * @throws \InvalidArgumentException
+     */
     private function validateSegment(string $segment, array $range): void
     {
         if (preg_match('/^(\*|\d+(?:-\d+)?)(?:\/\d+)?$/', $segment) !== 1) {
@@ -151,6 +166,9 @@ final readonly class CronExpression
         $this->validateValues($segment, $range);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function validateStep(?string $step): void
     {
         if ($step !== null && (int) $step < 1) {
@@ -158,7 +176,10 @@ final readonly class CronExpression
         }
     }
 
-    /** @param array{int,int} $range */
+    /**
+     * @param array{int,int} $range
+     * @throws \InvalidArgumentException
+     */
     private function validateValues(string $segment, array $range): void
     {
         foreach (preg_split('/[-\/]/', $segment) ?: [] as $value) {

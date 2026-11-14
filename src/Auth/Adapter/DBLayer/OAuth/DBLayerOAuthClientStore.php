@@ -15,6 +15,10 @@ use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 
 final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAuthClientStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function find(string $clientId): ?OAuthClient
     {
         return $this->firstMapped(
@@ -24,6 +28,14 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    #[\Override]
     public function list(int $limit = 100): array
     {
         if ($limit < 1 || $limit > 500) {
@@ -39,6 +51,13 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         return array_map($this->mapClient(...), $rows);
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    #[\Override]
     public function redirectUris(string $clientId): array
     {
         $rows = $this->all(
@@ -55,7 +74,12 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
     /**
      * @param list<string> $redirectUris
      * @param list<string> $scopes
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
+    #[\Override]
     public function register(OAuthClient $client, array $redirectUris, array $scopes): void
     {
         $this->connection()->transaction(function (Connection $connection) use ($client, $redirectUris, $scopes): void {
@@ -65,6 +89,13 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         });
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
+    #[\Override]
     public function replaceRedirectUris(string $clientId, array $redirectUris, int $createdAt): void
     {
         $this->connection()->transaction(function (Connection $connection) use ($clientId, $redirectUris, $createdAt): void {
@@ -73,6 +104,13 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         });
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
+    #[\Override]
     public function replaceScopes(string $clientId, array $scopes, int $createdAt): void
     {
         $this->connection()->transaction(function (Connection $connection) use ($clientId, $scopes, $createdAt): void {
@@ -81,11 +119,26 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         });
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function save(OAuthClient $client): void
     {
         $this->upsertRecord('oauthClients', 'client_id', $this->clientRecord($client));
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    #[\Override]
     public function scopes(string $clientId): array
     {
         $rows = $this->all(
@@ -121,7 +174,10 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         ];
     }
 
-    /** @param list<string> $redirectUris */
+    /**
+     * @param list<string> $redirectUris
+     * @throws \RuntimeException
+     */
     private function insertRedirectUris(Connection $connection, string $clientId, array $redirectUris, int $createdAt): void
     {
         foreach ($redirectUris as $uri) {
@@ -135,7 +191,10 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         }
     }
 
-    /** @param list<string> $scopes */
+    /**
+     * @param list<string> $scopes
+     * @throws \RuntimeException
+     */
     private function insertScopes(Connection $connection, string $clientId, array $scopes, int $createdAt): void
     {
         foreach ($scopes as $scope) {
@@ -147,7 +206,10 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         }
     }
 
-    /** @param array<string, mixed> $row */
+    /**
+     * @param array<string, mixed> $row
+     * @throws \RuntimeException
+     */
     private function mapClient(array $row): OAuthClient
     {
         $type = OAuthClientType::tryFrom($this->string($row['client_type'] ?? ''));

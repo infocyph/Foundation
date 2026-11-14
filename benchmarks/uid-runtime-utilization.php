@@ -45,14 +45,14 @@ function uidRuntimeMeasure(
         }
         $durationNanoseconds = max(1, hrtime(true) - $started);
         $totalNanoseconds += $durationNanoseconds;
-        $samples[] = $durationNanoseconds / $operations;
+        $samples[] = (float) $durationNanoseconds / (float) $operations;
     }
 
     sort($samples, SORT_NUMERIC);
     $median = $samples[intdiv(count($samples), 2)];
     $minimum = $samples[0];
-    $maximum = $samples[count($samples) - 1];
-    $spread = (($maximum - $minimum) / max(0.000001, $median)) * 100;
+    $maximum = $samples[array_key_last($samples) ?? throw new RuntimeException('UID benchmark has no samples.')];
+    $spread = (($maximum - $minimum) / max(0.000001, $median)) * 100.0;
     $attempted = $operations * $repetitions;
 
     return [
@@ -74,15 +74,15 @@ function uidRuntimeMeasure(
             'successful_operations' => $attempted,
             'failed_operations' => 0,
             'timeouts' => 0,
-            'successful_rpm' => 60_000_000_000 / max(0.000001, $median),
+            'successful_rpm' => 60_000_000_000.0 / max(0.000001, $median),
             'error_rate' => 0.0,
             'latency_ms' => [
-                'minimum' => $minimum / 1_000_000,
-                'average' => $median / 1_000_000,
-                'p50' => $median / 1_000_000,
-                'p95' => uidRuntimePercentile($samples, 0.95) / 1_000_000,
-                'p99' => uidRuntimePercentile($samples, 0.99) / 1_000_000,
-                'maximum' => $maximum / 1_000_000,
+                'minimum' => $minimum / 1_000_000.0,
+                'average' => $median / 1_000_000.0,
+                'p50' => $median / 1_000_000.0,
+                'p95' => uidRuntimePercentile($samples, 0.95) / 1_000_000.0,
+                'p99' => uidRuntimePercentile($samples, 0.99) / 1_000_000.0,
+                'maximum' => $maximum / 1_000_000.0,
             ],
             'cpu' => [
                 'average_percent' => null,
@@ -104,7 +104,7 @@ function uidRuntimeMeasure(
 /** @param list<float> $samples */
 function uidRuntimePercentile(array $samples, float $percentile): float
 {
-    $index = (int) ceil($percentile * count($samples)) - 1;
+    $index = (int) ceil($percentile * (float) count($samples)) - 1;
     $lastIndex = count($samples) - 1;
 
     return $samples[max(0, min($lastIndex, $index))];
@@ -128,9 +128,9 @@ function uidRuntimeEnvironment(string $uidVersion): array
         'php_sapi' => PHP_SAPI,
         'operating_system' => php_uname(),
         'cpu_model' => $cpuModel,
-        'memory_limit' => ini_get('memory_limit') ?: 'unknown',
+        'memory_limit' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::iniValue('memory_limit', 'unknown'),
         'opcache' => extension_loaded('Zend OPcache'),
-        'jit' => ini_get('opcache.jit') ?: false,
+        'jit' => (($__foundation154_133 = ini_get('opcache.jit')) !== false && $__foundation154_133 !== '' && $__foundation154_133 !== '0' ? $__foundation154_133 : false),
         'xdebug' => extension_loaded('xdebug'),
         'extensions' => $extensions,
         'runner' => getenv('GITHUB_ACTIONS') === 'true' ? 'github-actions' : 'local-cli',
@@ -144,9 +144,9 @@ function uidRuntimeEnvironment(string $uidVersion): array
     ];
 }
 
-$operations = max(1_000, (int) (getenv('UID_RUNTIME_OPERATIONS') ?: 25_000));
-$repetitions = max(3, (int) (getenv('UID_RUNTIME_REPETITIONS') ?: 7));
-$warmup = max(100, (int) (getenv('UID_RUNTIME_WARMUP') ?: 500));
+$operations = max(1_000, (int) ((($__foundation154_147 = getenv('UID_RUNTIME_OPERATIONS')) !== false && $__foundation154_147 !== '' && $__foundation154_147 !== '0' ? $__foundation154_147 : 25_000)));
+$repetitions = max(3, (int) ((($__foundation154_148 = getenv('UID_RUNTIME_REPETITIONS')) !== false && $__foundation154_148 !== '' && $__foundation154_148 !== '0' ? $__foundation154_148 : 7)));
+$warmup = max(100, (int) ((($__foundation154_149 = getenv('UID_RUNTIME_WARMUP')) !== false && $__foundation154_149 !== '' && $__foundation154_149 !== '0' ? $__foundation154_149 : 500)));
 $scopeOperations = max(1_000, intdiv($operations, 5));
 $scopeWarmup = max(100, intdiv($warmup, 5));
 $root = sys_get_temp_dir() . '/foundation-uid-runtime-benchmark-' . bin2hex(random_bytes(6));
@@ -249,7 +249,7 @@ try {
             'suite' => 'foundation-uid-runtime-utilization',
             'uid' => $uidVersion,
             'uid_reference' => InstalledVersions::getReference('infocyph/uid'),
-            'foundation_commit' => getenv('GITHUB_SHA') ?: 'working-tree',
+            'foundation_commit' => (($__foundation154_252 = getenv('GITHUB_SHA')) !== false && $__foundation154_252 !== '' && $__foundation154_252 !== '0' ? $__foundation154_252 : 'working-tree'),
             'boundary' => 'UID generic generation with Foundation execution-correlation lifecycle',
             'algorithm_decision' => 'Use monotonic ULID for Foundation-generated ExecutionId fallback: 26-character sortable representation with no machine/sequence coordination. UUIDv7 remains measured only as the previous-format comparison.',
             'nested_reuse_evidence' => 'Covered by command/message lifecycle tests; raw nested ExecutionScope entry is intentionally invalid while a worker scope is active.',

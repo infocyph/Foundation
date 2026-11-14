@@ -21,6 +21,12 @@ final readonly class SimpleRefreshTokenService implements RefreshTokenServiceInt
         private ClockInterface $clock,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
+    #[\Override]
     public function issue(RefreshTokenClaims $claims): IssuedRefreshToken
     {
         $ttlSeconds = $claims->expiresAt - $this->clock->now();
@@ -50,6 +56,11 @@ final readonly class SimpleRefreshTokenService implements RefreshTokenServiceInt
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
+    #[\Override]
     public function verify(string $token): TokenVerificationResult
     {
         $verification = $this->tokens

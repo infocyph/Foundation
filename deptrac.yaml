@@ -1,0 +1,39 @@
+# Foundation 4 production dependency boundaries.
+# This project-local configuration replaces PHPForge's generic project/vendor
+# topology; the owning source graph and native specialist APIs are explicit.
+deptrac:
+  paths:
+    - ./src
+  exclude_files:
+    - '#(^|[\\/])vendor([\\/]|$)#'
+    - '#(^|[\\/])tests([\\/]|$)#'
+    - '#(^|[\\/])build([\\/]|$)#'
+    - '#(^|[\\/])\\.git([\\/]|$)#'
+  layers:
+    - name: Foundation
+      collectors:
+        - type: classLike
+          value: '^Infocyph\\Foundation\\.*'
+    - name: NativeLibraries
+      collectors:
+        - type: classLike
+          value: '^Infocyph\\(ArrayKit|CacheLayer|DBLayer|Epicrypt|InterMix|Omnibus|OTP|Pathwise|ReqShield|Runwire|TalkingBytes|UID|Webrick)\\.*'
+    - name: RuntimeContracts
+      collectors:
+        - type: classLike
+          value: '^(Psr|Composer|League|Symfony|Webauthn|Opis|Ramsey|GuzzleHttp|Doctrine|SpomkyLabs|OpenTelemetry|Monolog|Nyholm|Laminas|Aws|Google|Brick|Predis|Firebase)\\.*'
+    - name: Applications
+      collectors:
+        - type: classLike
+          value: '^Infocyph\\(Infbyte|InfByte)\\.*'
+        - type: classLike
+          value: '^App\\.*'
+    - name: EngineeringTools
+      collectors:
+        - type: classLike
+          value: '^Infocyph\\(PHPForge|PHPProbe)\\.*'
+  ruleset:
+    Foundation:
+      - Foundation
+      - NativeLibraries
+      - RuntimeContracts

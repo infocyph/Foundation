@@ -15,7 +15,10 @@ final readonly class DatabaseConnectionResolver
         private ConfigRepository $config,
     ) {}
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function configuration(?string $name = null): array
     {
         $name = $this->connectionName($name);
@@ -31,6 +34,9 @@ final readonly class DatabaseConnectionResolver
         return $this->normalizeConfiguration($config);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function connectionName(?string $name = null): string
     {
         if (is_string($name) && $name !== '') {
@@ -101,6 +107,9 @@ final readonly class DatabaseConnectionResolver
         return $this->config->get('database.query_cache.enabled', false) === true;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function queryCacheStore(): string
     {
         $store = $this->config->get('database.query_cache.store');
@@ -121,6 +130,9 @@ final readonly class DatabaseConnectionResolver
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function assertQueryCacheIsolation(string $store): void
     {
         $namespace = $this->config->get('cache.stores.' . $store . '.namespace');

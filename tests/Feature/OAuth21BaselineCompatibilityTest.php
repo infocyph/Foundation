@@ -40,11 +40,13 @@ it('accepts an additive oauth principal resolver without changing configured pre
                 private readonly ?PrincipalInterface $principal,
             ) {}
 
+            #[\Override]
             public function name(): string
             {
                 return $this->resolverName;
             }
 
+            #[\Override]
             public function resolve(Request $request): ?PrincipalInterface
             {
                 unset($request);

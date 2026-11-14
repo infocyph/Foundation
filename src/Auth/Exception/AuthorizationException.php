@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Exception;
 
+/**
+ * Catchable authorization failure with a stable reason code.
+ *
+ * @api
+ */
 class AuthorizationException extends FoundationAuthException
 {
     public function __construct(

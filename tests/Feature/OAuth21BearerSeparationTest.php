@@ -56,12 +56,16 @@ it('keeps OAuth and application bearer token profiles mutually exclusive', funct
         ]);
         $applicationResolver = new BearerTokenPrincipalResolver(
             $httpConfig,
-            $applicationTokens,
-            $fixture->accounts,
+            new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([
+                \Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface::class => $applicationTokens,
+                \Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface::class => $fixture->accounts,
+            ]),
         );
         $oauthResolver = new OAuthBearerTokenPrincipalResolver(
             $httpConfig,
-            $fixture->accessValidator,
+            new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([
+                \Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator::class => $fixture->accessValidator,
+            ]),
         );
 
         $oauthRequest = Request::fake(headers: ['Authorization' => 'Bearer ' . $oauthToken]);
@@ -77,6 +81,11 @@ it('keeps OAuth and application bearer token profiles mutually exclusive', funct
     }
 });
 
+/**
+ * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ */
 function oauth21SeparatedOAuthToken(OAuth21FlowFixture $fixture, string $audience): string
 {
     $redirect = 'https://separation.example.test/callback';

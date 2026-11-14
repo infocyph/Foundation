@@ -25,6 +25,18 @@ use Psr\Container\ContainerInterface;
 
 final readonly class AuthRuntimeRegistrar extends AbstractAuthRegistrar
 {
+    public static function manager(
+        AuthServices $services,
+        ConfigRepository $config,
+        AuthDriverResolver $drivers,
+    ): AuthManager {
+        return new AuthManager(
+            services: $services,
+            config: $config,
+            drivers: $drivers->summary(),
+        );
+    }
+
     public function register(): void
     {
         $this->recipe(
@@ -55,7 +67,7 @@ final readonly class AuthRuntimeRegistrar extends AbstractAuthRegistrar
         $this->alias('foundation.auth.actions', AuthActions::class);
         $this->staticRecipe(
             AuthManager::class,
-            AuthRuntimeGraphFactory::class,
+            self::class,
             'manager',
             [
                 $this->ref(AuthServices::class),

@@ -10,6 +10,11 @@ use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidator;
 
+/**
+ * Public application-facing authentication services.
+ *
+ * @api
+ */
 final readonly class AuthManager
 {
     /**
@@ -21,11 +26,21 @@ final readonly class AuthManager
         private array $drivers = [],
     ) {}
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function authenticator(): AuthenticatorInterface
     {
         return $this->services->authenticator();
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function authorizer(): AuthorizerInterface
     {
         return $this->services->authorizer();
@@ -46,11 +61,21 @@ final readonly class AuthManager
         return $this->drivers;
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function isProductionReady(): bool
     {
         return !new ConfigValidator($this->config)->validateForProduction()->fails();
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function principal(): CurrentPrincipalContext
     {
         return $this->services->principals();
@@ -62,6 +87,9 @@ final readonly class AuthManager
      *   issues: list<string>,
      *   drivers: array<string, string>
      * }
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function readinessReport(): array
     {

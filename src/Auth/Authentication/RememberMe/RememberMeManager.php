@@ -11,7 +11,6 @@ use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\RememberTokenStoreInterface;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
-use Infocyph\Foundation\Auth\Support\ContextValue;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
 final readonly class RememberMeManager
@@ -75,7 +74,13 @@ final readonly class RememberMeManager
             metadata: $context ?: $current->metadata,
         );
 
-        $this->store->rotate($current->id, $replacement);
+        if ($current->rotatedAt !== null || $current->isRevoked() || $current->isExpiredAt($this->clock->now())
+            || !$this->store->rotateIfActive($current, $replacement)
+        ) {
+            $this->store->revokeFamily($current->familyId);
+
+            return new RememberMeResult(RememberTokenStatus::REUSED, record: $current, code: 'remember_token_reused', context: $context);
+        }
 
         return new RememberMeResult(RememberTokenStatus::ROTATED, token: $issued, record: $replacement, code: 'remember_token_rotated', context: $context);
     }
@@ -97,6 +102,12 @@ final readonly class RememberMeManager
 
         if (!$verification->verified || $record === null || $this->store->wasFamilyRevoked($record->familyId)) {
             return new RememberMeResult(RememberTokenStatus::INVALID, code: $verification->failureReason ?? 'invalid_remember_token', context: $context);
+        }
+
+        if ($record->rotatedAt !== null) {
+            $this->store->revokeFamily($record->familyId);
+
+            return new RememberMeResult(RememberTokenStatus::REUSED, record: $record, code: 'remember_token_reused', context: $context);
         }
 
         if ($record->isRevoked() || $record->isExpiredAt($this->clock->now())) {
@@ -124,7 +135,6 @@ final readonly class RememberMeManager
             metadata: $metadata,
             severity: $severity,
             deviceId: $deviceId,
-            sessionId: ContextValue::stringOrNull($metadata, 'session_id'),
         );
     }
 }

@@ -15,6 +15,7 @@ use Infocyph\Foundation\Worker\WorkerProvider;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
 final class FoundationWorkerLifecycleScopedProbe
 {
@@ -22,35 +23,46 @@ final class FoundationWorkerLifecycleScopedProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
 final class FoundationWorkerLifecycleServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
 
-        $builder->scoped(
+        $builder->factory(
             'worker.lifecycle.scoped',
             FactoryDefinition::construct(FoundationWorkerLifecycleScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
     }
 }
 
 final class FoundationWorkerLifecycleScopeProvider implements WorkerProvider
 {
-    /** @var list<array{first:int,second:int}> */
-    public static array $scopes = [];
-
     /** @var list<string> */
     public static array $executionIds = [];
 
-    public function __construct(private readonly Application $application) {}
+    /** @var list<array{first:int,second:int}> */
+    public static array $scopes = [];
 
+    public function __construct(private readonly Application $application) {}
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
+     * @throws \LogicException
+     * @throws \Throwable
+     */
+
+    #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
         for ($iteration = 0; $iteration < 2; $iteration++) {
@@ -70,14 +82,24 @@ final class FoundationWorkerLifecycleScopeProvider implements WorkerProvider
 
 final class FoundationWorkerLifecycleRestartProvider implements WorkerProvider
 {
+    public static bool $continuedAfterHeartbeat = false;
+
     public static int $registryCount = 0;
 
     public static bool $stopObserved = false;
 
-    public static bool $continuedAfterHeartbeat = false;
-
     public function __construct(private readonly Application $application) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \Throwable
+     * @throws \UnexpectedValueException
+     */
+    #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
         self::$registryCount = count(
@@ -97,6 +119,7 @@ final class FoundationWorkerLifecycleSingletonProvider implements WorkerProvider
 {
     public static int $runs = 0;
 
+    #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
         unset($runtime);
@@ -190,7 +213,9 @@ it('does not enter an explicit singleton provider when another owner holds its l
 
     $externalLocks = new FileLockProvider($lockPath);
     $held = $externalLocks->acquire('foundation:worker:singleton-blocked', 0.0, 30.0);
-    expect($held)->not->toBeNull();
+    if ($held === null) {
+        throw new \RuntimeException('Expected a competing singleton worker lock.');
+    }
 
     try {
         $app = Foundation::worker([
@@ -207,9 +232,7 @@ it('does not enter an explicit singleton provider when another owner holds its l
             ->and(FoundationWorkerLifecycleSingletonProvider::$runs)->toBe(0)
             ->and((new RuntimeProcessRegistry($app))->all('worker', 'singleton-blocked'))->toBe([]);
     } finally {
-        if ($held !== null) {
-            $externalLocks->release($held);
-        }
+        $externalLocks->release($held);
         foundationWorkerLifecycleRemove($basePath);
     }
 });
@@ -247,6 +270,7 @@ function foundationWorkerLifecycleRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

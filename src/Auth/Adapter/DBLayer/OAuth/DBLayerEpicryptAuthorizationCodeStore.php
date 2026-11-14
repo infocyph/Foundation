@@ -12,6 +12,13 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerStore;
 
 final readonly class DBLayerEpicryptAuthorizationCodeStore extends DBLayerStore implements AuthorizationCodeStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    #[\Override]
     public function consume(
         #[\SensitiveParameter]
         AuthorizationCodeRecord $record,
@@ -74,6 +81,10 @@ final readonly class DBLayerEpicryptAuthorizationCodeStore extends DBLayerStore 
         return $result;
     }
 
+    /**
+     * @throws \Throwable
+     */
+    #[\Override]
     public function create(#[\SensitiveParameter] AuthorizationCodeRecord $record): bool
     {
         try {

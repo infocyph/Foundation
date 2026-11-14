@@ -6,7 +6,11 @@ namespace Infocyph\Foundation\Operations;
 
 use Infocyph\Webrick\Middleware\Maintenance\MaintenanceStateInterface;
 
-/** Worker-local bounded view of the Foundation maintenance control plane. */
+/**
+ * Worker-local bounded view of the Foundation maintenance control plane.
+ *
+ * @api
+ */
 final class MaintenanceRuntimeState implements MaintenanceStateInterface
 {
     /** @var array{enabled:bool,enabled_at:?string,retry_after:?int,message:?string,driver:string}|null */
@@ -14,6 +18,9 @@ final class MaintenanceRuntimeState implements MaintenanceStateInterface
 
     private int $nextRefreshNs = 0;
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         private readonly MaintenanceManager $manager,
         private readonly int $refreshMilliseconds = 1000,
@@ -27,6 +34,15 @@ final class MaintenanceRuntimeState implements MaintenanceStateInterface
         }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
+    #[\Override]
     public function message(): ?string
     {
         $status = $this->status();
@@ -42,7 +58,15 @@ final class MaintenanceRuntimeState implements MaintenanceStateInterface
         return $this->status()['retry_after'] ?? $this->defaultRetryAfter;
     }
 
-    /** @return array{enabled:bool,enabled_at:?string,retry_after:?int,message:?string,driver:string} */
+    /**
+     * @return array{enabled:bool,enabled_at:?string,retry_after:?int,message:?string,driver:string}
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     public function status(): array
     {
         $now = hrtime(true);

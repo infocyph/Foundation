@@ -267,9 +267,14 @@ final readonly class RuntimeMessagingValidator
     /** @param array<int|string,mixed> $value */
     private function validCallableMap(array $value): bool
     {
-        return array_all($value, fn($definition, $name) => !(!is_string($name) || $name === '' || !$this->callableDefinition($definition)));
+        return array_all($value, fn(mixed $definition, int|string $name): bool => !(!is_string($name) || $name === '' || !$this->callableDefinition($definition)));
     }
 
+    /**
+     * @param (int|string) $event
+     *
+     * @psalm-param array-key $event
+     */
     private function validListenerEntry(mixed $event, mixed $definitions): bool
     {
         if (!is_string($event) || trim($event) === '' || !is_array($definitions)) {

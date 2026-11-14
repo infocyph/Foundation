@@ -58,10 +58,12 @@ return [
 Providers contribute deterministic graph definitions before production
 compilation; production boot does not reopen the mutable development container.
 
-See [Architecture and lifecycle](docs/architecture.md),
-[Configuration](docs/configuration.md), and the
-[Foundation 3 migration guide](docs/foundation-3-migration.md) for the complete
-runtime contract.
+See the [Infbyte application lifecycle](docs/architecture/application-lifecycle.rst),
+[application configuration](docs/start/configuration.rst),
+[public API reference](docs/reference/application-api.rst),
+[Foundation 4 migration guide](docs/foundation-4-migration.md), and
+[retained-data recovery guide](docs/foundation-4-retained-data-rehearsal.md).
+See the [Foundation 4 release notes](docs/foundation-4.0-release-notes.md) for breaking changes.
 
 ## Runtime hosts
 
@@ -71,51 +73,33 @@ bridge; Runwire owns native portable/prefork execution and its FPM, FrankenPHP,
 RoadRunner and Swoole/OpenSwoole host adaptation. Foundation supplies the
 compiled application and its scoped services.
 
-Runwire is optional and does not activate merely because it is installed. See
+Runwire is a required Core dependency. Its runtime capabilities depend on the
+active host and available extensions; installation does not start a runtime. See
 [Runtime hosting](docs/runtime-hosting.md) for ownership, selection and the
 verification boundary.
 
-## Capabilities
+## Optional modules
 
-Foundation modules describe optional application capabilities rather than package
-names. CacheLayer is a direct Foundation dependency and core cache infrastructure,
-but the `cache` capability still remains cold until explicitly selected. Other
-optional packages such as DBLayer, Omnibus, TalkingBytes, Epicrypt, Pathwise,
-ReqShield, OTP, or WebAuthn likewise do not activate themselves merely because
-they are installed.
+Foundation 4 supplies prebuilt Core plus **three optional modules with eight individually selected features**:
 
-| Specialist module | Implementation |
+| Module | Qualified features |
 | --- | --- |
-| `auth` | Foundation auth with optional OTP and WebAuthn providers |
-| `communication` | TalkingBytes |
-| `database` | DBLayer |
-| `filesystem` | Pathwise |
-| `messaging` | Omnibus |
-| `security` | Epicrypt |
-| `validation` | ReqShield |
+| data | `data.database` (DBLayer), `data.filesystem` (Pathwise) |
+| security | `security.crypto` (Epicrypt), `security.validation` (ReqShield), `security.mfa` (OTP), `security.passkey` (OTP + WebAuthn) |
+| execution | `execution.messaging` (Omnibus), `execution.communication` (TalkingBytes) |
 
-The catalog also retains four built-in entries for configuration and schema
-operations: `logging`, `operations`, `resources`, and `session`. They require no
-additional Composer packages and cannot be removed. CacheLayer is core
-infrastructure, outside the module catalog; use `cache:schema:status` and
-`cache:schema:install` for core cache schemas. Notifications are native and use
-TalkingBytes only when its email integration is selected.
-
-Use the module commands to inspect, install, configure, and provision a
-specialist capability:
+Core authentication, CacheLayer, Runwire, logging, operations, resources, sessions and notifications are not installable modules. PHPForge remains development/QA-only. Webrick, InterMix and Runwire retain native routing, container and host ownership.
 
 ```bash
 php infbyte module:list
-php infbyte module:show database
-php infbyte module:install database
-php infbyte module:config:publish messaging
-php infbyte module:schema:status auth
+php infbyte module:show data
+php infbyte module:plan data.database
+php infbyte module:install data.database --dry-run
+php infbyte module:config:publish execution.messaging
+php infbyte module:schema:status execution.messaging
 ```
 
-Foundation composes these libraries without replacing their native query,
-cache, filesystem, validation, communication, cryptography, or messaging APIs.
-See [Modules](docs/modules.md) for package mappings, aliases, activation rules,
-and schema ownership.
+Every mutation requires explicit feature selection, never bare-module install-all. Machine contracts use schema v2. See [Modules](docs/modules.md) for current package requirements, Core/QA boundaries, breaking migration instructions and non-destructive repair.
 
 ## Operate and deploy
 
@@ -145,19 +129,26 @@ deployment-owned and should not be committed. Use `php infbyte optimize:clear`
 for explicit build-plane cleanup.
 
 Operational behavior and safety constraints are documented in
-[CLI, schedules, and workers](docs/console.md),
-[Messaging](docs/messaging.md), and [Operations](docs/operations.md).
+[CLI commands](docs/console/commands.rst),
+[scheduling](docs/console/scheduling.rst),
+[queue workers](docs/services/queues-workers.rst), and
+[operations](docs/deployment/operations.rst).
 
 ## Documentation
 
-The [documentation index](docs/README.md) links the focused guides for HTTP,
-authentication, sessions, database, storage, communication, JSON resources,
-logging, testing, security, and Foundation 3 migration. Configuration templates
-under `resources/config/` are the canonical key-by-key reference.
+The [Infbyte framework manual](docs/index.rst) provides developer-facing
+RST/Sphinx guides. The [Foundation technical reference](docs/reference/technical-guides.rst)
+retains only deep implementation, migration and certification guidance. The Infbyte manual currently covers
+**unpublished Foundation 4 development contracts**; the public Infbyte skeleton
+on `main` still targets Foundation 3. Configuration templates under
+`resources/config/` are the canonical key-by-key reference.
 
 ## Verification
 
 Run the complete release guard before publishing:
+
+Prepare the disposable integration services and connection environment described
+in [Contributing](CONTRIBUTING.md#validation) before running the full suite or Git hooks.
 
 ```bash
 composer ic:release:guard
@@ -174,3 +165,7 @@ composer benchmark:representative
 
 Only compare numeric benchmark results from matching, explicitly stable
 environments.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

@@ -15,6 +15,9 @@ final readonly class ExecutionHistory
 
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \RuntimeException
+     */
     public function clear(): bool
     {
         return $this->withLock(true, function (): bool {
@@ -35,7 +38,11 @@ final readonly class ExecutionHistory
         return $this->application->config()->getBool('operations.history.enabled', false) ?? false;
     }
 
-    /** @return list<array<string,mixed>> */
+    /**
+     * @return list<array<string,mixed>>
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function find(string $executionId): array
     {
         if ($executionId === '') {
@@ -44,12 +51,9 @@ final readonly class ExecutionHistory
 
         return $this->withLock(false, function () use ($executionId): array {
             $records = [];
-            $storage = $this->storage();
-            foreach ($storage->filesOldestFirst() as $path) {
-                foreach ($storage->records($path) as $record) {
-                    if (($record['execution_id'] ?? null) === $executionId) {
-                        $records[] = $record;
-                    }
+            foreach ($this->storage()->allRecords() as $record) {
+                if (($record['execution_id'] ?? null) === $executionId) {
+                    $records[] = $record;
                 }
             }
 
@@ -63,7 +67,11 @@ final readonly class ExecutionHistory
         return $this->recent(1, $kind, $name)[0] ?? null;
     }
 
-    /** @return array<string,mixed>|null */
+    /**
+     * @return array<string,mixed>|null
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function latestByMetadata(string $kind, string $key, string $value): ?array
     {
         if ($kind === '' || $key === '' || $value === '') {
@@ -72,16 +80,13 @@ final readonly class ExecutionHistory
 
         return $this->withLock(false, function () use ($kind, $key, $value): ?array {
             $latest = null;
-            $storage = $this->storage();
-            foreach ($storage->filesOldestFirst() as $path) {
-                foreach ($storage->records($path) as $record) {
-                    if (($record['kind'] ?? null) !== $kind) {
-                        continue;
-                    }
-                    $metadata = $record['metadata'] ?? null;
-                    if (is_array($metadata) && ($metadata[$key] ?? null) === $value) {
-                        $latest = $record;
-                    }
+            foreach ($this->storage()->allRecords() as $record) {
+                if (($record['kind'] ?? null) !== $kind) {
+                    continue;
+                }
+                $metadata = $record['metadata'] ?? null;
+                if (is_array($metadata) && ($metadata[$key] ?? null) === $value) {
+                    $latest = $record;
                 }
             }
 
@@ -101,7 +106,11 @@ final readonly class ExecutionHistory
             : $this->application->basePath(trim($configured, DIRECTORY_SEPARATOR));
     }
 
-    /** @return list<array<string, mixed>> */
+    /**
+     * @return list<array<string, mixed>>
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function recent(int $limit = 100, ?string $kind = null, ?string $name = null): array
     {
         if ($limit < 1 || $limit > 1000) {
@@ -110,17 +119,14 @@ final readonly class ExecutionHistory
 
         return $this->withLock(false, function () use ($limit, $kind, $name): array {
             $records = [];
-            $storage = $this->storage();
-            foreach ($storage->filesOldestFirst() as $path) {
-                foreach ($storage->records($path) as $record) {
-                    if (!$this->matches($record, $kind, $name)) {
-                        continue;
-                    }
+            foreach ($this->storage()->allRecords() as $record) {
+                if (!$this->matches($record, $kind, $name)) {
+                    continue;
+                }
 
-                    $records[] = $record;
-                    if (count($records) > $limit) {
-                        array_shift($records);
-                    }
+                $records[] = $record;
+                if (count($records) > $limit) {
+                    array_shift($records);
                 }
             }
 
@@ -128,7 +134,11 @@ final readonly class ExecutionHistory
         });
     }
 
-    /** @param array<string, scalar|null> $metadata */
+    /**
+     * @param array<string, scalar|null> $metadata
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     public function record(
         string $kind,
         string $executionId,
@@ -163,6 +173,9 @@ final readonly class ExecutionHistory
         $this->withLock(true, fn() => $this->append($line));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function append(string $line): void
     {
         $path = $this->path();
@@ -199,6 +212,9 @@ final readonly class ExecutionHistory
         return is_int($value) && $value > 0 ? $value : self::DEFAULT_MAX_BYTES;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function removeCurrentHistory(string $path): void
     {
         if (is_file($path) && !unlink($path)) {
@@ -206,6 +222,9 @@ final readonly class ExecutionHistory
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function removeOldestHistory(string $path, int $retained): void
     {
         $oldest = $path . '.' . $retained;
@@ -221,6 +240,9 @@ final readonly class ExecutionHistory
         return is_int($value) && $value >= 0 ? min(100, $value) : self::DEFAULT_RETAINED_FILES;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function rotate(): void
     {
         $path = $this->path();
@@ -238,6 +260,9 @@ final readonly class ExecutionHistory
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function shiftRotatedHistory(string $path, int $retained): void
     {
         for ($index = $retained - 1; $index >= 1; --$index) {
@@ -257,6 +282,7 @@ final readonly class ExecutionHistory
      * @template T
      * @param callable():T $callback
      * @return T
+     * @throws \RuntimeException
      */
     private function withLock(bool $exclusive, callable $callback): mixed
     {

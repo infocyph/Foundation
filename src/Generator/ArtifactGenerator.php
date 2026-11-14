@@ -15,6 +15,11 @@ use Infocyph\ReqShield\Contracts\Rule;
 use Infocyph\ReqShield\Validator;
 use Infocyph\TalkingBytes\Email\Emailer;
 
+/**
+ * Application-facing artifact generation service.
+ *
+ * @api
+ */
 final readonly class ArtifactGenerator
 {
     /** @var array<string, array{directory:string,namespace:string,suffix:string,stub:string,requires?:class-string,install?:string}> */
@@ -25,24 +30,24 @@ final readonly class ArtifactGenerator
         'enum' => ['directory' => 'app/Enums', 'namespace' => 'App\\Enums', 'suffix' => '', 'stub' => 'enum.stub'],
         'event' => ['directory' => 'app/Events', 'namespace' => 'App\\Events', 'suffix' => 'Event', 'stub' => 'event.stub'],
         'exception' => ['directory' => 'app/Exceptions', 'namespace' => 'App\\Exceptions', 'suffix' => 'Exception', 'stub' => 'exception.stub'],
-        'handler' => ['directory' => 'app/Messaging/Handlers', 'namespace' => 'App\\Messaging\\Handlers', 'suffix' => 'Handler', 'stub' => 'handler.stub', 'requires' => MessageBus::class, 'install' => 'php infbyte module:install messaging'],
+        'handler' => ['directory' => 'app/Messaging/Handlers', 'namespace' => 'App\\Messaging\\Handlers', 'suffix' => 'Handler', 'stub' => 'handler.stub', 'requires' => MessageBus::class, 'install' => 'php infbyte module:install execution.messaging'],
         'interface' => ['directory' => 'app/Contracts', 'namespace' => 'App\\Contracts', 'suffix' => 'Interface', 'stub' => 'interface.stub'],
-        'job' => ['directory' => 'app/Jobs', 'namespace' => 'App\\Jobs', 'suffix' => 'Job', 'stub' => 'job.stub', 'requires' => MessageBus::class, 'install' => 'php infbyte module:install messaging'],
-        'job-middleware' => ['directory' => 'app/Jobs/Middleware', 'namespace' => 'App\\Jobs\\Middleware', 'suffix' => 'Middleware', 'stub' => 'job-middleware.stub', 'requires' => MessageBus::class, 'install' => 'php infbyte module:install messaging'],
+        'job' => ['directory' => 'app/Jobs', 'namespace' => 'App\\Jobs', 'suffix' => 'Job', 'stub' => 'job.stub', 'requires' => MessageBus::class, 'install' => 'php infbyte module:install execution.messaging'],
+        'job-middleware' => ['directory' => 'app/Jobs/Middleware', 'namespace' => 'App\\Jobs\\Middleware', 'suffix' => 'Middleware', 'stub' => 'job-middleware.stub', 'requires' => MessageBus::class, 'install' => 'php infbyte module:install execution.messaging'],
         'listener' => ['directory' => 'app/Listeners', 'namespace' => 'App\\Listeners', 'suffix' => 'Listener', 'stub' => 'listener.stub'],
-        'mail' => ['directory' => 'app/Mail', 'namespace' => 'App\\Mail', 'suffix' => 'Mail', 'stub' => 'mail.stub', 'requires' => Emailer::class, 'install' => 'php infbyte module:install communication'],
+        'mail' => ['directory' => 'app/Mail', 'namespace' => 'App\\Mail', 'suffix' => 'Mail', 'stub' => 'mail.stub', 'requires' => Emailer::class, 'install' => 'php infbyte module:install execution.communication'],
         'middleware' => ['directory' => 'app/Http/Middleware', 'namespace' => 'App\\Http\\Middleware', 'suffix' => 'Middleware', 'stub' => 'middleware.stub'],
-        'migration' => ['directory' => 'app/Database/Migration', 'namespace' => 'App\\Database\\Migration', 'suffix' => 'Migration', 'stub' => 'migration.stub', 'requires' => Migration::class, 'install' => 'php infbyte module:install database'],
-        'notification' => ['directory' => 'app/Notifications', 'namespace' => 'App\\Notifications', 'suffix' => 'Notification', 'stub' => 'notification.stub', 'requires' => Emailer::class, 'install' => 'php infbyte module:install communication'],
+        'migration' => ['directory' => 'app/Database/Migration', 'namespace' => 'App\\Database\\Migration', 'suffix' => 'Migration', 'stub' => 'migration.stub', 'requires' => Migration::class, 'install' => 'php infbyte module:install data.database'],
+        'notification' => ['directory' => 'app/Notifications', 'namespace' => 'App\\Notifications', 'suffix' => 'Notification', 'stub' => 'notification.stub', 'requires' => Emailer::class, 'install' => 'php infbyte module:install execution.communication'],
         'notification-channel' => ['directory' => 'app/Notifications/Channels', 'namespace' => 'App\\Notifications\\Channels', 'suffix' => 'Channel', 'stub' => 'notification-channel.stub', 'requires' => NotificationChannel::class, 'install' => 'Foundation notification channels are built in'],
         'policy' => ['directory' => 'app/Policies', 'namespace' => 'App\\Policies', 'suffix' => 'Policy', 'stub' => 'policy.stub'],
         'provider' => ['directory' => 'app/Providers', 'namespace' => 'App\\Providers', 'suffix' => 'ServiceProvider', 'stub' => 'provider.stub'],
-        'repository' => ['directory' => 'app/Repositories', 'namespace' => 'App\\Repositories', 'suffix' => 'Repository', 'stub' => 'repository.stub', 'requires' => Repository::class, 'install' => 'php infbyte module:install database'],
-        'request' => ['directory' => 'app/Http/Requests', 'namespace' => 'App\\Http\\Requests', 'suffix' => 'Request', 'stub' => 'request.stub', 'requires' => Validator::class, 'install' => 'php infbyte module:install validation'],
+        'repository' => ['directory' => 'app/Repositories', 'namespace' => 'App\\Repositories', 'suffix' => 'Repository', 'stub' => 'repository.stub', 'requires' => Repository::class, 'install' => 'php infbyte module:install data.database'],
+        'request' => ['directory' => 'app/Http/Requests', 'namespace' => 'App\\Http\\Requests', 'suffix' => 'Request', 'stub' => 'request.stub', 'requires' => Validator::class, 'install' => 'php infbyte module:install security.validation'],
         'resource' => ['directory' => 'app/Http/Resources', 'namespace' => 'App\\Http\\Resources', 'suffix' => 'Resource', 'stub' => 'resource.stub', 'requires' => JsonResource::class, 'install' => 'Foundation resources are built in'],
-        'rule' => ['directory' => 'app/Validation/Rules', 'namespace' => 'App\\Validation\\Rules', 'suffix' => 'Rule', 'stub' => 'rule.stub', 'requires' => Rule::class, 'install' => 'php infbyte module:install validation'],
+        'rule' => ['directory' => 'app/Validation/Rules', 'namespace' => 'App\\Validation\\Rules', 'suffix' => 'Rule', 'stub' => 'rule.stub', 'requires' => Rule::class, 'install' => 'php infbyte module:install security.validation'],
         'service' => ['directory' => 'app/Services', 'namespace' => 'App\\Services', 'suffix' => 'Service', 'stub' => 'service.stub'],
-        'seeder' => ['directory' => 'app/Database/Seeder', 'namespace' => 'App\\Database\\Seeder', 'suffix' => 'Seeder', 'stub' => 'seeder.stub', 'requires' => Seeder::class, 'install' => 'php infbyte module:install database'],
+        'seeder' => ['directory' => 'app/Database/Seeder', 'namespace' => 'App\\Database\\Seeder', 'suffix' => 'Seeder', 'stub' => 'seeder.stub', 'requires' => Seeder::class, 'install' => 'php infbyte module:install data.database'],
         'test' => ['directory' => 'tests/Feature', 'namespace' => 'Tests\\Feature', 'suffix' => 'Test', 'stub' => 'test.stub'],
         'trait' => ['directory' => 'app/Concerns', 'namespace' => 'App\\Concerns', 'suffix' => 'Trait', 'stub' => 'trait.stub'],
         'worker' => ['directory' => 'app/Worker', 'namespace' => 'App\\Worker', 'suffix' => 'Worker', 'stub' => 'worker.stub'],
@@ -50,7 +55,12 @@ final readonly class ArtifactGenerator
 
     public function __construct(private Application $application) {}
 
-    /** @return array{class:string,path:string} */
+    /**
+     * @return array{class:string,path:string}
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function create(string $artifact, string $name, bool $force = false, ?string $table = null): array
     {
         if ($artifact === 'config') {
@@ -79,7 +89,10 @@ final readonly class ArtifactGenerator
         return ['class' => implode('\\', array_filter([$namespace, $class])), 'path' => $path];
     }
 
-    /** @param array{directory:string,namespace:string,suffix:string,stub:string,requires?:class-string,install?:string} $definition */
+    /**
+     * @param array{directory:string,namespace:string,suffix:string,stub:string,requires?:class-string,install?:string} $definition
+     * @throws \LogicException
+     */
     private function assertRequirement(string $artifact, array $definition): void
     {
         $required = $definition['requires'] ?? null;
@@ -105,7 +118,11 @@ final readonly class ArtifactGenerator
         ));
     }
 
-    /** @return array{class:string,path:string} */
+    /**
+     * @return array{class:string,path:string}
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function createConfig(string $name, bool $force): array
     {
         $name = trim(str_replace('\\', '/', $name), '/');
@@ -151,7 +168,10 @@ final readonly class ArtifactGenerator
         return gmdate('YmdHis') . '_' . $name;
     }
 
-    /** @param list<string> $parents */
+    /**
+     * @param list<string> $parents
+     * @throws \RuntimeException
+     */
     private function render(string $stub, string $namespace, string $class, array $parents, ?string $table): string
     {
         $path = dirname(__DIR__, 2) . '/resources/stubs/create/' . $stub;
@@ -167,7 +187,10 @@ final readonly class ArtifactGenerator
         );
     }
 
-    /** @return non-empty-list<non-falsy-string> */
+    /**
+     * @return non-empty-list<non-falsy-string>
+     * @throws \InvalidArgumentException
+     */
     private function segments(string $name): array
     {
         if ($name === '' || str_contains($name, "\0") || preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $name) === 1) {
@@ -187,9 +210,13 @@ final readonly class ArtifactGenerator
             $segments[] = $normalized;
         }
 
+        /** @var non-empty-list<non-falsy-string> $segments */
         return $segments;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function table(string $class, ?string $configured): string
     {
         if ($configured !== null && $configured !== '') {
@@ -211,6 +238,9 @@ final readonly class ArtifactGenerator
         return $name . 's';
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function write(string $path, string $contents, bool $force): void
     {
         if ((is_file($path) || is_link($path)) && !$force) {

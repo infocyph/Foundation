@@ -11,14 +11,19 @@ final class FoundationEnvironmentStorageIO implements CommandIO
     /** @var list<string> */
     public array $errors = [];
 
-    /** @var list<mixed> */
+    /** @var list<array<array-key,mixed>> */
     public array $json = [];
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
         throw new LogicException('Choice input is not expected in this test IO.');
     }
 
+    #[\Override]
     public function confirm(string $question, bool $default = false): bool
     {
         unset($question, $default);
@@ -26,53 +31,74 @@ final class FoundationEnvironmentStorageIO implements CommandIO
         return false;
     }
 
+    #[\Override]
     public function error(string $message): void
     {
         $this->errors[] = $message;
     }
 
+    #[\Override]
     public function info(string $message): void {}
 
+    #[\Override]
     public function interactive(): bool
     {
         return false;
     }
 
-    public function json(mixed $value): void
+    /** @param array<array-key, mixed> $value */
+    #[\Override]
+    public function json(array $value): void
     {
         $this->json[] = $value;
     }
 
+    #[\Override]
     public function machineReadable(): bool
     {
         return true;
     }
 
+    #[\Override]
     public function note(string $message): void {}
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function password(string $question): string
     {
         throw new LogicException('Password input is not expected in this test IO.');
     }
 
+    #[\Override]
     public function quiet(): bool
     {
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function read(string $question, ?string $default = null): string
     {
         throw new LogicException('Text input is not expected in this test IO.');
     }
 
+    #[\Override]
     public function success(string $message): void {}
 
+    #[\Override]
     public function table(array $headers, array $rows): void {}
 
+    #[\Override]
     public function warning(string $message): void {}
 
+    #[\Override]
     public function write(string $message): void {}
 
+    #[\Override]
     public function writeln(string $message = ''): void {}
 }
 
@@ -98,7 +124,7 @@ it('protects environment files atomically with restrictive permissions and safe 
             ->and($encryptedIO['io']->json[0]['operation'] ?? null)->toBe('encrypt')
             ->and(is_file($encrypted))->toBeTrue()
             ->and(file_get_contents($encrypted))->not->toBe($plaintext)
-            ->and(fileperms($encrypted) & 0777)->toBe(0600);
+            ->and(foundationEnvironmentStoragePermissions($encrypted))->toBe(0600);
         foundationEnvironmentStorageExpectNoStages($basePath);
 
         $decryptedIO = foundationEnvironmentStorageRun($dispatcher, [
@@ -107,7 +133,7 @@ it('protects environment files atomically with restrictive permissions and safe 
         expect($decryptedIO['exit'])->toBe(ExitCode::SUCCESS)
             ->and($decryptedIO['io']->json[0]['operation'] ?? null)->toBe('decrypt')
             ->and(file_get_contents($restored))->toBe($plaintext)
-            ->and(fileperms($restored) & 0777)->toBe(0600);
+            ->and(foundationEnvironmentStoragePermissions($restored))->toBe(0600);
         foundationEnvironmentStorageExpectNoStages($basePath);
 
         file_put_contents($restored, 'preserve-without-force');
@@ -124,7 +150,7 @@ it('protects environment files atomically with restrictive permissions and safe 
         ]);
         expect($forced['exit'])->toBe(ExitCode::SUCCESS)
             ->and(file_get_contents($restored))->toBe($plaintext)
-            ->and(fileperms($restored) & 0777)->toBe(0600);
+            ->and(foundationEnvironmentStoragePermissions($restored))->toBe(0600);
         foundationEnvironmentStorageExpectNoStages($basePath);
 
         file_put_contents($restored, 'must-survive-failed-decryption');
@@ -164,29 +190,36 @@ it('creates reports and removes only configured matching storage links', functio
 
     try {
         $created = foundationEnvironmentStorageRun($dispatcher, ['infbyte', 'storage:link']);
+        if (!is_array($created['io']->json[0][0] ?? null)) {
+            throw new \UnexpectedValueException('Storage link creation must return structured JSON evidence.');
+        }
         expect($created['exit'])->toBe(ExitCode::SUCCESS)
             ->and($created['io']->json[0][0]['created'] ?? null)->toBeTrue()
             ->and(is_link($link))->toBeTrue()
             ->and(realpath($link))->toBe(realpath($target));
-        expect(glob($link . '.*.tmp') ?: [])->toBe([]);
+        expect(((array) glob($link . '.*.tmp')))->toBe([]);
 
         $createdAgain = foundationEnvironmentStorageRun($dispatcher, ['infbyte', 'storage:link']);
+        \PHPUnit\Framework\Assert::assertIsArray(($createdAgain['io']->json[0][0] ?? null));
         expect($createdAgain['exit'])->toBe(ExitCode::SUCCESS)
             ->and($createdAgain['io']->json[0][0]['created'] ?? null)->toBeFalse();
 
         $status = foundationEnvironmentStorageRun($dispatcher, ['infbyte', 'storage:status']);
+        \PHPUnit\Framework\Assert::assertIsArray(($status['io']->json[0][0] ?? null));
         expect($status['exit'])->toBe(ExitCode::SUCCESS)
             ->and($status['io']->json[0][0]['exists'] ?? null)->toBeTrue()
             ->and($status['io']->json[0][0]['linked'] ?? null)->toBeTrue()
             ->and($status['io']->json[0][0]['matches'] ?? null)->toBeTrue();
 
         $removed = foundationEnvironmentStorageRun($dispatcher, ['infbyte', 'storage:unlink']);
+        \PHPUnit\Framework\Assert::assertIsArray(($removed['io']->json[0][0] ?? null));
         expect($removed['exit'])->toBe(ExitCode::SUCCESS)
             ->and($removed['io']->json[0][0]['removed'] ?? null)->toBeTrue()
             ->and(is_link($link))->toBeFalse()
             ->and(is_dir($target))->toBeTrue();
 
         $removedAgain = foundationEnvironmentStorageRun($dispatcher, ['infbyte', 'storage:unlink']);
+        \PHPUnit\Framework\Assert::assertIsArray(($removedAgain['io']->json[0][0] ?? null));
         expect($removedAgain['exit'])->toBe(ExitCode::SUCCESS)
             ->and($removedAgain['io']->json[0][0]['removed'] ?? null)->toBeFalse();
 
@@ -230,7 +263,12 @@ it('rejects storage link traversal outside Foundation public and storage roots',
     }
 });
 
-/** @param array<string, string> $links */
+/**
+ * @param array<string, string> $links
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \UnexpectedValueException
+ */
 function foundationEnvironmentStorageDispatcher(string $basePath, array $links = []): CommandDispatcher
 {
     return CommandDispatcher::project(
@@ -246,8 +284,19 @@ function foundationEnvironmentStorageDispatcher(string $basePath, array $links =
 
 function foundationEnvironmentStorageExpectNoStages(string $basePath): void
 {
-    expect(glob($basePath . '/.*.tmp') ?: [])->toBe([])
-        ->and(glob($basePath . '/.*.bak') ?: [])->toBe([]);
+    expect(((array) glob($basePath . '/.*.tmp')))->toBe([])
+        ->and(((array) glob($basePath . '/.*.bak')))->toBe([]);
+}
+
+/** @throws \RuntimeException */
+function foundationEnvironmentStoragePermissions(string $path): int
+{
+    $permissions = fileperms($path);
+    if ($permissions === false) {
+        throw new \RuntimeException('Unable to read environment file permissions.');
+    }
+
+    return $permissions & 0777;
 }
 
 function foundationEnvironmentStorageKey(): string
@@ -268,6 +317,9 @@ function foundationEnvironmentStorageProject(string $suffix): string
 /**
  * @param list<string> $argv
  * @return array{exit:int,io:FoundationEnvironmentStorageIO}
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \UnexpectedValueException
  */
 function foundationEnvironmentStorageRun(CommandDispatcher $dispatcher, array $argv): array
 {
@@ -276,6 +328,7 @@ function foundationEnvironmentStorageRun(CommandDispatcher $dispatcher, array $a
     return ['exit' => $dispatcher->run($argv, $io), 'io' => $io];
 }
 
+/** @throws \UnexpectedValueException */
 function foundationEnvironmentStorageRemove(string $path): void
 {
     if (is_link($path) || is_file($path)) {
@@ -287,9 +340,12 @@ function foundationEnvironmentStorageRemove(string $path): void
         return;
     }
 
-    foreach (scandir($path) ?: [] as $entry) {
+    foreach (((array) scandir($path)) as $entry) {
         if ($entry === '.' || $entry === '..') {
             continue;
+        }
+        if (!is_string($entry)) {
+            throw new \UnexpectedValueException('Directory listing contains an invalid entry.');
         }
         foundationEnvironmentStorageRemove($path . DIRECTORY_SEPARATOR . $entry);
     }

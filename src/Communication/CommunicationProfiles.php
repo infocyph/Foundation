@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Communication;
 
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Runtime\NativeRunwireOperation;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\TalkingBytes\Grpc\GrpcClient;
 use Infocyph\TalkingBytes\Grpc\GrpcClientFactory;
@@ -17,6 +18,7 @@ use Infocyph\TalkingBytes\Grpc\Sender\GrpcRequest;
 use Infocyph\TalkingBytes\Grpc\Sender\GrpcResponse;
 use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Http\HttpClientConfig;
+use Infocyph\TalkingBytes\Http\HttpClientFactory;
 use Infocyph\TalkingBytes\Webhook\Contracts\WebhookReplayStore;
 use Infocyph\TalkingBytes\Webhook\Webhook;
 use Infocyph\TalkingBytes\Webhook\WebhookReceiver;
@@ -28,24 +30,35 @@ use Infocyph\TalkingBytes\Webhook\WebhookVerifier;
  *
  * TalkingBytes owns protocol execution and resolved protocol composition.
  * Foundation owns named profile selection, application policy and DI lifetime.
+ * @api
  */
 final readonly class CommunicationProfiles
 {
     public function __construct(private ConfigRepository $config) {}
 
-    /** @param callable(GrpcRequest):GrpcResponse $caller */
+    /**
+     * @param callable(GrpcRequest):GrpcResponse $caller
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     public function grpc(callable $caller, ?string $profile = null): GrpcClient
     {
-        return new GrpcClientFactory()->using($caller, $this->grpcConfig($profile));
+        return $this->grpcFactory()->using($caller, $this->grpcConfig($profile));
     }
 
-    /** @param array<string, string> $methodMap */
+    /**
+     * @param array<string, string> $methodMap
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     public function grpcGeneratedStub(
         object $stubClient,
         array $methodMap = [],
         ?string $profile = null,
     ): GrpcClient {
-        return new GrpcClientFactory()->usingGeneratedStub(
+        return $this->grpcFactory()->usingGeneratedStub(
             $stubClient,
             $methodMap,
             $this->grpcConfig($profile),
@@ -58,18 +71,27 @@ final readonly class CommunicationProfiles
         return new GrpcInboundDispatcher($handlers);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     public function grpcNative(
         NativeGrpcInvoker $invoker,
         ?NativeGrpcStreamingInvoker $streamingInvoker = null,
         ?string $profile = null,
     ): GrpcClient {
-        return new GrpcClientFactory()->usingNative(
+        return $this->grpcFactory()->usingNative(
             $invoker,
             $streamingInvoker,
             $this->grpcConfig($profile),
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     public function http(?string $profile = null): HttpClient
     {
         $array = $this->httpConfigArray($profile);
@@ -78,14 +100,27 @@ final readonly class CommunicationProfiles
             throw new \LogicException('Production HTTP profiles must verify both TLS peers and hosts.');
         }
 
-        return HttpClient::fromResolvedConfig($array);
+        $context = NativeRunwireOperation::current();
+        $factory = new HttpClientFactory();
+        if ($context !== null) {
+            $factory = $factory->withRunwire($context->runtime, $context->request, $context->scope);
+        }
+
+        return $factory->fromConfig($config, $array);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function httpConfig(?string $profile = null): HttpClientConfig
     {
         return HttpClientConfig::fromArray($this->httpConfigArray($profile));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function webhookReceiver(
         ?string $profile = null,
         ?WebhookReplayStore $replayStore = null,
@@ -108,6 +143,11 @@ final readonly class CommunicationProfiles
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     public function webhookSender(?string $profile = null): WebhookSender
     {
         $config = $this->webhookOutboundConfig($profile);
@@ -119,7 +159,11 @@ final readonly class CommunicationProfiles
         return Webhook::senderFromResolvedConfig($this->http($httpProfile), $config);
     }
 
-    /** @param list<string>|string|null $secret */
+    /**
+     * @param list<string>|string|null $secret
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function webhookVerifier(
         ?string $profile = null,
         string|array|null $secret = null,
@@ -143,19 +187,42 @@ final readonly class CommunicationProfiles
         return is_string($value) && trim($value) !== '' ? trim($value) : $fallback;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function grpcConfig(?string $profile): array
     {
         return $this->profile('grpc.profiles', 'grpc.default_profile', $profile);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
+    private function grpcFactory(): GrpcClientFactory
+    {
+        $context = NativeRunwireOperation::current();
+        $factory = new GrpcClientFactory();
+
+        return $context === null
+            ? $factory
+            : $factory->withRunwire($context->runtime, $context->request, $context->scope);
+    }
+
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function httpConfigArray(?string $profile): array
     {
         return $this->profile('http.clients', 'http.default_client', $profile);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function profile(string $collectionKey, string $defaultKey, ?string $profile): array
     {
         $name = is_string($profile) && trim($profile) !== ''
@@ -173,19 +240,29 @@ final readonly class CommunicationProfiles
         return ValueNormalizer::associativeArray($profiles[$name]);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function webhookInboundConfig(?string $profile): array
     {
         return $this->profile('webhooks.inbound', 'webhooks.default_inbound', $profile);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function webhookOutboundConfig(?string $profile): array
     {
         return $this->profile('webhooks.outbound', 'webhooks.default_outbound', $profile);
     }
 
-    /** @return string|list<string> */
+    /**
+     * @return string|list<string>
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function webhookSecret(mixed $secret): string|array
     {
         $single = is_string($secret);

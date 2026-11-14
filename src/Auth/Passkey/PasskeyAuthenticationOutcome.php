@@ -24,6 +24,7 @@ final readonly class PasskeyAuthenticationOutcome
     /**
      * @return list<\UnitEnum>
      */
+    #[\Override]
     protected function successfulStatuses(): array
     {
         return [PasskeyAuthenticationStatus::STARTED, PasskeyAuthenticationStatus::VERIFIED];

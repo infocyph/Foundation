@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Validation;
 
+use Infocyph\Foundation\Runtime\NativeRunwireOperation;
 use Infocyph\ReqShield\Support\ValidationResult;
 use Infocyph\Webrick\Request\Request;
 
@@ -12,11 +13,22 @@ use Infocyph\Webrick\Request\Request;
  *
  * ReqShield owns validation mechanics. Foundation supplies request input,
  * application defaults, and an explicit request-to-validator composition point.
+ *
+ * @api
  */
 abstract class FormRequest
 {
+    /**
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function __construct(private readonly ValidatorFactory $validators) {}
 
+    /**
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     final public function __invoke(Request $request): ValidationResult
     {
         return $this->validate($request);
@@ -25,14 +37,33 @@ abstract class FormRequest
     /** @return array<string,mixed> */
     abstract protected function rules(Request $request): array;
 
+    /**
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     final public function validate(Request $request): ValidationResult
     {
-        return $this->validators
-            ->makeRules($this->rules($request), $this->options($request))
-            ->validate($this->input($request));
+        $validator = $this->validators->makeRules($this->rules($request), $this->options($request));
+        $data = $this->input($request);
+        $context = NativeRunwireOperation::current();
+
+        return $context === null
+            ? $validator->validate($data)
+            : $validator->validateWithRunwire(
+                $data,
+                $context->runtime,
+                $context->request,
+                $context->scope,
+            );
     }
 
-    /** @return array<int|string,mixed> */
+    /**
+     * @return array<int|string,mixed>
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     final public function validated(Request $request): array
     {
         return $this->validate($request)->throw()->typed();

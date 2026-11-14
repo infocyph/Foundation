@@ -17,6 +17,12 @@ final readonly class ResolvingHandlerMiddleware implements HandlerMiddleware
         private string $service,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    #[\Override]
     public function process(
         object $message,
         Envelope $envelope,

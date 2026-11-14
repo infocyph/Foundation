@@ -14,6 +14,7 @@ final readonly class SimpleMfaVerifier implements MfaVerifierInterface
         private string $defaultCode = '000000',
     ) {}
 
+    #[\Override]
     public function verify(MfaChallenge $challenge, string $code): MfaVerificationResult
     {
         $expected = $challenge->metadata['code'] ?? $this->defaultCode;

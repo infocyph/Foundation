@@ -12,9 +12,13 @@ use Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\RefreshTokenStoreInterface;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
-use Infocyph\Foundation\Auth\Support\ContextValue;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
+/**
+ * Application-facing token issuance, verification and revocation.
+ *
+ * @api
+ */
 final readonly class TokenAuthManager
 {
     public function __construct(
@@ -89,7 +93,7 @@ final readonly class TokenAuthManager
         }
 
         $this->refreshTokens->revokeFamily($familyId);
-        $this->record(AuthEventType::REFRESH_TOKEN_REVOKED, ContextValue::stringOrNull($context, 'account_id'), ['family_id' => $familyId] + $context, AuthEventSeverity::NOTICE);
+        $this->record(AuthEventType::REFRESH_TOKEN_REVOKED, null, ['family_id' => $familyId] + $context, AuthEventSeverity::NOTICE);
 
         return new TokenRevocationResult(TokenRevocationStatus::REVOKED, $familyId, 'refresh_token_family_revoked', $context);
     }
@@ -105,7 +109,7 @@ final readonly class TokenAuthManager
             return new RefreshTokenRotationResult(false, record: $current, code: 'refresh_token_family_revoked', context: $metadata);
         }
 
-        if ($current->isExpiredAt($this->clock->now()) || $current->isRevoked()) {
+        if ($current->rotatedAt !== null || $current->isExpiredAt($this->clock->now()) || $current->isRevoked()) {
             $this->refreshTokens->revokeFamily($current->familyId);
             $this->auditReuse($current, ['reason' => 'stale_token_reuse'] + $metadata);
 
@@ -137,7 +141,12 @@ final readonly class TokenAuthManager
             metadata: $claims->metadata,
         );
 
-        $this->refreshTokens->rotate($current->id, $replacement);
+        if (!$this->refreshTokens->rotateIfActive($current, $replacement)) {
+            $this->refreshTokens->revokeFamily($current->familyId);
+            $this->auditReuse($current, ['reason' => 'concurrent_or_stale_rotation'] + $metadata);
+
+            return new RefreshTokenRotationResult(false, record: $current, code: 'refresh_token_reuse_detected', context: $metadata);
+        }
         $this->record(AuthEventType::REFRESH_TOKEN_ROTATED, $current->accountId, ['token_id' => $replacement->id, 'family_id' => $replacement->familyId] + $metadata);
 
         return new RefreshTokenRotationResult(true, token: $issued->value, record: $replacement, code: 'refresh_token_rotated', context: $metadata);
@@ -207,8 +216,7 @@ final readonly class TokenAuthManager
             $accountId,
             metadata: $metadata,
             severity: $severity,
-            deviceId: $deviceId ?? ContextValue::stringOrNull($metadata, 'device_id'),
-            sessionId: ContextValue::stringOrNull($metadata, 'session_id'),
+            deviceId: $deviceId,
         );
     }
 }

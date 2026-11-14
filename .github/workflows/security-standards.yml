@@ -5,12 +5,214 @@ on:
     - cron: "0 0 * * 0"
   push:
     branches: [ "main", "master" ]
+    tags: [ "v*", "[0-9]*" ]
   pull_request:
     branches: [ "main", "master", "develop", "development" ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
+  infbyte-candidate:
+    name: "Infbyte 4 current Foundation source / PHP ${{ matrix.php }}"
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/foundation-3'
+    permissions:
+      contents: read
+    env:
+      COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.4", "8.5"]
+    steps:
+      - name: Check out existing Infbyte 4 application candidate
+        uses: actions/checkout@v7
+        with:
+          repository: infocyph/Infbyte
+          ref: feature/infbyte-4
+          persist-credentials: false
+
+      - name: Verify documented Infbyte application file locations
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in \
+              config/app.php \
+              config/auth.php \
+              config/cache.php \
+              config/modules.php \
+              config/notifications.php \
+              config/router.php \
+              routes/api.php \
+              routes/console.php \
+              routes/schedule.php \
+              routes/workers.php \
+              bootstrap/app.php \
+              bootstrap/providers.php \
+              app/Http/Controllers/SystemController.php \
+              public/index.php; do
+            if [[ ! -f "$file" ]]; then
+              printf 'Infbyte manual path is absent from candidate: %s\n' "$file" >&2
+              exit 1
+            fi
+          done
+          for file in \
+              config/database.php \
+              config/filesystem.php \
+              config/messaging.php \
+              config/communication.php \
+              config/validation.php \
+              config/security.php \
+              config/session.php \
+              config/logging.php; do
+            if [[ -e "$file" ]]; then
+              printf 'Core-only candidate now ships a previously absent config override; update Infbyte docs: %s\n' "$file" >&2
+              exit 1
+            fi
+          done
+          printf 'Verified Infbyte project layout: %s\n' "$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set up PHP and Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pcntl, pdo_sqlite
+          tools: composer:v2
+          coverage: none
+
+      - name: Resolve the declared Foundation development dependency
+        run: |
+          set -euo pipefail
+          composer validate --strict
+          composer update --no-interaction --prefer-dist --no-progress
+
+      - name: Require the exact Foundation PR head
+        env:
+          EXPECTED_FOUNDATION_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -r '
+            $manifest = json_decode(file_get_contents("composer.json"), true, flags: JSON_THROW_ON_ERROR);
+            if (($manifest["require"]["infocyph/foundation"] ?? null) !== "dev-feature/foundation-3") {
+                fwrite(STDERR, "Expected the unreleased Infbyte 4 candidate, not a stable cutover." . PHP_EOL);
+                exit(1);
+            }
+          '
+          installed_sha="$(php -r '
+            $lock = json_decode(file_get_contents("composer.lock"), true, flags: JSON_THROW_ON_ERROR);
+            foreach (($lock["packages"] ?? []) as $package) {
+                if (($package["name"] ?? null) !== "infocyph/foundation") {
+                    continue;
+                }
+                $sha = $package["source"]["reference"] ?? $package["dist"]["reference"] ?? null;
+                if (!is_string($sha) || preg_match("/^[a-f0-9]{40}$/D", $sha) !== 1) {
+                    fwrite(STDERR, "Foundation resolved without an immutable source reference." . PHP_EOL);
+                    exit(1);
+                }
+                echo $sha;
+                exit(0);
+            }
+            fwrite(STDERR, "Foundation absent from the resolved package graph." . PHP_EOL);
+            exit(1);
+          ')"
+          echo "Foundation candidate source: $installed_sha"
+          if [[ "$installed_sha" != "$EXPECTED_FOUNDATION_SHA" ]]; then
+            printf 'Foundation source drift: installed=%s expected PR head=%s\n' "$installed_sha" "$EXPECTED_FOUNDATION_SHA" >&2
+            exit 1
+          fi
+          {
+            echo "### Foundation / Infbyte 4 candidate evidence"
+            echo "- Foundation source commit: $installed_sha"
+            echo "- Infbyte branch: feature/infbyte-4"
+            echo "- PHP version: ${{ matrix.php }}"
+            echo "- Dependency status: **development candidate, not published stable**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify qualified optional features and Core-only application
+        run: |
+          set -euo pipefail
+          php infbyte module:list --json=1 | php -r '
+            $data=json_decode(stream_get_contents(STDIN), true, flags: JSON_THROW_ON_ERROR);
+            $modules=$data["modules"] ?? [];
+            $names=array_column($modules, "name");
+            $count=array_sum(array_map(static fn(array $entry): int => count($entry["features"] ?? []), $modules));
+            if (($data["schema_version"] ?? null)!==2
+                || $names!==["data","security","execution"]
+                || $count!==8
+            ) {
+                fwrite(STDERR, "Infbyte candidate module topology no longer matches Foundation 4." . PHP_EOL);
+                exit(1);
+            }
+          '
+          php infbyte route:list
+
+      - name: Exercise documented Webrick health endpoint and TestKit
+        run: |
+          set -euo pipefail
+          php -r '
+            require "vendor/autoload.php";
+            $app = \Infocyph\Foundation\Foundation::web([
+                "base_path" => getcwd(),
+                "_config_cache" => false,
+                "app" => ["env" => "testing", "capabilities" => []],
+            ])->boot();
+            $testKit = $app->make(\Infocyph\Foundation\Testing\TestKit::class);
+            $response = $testKit->http()->get("/api/health");
+            $response->assertStatus(200)->assertJson(["status" => "ok"]);
+          '
+
+      - name: Check compiled Core production readiness
+        env:
+          APP_ENV: production
+          APP_DEBUG: "false"
+          APP_CAPABILITIES: ""
+        run: |
+          set -euo pipefail
+          php infbyte app:install
+          php infbyte config:validate --production
+          php infbyte optimize --json=1 > /tmp/infbyte-foundation4-candidate-release.json
+          php infbyte app:ready
+          php -r '
+            $artifact=json_decode(file_get_contents("/tmp/infbyte-foundation4-candidate-release.json"), true, flags: JSON_THROW_ON_ERROR);
+            $manifest=$artifact["manifest"] ?? null;
+            $expected=$artifact["manifest_sha256"] ?? null;
+            if (!is_string($manifest) || !is_file($manifest) || !is_string($expected)
+                || !hash_equals($expected, hash_file("sha256", $manifest))) {
+                fwrite(STDERR, "The candidate built an unverified Foundation generation." . PHP_EOL);
+                exit(1);
+            }
+          '
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: [phpforge, production-consumer, release-evidence, runtime-hosts, talkingbytes-mailpit, talkingbytes-grpc, historical-dependency-provenance, cross-major-auth-rehearsal, redis-cluster, documentation]
+    uses: infocyph/phpforge/.github/workflows/release.yml@7214b16487277181c177343d4e4163a9b5843f24
+    permissions:
+      contents: write
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+  source-certification:
+    needs: [phpforge, production-consumer, release-evidence]
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'foundation4-certify-source')
+    uses: ./.github/workflows/foundation4-host-certification.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      certify_source: true
+  runtime-hosts:
+    if: >-
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) ||
+      (github.event_name == 'pull_request' && !(github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'foundation4-certify-source')))
+    uses: ./.github/workflows/foundation4-host-certification.yml
+    permissions:
+      contents: read
+      actions: read
   phpforge:
-    uses: infocyph/phpforge/.github/workflows/security-standards.yml@fdec64cf4460f13116eb0e2f3405acadd3e84377
+    uses: infocyph/phpforge/.github/workflows/security-standards.yml@a6232b6aefcc32b84b2fb94b8db8f5ac3b276d5d
     permissions:
       security-events: write
       actions: read
@@ -24,6 +226,303 @@ jobs:
       benchmark_composer_script: "benchmark:release"
       benchmark_result_file: "build/cachelayer-33-utilization.json"
 
+
+  talkingbytes-mailpit:
+    name: Native SMTP / Mailpit - Foundation / TalkingBytes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      mailpit:
+        image: axllent/mailpit:v1.33.0
+        ports:
+          - 1025:1025
+          - 8025:8025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.5"
+          tools: composer:v2
+          extensions: "curl, mbstring, intl, sodium, pdo, pdo_sqlite, redis, fileinfo"
+          coverage: none
+      - name: Install selected published native dependencies
+        run: composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+      - name: Verify real SMTP DATA was accepted and captured by Mailpit
+        run: php tests/Fixtures/talkingbytes_mailpit_probe.php
+
+  talkingbytes-grpc:
+    name: Native gRPC wire - Foundation / TalkingBytes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "grpc, curl, mbstring, intl, sodium, pdo, pdo_sqlite, redis"
+          coverage: none
+      - name: Install native gRPC and selected package dependencies
+        run: |
+          php -r 'if (!extension_loaded("grpc")) { throw new RuntimeException("Native gRPC PHP extension unavailable."); }'
+          composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+          composer require --dev "grpc/grpc:^1.76" --no-interaction --no-progress --prefer-dist --prefer-stable
+      - name: Start pinned Python gRPC test peer and verify real native unary transport
+        run: |
+          python3 -m venv "$RUNNER_TEMP/foundation-grpc-venv"
+          "$RUNNER_TEMP/foundation-grpc-venv/bin/python" -m pip install --disable-pip-version-check "grpcio==1.76.0"
+          GRPC_PYTHON_BINARY="$RUNNER_TEMP/foundation-grpc-venv/bin/python" php tests/Fixtures/talkingbytes_grpc_probe.php
+
+  historical-dependency-provenance:
+    name: Historical Foundation 3 dependency reconstruction (truthful provenance)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          ref: fc9b3258646ac744e61fd02e18d9b98e5afff2e8
+          path: historical
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "curl, mbstring, intl, sodium, pdo, pdo_sqlite, fileinfo"
+          coverage: none
+      - name: Preserve source truth, published-package resolution and historic advisory evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$GITHUB_WORKSPACE/build/historical-dependency-provenance"
+          mkdir -p "$output"
+          test "$(git -C historical rev-parse HEAD)" = fc9b3258646ac744e61fd02e18d9b98e5afff2e8
+          git -C historical rev-parse HEAD > "$output/source.sha"
+          cp historical/composer.json "$output/original-composer.json"
+          composer --version > "$output/composer-version.txt"
+          php -v > "$output/php-version.txt"
+
+          if git -C historical cat-file -e HEAD:composer.lock 2>/dev/null; then
+            git -C historical show HEAD:composer.lock > "$output/original-composer.lock"
+            printf 'tracked_original=present\n' > "$output/provenance.env"
+          else
+            printf 'tracked_original=absent\n' > "$output/provenance.env"
+            printf 'Original Foundation 3 composer.lock was not tracked at this immutable source SHA.\n' > "$output/original-lock-unavailable.txt"
+          fi
+
+          # A 2026 re-resolution is a reconstructed graph, NEVER the historical lock.
+          set +e
+          composer update --working-dir=historical --no-interaction --no-progress --prefer-dist --prefer-stable > "$output/full-resolution.log" 2>&1
+          full_status=$?
+          set -e
+          printf 'full_dev_resolution_exit=%s\n' "$full_status" >> "$output/provenance.env"
+          if [[ "$full_status" != 0 ]]; then
+            rm -f historical/composer.lock
+            # Full dev can be unresolvable years later (notably dev-main).
+            # Make the production-only projection explicit and preserve both manifests.
+            php -r '
+              $manifest = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
+              unset($manifest["require-dev"]);
+              file_put_contents($argv[1], json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+            ' historical/composer.json
+            cp historical/composer.json "$output/reconstructed-production-only-composer.json"
+            composer update --working-dir=historical --no-dev --no-interaction --no-progress --prefer-dist --prefer-stable > "$output/production-resolution.log" 2>&1
+            printf 'resolver_scope=production_only\n' >> "$output/provenance.env"
+          else
+            printf 'resolver_scope=full_dev\n' >> "$output/provenance.env"
+          fi
+
+          test -f historical/composer.lock
+          cp historical/composer.lock "$output/reconstructed-2026-composer.lock"
+          sha256sum "$output/original-composer.json" "$output/reconstructed-2026-composer.lock" > "$output/sha256.txt"
+          php -r '
+            $lock = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
+            $packages = [];
+            foreach (array_merge($lock["packages"] ?? [], $lock["packages-dev"] ?? []) as $package) {
+                $packages[$package["name"]] = [
+                    "version" => $package["version"] ?? null,
+                    "source_ref" => $package["source"]["reference"] ?? null,
+                    "dist_ref" => $package["dist"]["reference"] ?? null,
+                ];
+            }
+            ksort($packages, SORT_STRING);
+            echo json_encode(["provenance" => "reconstructed_not_original", "packages" => $packages], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), "\n";
+          ' "$output/reconstructed-2026-composer.lock" > "$output/reconstructed-exact-refs.json"
+
+          set +e
+          composer audit --working-dir=historical --locked --abandoned=report --format=json > "$output/historical-advisories.json" 2> "$output/audit-stderr.txt"
+          audit_status=$?
+          set -e
+          printf 'historical_audit_exit=%s\n' "$audit_status" >> "$output/provenance.env"
+          printf 'Historical audit findings are evidence, not a waiver of candidate release security checks.\n' > "$output/audit-policy.txt"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation3-reconstructed-dependency-provenance-${{ github.sha }}
+          path: build/historical-dependency-provenance/
+          if-no-files-found: error
+          retention-days: 30
+
+  cross-major-auth-rehearsal:
+    name: Original Foundation 3 to 4 native DBLayer retained-state cutover
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:8.10-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 30
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          ref: fc9b3258646ac744e61fd02e18d9b98e5afff2e8
+          path: historical
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "curl, mbstring, intl, sodium, pcntl, posix, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached, fileinfo"
+          coverage: none
+      - name: Resolve actual original-source selected legacy DBLayer and current native graphs
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$GITHUB_WORKSPACE/build/cross-major-rehearsal"
+          mkdir -p "$output"
+          test "$(git -C historical rev-parse HEAD)" = fc9b3258646ac744e61fd02e18d9b98e5afff2e8
+          git -C historical rev-parse HEAD > "$output/historical-source.sha"
+          git rev-parse HEAD > "$output/candidate-source.sha"
+          cp historical/composer.json "$output/original-historical-composer.json"
+          # The original Foundation 3 composer.lock was never tracked. Resolve
+          # its real published DBLayer 5 feature, explicitly marked reconstructed.
+          php -r '
+            $path = "historical/composer.json";
+            $manifest = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+            $manifest["require"]["infocyph/dblayer"] = $manifest["require-dev"]["infocyph/dblayer"];
+            $manifest["require"]["infocyph/omnibus"] = $manifest["require-dev"]["infocyph/omnibus"];
+            unset($manifest["require-dev"]);
+            file_put_contents($path, json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+          '
+          cp historical/composer.json "$output/selected-historical-composer.json"
+          composer update --working-dir=historical --no-dev --no-interaction --no-progress --prefer-dist --prefer-stable
+          composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+          cp historical/composer.lock "$output/reconstructed-not-original.lock"
+          cp composer.lock "$output/current-candidate.lock"
+          composer show --working-dir=historical --locked infocyph/dblayer > "$output/historical-dblayer.txt"
+          composer show --locked infocyph/dblayer > "$output/candidate-dblayer.txt"
+          composer show --working-dir=historical --locked infocyph/omnibus > "$output/historical-omnibus.txt"
+          composer show --locked infocyph/omnibus > "$output/candidate-omnibus.txt"
+          sha256sum "$output/"*.lock > "$output/lock-sha256.txt"
+      - name: Restore one consistent SQL and Redis checkpoint across source, dependency and artifact cutovers
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$GITHUB_WORKSPACE/build/cross-major-rehearsal"
+          project="$RUNNER_TEMP/foundation3-to-4-release-artifacts"
+          database="$output/retained.sqlite"
+          digest="$output/retained.sha256"
+          auth=tests/Fixtures/foundation3_dependency_cutover_probe.php
+          queue=tests/Fixtures/foundation3_to_4_queue_probe.php
+          cache=tests/Fixtures/foundation3_to_4_cache_probe.php
+          artifacts=tests/Fixtures/foundation3_to_4_release_artifact_probe.php
+          old="$GITHUB_WORKSPACE/historical/vendor/autoload.php"
+          current="$GITHUB_WORKSPACE/vendor/autoload.php"
+
+          # All side effects remain quiesced and isolated to this single job.
+          php "$artifacts" old-build "$project" "$old" "$output"
+          php "$auth" seed "$database" "$old" "$digest" | tee "$output/old-seed.json"
+          php "$queue" old-seed "$database" "$old" "$output"
+          php "$cache" old-seed "$project" "$old" "$output"
+          cp "$database" "$output/old-snapshot.sqlite"
+          sha256sum "$output/old-snapshot.sqlite" > "$output/original-snapshot.sha256"
+
+          php "$artifacts" new-build "$project" "$current" "$output"
+          php "$auth" upgrade "$database" "$current" "$digest" | tee "$output/first-upgrade.json"
+          php "$queue" new-probe "$database" "$current" "$output"
+          php "$cache" new-read "$project" "$current" "$output"
+
+          php "$artifacts" old-rollback "$project" "$old" "$output"
+          php "$auth" legacy-read "$database" "$old" "$digest" | tee "$output/old-source-after-upgrade.json"
+          php "$queue" old-rollback "$database" "$old" "$output"
+
+          # Restore both durable stores from the same old-source checkpoint.
+          cp "$output/old-snapshot.sqlite" "$database"
+          test "$(sha256sum "$database" | cut -d' ' -f1)" = "$(sha256sum "$output/old-snapshot.sqlite" | cut -d' ' -f1)"
+          php "$cache" old-restore "$project" "$old" "$output"
+          php "$auth" legacy-read "$database" "$old" "$digest" | tee "$output/old-source-restored.json"
+          php "$queue" old-restored "$database" "$old" "$output"
+
+          php "$artifacts" new-rollforward "$project" "$current" "$output"
+          php "$auth" upgrade "$database" "$current" "$digest" | tee "$output/second-upgrade.json"
+          php "$queue" new-rollforward "$database" "$current" "$output"
+          php "$cache" new-rollforward "$project" "$current" "$output"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation3-to-4-native-auth-rehearsal-${{ github.sha }}
+          path: build/cross-major-rehearsal/
+          if-no-files-found: warn
+          retention-days: 30
+
+  redis-cluster:
+    name: Native Redis Cluster - Foundation / CacheLayer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.5"
+          tools: composer:v2
+          extensions: "redis, mbstring, intl, sodium, pdo, pdo_sqlite"
+          coverage: none
+      - name: Install real Redis Cluster runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq redis-server redis-tools
+      - name: Start independent Redis Cluster slots
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/foundation-redis-cluster"
+          mkdir -p "$root"
+          for port in 7200 7201 7202; do
+            mkdir -p "$root/$port"
+            redis-server --port "$port" --bind 127.0.0.1 --protected-mode no \
+              --cluster-enabled yes --cluster-config-file "nodes-$port.conf" \
+              --cluster-node-timeout 5000 --appendonly no --save '' \
+              --daemonize yes --dir "$root/$port"
+          done
+          redis-cli --cluster create 127.0.0.1:7200 127.0.0.1:7201 127.0.0.1:7202 \
+            --cluster-replicas 0 --cluster-yes
+          for attempt in $(seq 1 30); do
+            if redis-cli -p 7200 cluster info | grep -q 'cluster_state:ok'; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Real Redis Cluster never reached a healthy slot state." >&2
+          exit 1
+      - name: Verify multi-slot, atomic and invalidation boundaries through Foundation
+        env:
+          FOUNDATION_REDIS_CLUSTER_SEEDS: "127.0.0.1:7200,127.0.0.1:7201,127.0.0.1:7202"
+        run: |
+          composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+          php benchmarks/foundation4-redis-cluster-smoke.php
+      - name: Stop Redis Cluster
+        if: always()
+        run: |
+          for port in 7200 7201 7202; do
+            redis-cli -p "$port" shutdown nosave || true
+          done
 
   production-consumer:
     name: Production consumer - PHP ${{ matrix.php-version }} - ${{ matrix.dependencies }}
@@ -39,7 +538,7 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
           tools: composer:v2
-          extensions: "mbstring, pdo, pdo_sqlite"
+          extensions: "mbstring, intl, sodium, fileinfo, zip, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
           coverage: none
       - name: Verify isolated production consumers
         shell: bash
@@ -78,6 +577,7 @@ jobs:
             cd "$minimal"
             composer update "${composer_args[@]}"
             vendor/bin/infbyte list > command-list.txt
+            php "$GITHUB_WORKSPACE/tests/Fixtures/ModuleFeatureProductionMatrix.php" core
             php -r 'require "vendor/autoload.php";'
             if composer show infocyph/phpforge >/dev/null 2>&1; then
               echo "PHPForge leaked into the production consumer." >&2
@@ -106,7 +606,7 @@ jobs:
             ],
             "require": {
               "infocyph/foundation": "*",
-              "infocyph/dblayer": "^5.1"
+              "infocyph/dblayer": "^6.1.4"
             }
           }
           JSON
@@ -115,19 +615,110 @@ jobs:
             cd "$optional"
             composer update "${composer_args[@]}"
             vendor/bin/infbyte list > command-list.txt
-            vendor/bin/infbyte module:show database --json > database-module.json
-            php -r '
+            vendor/bin/infbyte module:show data.database --json > database-module.json
+            php /dev/stdin <<'PHP'
+          <?php
               $payload = json_decode(file_get_contents("database-module.json"), true, 512, JSON_THROW_ON_ERROR);
-              if (($payload["name"] ?? null) !== "database") {
+              if (($payload["schema_version"] ?? null) !== 2
+                  || ($payload["module"] ?? null) !== "data"
+                  || !isset($payload["states"]["data.database"])) {
                   fwrite(STDERR, "Database module inspection did not return the expected payload.\n");
                   exit(1);
               }
-            '
+          PHP
             if composer show infocyph/phpforge >/dev/null 2>&1; then
               echo "PHPForge leaked into the optional production consumer." >&2
               exit 1
             fi
           )
+
+          # Exercise the full published specialist set under production --no-dev.
+          # Availability of a library does not implicitly enable a capability.
+          full="$RUNNER_TEMP/foundation-full-consumer"
+          mkdir -p "$full/storage"
+          cat > "$full/composer.json" <<JSON
+          {
+            "name": "infocyph/foundation-full-consumer",
+            "type": "project",
+            "minimum-stability": "dev",
+            "prefer-stable": true,
+            "repositories": [
+              {"type": "path", "url": "$GITHUB_WORKSPACE", "options": {"symlink": false}}
+            ],
+            "require": {
+              "infocyph/foundation": "*",
+              "infocyph/dblayer": "^6.1.4",
+              "infocyph/epicrypt": "^3.3",
+              "infocyph/omnibus": "^3.0.3",
+              "infocyph/otp": "^7.0.1",
+              "infocyph/pathwise": "^4.2.1",
+              "infocyph/reqshield": "^3.3.1",
+              "infocyph/talkingbytes": "^2.3.1",
+              "web-auth/webauthn-lib": "^5.3.12"
+            }
+          }
+          JSON
+          (
+            cd "$full"
+            composer update "${composer_args[@]}"
+            vendor/bin/infbyte list > commands.txt
+            vendor/bin/infbyte module:list --json > modules.json
+            php /dev/stdin <<'PHP'
+          <?php
+              $payload = json_decode(file_get_contents("modules.json"), true, 512, JSON_THROW_ON_ERROR);
+              if (($payload["schema_version"] ?? null) !== 2
+                  || array_column($payload["modules"] ?? [], "name") !== ["data", "security", "execution"]
+                  || count(array_merge(...array_column($payload["modules"] ?? [], "features"))) !== 8) {
+                  fwrite(STDERR, "Unexpected Foundation 4 three-module/eight-feature v2 catalog.\n");
+                  exit(1);
+              }
+          PHP
+            php /dev/stdin <<'PHP'
+          <?php
+              require "vendor/autoload.php";
+              foreach ([
+                  \Infocyph\Runwire\RuntimeContext::class,
+                  \Infocyph\DBLayer\Connection\Connection::class,
+                  \Infocyph\Omnibus\Envelope\Envelope::class,
+                  \Infocyph\TalkingBytes\Http\HttpClient::class,
+              ] as $class) {
+                  if (!class_exists($class)) {
+                      fwrite(STDERR, "Missing selected owner: " . $class . "\n");
+                      exit(1);
+                  }
+              }
+              $app = \Infocyph\Foundation\Foundation::worker([
+                  "app" => ["base_path" => getcwd(), "env" => "local", "capabilities" => []],
+                  "_config_cache" => false,
+              ])->boot();
+              $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
+              $request = \Infocyph\Runwire\RequestContext::create($runtime);
+              try {
+                  $app->execution()->run(
+                      static function () use ($app, $runtime, $request): void {
+                          if ($app->make(\Infocyph\Runwire\RuntimeContext::class) !== $runtime
+                              || $app->make(\Infocyph\Runwire\RequestContext::class) !== $request
+                          ) {
+                              throw new \LogicException("Runwire host input identity changed.");
+                          }
+                      },
+                      [
+                          \Infocyph\Runwire\RuntimeContext::class => $runtime,
+                          \Infocyph\Runwire\RequestContext::class => $request,
+                      ],
+                  );
+              } finally {
+                  $request->complete();
+              }
+          PHP
+            php "$GITHUB_WORKSPACE/docs/examples/foundation-4-compiled-release.php"
+            php "$GITHUB_WORKSPACE/tests/Fixtures/ModuleFeatureProductionMatrix.php" all
+            if composer show infocyph/phpforge >/dev/null 2>&1; then
+              echo "PHPForge leaked into full production consumer." >&2
+              exit 1
+            fi
+          )
+
 
   release-evidence:
     name: Release evidence
@@ -144,14 +735,40 @@ jobs:
           coverage: none
       - name: Install release-evidence dependencies
         run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
+      - name: Diagnose Foundation 4 release tooling and active configuration
+        run: |
+          composer ic:doctor
+          composer ic:list-config
+          composer ic:active-config
       - name: Complete PHPForge release-guard constraints
         run: |
           composer validate --strict
           composer ic:release:constraints
+          composer ic:release:audit
+      - name: Verify actual PHP platform and locked Composer advisory policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/release-evidence
+          composer check-platform-reqs --lock --format=json > build/release-evidence/platform-full.json
+          composer check-platform-reqs --lock --no-dev --format=json > build/release-evidence/platform-core.json
+          composer audit --locked --abandoned=report --format=json > build/release-evidence/composer-audit.json
+      - name: Execute migration bootstrap smoke examples
+        run: |
+          php docs/examples/foundation-4-core.php
+          php docs/examples/foundation-4-runwire-worker.php
+      - name: Capture pre-rework Foundation module CLI baseline
+        env:
+          FOUNDATION_MODULE_BASELINE_OUTPUT: build/release-evidence/module-cli-baseline.json
+          FOUNDATION_MODULE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p build/release-evidence
+          php benchmarks/foundation4-module-cli-baseline.php
       - name: Capture release evidence
         shell: bash
         env:
           SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BASELINE_SOURCE_SHA: ${{ github.event.pull_request.base.sha || '' }}
         run: |
           set -euo pipefail
           directory=build/release-evidence
@@ -160,11 +777,31 @@ jobs:
             printf "source_sha=%s\n" "$SOURCE_SHA"
             printf "ci_sha=%s\n" "$GITHUB_SHA"
             printf "php=%s\n" "$(php -r 'echo PHP_VERSION;')"
-            printf "phpforge_workflow=%s\n" "fdec64cf4460f13116eb0e2f3405acadd3e84377"
+            printf "phpforge_workflow=%s\n" "a6232b6aefcc32b84b2fb94b8db8f5ac3b276d5d"
             printf "generated_at=%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } > "$directory/manifest.env"
           php -m | sort > "$directory/php-extensions.txt"
           composer show --locked --format=json > "$directory/dependencies.json"
+          composer show --locked --direct --format=json > "$directory/dependencies-direct.json"
+          sha256sum composer.lock > "$directory/composer-lock.sha256"
+          cp composer.json "$directory/candidate-composer.json"
+          if [[ -n "$BASELINE_SOURCE_SHA" ]]; then
+            [[ "$BASELINE_SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "Invalid pull request baseline SHA." >&2; exit 1; }
+            git fetch --no-tags --depth=1 origin "$BASELINE_SOURCE_SHA"
+            test "$(git rev-parse "$BASELINE_SOURCE_SHA^{commit}")" = "$BASELINE_SOURCE_SHA"
+            printf 'baseline_source_sha=%s\n' "$BASELINE_SOURCE_SHA" > "$directory/pre-upgrade-source.env"
+            git show "$BASELINE_SOURCE_SHA:composer.json" > "$directory/pre-upgrade-composer.json"
+            if git cat-file -e "$BASELINE_SOURCE_SHA:composer.lock" 2>/dev/null; then
+              git show "$BASELINE_SOURCE_SHA:composer.lock" > "$directory/pre-upgrade-composer.lock"
+              sha256sum "$directory/pre-upgrade-composer.lock" > "$directory/pre-upgrade-composer-lock.sha256"
+              printf 'baseline_lock=tracked\n' >> "$directory/pre-upgrade-source.env"
+            else
+              printf 'baseline_lock=not_tracked_in_source\n' >> "$directory/pre-upgrade-source.env"
+            fi
+          else
+            printf 'baseline_source_sha=not_a_pull_request\n' > "$directory/pre-upgrade-source.env"
+          fi
+          php --ini=diff > "$directory/php-ini-diff.txt"
           git ls-files 'tests/*.php' 'tests/**/*.php' | sort > "$directory/test-files.txt"
           awk 'NF { count++ } END { printf "test_file_inventory=%d\n", count }' "$directory/test-files.txt" > "$directory/test-inventory.env"
       - uses: actions/upload-artifact@v7
@@ -173,3 +810,36 @@ jobs:
           name: foundation-release-evidence-${{ github.sha }}
           path: build/release-evidence/
           retention-days: 30
+
+  documentation:
+    name: Infbyte documentation / Sphinx
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: docs/requirements.txt
+      - name: Install documentation dependencies
+        run: python -m pip install --disable-pip-version-check -r docs/requirements.txt
+      - name: Build Infbyte HTML with strict references and warnings
+        run: python -m sphinx -b html -n -W --keep-going docs docs/_build/html
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+      - name: Syntax-check documented command, schedule and provider examples
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l docs/examples/infbyte-clock-provider.php.txt
+          php -l docs/examples/infbyte-report-command.php.txt
+          php -l docs/examples/infbyte-schedule.php.txt
+      - name: Audit documented public API, features and configuration
+        run: python docs/tools/check_public_contracts.py
+      - name: Syntax-check complete PHP examples in RST
+        run: python docs/tools/lint_php_blocks.py

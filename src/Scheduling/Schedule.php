@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Scheduling;
 
+/**
+ * Public application schedule registration contract.
+ *
+ * @api
+ */
 final class Schedule
 {
     /** @var list<ScheduledCommand> */
@@ -16,6 +21,9 @@ final class Schedule
         return $this;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function command(string $command): ScheduledCommand
     {
         $scheduled = new ScheduledCommand($command);

@@ -16,7 +16,10 @@ final readonly class WebAuthnConfig
         public bool $allowSubdomains = false,
     ) {}
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function fromArray(array $config): self
     {
         $challengeTtl = self::integer($config['challenge_ttl'] ?? null, 300);

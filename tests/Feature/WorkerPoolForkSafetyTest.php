@@ -59,7 +59,12 @@ it('rejects an opened DBLayer parent connection before pool fork', function (): 
             ],
             'messaging' => foundationForkSafetyMessagingConfig(),
         ]);
-        $app->make(DBLayerFactory::class)->connection()->statement('SELECT 1');
+        // The fork guard must detect DBLayer's real process-wide facade registry.
+        // Execution-owned DBLayerFactory::connection() correctly requires a scope.
+        DB::addConnection([
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+        ], 'testing')->statement('SELECT 1');
 
         expect(fn() => new WorkerManager($app)->run('parallel'))
             ->toThrow(LogicException::class, 'DBLayer connections');
@@ -79,10 +84,13 @@ it('rejects a resolved TalkingBytes HTTP client before pool fork', function (): 
             'app' => ['base_path' => $basePath],
             'messaging' => foundationForkSafetyMessagingConfig(),
         ]);
-        expect($app->make(HttpClient::class))->toBeInstanceOf(HttpClient::class);
+        $app->execution()->run(static function () use ($app): void {
+            expect($app->make(HttpClient::class))->toBe($app->make(HttpClient::class));
 
-        expect(fn() => new WorkerManager($app)->run('parallel'))
-            ->toThrow(LogicException::class, HttpClient::class);
+            // Resolving a scoped client still makes the parent unsafe to fork.
+            expect(fn() => new WorkerManager($app)->run('parallel'))
+                ->toThrow(LogicException::class, HttpClient::class);
+        });
     } finally {
         foundationForkSafetyRemove($basePath);
     }
@@ -107,18 +115,11 @@ it('forks initializes terminates and reaps an Omnibus worker child without skipp
         ->and(defined('SIGINT'))->toBeTrue();
 
     $parentPid = getmypid();
-    expect($parentPid)->toBeInt();
+    \PHPUnit\Framework\Assert::assertIsInt($parentPid);
     $marker = tempnam(sys_get_temp_dir(), 'foundation-worker-pool-');
-    expect($marker)->toBeString();
-    if (!is_int($parentPid) || !is_string($marker)) {
-        throw new RuntimeException('Unable to initialize WorkerPool fork-safety probe.');
-    }
-
+    \PHPUnit\Framework\Assert::assertIsString($marker);
     $terminate = constant('SIGTERM');
     $interrupt = constant('SIGINT');
-    if (!is_int($terminate) || !is_int($interrupt)) {
-        throw new RuntimeException('WorkerPool signals are unavailable.');
-    }
     $previousTerminate = pcntl_signal_get_handler($terminate);
     $previousInterrupt = pcntl_signal_get_handler($interrupt);
 
@@ -142,6 +143,7 @@ it('forks initializes terminates and reaps an Omnibus worker child without skipp
                 }
 
                 usleep(250_000);
+
                 throw new RuntimeException('WorkerPool child should have been terminated by the parent.');
             },
             concurrency: 1,
@@ -152,12 +154,12 @@ it('forks initializes terminates and reaps an Omnibus worker child without skipp
         $pool->run();
 
         $payload = file_get_contents($marker);
-        expect($payload)->toBeString();
-        $decoded = is_string($payload)
-            ? json_decode($payload, true, 16, JSON_THROW_ON_ERROR)
-            : [];
-        expect($decoded)->toBeArray()
-            ->and($decoded['parent'] ?? null)->toBe($parentPid)
+        if ($payload === false) {
+            throw new RuntimeException('Unable to read the WorkerPool child probe marker.');
+        }
+        $decoded = json_decode($payload, true, 16, JSON_THROW_ON_ERROR);
+        \PHPUnit\Framework\Assert::assertIsArray($decoded);
+        expect($decoded['parent'] ?? null)->toBe($parentPid)
             ->and($decoded['child'] ?? null)->toBeInt()
             ->and($decoded['child'] ?? null)->not->toBe($parentPid)
             ->and($decoded['slot'] ?? null)->toBe(0)
@@ -213,6 +215,7 @@ function foundationForkSafetyRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

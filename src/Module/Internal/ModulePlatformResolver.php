@@ -9,6 +9,7 @@ use Infocyph\Foundation\Application\Application;
 
 /**
  * @phpstan-import-type ModuleDefinition from \Infocyph\Foundation\Module\ModuleCatalog
+ * @phpstan-import-type ResolvedModule from \Infocyph\Foundation\Module\ModuleCatalog
  * @phpstan-import-type FeatureState from \Infocyph\Foundation\Module\ModuleStateResolver
  * @phpstan-type PlatformResolution array{
  *     ready:bool,
@@ -24,7 +25,7 @@ final readonly class ModulePlatformResolver
     public function __construct(private Application $application) {}
 
     /**
-     * @phpstan-param ModuleDefinition $definition
+     * @phpstan-param ModuleDefinition|ResolvedModule $definition
      * @phpstan-param array<string,FeatureState> $features
      * @phpstan-return PlatformResolution
      */
@@ -142,7 +143,7 @@ final readonly class ModulePlatformResolver
     }
 
     /**
-     * @phpstan-param ModuleDefinition $definition
+     * @phpstan-param ModuleDefinition|ResolvedModule $definition
      * @return list<string>
      */
     private function requiredExtensions(string $module, array $definition): array

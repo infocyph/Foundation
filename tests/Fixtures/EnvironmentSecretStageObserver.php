@@ -1,0 +1,47 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Infocyph\Foundation\Tests\Fixtures;
+
+use RuntimeException;
+
+final class EnvironmentSecretStageObserver
+{
+    public static bool $active = false;
+
+    public static bool $failChmod = false;
+
+    public static ?int $modeAtFirstWrite = null;
+
+    public static int $writes = 0;
+
+    public static ?string $temporaryDirectory = null;
+
+    public static ?int $configDirectoryMode = null;
+
+    /**
+     * @throws \RuntimeException
+     *
+     * @param resource $stream
+     */
+    public static function inspect(mixed $stream): void
+    {
+        if (!self::$active) {
+            return;
+        }
+
+        $details = stream_get_meta_data($stream);
+        $path = $details['uri'] ?? '';
+        if (!str_ends_with($path, '.tmp') && !str_starts_with(basename($path), '.foundation-config-')) {
+            return;
+        }
+
+        $stat = fstat($stream);
+        if (!is_array($stat)) {
+            throw new RuntimeException('Unable to inspect environment stage at first write.');
+        }
+        self::$modeAtFirstWrite ??= $stat['mode'] & 0777;
+        self::$writes++;
+    }
+}

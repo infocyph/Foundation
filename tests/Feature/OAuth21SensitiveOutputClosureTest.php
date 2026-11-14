@@ -63,6 +63,11 @@ it('keeps all OAuth secret classes out of audit metadata and signing-key errors'
     }
 
     $config = AuthDefaults::all();
+    if (!is_array($config['auth'] ?? null)
+        || !is_array($config['auth']['oauth'] ?? null)
+        || !is_array($config['auth']['oauth']['signing'] ?? null)) {
+        throw new \UnexpectedValueException('OAuth signing defaults must be an array.');
+    }
     $config['auth']['oauth']['issuer'] = 'https://issuer.example.test';
     $config['auth']['oauth']['signing']['active_key_id'] = 'active_key';
     $config['auth']['oauth']['signing']['private_key'] = $sentinels['private_key_path'];

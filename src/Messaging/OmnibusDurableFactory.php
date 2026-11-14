@@ -21,34 +21,57 @@ use Infocyph\Omnibus\Serialization\MessageCodec;
 use Infocyph\Omnibus\Serialization\MessageCodecRegistry;
 use Infocyph\Omnibus\Serialization\StampCodec;
 use Infocyph\Omnibus\Serialization\StampCodecRegistry;
+use Psr\Container\ContainerInterface;
 
+/**
+ * Generated-runtime Omnibus durable service composition entrypoint.
+ *
+ * @api
+ */
 final readonly class OmnibusDurableFactory
 {
     public function __construct(
         private ConfigRepository $config,
-        private DBLayerFactory $database,
+        private ContainerInterface $services,
         private MessagingRuntimeResolver $resolver,
         private SystemClock $clock,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \LogicException
+     */
     public function afterCommit(MessageBus $bus): AfterCommitDispatcher
     {
         return new AfterCommitDispatcher(
-            $this->database->connection($this->connectionName()),
+            $this->database()->connection($this->connectionName()),
             $bus,
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function failureStore(EnvelopeSerializer $serializer): DBLayerFailureStore
     {
         return new DBLayerFailureStore(
-            $this->database->infrastructureConnection($this->connectionName()),
+            $this->database()->infrastructureConnection($this->connectionName()),
             $serializer,
             $this->table('failures', 'omnibus_failures'),
             $this->clock,
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function serializer(): JsonEnvelopeSerializer
     {
         return new JsonEnvelopeSerializer(
@@ -63,20 +86,30 @@ final readonly class OmnibusDurableFactory
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function transport(EnvelopeSerializer $serializer): DBLayerTransport
     {
         return new DBLayerTransport(
-            $this->database->infrastructureConnection($this->connectionName()),
+            $this->database()->infrastructureConnection($this->connectionName()),
             $serializer,
             $this->clock,
             $this->table('messages', 'omnibus_messages'),
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function workflowStore(EnvelopeSerializer $serializer): DBLayerWorkflowStore
     {
         return new DBLayerWorkflowStore(
-            $this->database->infrastructureConnection($this->connectionName()),
+            $this->database()->infrastructureConnection($this->connectionName()),
             $serializer,
             $this->table('workflows', 'omnibus_workflows'),
             $this->table('workflow_items', 'omnibus_workflow_items'),
@@ -91,7 +124,28 @@ final readonly class OmnibusDurableFactory
         return is_string($connection) && $connection !== '' ? $connection : null;
     }
 
-    /** @return list<MessageCodec> */
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    private function database(): DBLayerFactory
+    {
+        $database = $this->services->get(DBLayerFactory::class);
+        if (!$database instanceof DBLayerFactory) {
+            throw new ConfigurationException('DBLayerFactory binding is invalid.');
+        }
+
+        return $database;
+    }
+
+    /**
+     * @return list<MessageCodec>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function messageCodecs(): array
     {
         $configured = $this->config->get('messaging.serialization.message_codecs', []);
@@ -113,7 +167,13 @@ final readonly class OmnibusDurableFactory
         return $codecs;
     }
 
-    /** @return list<StampCodec> */
+    /**
+     * @return list<StampCodec>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function stampCodecs(): array
     {
         $configured = $this->config->get('messaging.serialization.stamp_codecs', []);

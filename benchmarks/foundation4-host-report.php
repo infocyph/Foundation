@@ -1,0 +1,234 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * @return array{requests:int,connection_warmup:array<array-key,mixed>,measured_new_connections:int,load_cpu_percent:float|int,worker_requests:array<array-key,mixed>,database_queries:int,application_cache_hits:int,authenticated:bool,successful:int,failed:int,rpm:float,duration_seconds:float,p50_ms:float,p95_ms:float,p99_ms:float}
+ * @throws \RuntimeException
+ */
+function f4HostLoad(string $path, int $expectedRequests): array
+{
+    $result = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+    if (!is_array($result)
+        || ($result['protocol'] ?? null) !== 'HTTP/1.1'
+        || !is_int($result['requests'] ?? null)
+        || $result['requests'] < $expectedRequests
+        || ($result['successful'] ?? null) !== $result['requests']
+        || ($result['failed'] ?? null) !== 0
+        || !is_array($result['connection_warmup'] ?? null)
+        || ($result['connection_warmup']['successful'] ?? null) !== ($result['concurrency'] ?? null)
+        || !is_int($result['measured_new_connections'] ?? null)
+        || $result['measured_new_connections'] < 0
+        || !is_array($result['worker_requests'] ?? null)
+        || (!is_int($result['load_cpu_percent'] ?? null) && !is_float($result['load_cpu_percent'] ?? null))
+        || !is_finite((float) $result['load_cpu_percent'])
+        || $result['load_cpu_percent'] < 0
+    ) {
+        throw new RuntimeException(sprintf('Invalid response-verified host load: %s', $path));
+    }
+    foreach (['successful', 'failed', 'rpm', 'duration_seconds', 'p50_ms', 'p95_ms', 'p99_ms'] as $field) {
+        if (!is_int($result[$field] ?? null) && !is_float($result[$field] ?? null)) {
+            throw new RuntimeException(sprintf('Host load field %s must be numeric.', $field));
+        }
+    }
+    if (($result['authenticated'] ?? false) && array_sum($result['worker_requests']) !== $result['successful']) {
+        throw new RuntimeException('Authenticated worker telemetry does not cover every successful response.');
+    }
+
+    $databaseQueries = $result['database_queries'] ?? 0;
+    $cacheHits = $result['application_cache_hits'] ?? 0;
+    if (!is_numeric($databaseQueries) || !is_numeric($cacheHits)) {
+        throw new RuntimeException('Host load application counters must be numeric.');
+    }
+
+    return [
+        'requests' => (int) $result['requests'],
+        'connection_warmup' => $result['connection_warmup'],
+        'measured_new_connections' => $result['measured_new_connections'],
+        'load_cpu_percent' => $result['load_cpu_percent'],
+        'worker_requests' => $result['worker_requests'],
+        'database_queries' => (int) $databaseQueries,
+        'application_cache_hits' => (int) $cacheHits,
+        'authenticated' => ($result['authenticated'] ?? false) === true,
+        'successful' => (int) $result['successful'],
+        'failed' => (int) $result['failed'],
+        'rpm' => (float) $result['rpm'],
+        'duration_seconds' => (float) $result['duration_seconds'],
+        'p50_ms' => (float) $result['p50_ms'],
+        'p95_ms' => (float) $result['p95_ms'],
+        'p99_ms' => (float) $result['p99_ms'],
+    ];
+}
+
+/**
+ * @return array<string,int|float|null>
+ * @throws \RuntimeException
+ */
+function f4HostSamples(string $path): array
+{
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if (!is_array($lines) || count($lines) < 2) {
+        throw new RuntimeException(sprintf('No live process samples: %s', $path));
+    }
+
+    $maxRssKb = 0.0;
+    $firstRssKb = null;
+    $lastRssKb = 0.0;
+    $maxCpu = 0.0;
+    $maxProcesses = 0;
+    $firstTime = $lastTime = $firstCpuSeconds = $lastCpuSeconds = null;
+    foreach (array_slice($lines, 1) as $line) {
+        $values = str_getcsv($line, escape: '');
+        if (count($values) !== 5) {
+            throw new RuntimeException(sprintf('Invalid process sample: %s', $line));
+        }
+        $rssKb = (float) $values[1];
+        $firstRssKb ??= $rssKb;
+        $lastRssKb = $rssKb;
+        $maxRssKb = max($maxRssKb, $rssKb);
+        $maxCpu = max($maxCpu, (float) $values[2]);
+        $maxProcesses = max($maxProcesses, (int) $values[3]);
+        $firstTime ??= (float) $values[0];
+        $lastTime = (float) $values[0];
+        $firstCpuSeconds ??= (float) $values[4];
+        $lastCpuSeconds = (float) $values[4];
+    }
+    if ($maxProcesses === 0 || $maxRssKb === 0.0 || $lastTime < $firstTime || $lastCpuSeconds < $firstCpuSeconds) {
+        throw new RuntimeException('Process-tree memory or CPU-window telemetry is invalid.');
+    }
+
+    return [
+        'first_rss_mb' => round((float) $firstRssKb / 1024.0, 2),
+        'last_rss_mb' => round($lastRssKb / 1024.0, 2),
+        'peak_rss_mb' => round($maxRssKb / 1024.0, 2),
+        'peak_lifetime_process_cpu_percent' => round($maxCpu, 2),
+        'mean_process_cpu_percent' => $lastTime > $firstTime
+            ? round(($lastCpuSeconds - $firstCpuSeconds) / ($lastTime - $firstTime) * 100.0, 2)
+            : null,
+        'cpu_counter_resolution_seconds' => 1,
+        'peak_processes' => $maxProcesses,
+        'samples' => count($lines) - 1,
+    ];
+}
+
+/**
+ * @param list<float> $values
+ * @throws \RuntimeException
+ */
+function f4HostMedian(array $values): float
+{
+    sort($values, SORT_NUMERIC);
+    $n = count($values);
+    if ($n === 0) {
+        throw new RuntimeException('Cannot summarize an empty benchmark series.');
+    }
+
+    return $n % 2 === 1
+        ? $values[intdiv($n, 2)]
+        : ($values[intdiv($n, 2) - 1] + $values[intdiv($n, 2)]) / 2.0;
+}
+
+/** @throws \RuntimeException */
+function f4HostAuthFixtureFingerprint(): ?string
+{
+    if (getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') !== 'authenticated-read') {
+        return null;
+    }
+
+    $hash = hash_init('sha256');
+    foreach (['FOUNDATION_HOST_AUTH_SECRET', 'FOUNDATION_HOST_MFA_SECRET', 'AUTH_OTP_RECOVERY_HMAC_KEY'] as $key) {
+        $value = getenv($key);
+        if (!is_string($value) || $value === '') {
+            throw new RuntimeException('Authenticated host evidence requires all authentication fixture inputs.');
+        }
+        hash_update($hash, $key . ':' . strlen($value) . ':' . $value);
+    }
+
+    return hash_final($hash);
+}
+
+$root = (($__foundation157_120 = getenv('FOUNDATION_HOST_RESULT_DIR')) !== false && $__foundation157_120 !== '' && $__foundation157_120 !== '0') ? $__foundation157_120 : dirname(__DIR__) . '/build/foundation4-host';
+$requests = (int) ((($__foundation154_121 = getenv('FOUNDATION_HOST_REQUESTS')) !== false && $__foundation154_121 !== '' && $__foundation154_121 !== '0' ? $__foundation154_121 : 900));
+$repeats = (int) ((($__foundation154_122 = getenv('FOUNDATION_HOST_REPEATS')) !== false && $__foundation154_122 !== '' && $__foundation154_122 !== '0' ? $__foundation154_122 : 3));
+$authFixtureFingerprint = f4HostAuthFixtureFingerprint();
+$result = [
+    'schema' => 3,
+    'classification' => 'preliminary GitHub-runner host evidence; no production-equivalent baseline comparison',
+    'sha' => (($__foundation157_126 = getenv('FOUNDATION_HOST_SOURCE_SHA')) !== false && $__foundation157_126 !== '' && $__foundation157_126 !== '0') ? $__foundation157_126 : ((($__foundation154_126 = getenv('GITHUB_SHA')) !== false && $__foundation154_126 !== '' && $__foundation154_126 !== '0' ? $__foundation154_126 : 'working-tree')),
+    // Explicit operator-controlled identity. GitHub-hosted runners remain
+    // non-certifiable until a physically matched baseline/candidate exists.
+    'hardware_id' => (($__foundation154_129 = getenv('FOUNDATION_CERTIFICATION_HOST_ID')) !== false && $__foundation154_129 !== '' && $__foundation154_129 !== '0' ? $__foundation154_129 : null),
+    'workload_profile' => (($__foundation154_130 = getenv('FOUNDATION_HOST_WORKLOAD_PROFILE')) !== false && $__foundation154_130 !== '' && $__foundation154_130 !== '0' ? $__foundation154_130 : 'json-minimal'),
+    'tool_sha' => (($__foundation154_131 = getenv('FOUNDATION_HOST_TOOL_SHA')) !== false && $__foundation154_131 !== '' && $__foundation154_131 !== '0' ? $__foundation154_131 : null),
+    'fixture_id' => getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') === 'authenticated-read' ? 'foundation-auth-postgres-redis-v3-matched-inputs' : null,
+    'composer_lock_sha256' => is_file(dirname(__DIR__) . '/composer.lock')
+        ? hash_file('sha256', dirname(__DIR__) . '/composer.lock')
+        : null,
+    'php' => PHP_VERSION,
+    'request_count' => $requests,
+    'repetitions' => $repeats,
+    'warmup_seconds' => (int) ((($__foundation154_139 = getenv('FOUNDATION_HOST_WARMUP_SECONDS')) !== false && $__foundation154_139 !== '' && $__foundation154_139 !== '0' ? $__foundation154_139 : 0)),
+    'soak_window_seconds' => (int) ((($__foundation154_140 = getenv('FOUNDATION_HOST_SOAK_SECONDS')) !== false && $__foundation154_140 !== '' && $__foundation154_140 !== '0' ? $__foundation154_140 : 0)),
+    'endpoint' => match (getenv('FOUNDATION_HOST_WORKLOAD_PROFILE')) {
+        'native-read' => '/native',
+        'authenticated-read' => '/authenticated',
+        default => '/json',
+    },
+    'protocol' => 'HTTP/1.1 with per-response status/body checks',
+    'hosts' => [],
+];
+
+foreach ((($__foundation157_150 = getenv('FOUNDATION_HOST_FILTER_HOST')) !== false && $__foundation157_150 !== '' && $__foundation157_150 !== '0') ? [$__foundation157_150] : ['fpm', 'runwire'] as $host) {
+    foreach ((($__foundation157_151 = getenv('FOUNDATION_HOST_FILTER_WORKERS')) !== false && $__foundation157_151 !== '' && $__foundation157_151 !== '0') ? [(int) $__foundation157_151] : [1, 4] as $workers) {
+        foreach ((($__foundation157_152 = getenv('FOUNDATION_HOST_FILTER_CONCURRENCY')) !== false && $__foundation157_152 !== '' && $__foundation157_152 !== '0') ? [(int) $__foundation157_152] : [1, 10, 50] as $concurrency) {
+            $runs = [];
+            $rpms = [];
+            for ($i = 1; $i <= $repeats; $i++) {
+                $prefix = sprintf('%s-w%d-c%d-r%d', $host, $workers, $concurrency, $i);
+                $ab = f4HostLoad($root . '/' . $prefix . '.load.json', $requests);
+                $telemetry = f4HostSamples($root . '/' . $prefix . '.samples.csv');
+                $runs[] = [...$ab, ...$telemetry];
+                $rpms[] = $ab['rpm'];
+            }
+            $result['hosts'][$host][] = [
+                'workers' => $workers,
+                'concurrency' => $concurrency,
+                'auth_fixture_sha256' => $authFixtureFingerprint,
+                'median_successful_rpm' => round(f4HostMedian($rpms), 2),
+                'runs' => $runs,
+            ];
+        }
+    }
+}
+
+$soakSeconds = $result['soak_window_seconds'];
+if ($soakSeconds > 0) {
+    if ($soakSeconds < 30 || $soakSeconds > 300) {
+        throw new RuntimeException('Invalid sustained host soak duration.');
+    }
+
+    $result['soak'] = [];
+    foreach ((($__foundation157_179 = getenv('FOUNDATION_HOST_FILTER_HOST')) !== false && $__foundation157_179 !== '' && $__foundation157_179 !== '0') ? [$__foundation157_179] : ['fpm', 'runwire'] as $host) {
+        $windows = [];
+        foreach ([1, 2] as $period) {
+            $prefix = sprintf('%s-soak-w4-c10-p%d', $host, $period);
+            $load = f4HostLoad($root . '/' . $prefix . '.load.json', $requests);
+            if ($load['duration_seconds'] < $soakSeconds) {
+                throw new RuntimeException(sprintf('Insufficient %s soak duration.', $host));
+            }
+            $windows[] = [...$load, ...f4HostSamples($root . '/' . $prefix . '.samples.csv')];
+        }
+        $result['soak'][$host] = [
+            'workers' => 4,
+            'concurrency' => 10,
+            'windows' => $windows,
+            'status' => 'correct_responses_only_not_production_certification',
+        ];
+    }
+}
+
+$json = json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL;
+if (file_put_contents($root . '/report.json', $json, LOCK_EX) === false) {
+    throw new RuntimeException('Unable to write host benchmark evidence.');
+}
+fwrite(STDOUT, $json);

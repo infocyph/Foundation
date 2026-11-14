@@ -18,6 +18,9 @@ abstract readonly class AbstractPrincipalRequirementMiddleware
 
     /**
      * @param callable(Request): Response $next
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function __invoke(Request $request, callable $next): Response
     {

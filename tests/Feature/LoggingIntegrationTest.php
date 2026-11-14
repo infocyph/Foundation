@@ -8,15 +8,17 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Logging\ExceptionReporter;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Logging\JsonLogger;
+use Infocyph\Foundation\Logging\LogTailer;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
 
 final class FoundationCollectingLogger extends AbstractLogger
 {
-    /** @var list<array{level:mixed,message:string,context:array<string,mixed>}> */
+    /** @var list<array{level:mixed,message:string,context:array<array-key,mixed>}> */
     public array $records = [];
 
+    #[\Override]
     public function log($level, string|Stringable $message, array $context = []): void
     {
         $this->records[] = [
@@ -49,6 +51,9 @@ it('writes structured records at the configured level and redacts nested secrets
 
         $records = array_values(array_filter(explode("\n", trim((string) file_get_contents($path)))));
         $record = json_decode($records[0], true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($record) || !is_array($record['context'] ?? null) || !is_array($record['context']['exception'] ?? null)) {
+            throw new \UnexpectedValueException('Expected a structured JSON error record.');
+        }
 
         expect($records)->toHaveCount(1)
             ->and($record['level'])->toBe('error')
@@ -76,10 +81,12 @@ it('uses an application supplied PSR logger at the HTTP reporting boundary', fun
     $provider = new class($logger) extends ServiceProvider {
         public function __construct(private readonly LoggerInterface $logger) {}
 
+        #[\Override]
         public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
             unset($context);
 
+            $builder->unbind(LoggerInterface::class);
             $builder->value(LoggerInterface::class, $this->logger);
         }
     };
@@ -131,6 +138,9 @@ it('resolves relative log paths from the application and includes exception deta
         ]);
 
         $record = json_decode(trim((string) file_get_contents($path)), true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($record) || !is_array($record['context'] ?? null) || !is_array($record['context']['exception'] ?? null)) {
+            throw new \UnexpectedValueException('Expected an error log with structured exception context.');
+        }
 
         expect($record['context']['exception']['message'])->toBe('safe-in-this-test')
             ->and($record['context']['exception'])->toHaveKey('trace');
@@ -152,10 +162,7 @@ it('resolves relative log paths from the application and includes exception deta
 
 it('keeps web-only logging out of the CLI graph', function (): void {
     $app = Foundation::cli();
-    $repository = $app->container()->getRepository();
-
-    expect($repository->hasResolvedSingleton(LoggerInterface::class))->toBeFalse()
-        ->and($app->has(LoggerInterface::class))->toBeFalse();
+    expect($app->has(LoggerInterface::class))->toBeFalse();
 });
 
 it('supports exception exclusions, sampling, and bounded repeated reporting', function (): void {
@@ -181,4 +188,45 @@ it('supports exception exclusions, sampling, and bounded repeated reporting', fu
     $sampledOut->report('error', ['exception' => new RuntimeException('discarded')]);
 
     expect($logger->records)->toHaveCount(1);
+});
+
+it('reopens a rotated log before relinquishing the original descriptor', function (): void {
+    $directory = sys_get_temp_dir() . '/foundation-log-rotation-' . bin2hex(random_bytes(6));
+    mkdir($directory, 0775, true);
+    $path = $directory . '/app.log';
+    $archived = $directory . '/app.log.1';
+    file_put_contents($path, "original\n");
+    $original = fopen($path, 'rb');
+    expect(is_resource($original))->toBeTrue();
+
+    $replacement = null;
+    try {
+        rename($path, $archived);
+        file_put_contents($path, "replacement\n");
+
+        $refresh = new ReflectionMethod(LogTailer::class, 'refreshStream');
+        $replacement = $refresh->invoke(new LogTailer(), $original, $path);
+
+        expect(is_resource($original))->toBeFalse()
+            ->and(is_resource($replacement))->toBeTrue();
+
+        if (!is_resource($replacement)) {
+            throw new \UnexpectedValueException('Log stream refresh must return an open stream.');
+        }
+        expect(fgets($replacement))->toBe("replacement\n");
+    } finally {
+        if (is_resource($replacement)) {
+            fclose($replacement);
+        }
+        if (is_resource($original)) {
+            fclose($original);
+        }
+        if (is_file($archived)) {
+            unlink($archived);
+        }
+        if (is_file($path)) {
+            unlink($path);
+        }
+        rmdir($directory);
+    }
 });

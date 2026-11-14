@@ -30,9 +30,14 @@ it('keeps core application installation independent of optional Epicrypt', funct
         $path = $manager->install();
         $contents = (string) file_get_contents($path);
 
+        $permissions = fileperms($path);
+        if ($permissions === false) {
+            throw new \RuntimeException('Unable to inspect generated environment file permissions.');
+        }
+
         expect($path)->toBe($project . '/.env')
             ->and($contents)->toMatch('/^AUTH_TOKEN_SECRET=[a-f0-9]{64}$/m')
-            ->and(fileperms($path) & 0777)->toBe(0600);
+            ->and($permissions & 0777)->toBe(0600);
     } finally {
         foundationCoreInstallRemove($project);
     }
@@ -46,6 +51,7 @@ it('keeps module inspection and schema commands observational without forcing da
     }
 });
 
+/** @throws \UnexpectedValueException */
 function foundationCoreInstallRemove(string $directory): void
 {
     if (!is_dir($directory)) {
@@ -57,6 +63,10 @@ function foundationCoreInstallRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!($file instanceof \SplFileInfo)) {
+            throw new \UnexpectedValueException('Unexpected directory iterator entry.');
+        }
+
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

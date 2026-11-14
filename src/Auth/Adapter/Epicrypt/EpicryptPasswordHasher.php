@@ -13,6 +13,7 @@ final readonly class EpicryptPasswordHasher implements PasswordHasherInterface
         private PasswordHasher $hasher,
     ) {}
 
+    #[\Override]
     public function hash(string $plainPassword, array $context = []): string
     {
         unset($context);

@@ -23,7 +23,11 @@ final readonly class StorageLinkManager
         );
     }
 
-    /** @return list<array{link:string,target:string,created:bool}> */
+    /**
+     * @return list<array{link:string,target:string,created:bool}>
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     public function create(): array
     {
         $created = [];
@@ -42,7 +46,11 @@ final readonly class StorageLinkManager
         return $created;
     }
 
-    /** @return list<array{link:string,target:string,removed:bool}> */
+    /**
+     * @return list<array{link:string,target:string,removed:bool}>
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     public function remove(): array
     {
         $removed = [];
@@ -71,7 +79,11 @@ final readonly class StorageLinkManager
         return $removed;
     }
 
-    /** @return list<array{link:string,target:string,exists:bool,linked:bool,matches:bool,broken:bool}> */
+    /**
+     * @return list<array{link:string,target:string,exists:bool,linked:bool,matches:bool,broken:bool}>
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     public function status(): array
     {
         $statuses = [];
@@ -99,7 +111,11 @@ final readonly class StorageLinkManager
             : $this->paths->base(trim($path, '/\\'));
     }
 
-    /** @return list<array{link:string,target:string}> */
+    /**
+     * @return list<array{link:string,target:string}>
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     private function configured(): array
     {
         $configured = $this->config->get('filesystem.links', []);

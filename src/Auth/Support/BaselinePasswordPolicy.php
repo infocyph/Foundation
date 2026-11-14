@@ -9,6 +9,9 @@ use Infocyph\Foundation\Auth\Contract\Security\PasswordPolicyResult;
 
 final readonly class BaselinePasswordPolicy implements PasswordPolicyInterface
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         private int $minimumLength = 12,
         private int $maximumLength = 1024,
@@ -21,6 +24,7 @@ final readonly class BaselinePasswordPolicy implements PasswordPolicyInterface
         }
     }
 
+    #[\Override]
     public function validate(string $plainPassword, array $context = []): PasswordPolicyResult
     {
         unset($context);

@@ -14,6 +14,8 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Http\HttpKernel;
 use Infocyph\Foundation\Http\HttpServiceProvider;
 use Infocyph\Foundation\Http\Middleware\AuthMiddleware;
+use Infocyph\Foundation\Process\ProcessOptions;
+use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Routing\RouteFileLoader;
 
 it('keeps CLI and web boot graphs isolated', function (): void {
@@ -23,7 +25,7 @@ it('keeps CLI and web boot graphs isolated', function (): void {
     mkdir($routesPath, 0775, true);
     file_put_contents(
         $routesPath . '/api.php',
-        '<?php file_put_contents(' . var_export($sentinel, true) . ", 'loaded');\n",
+        '<?php if (!isset($presets) || !($presets instanceof \\Infocyph\\Foundation\\Routing\\RoutePresetRegistrar)) { throw new \\LogicException("Route preset binding unavailable."); } file_put_contents(' . var_export($sentinel, true) . ", 'loaded');\n",
     );
 
     $options = [
@@ -31,13 +33,7 @@ it('keeps CLI and web boot graphs isolated', function (): void {
         '_config_cache' => false,
         'router' => ['cache' => false, 'files' => ['api.php']],
     ];
-    $explicitlyBound = static function (Application $app, string $id): bool {
-        $repository = $app->container()->getRepository();
-        return $repository->hasFunctionReference($id)
-            || $repository->hasClosureResource($id)
-            || $repository->hasResolved($id)
-            || $repository->hasResolvedDefinition($id);
-    };
+    $explicitlyBound = static fn(Application $app, string $id): bool => $app->has($id);
 
     try {
         $cli = Foundation::cli($options);
@@ -114,6 +110,35 @@ it('selects only providers assigned to the active runtime', function (): void {
     }
 });
 
+it('keeps Webrick and HTTP adapters out of non-web compilation and execution', function (string $mode, string $boot): void {
+    $root = dirname(__DIR__, 2);
+    $project = sys_get_temp_dir() . '/foundation-nonweb-isolation-' . bin2hex(random_bytes(5));
+    mkdir($project, 0775, true);
+
+    try {
+        $result = new ProcessRunner()->run(
+            [PHP_BINARY, $root . '/tests/Fixtures/NonWebIsolationProbe.php', $mode, $boot, $project],
+            new ProcessOptions(cwd: $root, timeoutSeconds: 30.0),
+        );
+        expect($result->successful())->toBeTrue($result->stderr)
+            ->and($result->stderr)->toBe('');
+        $probe = json_decode($result->stdout, true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($probe)) {
+            throw new \UnexpectedValueException('Expected a decoded JSON object.');
+        }
+        if (!is_array($probe['executions'] ?? null)) {
+            throw new \UnexpectedValueException('Runtime isolation probe must provide execution identities.');
+        }
+        expect($probe['runtime'])->toBe($mode)
+            ->and($probe['webrick'])->toBe([])
+            ->and($probe['executions'])->toHaveCount(2)
+            ->and($probe['executions'][0])->not->toBe($probe['executions'][1]);
+    } finally {
+        runtimeModeRemoveDirectory($project);
+    }
+})->with(['cli', 'worker', 'scheduler'])->with(['development', 'validated', 'prevalidated']);
+
+/** @throws \UnexpectedValueException */
 function runtimeModeRemoveDirectory(string $directory): void
 {
     if (!is_dir($directory)) {
@@ -124,6 +149,9 @@ function runtimeModeRemoveDirectory(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!$file instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('Runtime fixture cleanup requires filesystem entries.');
+        }
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

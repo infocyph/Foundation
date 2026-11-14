@@ -5,9 +5,12 @@ declare(strict_types=1);
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Auth\Principal\Principal;
+use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Runtime\ExecutionId;
-use Infocyph\Foundation\Exception\ServiceResolutionException;
+use Infocyph\Foundation\Runtime\RuntimeExecutionState;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -17,11 +20,12 @@ final class FoundationExecutionScopeProbe {}
 
 final class FoundationExecutionScopeProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
 
-        $builder->bindFactory(
+        $builder->factory(
             FoundationExecutionScopeProbe::class,
             static fn(): FoundationExecutionScopeProbe => new FoundationExecutionScopeProbe(),
             LifetimeEnum::Scoped,
@@ -31,6 +35,7 @@ final class FoundationExecutionScopeProvider extends ServiceProvider
 
 final class FoundationFailingScopeLeaveProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if ($context->runtimeMode !== RuntimeMode::Cli) {
@@ -65,7 +70,7 @@ it('isolates same-label CLI scopes across interleaved Fibers and sequential exec
                         'probe' => spl_object_id($first),
                     ];
 
-                    Fiber::suspend($before);
+                    expect(Fiber::suspend($before))->toBeNull();
 
                     $second = $app->make(FoundationExecutionScopeProbe::class);
 
@@ -85,6 +90,8 @@ it('isolates same-label CLI scopes across interleaved Fibers and sequential exec
     $firstBefore = $first->start();
     $secondBefore = $second->start();
 
+    \PHPUnit\Framework\Assert::assertIsArray($firstBefore);
+    \PHPUnit\Framework\Assert::assertIsArray($secondBefore);
     expect($firstBefore)->toMatchArray(['id' => 'fiber-one', 'resolved_id' => 'fiber-one'])
         ->and($secondBefore)->toMatchArray(['id' => 'fiber-two', 'resolved_id' => 'fiber-two'])
         ->and($firstBefore['probe'])->not->toBe($secondBefore['probe']);
@@ -94,6 +101,8 @@ it('isolates same-label CLI scopes across interleaved Fibers and sequential exec
     $firstAfter = $first->getReturn();
     $secondAfter = $second->getReturn();
 
+    \PHPUnit\Framework\Assert::assertIsArray($firstAfter);
+    \PHPUnit\Framework\Assert::assertIsArray($secondAfter);
     expect($firstAfter)->toMatchArray(['id' => 'fiber-one', 'same_probe' => true])
         ->and($secondAfter)->toMatchArray(['id' => 'fiber-two', 'same_probe' => true])
         ->and($firstAfter['probe'])->toBe($firstBefore['probe'])
@@ -102,14 +111,14 @@ it('isolates same-label CLI scopes across interleaved Fibers and sequential exec
     $sequentialFirst = $app->execution()->run(
         static fn(ExecutionId $executionId): array => [
             (string) $executionId,
-            spl_object_id($app->make(FoundationExecutionScopeProbe::class)),
+            $app->make(FoundationExecutionScopeProbe::class),
         ],
         executionId: new ExecutionId('sequential-one'),
     );
     $sequentialSecond = $app->execution()->run(
         static fn(ExecutionId $executionId): array => [
             (string) $executionId,
-            spl_object_id($app->make(FoundationExecutionScopeProbe::class)),
+            $app->make(FoundationExecutionScopeProbe::class),
         ],
         executionId: new ExecutionId('sequential-two'),
     );
@@ -138,19 +147,17 @@ it('cleans a suspended Fiber execution when it is aborted by an injected excepti
         $app->execution()->run(
             static function () use ($app): never {
                 $app->make(FoundationExecutionScopeProbe::class);
-                Fiber::suspend();
+                expect(Fiber::suspend())->toBeNull();
 
                 throw new LogicException('unreachable');
             },
             executionId: new ExecutionId('aborted-fiber'),
         );
-
-        throw new LogicException('unreachable');
     });
 
     $fiber->start();
 
-    expect(fn() => $fiber->throw(new RuntimeException('fiber aborted')))
+    expect(fn(): mixed => $fiber->throw(new RuntimeException('fiber aborted')))
         ->toThrow(RuntimeException::class, 'fiber aborted');
 
     $after = $app->execution()->run(
@@ -171,4 +178,191 @@ it('keeps the primary execution exception when explicit or scope-leave cleanup a
     expect(fn() => $app->execution()->run(
         static fn(): never => throw new DomainException('primary execution failure'),
     ))->toThrow(DomainException::class, 'primary execution failure');
+});
+
+it('keeps the configured non-web runtime mode separate from scope inputs', function (): void {
+    $app = Foundation::cli(['app' => ['env' => 'testing']])->boot();
+
+    expect($app->execution()->run(static fn(): RuntimeMode => $app->make(RuntimeMode::class)))
+        ->toBe(RuntimeMode::Cli)
+        ->and(fn() => $app->execution()->run(
+            static fn(): null => null,
+            [RuntimeMode::class => RuntimeMode::Web],
+        ))->toThrow(InvalidArgumentException::class, 'cannot override its runtime mode');
+});
+
+it('forwards one host-owned InterMix scope through a child Fiber without taking ownership', function (): void {
+    $app = Foundation::worker([
+        'app' => ['env' => 'testing'],
+        'providers' => ['common' => [FoundationExecutionScopeProvider::class]],
+    ])->boot();
+
+    $owner = new Fiber(static function () use ($app): array {
+        return $app->execution()->run(
+            static function (ExecutionId $executionId) use ($app): array {
+                $state = $app->make(FoundationExecutionScopeProbe::class);
+                $container = $app->runtime();
+                if (!$container instanceof Container) {
+                    throw new LogicException('Expected an InterMix runtime scope container.');
+                }
+                $context = $container->captureScopeContext();
+                expect(Fiber::suspend([$context, $state, $executionId]))->toBeNull();
+
+                return [
+                    $app->make(FoundationExecutionScopeProbe::class),
+                    $app->make(ExecutionId::class),
+                ];
+            },
+            executionId: new ExecutionId('host-owned-worker'),
+        );
+    });
+    $ownerResult = $owner->start();
+    \PHPUnit\Framework\Assert::assertIsArray($ownerResult);
+    [$context, $state, $originalId] = $ownerResult;
+    \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\InterMix\DI\ScopeContext::class, $context);
+
+    $child = new Fiber(static fn(): array => $app->execution()->withinBorrowedScope(
+        $context,
+        static fn(ExecutionId $id): array => [
+            $id,
+            $app->make(FoundationExecutionScopeProbe::class),
+        ],
+    ));
+    $child->start();
+    expect($child->isTerminated())->toBeTrue();
+    $borrowed = $child->getReturn();
+
+    \PHPUnit\Framework\Assert::assertIsArray($borrowed);
+    expect($borrowed[0])->toBe($originalId)
+        ->and($borrowed[1])->toBe($state);
+
+    $owner->resume();
+    $ownerResult = $owner->getReturn();
+    \PHPUnit\Framework\Assert::assertIsArray($ownerResult);
+    [$ownerState, $ownerId] = $ownerResult;
+    expect($ownerState)->toBe($state)
+        ->and($ownerId)->toBe($originalId)
+        ->and(fn(): mixed => $app->execution()->withinBorrowedScope(
+            $context,
+            static fn(ExecutionId $id): ExecutionId => $id,
+        ))->toThrow(ContainerException::class);
+});
+
+it('preserves thrown child failures without closing the borrowed owner scope', function (): void {
+    $app = Foundation::cli([
+        'app' => ['env' => 'testing'],
+        'providers' => ['common' => [FoundationExecutionScopeProvider::class]],
+    ])->boot();
+
+    $owner = new Fiber(static function () use ($app): mixed {
+        return $app->execution()->run(
+            static function (ExecutionId $id) use ($app): array {
+                $state = $app->make(FoundationExecutionScopeProbe::class);
+                $container = $app->runtime();
+                if (!$container instanceof Container) {
+                    throw new LogicException('Expected an InterMix runtime scope container.');
+                }
+                $context = $container->captureScopeContext();
+                expect(Fiber::suspend([$context, $state, $id]))->toBeNull();
+
+                return [$app->make(FoundationExecutionScopeProbe::class), $app->make(ExecutionId::class)];
+            },
+            executionId: new ExecutionId('host-parent'),
+        );
+    });
+    $ownerResult = $owner->start();
+    \PHPUnit\Framework\Assert::assertIsArray($ownerResult);
+    [$context, $state, $id] = $ownerResult;
+    \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\InterMix\DI\ScopeContext::class, $context);
+
+    expect(function () use ($app, $context): void {
+        $app->execution()->withinBorrowedScope(
+            $context,
+            static fn(): never => throw new DomainException('host child failure'),
+        );
+    })->toThrow(DomainException::class, 'host child failure');
+
+    $owner->resume();
+    $ownerResult = $owner->getReturn();
+    \PHPUnit\Framework\Assert::assertIsArray($ownerResult);
+    [$after, $afterId] = $ownerResult;
+
+    expect($after)->toBe($state)
+        ->and($afterId)->toBe($id);
+});
+
+it('keeps scoped module runtime state separate across selected CLI worker scheduler jobs', function (): void {
+    foreach ([
+        RuntimeMode::Cli,
+        RuntimeMode::Worker,
+        RuntimeMode::Scheduler,
+    ] as $mode) {
+        $app = Foundation::{$mode->value}([
+            'app' => ['env' => 'testing', 'capabilities' => ['database']],
+            'modules' => ['features' => ['data.database' => true]],
+        ]);
+        $app->boot();
+        $previous = null;
+
+        foreach (['first', 'second'] as $label) {
+            $observed = $app->execution()->run(
+                static function (ExecutionId $id) use ($app): array {
+                    $state = $app->make(RuntimeExecutionState::class);
+
+                    return [
+                        'id' => (string) $id,
+                        'state' => $state,
+                        'same' => $state === $app->make(RuntimeExecutionState::class),
+                    ];
+                },
+                executionId: new ExecutionId($mode->value . '-' . $label),
+            );
+
+            expect($observed['id'])->toBe($mode->value . '-' . $label)
+                ->and($observed['same'])->toBeTrue();
+            if ($previous instanceof RuntimeExecutionState) {
+                expect($observed['state'])->not->toBe($previous);
+            }
+            $previous = $observed['state'];
+        }
+    }
+});
+
+it('rejects forged host runtime inputs rather than creating a Runwire identity', function (): void {
+    $app = Foundation::worker([
+        'app' => ['env' => 'testing'],
+        'modules' => ['features' => []],
+    ])->boot();
+
+    expect(fn() => $app->execution()->run(
+        static fn(): null => null,
+        [\Infocyph\Runwire\RuntimeContext::class => new stdClass()],
+    ))->toThrow(LogicException::class, 'host-owned runtime context');
+});
+
+it('clears each principal between selected-feature CLI worker scheduler executions', function (): void {
+    foreach ([RuntimeMode::Cli, RuntimeMode::Worker, RuntimeMode::Scheduler] as $mode) {
+        $config = [
+            'app' => ['env' => 'testing', 'capabilities' => ['auth', 'database']],
+            'modules' => ['features' => ['data.database' => true]],
+        ];
+        $app = Foundation::{$mode->value}($config);
+        $app->boot();
+
+        $first = $app->execution()->run(static function () use ($app, $mode): string {
+            $principal = $app->make(CurrentPrincipalContext::class);
+            expect($principal->get())->toBeNull();
+            $principal->set(new Principal($mode->value . '-account'));
+
+            return $principal->require()->id();
+        });
+        $second = $app->execution()->run(static function () use ($app): ?string {
+            $principal = $app->make(CurrentPrincipalContext::class);
+
+            return $principal->get()?->id();
+        });
+
+        expect($first)->toBe($mode->value . '-account')
+            ->and($second)->toBeNull();
+    }
 });

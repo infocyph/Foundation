@@ -94,15 +94,24 @@ PHP);
         $history = new ExecutionHistory($app);
         $latest = $history->latestByMetadata('schedule', 'schedule_identity', 'uid-success');
         $executionId = $latest['execution_id'] ?? null;
+        if (!is_string($executionId)) {
+            throw new RuntimeException('Scheduled execution history lacks an execution identifier.');
+        }
 
         expect($run->successful())->toBeTrue()
             ->and($latest['status'] ?? null)->toBe('succeeded')
-            ->and($executionId)->toBeString()
             ->and(ULID::isValid($executionId))->toBeTrue();
 
         $records = $history->find($executionId);
+        $recordIds = [];
+        foreach ($records as $record) {
+            if (!is_string($record['execution_id'] ?? null)) {
+                throw new \UnexpectedValueException('UID execution history requires string identifiers.');
+            }
+            $recordIds[] = $record['execution_id'];
+        }
         expect(array_column($records, 'status'))->toBe(['pending', 'running', 'succeeded'])
-            ->and(array_values(array_unique(array_column($records, 'execution_id'))))->toBe([$executionId]);
+            ->and(array_values(array_unique($recordIds)))->toBe([$executionId]);
     } finally {
         foundationUidRuntimeRemove($project);
     }
@@ -115,8 +124,6 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
         || !function_exists('pcntl_wexitstatus')
         || !function_exists('pcntl_exec')
     ) {
-        expect(true)->toBeTrue();
-
         return;
     }
 
@@ -129,6 +136,7 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
     $pid = pcntl_fork();
     if ($pid === -1) {
         unlink($exchange);
+
         throw new RuntimeException('Unable to fork UID runtime test process.');
     }
 
@@ -139,6 +147,7 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
         }
 
         pcntl_exec(PHP_BINARY, ['-r', '']);
+
         throw new RuntimeException('Unable to replace forked UID test process.');
     }
 
@@ -146,6 +155,7 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
         $parent = ExecutionId::generate()->value;
         $status = 0;
         pcntl_waitpid($pid, $status);
+        $status = foundationFixtureInteger($status);
         $child = trim((string) file_get_contents($exchange));
 
         expect(pcntl_wifexited($status))->toBeTrue()
@@ -175,6 +185,9 @@ function foundationUidRuntimeConfig(string $project): array
     ];
 }
 
+/**
+ * @throws \RuntimeException
+ */
 function foundationUidRuntimeProject(): string
 {
     $project = sys_get_temp_dir() . '/foundation-uid-runtime-' . bin2hex(random_bytes(8));
@@ -188,6 +201,9 @@ function foundationUidRuntimeProject(): string
     return $project;
 }
 
+/**
+ * @throws \UnexpectedValueException
+ */
 function foundationUidRuntimeRemove(string $project): void
 {
     if (!is_dir($project)) {
@@ -199,6 +215,9 @@ function foundationUidRuntimeRemove(string $project): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($iterator as $entry) {
+        if (!$entry instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('UID fixture cleanup requires filesystem entries.');
+        }
         if ($entry->isDir()) {
             rmdir($entry->getPathname());
         } else {

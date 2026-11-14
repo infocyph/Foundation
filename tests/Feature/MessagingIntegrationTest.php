@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
@@ -9,11 +10,17 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Testing\TestKit;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Consumer\Command\ConsumeRequest;
 use Infocyph\Omnibus\Consumer\Command\ConsumerTask;
 use Infocyph\Omnibus\Envelope\Envelope;
+use Infocyph\Omnibus\Integration\Runwire\RunwireBinding;
 use Infocyph\Omnibus\MessageBus;
 use Infocyph\Omnibus\Scheduling\ScheduledMessageDispatcher;
+use Infocyph\Runwire\Exception\CancelledException;
+use Infocyph\Runwire\RequestContext;
+use Infocyph\Runwire\Runtime\Enum\CancellationReason;
+use Infocyph\Runwire\RuntimeContext;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
 final readonly class FoundationMessage
@@ -39,11 +46,14 @@ final readonly class FoundationEvent
 final class FoundationMessageProbe
 {
     private static int $next = 0;
+
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
@@ -54,6 +64,9 @@ final class FoundationMessageHandler
 
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function __invoke(FoundationMessage $message, Envelope $envelope): void
     {
         $probe = $this->application->make(FoundationMessageProbe::class);
@@ -63,6 +76,10 @@ final class FoundationMessageHandler
             'envelope' => $this->application->make(Envelope::class) === $envelope,
             'message' => $this->application->make('omnibus.message') === $message,
         ];
+        if ($message->value === 'nested-borrowed-parent') {
+            $this->application->make(MessageBus::class)
+                ->dispatch(new FoundationMessage('nested-borrowed-child'));
+        }
     }
 }
 
@@ -73,9 +90,14 @@ final class FoundationFailingMessageHandler
 
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
+     */
     public function __invoke(): never
     {
         self::$scopes[] = $this->application->make(FoundationMessageProbe::class)->sequence;
+
         throw new RuntimeException('expected consumer failure');
     }
 }
@@ -87,10 +109,13 @@ final class FoundationFiberMessageHandler
 
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function __invoke(FoundationFiberMessage $message): void
     {
         $before = $this->application->make(FoundationMessageProbe::class)->sequence;
-        Fiber::suspend($before);
+        expect(Fiber::suspend($before))->toBeNull();
         $after = $this->application->make(FoundationMessageProbe::class)->sequence;
         self::$handled[] = ['value' => $message->value, 'before' => $before, 'after' => $after];
     }
@@ -114,17 +139,29 @@ final class FoundationScheduledMessageFactory
         return new FoundationMessage('scheduled');
     }
 }
-
+/**
+ * @param array<string,mixed> $messaging
+ * @throws \Exception
+ * @throws \LogicException
+ * @throws \Psr\Cache\InvalidArgumentException
+ */
 function foundationMessagingApplication(array $messaging = []): Application
 {
     $provider = new class extends ServiceProvider {
+        /**
+         * @throws \Exception
+         * @throws \LogicException
+         * @throws \Psr\Cache\InvalidArgumentException
+         */
+        #[\Override]
         public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
             unset($context);
 
-            $builder->scoped(
+            $builder->factory(
                 FoundationMessageProbe::class,
                 FactoryDefinition::construct(FoundationMessageProbe::class),
+                LifetimeEnum::Scoped,
             );
         }
     };
@@ -163,14 +200,26 @@ beforeEach(function (): void {
 });
 
 it('keeps Omnibus deferred until messaging is selected', function (): void {
-    $app = Foundation::cli();
-    $repository = $app->container()->getRepository();
+    $observer = new class extends ServiceProvider {
+        public bool $resolved = false;
 
-    expect($repository->hasResolvedSingleton(MessageBus::class))->toBeFalse()
+        #[\Override]
+        public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+        {
+            unset($context);
+            $builder->onResolved(MessageBus::class, function (string $id): void {
+                $this->resolved = $id === MessageBus::class;
+            });
+        }
+    };
+    $app = Foundation::cli(['providers' => ['cli' => [$observer]]]);
+
+    expect($observer->resolved)->toBeFalse()
         ->and($app->has(MessageBus::class))->toBeTrue()
-        ->and($repository->hasResolvedSingleton(MessageBus::class))->toBeFalse()
-        ->and($app->make(MessageBus::class))->toBeInstanceOf(MessageBus::class)
-        ->and($repository->hasResolvedSingleton(MessageBus::class))->toBeTrue();
+        ->and($observer->resolved)->toBeFalse();
+
+    $app->make(MessageBus::class);
+    expect($observer->resolved)->toBeTrue();
 });
 
 it('wires explicit event listeners and Foundation messaging fakes', function (): void {
@@ -231,8 +280,12 @@ it('isolates concurrent Fiber message executions in distinct Foundation scopes',
     $fiberB->resume();
     $fiberA->resume();
 
-    expect($fiberA->getReturn()->succeeded)->toBe(1)
-        ->and($fiberB->getReturn()->succeeded)->toBe(1)
+    $firstResult = $fiberA->getReturn();
+    $secondResult = $fiberB->getReturn();
+    \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\Omnibus\Consumer\ConsumerResult::class, $firstResult);
+    \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\Omnibus\Consumer\ConsumerResult::class, $secondResult);
+    expect($firstResult->succeeded)->toBe(1)
+        ->and($secondResult->succeeded)->toBe(1)
         ->and(FoundationFiberMessageHandler::$handled)->toHaveCount(2);
 
     foreach (FoundationFiberMessageHandler::$handled as $handled) {
@@ -241,6 +294,83 @@ it('isolates concurrent Fiber message executions in distinct Foundation scopes',
 
     expect(array_column(FoundationFiberMessageHandler::$handled, 'before'))
         ->toContain($scopeA, $scopeB);
+});
+
+it('keeps real Omnibus bus and consumer delivery bound only to the live host request', function (): void {
+    $app = foundationMessagingApplication();
+    $bus = $app->make(MessageBus::class);
+    $consumer = $app->make(ConsumerTask::class);
+    $binding = $app->make(RunwireBinding::class);
+
+    expect($binding->request())->toBeNull();
+
+    $runtime = RuntimeContext::standalone();
+    $host = RequestContext::create($runtime);
+    CacheRunwire::bind($runtime);
+
+    try {
+        CacheRunwire::share($host, null, static function () use ($bus, $consumer, $binding, $host): void {
+            expect($binding->request())->toBe($host);
+
+            $bus->dispatch(new FoundationMessage('host-bound'));
+            expect($consumer->run(new ConsumeRequest(limit: 1))->succeeded)->toBe(1);
+
+            $host->cancel(CancellationReason::HOST_CANCELLED);
+            expect(fn() => $bus->dispatch(new FoundationMessage('cancelled')))
+                ->toThrow(CancelledException::class);
+        }, $runtime);
+    } finally {
+        $host->complete();
+        CacheRunwire::release($runtime);
+    }
+
+    expect($binding->request())->toBeNull();
+
+    $bus->dispatch(new FoundationMessage('ordinary'));
+    expect($consumer->run(new ConsumeRequest(limit: 1))->succeeded)->toBe(1)
+        ->and(array_column(FoundationMessageHandler::$handled, 'value'))
+        ->toBe(['host-bound', 'ordinary']);
+});
+
+it('dispatches nested Omnibus messages in the original borrowed host context without retaining it afterward', function (): void {
+    $app = foundationMessagingApplication();
+    $bus = $app->make(MessageBus::class);
+    $consumer = $app->make(ConsumerTask::class);
+    $binding = $app->make(RunwireBinding::class);
+    $runtime = RuntimeContext::standalone();
+    $request = RequestContext::create($runtime);
+    CacheRunwire::bind($runtime);
+
+    try {
+        CacheRunwire::share($request, null, static function () use ($bus, $consumer, $binding, $request): void {
+            expect($binding->request())->toBe($request);
+            $bus->dispatch(new FoundationMessage('nested-borrowed-parent'));
+
+            expect($consumer->run(new ConsumeRequest(limit: 1))->succeeded)->toBe(1)
+                ->and($binding->request())->toBe($request)
+                ->and($consumer->run(new ConsumeRequest(limit: 1))->succeeded)->toBe(1)
+                ->and($binding->request())->toBe($request);
+
+            $request->cancel(CancellationReason::HOST_CANCELLED);
+            expect(fn() => $bus->dispatch(new FoundationMessage('post-cancel')))
+                ->toThrow(CancelledException::class);
+        }, $runtime);
+    } finally {
+        $request->complete();
+        CacheRunwire::release($runtime);
+    }
+
+    expect($binding->request())->toBeNull()
+        ->and(array_column(FoundationMessageHandler::$handled, 'value'))
+        ->toBe(['nested-borrowed-parent', 'nested-borrowed-child'])
+        ->and(FoundationMessageHandler::$handled[0]['sequence'])
+        ->not->toBe(FoundationMessageHandler::$handled[1]['sequence']);
+
+    $bus->dispatch(new FoundationMessage('ordinary-after-borrow'));
+    expect($consumer->run(new ConsumeRequest(limit: 1))->succeeded)->toBe(1)
+        ->and($binding->request())->toBeNull()
+        ->and(array_column(FoundationMessageHandler::$handled, 'value'))
+        ->toBe(['nested-borrowed-parent', 'nested-borrowed-child', 'ordinary-after-borrow']);
 });
 
 it('dispatches named scheduled messages through the configured route map', function (): void {

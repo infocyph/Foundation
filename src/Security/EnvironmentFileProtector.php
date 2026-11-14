@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Security;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Epicrypt\DataProtection\FileProtector;
 use Infocyph\Epicrypt\DataProtection\ProtectionOptions;
+use Infocyph\Epicrypt\Integration\Runwire\RunwireExecutionContext;
 use Infocyph\Foundation\Application\Application;
 
 final readonly class EnvironmentFileProtector
@@ -16,6 +18,11 @@ final readonly class EnvironmentFileProtector
 
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function decrypt(
         ?string $input = null,
         ?string $output = null,
@@ -33,6 +40,11 @@ final readonly class EnvironmentFileProtector
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public function encrypt(
         ?string $input = null,
         ?string $output = null,
@@ -50,15 +62,21 @@ final readonly class EnvironmentFileProtector
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function assertAvailable(): void
     {
         if (!class_exists(FileProtector::class)) {
             throw new \LogicException(
-                'Environment encryption requires the security module; run "php infbyte module:install security".',
+                'Environment encryption requires the security module; run "php infbyte module:install security.crypto".',
             );
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function assertSource(string $path): void
     {
         if (!is_file($path) || !is_readable($path)) {
@@ -66,6 +84,10 @@ final readonly class EnvironmentFileProtector
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     private function key(?string $keyFile, string $keyEnvironment): string
     {
         if ($keyFile !== null && $keyFile !== '') {
@@ -89,6 +111,9 @@ final readonly class EnvironmentFileProtector
         return $key;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function path(string $path): string
     {
         if ($path === '' || str_contains($path, "\0")) {
@@ -100,6 +125,9 @@ final readonly class EnvironmentFileProtector
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function prepareTarget(string $path, bool $force): void
     {
         if (is_link($path)) {
@@ -117,6 +145,11 @@ final readonly class EnvironmentFileProtector
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     private function transform(
         bool $protect,
         string $input,
@@ -134,11 +167,17 @@ final readonly class EnvironmentFileProtector
         $protector = new FileProtector();
         $options = new ProtectionOptions(self::PURPOSE, self::AAD);
         $key = $this->key($keyFile, $keyEnvironment);
+        $borrowed = CacheRunwire::current();
+        $runwire = $borrowed === null ? null : new RunwireExecutionContext(
+            $borrowed->runtime,
+            $borrowed->request,
+            $borrowed->scope,
+        );
 
         if ($protect) {
-            $protector->protect($source, $target, $key, $options);
+            $protector->protect($source, $target, $key, $options, context: $runwire);
         } else {
-            $protector->unprotect($source, $target, $key, $options);
+            $protector->unprotect($source, $target, $key, $options, context: $runwire);
         }
 
         return $target;

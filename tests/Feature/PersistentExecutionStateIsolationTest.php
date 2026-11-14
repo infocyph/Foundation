@@ -16,6 +16,8 @@ use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Session\SessionManager;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\Exceptions\ContainerException;
 use Infocyph\Omnibus\Consumer\ExecutionScope as OmnibusExecutionScope;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Envelope\MessageIdStamp;
@@ -24,21 +26,25 @@ final readonly class FoundationPersistentPrincipal implements PrincipalInterface
 {
     public function __construct(private string $identifier) {}
 
-    public function accountId(): ?string
+    #[\Override]
+    public function accountId(): string
     {
         return $this->identifier;
     }
 
+    #[\Override]
     public function id(): string
     {
         return $this->identifier;
     }
 
+    #[\Override]
     public function metadata(): array
     {
         return [];
     }
 
+    #[\Override]
     public function type(): PrincipalType
     {
         return PrincipalType::ACCOUNT;
@@ -51,22 +57,27 @@ final class FoundationPersistentScopedProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
 final class FoundationPersistentStateProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
 
-        $builder->scoped(
+        $builder->factory(
             'persistent.execution.scoped',
             FactoryDefinition::construct(FoundationPersistentScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
+        $builder->input(FoundationPersistentMessage::class);
     }
 }
 
@@ -78,6 +89,8 @@ final readonly class FoundationPersistentMessage
 final class FoundationPersistentMemoCalls
 {
     public int $memo = 0;
+
+    public ?Closure $memoClosure = null;
 
     public int $once = 0;
 }
@@ -116,7 +129,7 @@ it('isolates execution state while preserving bounded process-local memoizers', 
         $principal = $app->make(CurrentPrincipalContext::class);
         $sessions = $app->make(SessionManager::class);
         $databaseFactory = $app->make(DBLayerFactory::class);
-        $database = $databaseFactory->connection();
+        $database = $databaseFactory->infrastructureConnection();
         $database->getPdo()->exec('CREATE TABLE runtime_state (value TEXT NOT NULL)');
 
         $firstScoped = null;
@@ -165,10 +178,10 @@ it('isolates execution state while preserving bounded process-local memoizers', 
             });
         })->toThrow(RuntimeException::class, 'deliberate persistent execution failure');
 
-        expect($principal->get())->toBeNull()
-            ->and(fn() => $sessions->current())->toThrow(LogicException::class)
+        expect($app->execution()->run(static fn(): ?PrincipalInterface => $principal->get()))->toBeNull()
+            ->and(fn() => $sessions->current())->toThrow(ContainerException::class, 'requires an active scope')
             ->and($database->transactionLevel())->toBe(0)
-            ->and((int) $database->getPdo()->query('SELECT COUNT(*) FROM runtime_state')->fetchColumn())->toBe(0)
+            ->and((int) ($database->getPdo()->query('SELECT COUNT(*) FROM runtime_state') ?: throw new \UnexpectedValueException('Execution-state query failed.'))->fetchColumn())->toBe(0)
             ->and(Memoizer::instance()->stats())->toBe(['hits' => 0, 'misses' => 1, 'total' => 1]);
 
         $secondScoped = null;
@@ -237,18 +250,27 @@ it('isolates execution state while preserving bounded process-local memoizers', 
     }
 });
 
+/**
+ * @throws \ReflectionException
+ * @throws \UnexpectedValueException
+ */
 function foundationPersistentMemoized(FoundationPersistentMemoCalls $calls): int
 {
-    return Memoizer::instance()->get(static function () use ($calls): int {
+    $calls->memoClosure ??= static function () use ($calls): int {
         return ++$calls->memo;
-    });
+    };
+
+    return foundationFixtureInteger(Memoizer::instance()->get($calls->memoClosure));
 }
 
+/**
+ * @throws \UnexpectedValueException
+ */
 function foundationPersistentOnce(FoundationPersistentMemoCalls $calls): int
 {
-    return OnceMemoizer::instance()->once(static function () use ($calls): int {
+    return foundationFixtureInteger(OnceMemoizer::instance()->once(static function () use ($calls): int {
         return ++$calls->once;
-    });
+    }));
 }
 
 function foundationPersistentStateProject(): string
@@ -272,6 +294,7 @@ function foundationPersistentStateRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

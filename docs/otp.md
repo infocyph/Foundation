@@ -1,11 +1,10 @@
 # OTP-backed MFA and passkeys
 
-Foundation composes `infocyph/otp ^6.1` into application authentication without
+Foundation composes `infocyph/otp ^7.0.1` into application authentication without
 copying OTP algorithms, replay mechanics, or WebAuthn ceremony behavior into the
 framework.
 
-OTP is an implementation inside Foundation's canonical `auth` module; there is
-no standalone public OTP module.
+Core authentication selects OTP through `security.mfa` and `security.passkey`.
 
 ## Ownership
 
@@ -17,7 +16,7 @@ Foundation owns application concerns:
 - challenge satisfaction, notification, audit, and session authorization;
 - mapping OTP results into Foundation authentication results.
 
-OTP 6.1 owns specialist behavior:
+OTP 7.0.1 owns specialist behavior:
 
 - TOTP, HOTP, OCRA, AOTP, GridOTP, and legacy MobileOTP algorithms;
 - OTP verification windows/drift results and replay primitives;
@@ -40,15 +39,18 @@ when the WebAuthn passkey driver is selected.
 ],
 ```
 
-Install the `auth` capability when the optional implementation is not already
-available:
+Install the MFA implementation and its crypto prerequisite:
 
 ```bash
-php infbyte module:install auth
+php infbyte module:install security.mfa
+php infbyte module:install security.crypto
 ```
 
 OTP MFA and WebAuthn passkeys are independently selectable. TOTP/HOTP/OCRA do
 not require `web-auth/webauthn-lib`; AOTP requires `ext-sodium`.
+Generating an optional **SVG QR code** requires `ext-xmlwriter`; text/URI QR
+output and passkey ceremonies do not. Passkey/WebAuthn does **not** require
+`ext-sodium` unless a separately selected AOTP factor is also active.
 
 ## Authentication-state storage
 
@@ -201,8 +203,9 @@ overwrite newer factor state.
 
 Sensitive factor metadata is persisted only where required for verification; it
 is redacted from enrollment/audit context. Protection of durable symmetric MFA
-secrets at rest is completed by Foundation's Epicrypt integration policy in
-plan point 26.10 rather than by inventing encryption inside the OTP adapter.
+secrets at rest uses Epicrypt at the DBLayer persistence boundary. See
+[MFA secret protection](security/advanced-authentication.rst) for
+the independent key domains and rotation policy.
 
 ## Passkey / WebAuthn
 
@@ -243,17 +246,14 @@ the platform authenticator/security key.
 
 ## Auth schema
 
-When durable auth storage is selected, inspect/install the current schema through
-the canonical commands:
+When durable auth storage is selected, use Core `AuthSchemaInstaller::install()`
+and `readiness()` inside a CLI execution; see [Core schema provisioning](data/database.rst).
+Optional module schema commands do not provision Core auth.
 
-```bash
-php infbyte module:schema:status auth
-php infbyte module:schema:install auth
-```
-
-The passkey schema includes independent `revision` and `credential_record`
-columns. Existing installs receive additive migrations and readiness reports
-missing columns as not ready.
+The current Foundation 4 passkey schema contains `revision`, `credential_record`
+and a unique `credential_id_hash` index. The full opaque ID remains stored, with
+exact case-sensitive lookup. Readiness rejects a schema missing required columns.
+Current 4.0 deployments must use this schema; old-major conversion is out of scope.
 
 ## Persistent runtimes
 
@@ -267,6 +267,20 @@ singletons:
 
 This model applies across reusable Web, Worker, CLI, and Scheduler application
 instances.
+
+### Runwire-bound operation handling
+
+Stateful OTP and passkey operations borrow the current CacheLayer `RunwireExecutionContext`
+at call time and forward it through OTP 7.0.1's `runwire:` arguments for challenge
+issue/verification, replay checks and passkey begin/finish ceremonies. Foundation
+never stores a request or coroutine scope in long-lived OTP/passkey instances.
+Without an active context, the same operations execute synchronously.
+
+Cancelled/completed hosts must not consume challenges or publish new MFA state.
+`OtpMfaVerifier` propagates cancellation instead of converting it to an invalid
+code/configuration result. Foundation-owned counter CAS and recovery-state
+operations retain their own atomicity and ownership checks. Application-owned
+native OTP instances must pass borrowed context explicitly where supported.
 
 ## Direct OTP use
 

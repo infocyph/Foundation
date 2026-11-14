@@ -12,6 +12,10 @@ final readonly class OAuth21AccessTokenHarness
 {
     public function __construct(private OAuthAccessTokenService $tokens) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException
+     * @throws \RuntimeException
+     */
     public function verify(string $token, string $audience): OAuthAccessTokenClaims
     {
         $result = $this->tokens->validate($token, $audience);
@@ -33,7 +37,10 @@ final readonly class OAuth21AccessTokenHarness
         );
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \RuntimeException
+     */
     private static function audiences(mixed $value): array
     {
         if (is_string($value) && $value !== '') {
@@ -77,7 +84,10 @@ final readonly class OAuth21AccessTokenHarness
             : throw new \RuntimeException('OAuth fixture claim is invalid.');
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \RuntimeException
+     */
     private static function scopes(mixed $value): array
     {
         if ($value === null || $value === '') {

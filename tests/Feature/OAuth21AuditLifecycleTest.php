@@ -64,7 +64,7 @@ it('audits authorization code consumption at the authoritative Epicrypt outcome'
             $capture->events = [];
         }
 
-        $consume = fn() => $fixture->codes->consume(
+        $consume = fn(): \Infocyph\Foundation\Auth\OAuth\Authorization\OAuthAuthorizationCode => $fixture->codes->consume(
             $issue->code,
             $registration->client->clientId,
             $redirectUri,
@@ -98,6 +98,11 @@ it('audits authorization code consumption at the authoritative Epicrypt outcome'
 
 it('audits OAuth endpoint throttling only when a request is rejected', function (): void {
     $config = AuthDefaults::all();
+    if (!is_array($config['auth'] ?? null)
+        || !is_array($config['auth']['oauth'] ?? null)
+        || !is_array($config['auth']['oauth']['rate_limits'] ?? null)) {
+        throw new \UnexpectedValueException('OAuth rate-limit defaults must be an array.');
+    }
     $config['auth']['oauth']['rate_limits']['token'] = ['max' => 1, 'window' => 60];
     $capture = new OAuthAuditCapture();
     $factory = new OAuthHttpThrottleFactory(

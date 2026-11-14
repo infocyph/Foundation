@@ -14,9 +14,13 @@ use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 use Infocyph\Foundation\Auth\Principal\PrincipalType;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
-use Infocyph\Foundation\Auth\Support\ContextValue;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
+/**
+ * Application-facing impersonation lifecycle and audit operations.
+ *
+ * @api
+ */
 final readonly class ImpersonationManager
 {
     public function __construct(
@@ -74,8 +78,6 @@ final readonly class ImpersonationManager
             actorId: $actorId,
             metadata: $metadata,
             severity: AuthEventSeverity::NOTICE,
-            sessionId: ContextValue::stringOrNull($metadata, 'session_id'),
-            deviceId: ContextValue::stringOrNull($metadata, 'device_id'),
         );
     }
 }

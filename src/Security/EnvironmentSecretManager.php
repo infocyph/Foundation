@@ -16,6 +16,11 @@ final readonly class EnvironmentSecretManager
         private ConfigCacheManager $configCache,
     ) {}
 
+    /**
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \RuntimeException
+     */
     public function generate(bool $force = false): string
     {
         $path = $this->application->basePath('.env');
@@ -31,6 +36,9 @@ final readonly class EnvironmentSecretManager
         return $path;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public function install(): string
     {
         $path = $this->application->basePath('.env');
@@ -53,6 +61,9 @@ final readonly class EnvironmentSecretManager
         return $path;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function read(string $path, string $label): string
     {
         if (!is_file($path) || !is_readable($path)) {
@@ -66,6 +77,9 @@ final readonly class EnvironmentSecretManager
         return $contents;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function withGeneratedSecret(string $contents, bool $force, bool $preserveExisting): ?string
     {
         $pattern = '/^' . self::VARIABLE . '=(.*)$/m';
@@ -100,6 +114,9 @@ final readonly class EnvironmentSecretManager
         return rtrim($contents, "\r\n") . PHP_EOL . $line . PHP_EOL;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function write(string $path, string $contents): void
     {
         $temporary = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';
@@ -109,6 +126,16 @@ final readonly class EnvironmentSecretManager
         }
 
         try {
+            // Exclusive creation protects the name; restrict its mode before
+            // any secret byte reaches the file, regardless of process umask.
+            if (!chmod($temporary, 0600)) {
+                throw new \RuntimeException('Unable to secure the generated environment file.');
+            }
+            $permissions = fstat($handle);
+            if (!is_array($permissions) || ($permissions['mode'] & 0777) !== 0600) {
+                throw new \RuntimeException('Generated environment staging permissions are unsafe.');
+            }
+
             $length = strlen($contents);
             $written = 0;
             while ($written < $length) {
@@ -118,7 +145,7 @@ final readonly class EnvironmentSecretManager
                 }
                 $written += $bytes;
             }
-            if (!fflush($handle) || !chmod($temporary, 0600)) {
+            if (!fflush($handle)) {
                 throw new \RuntimeException('Unable to secure the generated environment file.');
             }
             fclose($handle);

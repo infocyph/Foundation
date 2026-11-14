@@ -9,16 +9,59 @@ use Infocyph\Foundation\Auth\Contract\Storage\PasswordResetStoreInterface;
 
 final readonly class DBLayerPasswordResetStore extends DBLayerConsumableStore implements PasswordResetStoreInterface
 {
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function consume(string $requestId): void
     {
         $this->consumeRequest('passwordResets', $requestId);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
+    #[\Override]
+    public function consumeAndApply(string $requestId, callable $apply): bool
+    {
+        return $this->connection()->transaction(function () use ($requestId, $apply): bool {
+            $now = $this->now();
+            $updated = $this->query('passwordResets')
+                ->whereRaw('id = ? AND consumed_at IS NULL AND expires_at > ?', [$requestId, $now])
+                ->update(['consumed_at' => $now]);
+            if ($updated !== 1) {
+                return false;
+            }
+
+            $apply();
+
+            return true;
+        }, attempts: 3) === true;
+    }
+
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function find(string $requestId): ?PasswordResetRequest
     {
         return $this->findRequest('passwordResets', $this->mapRequest(...), $requestId);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function save(PasswordResetRequest $request): void
     {
         $this->upsertRecord('passwordResets', 'id', [
@@ -31,6 +74,10 @@ final readonly class DBLayerPasswordResetStore extends DBLayerConsumableStore im
         ]);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function wasConsumed(string $requestId): bool
     {
         return $this->requestWasConsumed('passwordResets', $requestId);

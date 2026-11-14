@@ -32,7 +32,11 @@ final readonly class MfaManager
         private ClockInterface $clock = new SystemClock(),
     ) {}
 
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
+     * @throws \OverflowException
+     */
     public function activateFactor(string $accountId, string $factorId, array $context = []): MfaEnrollmentResult
     {
         $factor = $this->findFactor($accountId, $factorId);
@@ -60,7 +64,10 @@ final readonly class MfaManager
         return new MfaEnrollmentResult(MfaStatus::ACTIVATED, $enabledFactor, code: 'mfa_factor_activated', context: $context);
     }
 
-    /** @param array<string, mixed> $metadata */
+    /**
+     * @param array<string, mixed> $metadata
+     * @throws \InvalidArgumentException
+     */
     public function enrollFactor(
         string $accountId,
         MfaFactorType|string $type,
@@ -339,8 +346,6 @@ final readonly class MfaManager
             $accountId,
             metadata: $metadata,
             severity: $severity,
-            sessionId: ContextValue::stringOrNull($metadata, 'session_id'),
-            deviceId: ContextValue::stringOrNull($metadata, 'device_id'),
         );
     }
 

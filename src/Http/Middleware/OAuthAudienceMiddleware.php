@@ -8,9 +8,17 @@ use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
+/**
+ * Public OAuth audience authorization middleware.
+ *
+ * @api
+ */
 final readonly class OAuthAudienceMiddleware
 {
-    /** @param list<string> $requiredAudiences */
+    /**
+     * @param list<string> $requiredAudiences
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         private CurrentPrincipalContext $principals,
         private array $requiredAudiences,
@@ -25,7 +33,12 @@ final readonly class OAuthAudienceMiddleware
         }
     }
 
-    /** @param callable(Request): Response $next */
+    /**
+     * @param callable(Request): Response $next
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function __invoke(Request $request, callable $next): Response
     {
         $principal = $this->principals->get();

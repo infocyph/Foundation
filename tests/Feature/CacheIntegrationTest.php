@@ -119,8 +119,9 @@ it('passes CacheLayer-native tier descriptors and applies Foundation lock policy
     $adapter = $reflection->getProperty('adapter')->getValue($cache);
     $lockProvider = $reflection->getProperty('lockProvider')->getValue($cache);
 
-    expect($adapter)->toBeInstanceOf(TieredCacheAdapter::class)
-        ->and($lockProvider)->toBeInstanceOf(FileLockProvider::class);
+    if (!$adapter instanceof TieredCacheAdapter || !$lockProvider instanceof FileLockProvider) {
+        throw new \UnexpectedValueException('Cache adapter and lock provider must match the selected native backends.');
+    }
 
     $chainReflection = new ReflectionClass($adapter);
     $pools = $chainReflection->getProperty('pools')->getValue($adapter);
@@ -204,13 +205,18 @@ it('keeps bounded process-local memoizers warm without clearing the shared cache
         ->and($cache->get('persistent'))->toBe('shared');
 });
 
+/** @throws \UnexpectedValueException */
 function foundationCacheOnceValue(OnceMemoizer $memoizer, int &$calls): int
 {
-    return $memoizer->once(static function () use (&$calls): int {
+    $value = $memoizer->once(static function () use (&$calls): int {
         return ++$calls;
     });
-}
+    if (!is_int($value)) {
+        throw new \UnexpectedValueException('Once memoizer must preserve its integer payload.');
+    }
 
+    return $value;
+}
 
 it('keeps CacheLayer database schema lifecycle under the core cache subsystem', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-cache-schema-' . bin2hex(random_bytes(5));
