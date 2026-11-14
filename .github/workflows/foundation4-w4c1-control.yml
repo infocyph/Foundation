@@ -1,6 +1,7 @@
 # Diagnostic-only. This branch-scoped push trigger does not modify or certify PR #20.
 # Strictly opt-in: only an explicitly named push requests expensive dedicated-host measurements.
 # No default hosted runner fallback and no source changes to PR #20.
+# Dedicated controls requested on 2026-11-14; execution requires a real runner with the expected label.
 name: Foundation 4 frozen w4c1 measurement controls
 
 on:
