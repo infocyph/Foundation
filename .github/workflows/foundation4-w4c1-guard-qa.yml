@@ -1,4 +1,4 @@
-# Temporary diagnostics-branch QA. Does not alter or run on the frozen candidate.
+# Branch-only diagnostic QA; no candidate or release gate changes.
 name: Foundation 4 frozen w4c1 guard QA
 
 on:
@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   diagnostic-guard:
@@ -23,11 +24,53 @@ jobs:
           tools: composer:v2
           extensions: "mbstring, intl, sodium, curl, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_pgsql, redis"
           coverage: none
-      - name: Syntax-check modified workflow guards
-        run: php -l tests/Feature/ReleaseWorkflowGuardTest.php
+      - name: Syntax-check performance calibration tooling
+        run: |
+          php -l tests/Feature/ReleaseWorkflowGuardTest.php
+          php -l benchmarks/foundation4-host-control-verdict.php
       - name: Install repository QA dependencies
         run: composer update --no-interaction --no-progress --prefer-dist --prefer-stable
-      - name: Run targeted hosted workflow regression tests
+      - name: Run workflow regression tests
         run: |
           cp vendor/infocyph/phpforge/resources/pest.xml .foundation-diagnostic-pest.xml
           vendor/bin/pest -c .foundation-diagnostic-pest.xml tests/Feature/ReleaseWorkflowGuardTest.php
+      - uses: actions/download-artifact@v7
+        with:
+          repository: ${{ github.repository }}
+          run-id: "43589969910"
+          github-token: ${{ github.token }}
+          pattern: foundation4-diagnostic-pair-*
+          path: build/control-artifacts
+      - name: Verify 40-trial control calibration and its release veto
+        run: |
+          set -euo pipefail
+          php benchmarks/foundation4-host-control-verdict.php \
+            build/control-artifacts build/qa-calibration.json build/qa-calibration.md
+          php -r '
+            $r = json_decode((string) file_get_contents("build/qa-calibration.json"), true, flags: JSON_THROW_ON_ERROR);
+            if (!is_array($r) || ($r["calibration_stable"] ?? true) !== false
+                || ($r["release_certified"] ?? true) !== false
+                || count($r["cases"] ?? []) !== 4
+                || ($r["telemetry"]["trials"] ?? null) !== 40
+                || ($r["cases"][0]["delta_percent"] ?? null) !== -4.587
+                || ($r["cases"][0]["status"] ?? null) !== "unstable_identical_runtime"
+                || ($r["telemetry"]["cpu_pressure_usec"] ?? 0) <= 0
+                || abs($r["cross_vm_reference_drift_percent"]["fpm"] ?? 0) <= 2.0) {
+                fwrite(STDERR, "Calibration failed to reject the known identical-runtime drift.\n");
+                exit(1);
+            }
+          '
+      - name: Reject altered evidence schema
+        run: |
+          set -euo pipefail
+          php -r '
+            $file = "build/control-artifacts/foundation4-diagnostic-pair-primary-fpm-4-1/candidate/report.json";
+            $r = json_decode((string) file_get_contents($file), true, flags: JSON_THROW_ON_ERROR);
+            $r["schema"] = 2;
+            file_put_contents($file, json_encode($r, JSON_THROW_ON_ERROR));
+          '
+          if php benchmarks/foundation4-host-control-verdict.php \
+            build/control-artifacts build/qa-rejected.json build/qa-rejected.md; then
+            echo "::error::Downgraded evidence was accepted" >&2
+            exit 1
+          fi

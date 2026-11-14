@@ -191,12 +191,39 @@ it('runs frozen identical-runtime controls only on diagnostic-branch pushes', fu
         ->and($job['with']['comparison_mode'] ?? null)->toBe('source-only')
         ->and($job['with']['replay_run_id'] ?? null)->toBe('43570637823')
         ->and($job['with']['replay_lock_sha256'] ?? null)->toBe('47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7')
-        ->and($job['with']['host_runner'] ?? null)->toBe('ubuntu-24.04-arm')
+        ->and($job['with']['host_runner'] ?? null)->toBe('ubuntu-24.04')
         ->and(array_keys($inputs))->toContain('certify_source', 'diagnostic_case', 'baseline_ref', 'candidate_ref', 'replay_run_id', 'replay_lock_sha256', 'comparison_mode', 'host_runner');
 
     foreach (['baseline_ref', 'candidate_ref', 'replay_run_id', 'replay_lock_sha256', 'comparison_mode', 'host_runner', 'diagnostic_case'] as $name) {
         expect($inputs[$name]['type'] ?? null)->toBe('string');
     }
+});
+
+
+it('keeps calibration evidence branch-scoped and fails closed on unstable controls', function (): void {
+    $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/foundation4-w4c1-evidence.yml');
+    $trigger = $workflow['on']['push'] ?? null;
+    if (!is_array($trigger)) {
+        throw new \UnexpectedValueException('Control evidence must be branch-restricted.');
+    }
+    $steps = foundationReleaseWorkflowSteps($workflow, 'calibration');
+    expect($trigger['branches'] ?? null)->toBe(['diagnostics/foundation4-w4c1-controls'])
+        ->and($trigger['paths'] ?? null)->toBe(['.github/workflows/foundation4-w4c1-evidence.yml'])
+        ->and($steps['Analyze all 40 frozen host trials'] ?? null)->toContain('foundation4-host-control-verdict.php')
+        ->and($steps['Reject unstable controls without weakening release limits'] ?? null)->toContain('exit(1)', 'calibration_stable');
+
+    $download = array_values(array_filter(
+        $workflow['jobs']['calibration']['steps'] ?? [],
+        static fn(mixed $step): bool => is_array($step) && ($step['uses'] ?? '') === 'actions/download-artifact@v7',
+    ));
+    $upload = array_values(array_filter(
+        $workflow['jobs']['calibration']['steps'] ?? [],
+        static fn(mixed $step): bool => is_array($step) && ($step['uses'] ?? '') === 'actions/upload-artifact@v7',
+    ));
+    expect($download)->toHaveCount(1)
+        ->and($download[0]['with']['run-id'] ?? null)->toBe('43589969910')
+        ->and($upload)->toHaveCount(1)
+        ->and($upload[0]['if'] ?? null)->toBe('always()');
 });
 
 it('captures benchmark configuration using only options supported by its PHP version', function (bool $php85): void {

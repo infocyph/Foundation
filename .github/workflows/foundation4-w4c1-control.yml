@@ -1,5 +1,6 @@
 # Diagnostic-only. This branch-scoped push trigger does not modify or certify PR #20.
-# A push to this file runs a single frozen, runtime-identical FPM/Runwire w4c1 control.
+# This deliberate second hardware-family experiment runs frozen controls on hosted x64.
+# Successful jobs do not prove stable physical host performance.
 name: Foundation 4 frozen w4c1 measurement controls
 
 on:
@@ -25,4 +26,4 @@ jobs:
       comparison_mode: source-only
       replay_run_id: "43570637823"
       replay_lock_sha256: 47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7
-      host_runner: ubuntu-24.04-arm
+      host_runner: ubuntu-24.04

@@ -202,6 +202,21 @@ The two source revisions have identical tracked runtime/resource/bin files; the 
 
 Each measured trial now records diagnostic snapshots immediately before and after its timed load: CPU counters including steal time, pressure totals, cgroup throttling and I/O counters, available CPU frequencies, PostgreSQL activity, Redis activity, and selected Docker service image IDs/resource gauges. These probes execute outside the load window. Unavailable host counters are explicitly marked; credentials and DSNs are not included in output. Use matching before/after deltas to distinguish application work from host/backend contention. Diagnostic snapshots do not change acceptance calculations or budgets.
 
+### Frozen source-identical host control result — November 14, 2026
+
+Control run [#43589969910](https://github.com/infocyph/Foundation/actions/runs/43589969910) compared frozen revision d6ea8a2a against 3fcebbfe with unchanged runtime files, reviewed Composer lock and identical authentication inputs within each physical job. The source-identical controls completed forty sustained 300-second trials without failed HTTP requests. The full-matrix certification run was intentionally not invoked.
+
+| Host | Primary delta / max CV | Confirmation delta / max CV | Interpretation |
+| --- | --- | --- | --- |
+| FPM w4/c1 | **−4.587% / 4.019%** | +1.318% / 2.165% | **Unstable identical-code control** |
+| Runwire w4/c1 | +0.650% / 1.443% | −1.950% / 1.101% | Earlier −3.35% regression not reproduced |
+
+The two separate GitHub VMs differed in same-source baseline throughput by **−9.366% FPM** and **+6.716% Runwire**. Their combined recorded CPU-pressure SOME time across all forty trials was **750.5 seconds**. Recorded CPU steal, cgroup throttling, Redis misses/rejections and PostgreSQL deadlocks/conflicts were zero; the CPU-frequency probes were unavailable (80 snapshots). CPU scheduling pressure is observed, but its origin is not established; the earlier zero-CPU-pressure claim was incorrect.
+
+The strict diagnostic evidence workflow [#43596773359](https://github.com/infocyph/Foundation/actions/runs/43596773359) fetched the actual artifacts, reconstructed medians/CVs and diagnostics, and **failed calibration as designed**, uploading a JSON and Markdown report. This does not weaken the **2% regression / 2.5% variance** budgets or imply an application source defect. **Source release performance qualification remains OPEN.**
+
+A second branch-isolated trial changes only the host family to the standard public-repository x64 ubuntu-24.04 runner, preserving the two immutable source revisions, Composer lock and all other workload parameters. Evidence between x64 and ARM is never combined into one certification result. If x64 also fails source-identical controls, require a controlled dedicated four-physical-core host with repeatable performance across execution windows before proceeding with both complete matrices and soaks. A fresh GitHub VM alone is not hardware-stability evidence.
+
 ## Historical qualification evidence
 
 These receipts describe earlier attempts, not qualification of the current release candidate. Current source identities and complete comparison verdicts belong in the release pull request. The historical independent-lock comparison is optional. The [completed source-only run #43217583759](https://github.com/infocyph/Foundation/actions/runs/43217583759) compared candidate `cd4fba90d6e415bbe7af04400c59ff5374be1cac` with Foundation 4 baseline `c220759fcbd6654fead843599712a5b79685f02d`. All 24 measurement jobs and 240 measured trials completed with zero failed requests. Primary classified 7 pass / 4 high-variance / 1 regression; confirmation classified 9 pass / 3 high-variance / 0 regressions. Both acceptance jobs failed.
