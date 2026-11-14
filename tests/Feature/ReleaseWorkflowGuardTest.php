@@ -226,6 +226,23 @@ it('keeps calibration evidence branch-scoped and fails closed on unstable contro
         ->and($upload[0]['if'] ?? null)->toBe('always()');
 });
 
+
+it('permits dedicated isolated-CPU certification without weakening existing benchmark limits', function (): void {
+    $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/foundation4-host-certification.yml');
+    $options = $workflow['on']['workflow_dispatch']['inputs']['host_runner']['options'] ?? [];
+    $measure = $workflow['jobs']['paired-host'] ?? [];
+    $steps = foundationReleaseWorkflowSteps($workflow, 'paired-host');
+    $install = $steps['Install host prerequisites'] ?? null;
+
+    expect($options)->toContain('ubuntu-24.04-arm', 'foundation4-perf-dedicated')
+        ->and($measure['runs-on'] ?? null)->toContain('inputs.host_runner')
+        ->and($measure['env']['FOUNDATION_HOST_MIN_SECONDS'] ?? null)->toBe('300')
+        ->and($measure['env']['FOUNDATION_HOST_WARMUP_SECONDS'] ?? null)->toBe('300')
+        ->and($measure['env']['FOUNDATION_HOST_REPEATS'] ?? null)->toBe('5')
+        ->and($install)->toContain('thread_siblings_list', 'refusing this allocation')
+        ->not->toContain('|| true');
+});
+
 it('captures benchmark configuration using only options supported by its PHP version', function (bool $php85): void {
     $root = dirname(__DIR__, 2);
     $workflow = foundationReleaseWorkflow($root . '/.github/workflows/foundation4-host-certification.yml');

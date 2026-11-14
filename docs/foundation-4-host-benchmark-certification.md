@@ -217,6 +217,19 @@ The strict diagnostic evidence workflow [#43596773359](https://github.com/infocy
 
 A second branch-isolated trial changes only the host family to the standard public-repository x64 ubuntu-24.04 runner, preserving the two immutable source revisions, Composer lock and all other workload parameters. Evidence between x64 and ARM is never combined into one certification result. If x64 also fails source-identical controls, require a controlled dedicated four-physical-core host with repeatable performance across execution windows before proceeding with both complete matrices and soaks. A fresh GitHub VM alone is not hardware-stability evidence.
 
+### Dedicated runner prerequisite for release performance certification
+
+The alternative [x64 diagnostic run #43597250946](https://github.com/infocyph/Foundation/actions/runs/43597250946) stopped during host prerequisites: **CPU 0 reported SMT siblings 0–1**. All four paired jobs rejected this topology before benchmarks began. This is an intentional rejection, not evidence of a PHP/FPM/Runwire regression. Do **not** bypass that guard or reuse the failed run as a throughput comparison.
+
+The paired-host workflow now accepts an opt-in custom GitHub Actions label **foundation4-perf-dedicated**. Its use requires an actual available repository or organization runner with:
+
+- Four isolated physical CPU cores available as CPUs 0–3; each of /sys/devices/system/cpu/cpuN/topology/thread_siblings_list must equal N (SMT disabled or topology otherwise fully isolated). The load controller stays on CPU 0, PostgreSQL/Redis on CPU 1, application on CPUs 2–3.
+- Linux, Docker service-container support, writable benchmark workspace, installation privileges for the existing reviewed prerequisites, and enough RAM/disk for real PostgreSQL, Redis and PHP 8.4.
+- Stable CPU and power behavior with no competing workloads. Record host hardware identity, CPU pressure, frequency telemetry if available, RPM CV, resource bounds, and the full authentication and dependency fingerprints.
+- Repeatable results **between batches and across separate windows**, not merely a newly provisioned VM. Make source-identical FPM and Runwire w4/c1 controls consistent in both execution orders before interpreting any source-level regression.
+
+After provisioning that label, change only the diagnostic caller's host_runner value to **foundation4-perf-dedicated** and commit that workflow file to trigger *controls only* on the separate diagnostics branch. Keep the immutable baseline/candidate SHA and lock replay unchanged. Review the full control evidence, including positive CPU-pressure counters and within-source differences. If those controls demonstrate stable measurement, run the complete source-only 24-pair matrix with primary/confirmation windows and mandatory soaks on the same controlled runner, comparing the frozen Foundation 4 baseline against the current PR candidate with **2% regression and 2.5% variance** limits unchanged. Freeze final exact SHA after any justified change and redo qualification. Never merge, tag or publish from a diagnostic-only green result.
+
 ## Historical qualification evidence
 
 These receipts describe earlier attempts, not qualification of the current release candidate. Current source identities and complete comparison verdicts belong in the release pull request. The historical independent-lock comparison is optional. The [completed source-only run #43217583759](https://github.com/infocyph/Foundation/actions/runs/43217583759) compared candidate `cd4fba90d6e415bbe7af04400c59ff5374be1cac` with Foundation 4 baseline `c220759fcbd6654fead843599712a5b79685f02d`. All 24 measurement jobs and 240 measured trials completed with zero failed requests. Primary classified 7 pass / 4 high-variance / 1 regression; confirmation classified 9 pass / 3 high-variance / 0 regressions. Both acceptance jobs failed.
