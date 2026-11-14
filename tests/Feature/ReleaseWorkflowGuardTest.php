@@ -178,7 +178,7 @@ it('runs frozen identical-runtime controls only on diagnostic-branch pushes', fu
     $job = $caller['jobs']['frozen-controls'] ?? null;
     $inputs = $workflow['on']['workflow_call']['inputs'] ?? null;
     if (!is_array($trigger) || !is_array($job) || !is_array($inputs)) {
-        throw new \\UnexpectedValueException('Frozen diagnostic controls must use a restricted push caller.');
+        throw new \UnexpectedValueException('Frozen diagnostic controls must use a restricted push caller.');
     }
 
     expect($trigger['branches'] ?? null)->toBe(['diagnostics/foundation4-w4c1-controls'])
