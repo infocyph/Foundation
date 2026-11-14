@@ -1,0 +1,59 @@
+# An unstable identical-runtime control is a red diagnostic, never release approval.
+name: Foundation 4 frozen w4c1 calibration verdict
+
+on:
+  push:
+    branches:
+      - diagnostics/foundation4-w4c1-controls
+    paths:
+      - .github/workflows/foundation4-w4c1-evidence.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  calibration:
+    name: Verify frozen w4c1 control evidence (not certification)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+      - uses: actions/download-artifact@v7
+        with:
+          repository: ${{ github.repository }}
+          run-id: "43589969910"
+          github-token: ${{ github.token }}
+          pattern: foundation4-diagnostic-pair-*
+          path: build/control-artifacts
+      - name: Analyze all 40 frozen host trials
+        run: |
+          set -euo pipefail
+          mkdir -p build/control-evidence
+          php -l benchmarks/foundation4-host-control-verdict.php
+          php benchmarks/foundation4-host-control-verdict.php \
+            build/control-artifacts \
+            build/control-evidence/calibration.json \
+            build/control-evidence/calibration.md
+          cat build/control-evidence/calibration.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Reject unstable controls without weakening release limits
+        run: |
+          php -r '
+            $report = json_decode((string) file_get_contents("build/control-evidence/calibration.json"), true, flags: JSON_THROW_ON_ERROR);
+            if (!is_array($report) || ($report["calibration_stable"] ?? false) !== true
+                || ($report["release_certified"] ?? true) !== false) {
+                fwrite(STDERR, "::error::Identical-runtime calibration is unstable. Source regression and release certification are not established.\n");
+                exit(1);
+            }
+          '
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-w4c1-calibration-verdict
+          path: build/control-evidence
+          if-no-files-found: error
+          retention-days: 30
