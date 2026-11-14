@@ -139,6 +139,36 @@ it('enforces independent complete performance batches without mixing their artif
         ->not->toContain('|| true', 'continue-on-error');
 });
 
+
+it('isolates identical-runtime FPM and Runwire four-worker controls without relaxing full certification', function (): void {
+    $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/foundation4-host-certification.yml');
+    $choice = $workflow['on']['workflow_dispatch']['inputs']['diagnostic_case'] ?? null;
+    $measure = $workflow['jobs']['paired-host'] ?? null;
+    $compare = $workflow['jobs']['compare-paired-host'] ?? null;
+    if (!is_array($choice) || !is_array($measure) || !is_array($compare)) {
+        throw new \\UnexpectedValueException('Diagnostic and certification workflow declarations are required.');
+    }
+
+    $selector = $measure['strategy']['matrix']['exclude'] ?? null;
+    if (!is_string($selector) || preg_match("/hosts-w4-c1' && '([^']+)'/", $selector, $matches) !== 1) {
+        throw new \\UnexpectedValueException('Four-worker diagnostic exclusion must be explicit.');
+    }
+    $excluded = json_decode($matches[1], true, flags: JSON_THROW_ON_ERROR);
+    expect($choice['default'] ?? null)->toBe('full-matrix')
+        ->and($choice['options'] ?? null)->toContain('full-matrix', 'runwire-w1-c50', 'hosts-w4-c1')
+        ->and($excluded)->toBe([['workers' => 1], ['concurrency' => 10], ['concurrency' => 50]])
+        ->and($measure['strategy']['matrix']['host'] ?? null)->toBe(['fpm', 'runwire'])
+        ->and($measure['strategy']['matrix']['batch'] ?? null)->toBe(['primary', 'confirmation'])
+        ->and($measure['env']['FOUNDATION_HOST_SERVER_CPU_SET'] ?? null)->toContain('2,3')
+        ->and($measure['env']['FOUNDATION_HOST_QUALIFICATION_SCOPE'] ?? null)->toContain("inputs.diagnostic_case != 'full-matrix'", 'diagnostic-only')
+        ->and($compare['if'] ?? null)->toContain("inputs.diagnostic_case != 'hosts-w4-c1'")
+        ->and($compare['if'] ?? null)->toContain("inputs.diagnostic_case != 'runwire-w1-c50'");
+
+    $upload = array_values(array_filter($measure['steps'] ?? [], static fn(mixed $step): bool => is_array($step) && ($step['uses'] ?? null) === 'actions/upload-artifact@v7'));
+    expect($upload)->toHaveCount(1)
+        ->and($upload[0]['with']['name'] ?? null)->toContain('diagnostic-pair', "inputs.diagnostic_case != 'full-matrix'");
+});
+
 it('captures benchmark configuration using only options supported by its PHP version', function (bool $php85): void {
     $root = dirname(__DIR__, 2);
     $workflow = foundationReleaseWorkflow($root . '/.github/workflows/foundation4-host-certification.yml');

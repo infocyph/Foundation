@@ -191,7 +191,23 @@ gh workflow run foundation4-host-certification.yml \
   -f replay_lock_sha256="${FOUNDATION_REPLAY_LOCK_SHA256:?Set the reviewed lock SHA-256}"
 ```
 
-For the unresolved Runwire w1/c50 signal, add `-f diagnostic_case=runwire-w1-c50` to run both order-reversed batches for that case. This mode is explicitly non-certifying: it publishes `foundation4-diagnostic-pair-*` artifacts with a diagnostic-only scope marker, and does not invoke the complete-matrix qualification job. A successful diagnostic run cannot close P6. Ordinary PR certification and the default manual mode still require all 24 pairs and both comparison verdicts.
+For the unresolved Runwire w1/c50 signal, add `-f diagnostic_case=runwire-w1-c50` to run both order-reversed batches for that case. The `hosts-w4-c1` selection runs **only** FPM and Runwire at four workers/concurrency one, each in primary and reversed-order confirmation batches. Both selections are explicitly **non-certifying**: they publish `foundation4-diagnostic-pair-*` artifacts with diagnostic-only scope markers and do not invoke full-matrix acceptance. A successful diagnostic run cannot close the full performance qualification. Ordinary PR certification and the default manual mode still require all 24 pairs and both comparison verdicts.
+
+To investigate w4/c1 measurement stability without moving the frozen Foundation candidate, dispatch the **diagnostic tooling branch**, while selecting the two immutable, runtime-identical revisions and the previously reviewed shared lock:
+
+```bash
+gh workflow run foundation4-host-certification.yml \\
+  --repo infocyph/Foundation --ref diagnostics/foundation4-w4c1-controls \\
+  -f diagnostic_case=hosts-w4-c1 -f comparison_mode=source-only \\
+  -f baseline_ref=d6ea8a2a33194396d3dfd93089449aab3653ab81 \\
+  -f candidate_ref=3fcebbfe06165a7363ea9e21ef55831469041fb3 \\
+  -f host_runner=ubuntu-24.04-arm \\
+  -f replay_run_id=43570637823 \\
+  -f replay_lock_sha256=47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7
+```
+
+The two source revisions have identical tracked runtime/resource/bin files; the diagnostic branch supplies only shared benchmark tooling. Examine each host's baseline/candidate median successful RPM, five-trial CV, load CPU, worker distribution, source identities, fixture fingerprints, before/after host and backend counters, and both execution orders. Any apparent >2% difference or >2.5% CV with identical runtime is a measurement-calibration failure, not an attributable code regression. Primary and confirmation cases execute on separate GitHub VMs; same-VM baseline/candidate pairing does **not** establish stable hardware across jobs or attempts. Repeat focused controls across independent windows or move them to controlled infrastructure if variance persists. Never combine passing controls from different attempts or present them as certification.
+
 
 Each measured trial now records diagnostic snapshots immediately before and after its timed load: CPU counters including steal time, pressure totals, cgroup throttling and I/O counters, available CPU frequencies, PostgreSQL activity, Redis activity, and selected Docker service image IDs/resource gauges. These probes execute outside the load window. Unavailable host counters are explicitly marked; credentials and DSNs are not included in output. Use matching before/after deltas to distinguish application work from host/backend contention. Diagnostic snapshots do not change acceptance calculations or budgets.
 

@@ -1,7 +1,7 @@
 name: Foundation 4 native HTTP host smoke
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch'
-      && (inputs.diagnostic_case == 'runwire-w1-c50' && 'Foundation 4 diagnostic profile (non-certifying)' || format('Foundation 4 paired host comparison ({0})', inputs.host_runner))
+      && (inputs.diagnostic_case != '' && inputs.diagnostic_case != 'full-matrix' && 'Foundation 4 diagnostic profile (non-certifying)' || format('Foundation 4 paired host comparison ({0})', inputs.host_runner))
       || 'Foundation 4 native HTTP host smoke' }}
 
 on:
@@ -31,6 +31,7 @@ on:
         options:
           - full-matrix
           - runwire-w1-c50
+          - hosts-w4-c1
       replay_run_id:
         description: Prior run in this repository containing the reviewed shared-lock artifact
         required: false
@@ -278,7 +279,7 @@ jobs:
         host: [fpm, runwire]
         workers: [1, 4]
         concurrency: [1, 10, 50]
-        exclude: ${{ fromJSON(inputs.diagnostic_case == 'runwire-w1-c50' && '[{"host":"fpm"},{"workers":4},{"concurrency":1},{"concurrency":10}]' || '[]') }}
+        exclude: ${{ fromJSON(inputs.diagnostic_case == 'runwire-w1-c50' && '[{"host":"fpm"},{"workers":4},{"concurrency":1},{"concurrency":10}]' || inputs.diagnostic_case == 'hosts-w4-c1' && '[{"workers":1},{"concurrency":10},{"concurrency":50}]' || '[]') }}
     services:
       postgres:
         image: postgres:18-alpine
@@ -293,7 +294,7 @@ jobs:
         ports: ["6379:6379"]
         options: --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 30
     env:
-      FOUNDATION_HOST_QUALIFICATION_SCOPE: ${{ inputs.diagnostic_case == 'runwire-w1-c50' && 'diagnostic-only' || 'full-matrix' }}
+      FOUNDATION_HOST_QUALIFICATION_SCOPE: ${{ inputs.diagnostic_case != '' && inputs.diagnostic_case != 'full-matrix' && 'diagnostic-only' || 'full-matrix' }}
       FOUNDATION_HOST_WORKLOAD_PROFILE: authenticated-read
       FOUNDATION_HOST_FILTER_HOST: ${{ matrix.host }}
       FOUNDATION_HOST_FILTER_WORKERS: ${{ matrix.workers }}
@@ -440,7 +441,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: foundation4-${{ inputs.diagnostic_case == 'runwire-w1-c50' && 'diagnostic-pair' || 'pair' }}-${{ matrix.batch }}-${{ matrix.host }}-${{ matrix.workers }}-${{ matrix.concurrency }}
+          name: foundation4-${{ inputs.diagnostic_case != '' && inputs.diagnostic_case != 'full-matrix' && 'diagnostic-pair' || 'pair' }}-${{ matrix.batch }}-${{ matrix.host }}-${{ matrix.workers }}-${{ matrix.concurrency }}
           path: |
             evidence/*/*.json
             evidence/*/*.csv
@@ -455,7 +456,7 @@ jobs:
           retention-days: 30
 
   compare-paired-host:
-    if: (github.event_name == 'workflow_dispatch' || inputs.certify_source == true) && inputs.diagnostic_case != 'runwire-w1-c50' && !cancelled() && needs.prepare-paired-host.result == 'success'
+    if: (github.event_name == 'workflow_dispatch' || inputs.certify_source == true) && inputs.diagnostic_case != 'runwire-w1-c50' && inputs.diagnostic_case != 'hosts-w4-c1' && !cancelled() && needs.prepare-paired-host.result == 'success'
     needs: [prepare-paired-host, paired-host]
     runs-on: ubuntu-24.04
     strategy:
