@@ -146,12 +146,12 @@ it('isolates identical-runtime FPM and Runwire four-worker controls without rela
     $measure = $workflow['jobs']['paired-host'] ?? null;
     $compare = $workflow['jobs']['compare-paired-host'] ?? null;
     if (!is_array($choice) || !is_array($measure) || !is_array($compare)) {
-        throw new \\UnexpectedValueException('Diagnostic and certification workflow declarations are required.');
+        throw new \UnexpectedValueException('Diagnostic and certification workflow declarations are required.');
     }
 
     $selector = $measure['strategy']['matrix']['exclude'] ?? null;
     if (!is_string($selector) || preg_match("/hosts-w4-c1' && '([^']+)'/", $selector, $matches) !== 1) {
-        throw new \\UnexpectedValueException('Four-worker diagnostic exclusion must be explicit.');
+        throw new \UnexpectedValueException('Four-worker diagnostic exclusion must be explicit.');
     }
     $excluded = json_decode($matches[1], true, flags: JSON_THROW_ON_ERROR);
     expect($choice['default'] ?? null)->toBe('full-matrix')
