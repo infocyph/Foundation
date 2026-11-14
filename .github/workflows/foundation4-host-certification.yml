@@ -12,6 +12,41 @@ on:
         required: false
         type: boolean
         default: false
+      diagnostic_case:
+        description: Non-certifying targeted host diagnostic, or the complete production matrix
+        required: false
+        type: string
+        default: full-matrix
+      baseline_ref:
+        description: Immutable source SHA for the paired baseline
+        required: false
+        type: string
+        default: ""
+      candidate_ref:
+        description: Immutable source SHA for the paired candidate
+        required: false
+        type: string
+        default: ""
+      replay_run_id:
+        description: Reviewed shared-lock workflow artifact run ID
+        required: false
+        type: string
+        default: ""
+      replay_lock_sha256:
+        description: Reviewed SHA-256 for both replayed Composer locks
+        required: false
+        type: string
+        default: ""
+      comparison_mode:
+        description: Comparison type
+        required: false
+        type: string
+        default: source-only
+      host_runner:
+        description: Host runner label for paired measurements
+        required: false
+        type: string
+        default: ubuntu-24.04-arm
   workflow_dispatch:
     inputs:
       baseline_ref:

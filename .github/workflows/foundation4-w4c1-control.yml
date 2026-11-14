@@ -1,0 +1,28 @@
+# Diagnostic-only. This branch-scoped push trigger does not modify or certify PR #20.
+# A push to this file runs a single frozen, runtime-identical FPM/Runwire w4c1 control.
+name: Foundation 4 frozen w4c1 measurement controls
+
+on:
+  push:
+    branches:
+      - diagnostics/foundation4-w4c1-controls
+    paths:
+      - .github/workflows/foundation4-w4c1-control.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  frozen-controls:
+    name: Frozen FPM and Runwire w4c1 controls (not certification)
+    uses: ./.github/workflows/foundation4-host-certification.yml
+    with:
+      certify_source: true
+      diagnostic_case: hosts-w4-c1
+      baseline_ref: d6ea8a2a33194396d3dfd93089449aab3653ab81
+      candidate_ref: 3fcebbfe06165a7363ea9e21ef55831469041fb3
+      comparison_mode: source-only
+      replay_run_id: "43570637823"
+      replay_lock_sha256: 47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7
+      host_runner: ubuntu-24.04-arm

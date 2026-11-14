@@ -169,6 +169,36 @@ it('isolates identical-runtime FPM and Runwire four-worker controls without rela
         ->and($upload[0]['with']['name'] ?? null)->toContain('diagnostic-pair', "inputs.diagnostic_case != 'full-matrix'");
 });
 
+
+it('runs frozen identical-runtime controls only on diagnostic-branch pushes', function (): void {
+    $root = dirname(__DIR__, 2);
+    $caller = foundationReleaseWorkflow($root . '/.github/workflows/foundation4-w4c1-control.yml');
+    $workflow = foundationReleaseWorkflow($root . '/.github/workflows/foundation4-host-certification.yml');
+    $trigger = $caller['on']['push'] ?? null;
+    $job = $caller['jobs']['frozen-controls'] ?? null;
+    $inputs = $workflow['on']['workflow_call']['inputs'] ?? null;
+    if (!is_array($trigger) || !is_array($job) || !is_array($inputs)) {
+        throw new \\UnexpectedValueException('Frozen diagnostic controls must use a restricted push caller.');
+    }
+
+    expect($trigger['branches'] ?? null)->toBe(['diagnostics/foundation4-w4c1-controls'])
+        ->and($trigger['paths'] ?? null)->toBe(['.github/workflows/foundation4-w4c1-control.yml'])
+        ->and($job['uses'] ?? null)->toBe('./.github/workflows/foundation4-host-certification.yml')
+        ->and($job['with']['certify_source'] ?? null)->toBeTrue()
+        ->and($job['with']['diagnostic_case'] ?? null)->toBe('hosts-w4-c1')
+        ->and($job['with']['baseline_ref'] ?? null)->toBe('d6ea8a2a33194396d3dfd93089449aab3653ab81')
+        ->and($job['with']['candidate_ref'] ?? null)->toBe('3fcebbfe06165a7363ea9e21ef55831469041fb3')
+        ->and($job['with']['comparison_mode'] ?? null)->toBe('source-only')
+        ->and($job['with']['replay_run_id'] ?? null)->toBe('43570637823')
+        ->and($job['with']['replay_lock_sha256'] ?? null)->toBe('47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7')
+        ->and($job['with']['host_runner'] ?? null)->toBe('ubuntu-24.04-arm')
+        ->and(array_keys($inputs))->toContain('certify_source', 'diagnostic_case', 'baseline_ref', 'candidate_ref', 'replay_run_id', 'replay_lock_sha256', 'comparison_mode', 'host_runner');
+
+    foreach (['baseline_ref', 'candidate_ref', 'replay_run_id', 'replay_lock_sha256', 'comparison_mode', 'host_runner', 'diagnostic_case'] as $name) {
+        expect($inputs[$name]['type'] ?? null)->toBe('string');
+    }
+});
+
 it('captures benchmark configuration using only options supported by its PHP version', function (bool $php85): void {
     $root = dirname(__DIR__, 2);
     $workflow = foundationReleaseWorkflow($root . '/.github/workflows/foundation4-host-certification.yml');

@@ -193,18 +193,9 @@ gh workflow run foundation4-host-certification.yml \
 
 For the unresolved Runwire w1/c50 signal, add `-f diagnostic_case=runwire-w1-c50` to run both order-reversed batches for that case. The `hosts-w4-c1` selection runs **only** FPM and Runwire at four workers/concurrency one, each in primary and reversed-order confirmation batches. Both selections are explicitly **non-certifying**: they publish `foundation4-diagnostic-pair-*` artifacts with diagnostic-only scope markers and do not invoke full-matrix acceptance. A successful diagnostic run cannot close the full performance qualification. Ordinary PR certification and the default manual mode still require all 24 pairs and both comparison verdicts.
 
-To investigate w4/c1 measurement stability without moving the frozen Foundation candidate, dispatch the **diagnostic tooling branch**, while selecting the two immutable, runtime-identical revisions and the previously reviewed shared lock:
+To investigate w4/c1 measurement stability without moving the frozen Foundation candidate, a branch-limited `push` workflow at `.github/workflows/foundation4-w4c1-control.yml` invokes the existing reusable certification workflow with `diagnostic_case=hosts-w4-c1`. Its only push trigger is a change to that diagnostic caller on `diagnostics/foundation4-w4c1-controls`. The workflow records diagnostics, **never** full-matrix acceptance. This avoids relying on `workflow_dispatch`, which requires the workflow file to exist on the repository default branch.
 
-```bash
-gh workflow run foundation4-host-certification.yml \\
-  --repo infocyph/Foundation --ref diagnostics/foundation4-w4c1-controls \\
-  -f diagnostic_case=hosts-w4-c1 -f comparison_mode=source-only \\
-  -f baseline_ref=d6ea8a2a33194396d3dfd93089449aab3653ab81 \\
-  -f candidate_ref=3fcebbfe06165a7363ea9e21ef55831469041fb3 \\
-  -f host_runner=ubuntu-24.04-arm \\
-  -f replay_run_id=43570637823 \\
-  -f replay_lock_sha256=47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7
-```
+The caller freezes baseline `d6ea8a2a33194396d3dfd93089449aab3653ab81`, candidate `3fcebbfe06165a7363ea9e21ef55831469041fb3`, the reviewed lock artifact from run `43570637823`, and lock SHA-256 `47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7`. These revisions are runtime-identical; the diagnostic branch supplies shared tooling only. It deliberately requires an explicit committed update to the branch-scoped caller to rerun, rather than silently retrying an unchanged full qualification.
 
 The two source revisions have identical tracked runtime/resource/bin files; the diagnostic branch supplies only shared benchmark tooling. Examine each host's baseline/candidate median successful RPM, five-trial CV, load CPU, worker distribution, source identities, fixture fingerprints, before/after host and backend counters, and both execution orders. Any apparent >2% difference or >2.5% CV with identical runtime is a measurement-calibration failure, not an attributable code regression. Primary and confirmation cases execute on separate GitHub VMs; same-VM baseline/candidate pairing does **not** establish stable hardware across jobs or attempts. Repeat focused controls across independent windows or move them to controlled infrastructure if variance persists. Never combine passing controls from different attempts or present them as certification.
 
