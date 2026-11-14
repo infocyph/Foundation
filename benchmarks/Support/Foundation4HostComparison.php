@@ -91,7 +91,7 @@ final class Foundation4HostComparison
 
     /**
      * @param array<string, mixed> $report
-     * @return array<string, array{hardware_id:string,rpms:list<float>}>
+     * @return array<string, array{hardware_id:string,auth_fixture_sha256:string,rpms:list<float>}>
      * @throws \InvalidArgumentException
      */
     private static function cases(array $report): array
@@ -113,7 +113,7 @@ final class Foundation4HostComparison
                 if (isset($result[$key])) {
                     throw new InvalidArgumentException('Duplicate native host benchmark scenario.');
                 }
-                $result[$key] = ['hardware_id' => $scenario['hardware_id'], 'rpms' => $scenario['rpms']];
+                $result[$key] = ['hardware_id' => $scenario['hardware_id'], 'auth_fixture_sha256' => $scenario['auth_fixture_sha256'], 'rpms' => $scenario['rpms']];
             }
         }
 
@@ -139,8 +139,8 @@ final class Foundation4HostComparison
     }
 
     /**
-     * @param array{hardware_id:string,rpms:list<float>} $before
-     * @param array{hardware_id:string,rpms:list<float>} $after
+     * @param array{hardware_id:string,auth_fixture_sha256:string,rpms:list<float>} $before
+     * @param array{hardware_id:string,auth_fixture_sha256:string,rpms:list<float>} $after
      * @return array{passed:bool,result:array<string,string|float>}
      * @throws InvalidArgumentException
      */
@@ -148,6 +148,9 @@ final class Foundation4HostComparison
     {
         if ($before['hardware_id'] !== $after['hardware_id']) {
             throw new InvalidArgumentException('Baseline/candidate scenario hardware differs: ' . $key);
+        }
+        if ($before['auth_fixture_sha256'] !== $after['auth_fixture_sha256']) {
+            throw new InvalidArgumentException('Baseline/candidate authentication fixture differs: ' . $key);
         }
         $baselineMedian = self::median($before['rpms']);
         $candidateMedian = self::median($after['rpms']);
@@ -161,6 +164,7 @@ final class Foundation4HostComparison
         $result = [
             'scenario' => $key,
             'hardware_id' => $before['hardware_id'],
+            'auth_fixture_sha256' => $before['auth_fixture_sha256'],
             'baseline_median_successful_rpm' => round($baselineMedian, 2),
             'candidate_median_successful_rpm' => round($candidateMedian, 2),
             'delta_percent' => round($deltaPercent, 3),
@@ -217,7 +221,7 @@ final class Foundation4HostComparison
 
     /**
      * @param array<string,mixed> $report
-     * @return array{key:string,hardware_id:string,rpms:list<float>}
+     * @return array{key:string,hardware_id:string,auth_fixture_sha256:string,rpms:list<float>}
      * @throws InvalidArgumentException
      */
     private static function scenario(mixed $entry, string $host, array $report): array
@@ -245,18 +249,23 @@ final class Foundation4HostComparison
             throw new InvalidArgumentException('Scenario hardware identity is missing.');
         }
 
-        return ['key' => $key, 'hardware_id' => $hardware, 'rpms' => $values];
+        $fixture = $entry['auth_fixture_sha256'] ?? null;
+        if (!is_string($fixture) || preg_match('/^[a-f0-9]{64}$/D', $fixture) !== 1) {
+            throw new InvalidArgumentException('Scenario authentication fixture identity is missing or malformed.');
+        }
+
+        return ['key' => $key, 'hardware_id' => $hardware, 'auth_fixture_sha256' => $fixture, 'rpms' => $values];
     }
 
     /**
      * @param array<string,mixed> $report
-     * @phpstan-return array{hosts:array<array-key,mixed>,schema:2,sha:string,php:string,request_count:int,repetitions:int,hardware_id:string,composer_lock_sha256:string,protocol:string,workload_profile:string,tool_sha:string,fixture_id:string,warmup_seconds:int,...<string,mixed>}
+     * @phpstan-return array{hosts:array<array-key,mixed>,schema:3,sha:string,php:string,request_count:int,repetitions:int,hardware_id:string,composer_lock_sha256:string,protocol:string,workload_profile:string,tool_sha:string,fixture_id:string,warmup_seconds:int,...<string,mixed>}
      * @return array<string,mixed>
      * @throws InvalidArgumentException
      */
     private static function validate(array $report): array
     {
-        if (($report['schema'] ?? null) !== 2
+        if (($report['schema'] ?? null) !== 3
             || !is_string($report['sha'] ?? null)
             || preg_match('/^[a-f0-9]{40}$/D', $report['sha']) !== 1
             || !is_string($report['php'] ?? null)

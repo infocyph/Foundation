@@ -186,7 +186,7 @@ it('captures benchmark configuration using only options supported by its PHP ver
     }
 })->with([false, true]);
 
-it('keeps the benchmark controller and its telemetry children on the load CPU', function (): void {
+it('keeps paired controllers on the load CPU and shares their authentication inputs', function (bool $provided): void {
     $root = dirname(__DIR__, 2);
     $workflow = foundationReleaseWorkflow($root . '/.github/workflows/foundation4-host-certification.yml');
     $steps = foundationReleaseWorkflowSteps($workflow, 'paired-host');
@@ -201,6 +201,7 @@ it('keeps the benchmark controller and its telemetry children on the load CPU', 
     mkdir -p "$FOUNDATION_HOST_RESULT_DIR"
     awk '/^Cpus_allowed_list:/ { print $2 }' "/proc/$$/status" > "$FOUNDATION_HOST_RESULT_DIR/controller.txt"
     php -r 'preg_match("/^Cpus_allowed_list:\\s*(.+)$/m", file_get_contents("/proc/self/status"), $m); echo trim($m[1]), PHP_EOL;' > "$FOUNDATION_HOST_RESULT_DIR/child.txt"
+    php -r '$inputs=[];foreach(["FOUNDATION_HOST_AUTH_SECRET","FOUNDATION_HOST_MFA_SECRET","AUTH_OTP_RECOVERY_HMAC_KEY"] as $key){$value=getenv($key);if(!is_string($value)||$value==="")throw new RuntimeException("Paired authentication inputs must be initialized before either source runs.");$inputs[$key]=hash("sha256",$value);}file_put_contents($argv[1],json_encode($inputs,JSON_THROW_ON_ERROR));' "$FOUNDATION_HOST_RESULT_DIR/inputs.json"
     SH;
 
     try {
@@ -208,6 +209,11 @@ it('keeps the benchmark controller and its telemetry children on the load CPU', 
             mkdir($directory . '/' . $variant . '/benchmarks', 0700, true);
             file_put_contents($directory . '/' . $variant . '/benchmarks/foundation4-host-certify.sh', $probe);
         }
+        $inputs = [
+            'FOUNDATION_HOST_AUTH_SECRET' => $provided ? str_repeat('a', 64) : false,
+            'FOUNDATION_HOST_MFA_SECRET' => $provided ? rtrim(base64_encode(str_repeat('b', 32)), '=') : false,
+            'AUTH_OTP_RECOVERY_HMAC_KEY' => $provided ? str_repeat('c', 64) : false,
+        ];
         $process = new \Symfony\Component\Process\Process([
             'bash', '-e', '-o', 'pipefail', '-c', $steps['Run baseline and candidate on this same physical runner'],
         ], $directory, [
@@ -219,6 +225,7 @@ it('keeps the benchmark controller and its telemetry children on the load CPU', 
             'FOUNDATION_HOST_FILTER_HOST' => 'runwire',
             'FOUNDATION_HOST_FILTER_WORKERS' => '4',
             'FOUNDATION_HOST_FILTER_CONCURRENCY' => '10',
+            ...$inputs,
         ]);
         $process->run();
         expect($process->getExitCode())->toBe(0, $process->getErrorOutput());
@@ -227,10 +234,17 @@ it('keeps the benchmark controller and its telemetry children on the load CPU', 
                 expect(trim((string) file_get_contents($directory . '/evidence/' . $variant . '/' . $role . '.txt')))->toBe($cpu);
             }
         }
+        $baselineInputs = (string) file_get_contents($directory . '/evidence/baseline/inputs.json');
+        $candidateInputs = (string) file_get_contents($directory . '/evidence/candidate/inputs.json');
+        expect($baselineInputs)->toBe($candidateInputs);
+        if ($provided) {
+            $expected = array_map(static fn(string|false $value): string => hash('sha256', (string) $value), $inputs);
+            expect(json_decode($baselineInputs, true, flags: JSON_THROW_ON_ERROR))->toBe($expected);
+        }
     } finally {
         (new \Symfony\Component\Process\Process(['rm', '-rf', '--', $directory]))->mustRun();
     }
-});
+})->with(['fresh shared inputs' => [false], 'caller supplied inputs' => [true]]);
 
 /**
  * Validate the actual workflow structure before inspecting typed job contracts.

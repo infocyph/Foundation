@@ -21,6 +21,7 @@ use Infocyph\Foundation\Benchmarks\Support\Foundation4HostComparison;
  *     hosts:array<string,list<array{
  *         workers:int,
  *         concurrency:int,
+ *         auth_fixture_sha256:string,
  *         runs:list<array{
  *             requests:int,
  *             successful:int,
@@ -42,6 +43,7 @@ function foundationHostFixture(float $rpm = 1000.0, bool $candidate = false): ar
                 $hosts[$host][] = [
                     'workers' => $workers,
                     'concurrency' => $concurrency,
+                    'auth_fixture_sha256' => str_repeat('e', 64),
                     'runs' => array_fill(0, 5, [
                         'requests' => 2000,
                         'successful' => 2000,
@@ -57,7 +59,7 @@ function foundationHostFixture(float $rpm = 1000.0, bool $candidate = false): ar
     }
 
     return [
-        'schema' => 2,
+        'schema' => 3,
         'sha' => str_repeat($candidate ? 'c' : 'a', 40),
         'hardware_id' => 'same-dedicated-machine',
         'php' => '8.4.26',
@@ -178,6 +180,33 @@ it('rejects missing or invalid benchmark tooling and fixture identities', functi
     'empty fixture' => ['fixture_id', ''],
 ]);
 
+it('rejects missing malformed or different paired authentication inputs', function (?string $fingerprint): void {
+    $baseline = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
+    if ($fingerprint === null) {
+        unset($candidate['hosts']['fpm'][0]['auth_fixture_sha256']);
+    } else {
+        $candidate['hosts']['fpm'][0]['auth_fixture_sha256'] = $fingerprint;
+    }
+
+    expect(fn(): array => Foundation4HostComparison::compare($baseline, $candidate))
+        ->toThrow(InvalidArgumentException::class, 'fixture');
+})->with([
+    'missing identity' => [null],
+    'empty identity' => [''],
+    'malformed identity' => ['not-a-digest'],
+    'different inputs' => [str_repeat('f', 64)],
+]);
+
+it('rejects reports from before authentication inputs were attested', function (): void {
+    $baseline = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
+    $baseline['schema'] = $candidate['schema'] = 2;
+
+    expect(fn(): array => Foundation4HostComparison::compare($baseline, $candidate))
+        ->toThrow(InvalidArgumentException::class, 'non-certifiable');
+});
+
 it('rejects short runs, invalid responses and missing benchmark scenarios', function (): void {
     $candidate = foundationHostFixture(candidate: true);
     $candidate['hosts']['runwire'][5]['runs'][0]['duration_seconds'] = 0.2;
@@ -292,6 +321,7 @@ it('retains both required host soaks when aggregating separately paired scenario
             $report['tool_sha'] = str_repeat('d', 40);
             foreach ($report['hosts'] as $host => $cases) {
                 foreach ($cases as $case) {
+                    $case['auth_fixture_sha256'] = hash('sha256', $host . '-' . $case['workers'] . '-' . $case['concurrency']);
                     $part = $report;
                     $part['hosts'] = [$host => [$case]];
                     $part['soak_window_seconds'] = 0;

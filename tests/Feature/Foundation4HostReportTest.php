@@ -38,6 +38,9 @@ it('distinguishes CPU used within the sample window from lifetime CPU gauges', f
             'FOUNDATION_HOST_REQUESTS' => '100',
             'FOUNDATION_HOST_REPEATS' => '2',
             'FOUNDATION_HOST_SOAK_SECONDS' => '0',
+            'FOUNDATION_HOST_AUTH_SECRET' => str_repeat('a', 64),
+            'FOUNDATION_HOST_MFA_SECRET' => rtrim(base64_encode(str_repeat('b', 32)), '='),
+            'AUTH_OTP_RECOVERY_HMAC_KEY' => str_repeat('c', 64),
         ]);
         $process->run();
         expect($process->getExitCode())->toBe(0, $process->getErrorOutput());
@@ -63,6 +66,29 @@ it('distinguishes CPU used within the sample window from lifetime CPU gauges', f
             ->and($run['cpu_counter_resolution_seconds'])->toBe(1)
             ->and($run['load_cpu_percent'])->toBe(7.5)
             ->and($run['samples'])->toBe($singleSample ? 1 : 3);
+
+        $fingerprint = $report['hosts']['fpm'][0]['auth_fixture_sha256'] ?? null;
+        expect($report['schema'])->toBe(3)
+            ->and($fingerprint)->toMatch('/^[a-f0-9]{64}$/D')
+            ->and($process->getOutput())->not->toContain(str_repeat('a', 64), str_repeat('c', 64), rtrim(base64_encode(str_repeat('b', 32)), '='));
+        $process->setEnv([...$process->getEnv(), 'FOUNDATION_HOST_AUTH_SECRET' => str_repeat('d', 64)]);
+        $process->run();
+        expect($process->getExitCode())->toBe(0, $process->getOutput() . $process->getErrorOutput());
+        $changed = json_decode((string) file_get_contents($directory . '/report.json'), true, flags: JSON_THROW_ON_ERROR);
+        \PHPUnit\Framework\Assert::assertIsArray($changed);
+        $changedHosts = $changed['hosts'] ?? null;
+        \PHPUnit\Framework\Assert::assertIsArray($changedHosts);
+        $changedFpm = $changedHosts['fpm'] ?? null;
+        \PHPUnit\Framework\Assert::assertIsArray($changedFpm);
+        $changedCase = $changedFpm[0] ?? null;
+        \PHPUnit\Framework\Assert::assertIsArray($changedCase);
+        expect($changedCase['auth_fixture_sha256'] ?? null)->toMatch('/^[a-f0-9]{64}$/D')
+            ->not->toBe($fingerprint);
+
+        $process->setEnv([...$process->getEnv(), 'FOUNDATION_HOST_MFA_SECRET' => false]);
+        $process->run();
+        expect($process->getExitCode())->not->toBe(0)
+            ->and($process->getErrorOutput())->toContain('requires all authentication fixture inputs');
     } finally {
         $files = glob($directory . '/*');
         if ($files === false) {

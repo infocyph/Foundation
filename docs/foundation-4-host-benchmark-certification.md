@@ -19,6 +19,20 @@ pair. It records the workflow attempt and VM boot identity per matrix case;
 this proves paired VM reuse, not dedicated physical infrastructure or production
 capacity. Other matrix cases may use different runners.
 
+Each pair generates its authentication, MFA-protection and recovery-code secrets
+once before either source runs, preserving caller-supplied values. Both children
+inherit those exact inputs. Schema 3 reports record a SHA-256 fingerprint of the
+three length-prefixed inputs in every scenario, without exposing their values.
+The comparator rejects missing, malformed or different fingerprints. Separate
+scenario runners may use different secrets; their baseline/candidate pair must
+match. Local authenticated comparisons must likewise export the same three
+variables (`FOUNDATION_HOST_AUTH_SECRET`, `FOUNDATION_HOST_MFA_SECRET` and
+`AUTH_OTP_RECOVERY_HMAC_KEY`) before invoking either source.
+
+Schema 2 reports did not attest these inputs. Retain and replay those historical
+reports with their frozen tooling; do not relabel them as schema 3 or treat them
+as matched-input qualification.
+
 The twelve cases cover FPM/Runwire, one/four workers and concurrency 1/10/50.
 Each revision has a recorded 300-second warm-up followed by five >=300-second
 trials. These windows do not establish host stability or make an unstable
@@ -138,7 +152,7 @@ bash benchmarks/foundation4-host-certify.sh
 
 The 30-second minimum is a **lower bound**, not sufficient proof of a longer production-like soak. A 5×30-second profile comparison remains diagnostic if the application only serves `/json`. Use multiple measured trials on the same machine and repeat the run on another controlled window to establish stability. Do not use a GitHub ephemeral runner identifier as an attestation of physically matched hardware.
 
-Compare evidence using the candidate's current tooling:
+Compare evidence using the exact tooling revision that collected it:
 
 ```bash
 php benchmarks/foundation4-host-compare.php \

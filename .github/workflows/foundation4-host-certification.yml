@@ -397,6 +397,11 @@ jobs:
           FOUNDATION_HOST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
           FOUNDATION_HOST_REDIS_CONTAINER: ${{ job.services.redis.id }}
         run: |
+          set -euo pipefail
+          FOUNDATION_HOST_AUTH_SECRET="${FOUNDATION_HOST_AUTH_SECRET:-$(php -r 'echo bin2hex(random_bytes(32));')}"
+          FOUNDATION_HOST_MFA_SECRET="${FOUNDATION_HOST_MFA_SECRET:-$(php -r 'echo rtrim(strtr(base64_encode(random_bytes(32)), "+/", "-_"), "=");')}"
+          AUTH_OTP_RECOVERY_HMAC_KEY="${AUTH_OTP_RECOVERY_HMAC_KEY:-$(php -r 'echo bin2hex(random_bytes(32));')}"
+          export FOUNDATION_HOST_AUTH_SECRET FOUNDATION_HOST_MFA_SECRET AUTH_OTP_RECOVERY_HMAC_KEY
           variants=(baseline candidate)
           if [[ "$MEASUREMENT_BATCH" == confirmation ]]; then variants=(candidate baseline); fi
           for variant in "${variants[@]}"; do
