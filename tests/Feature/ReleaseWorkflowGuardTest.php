@@ -278,7 +278,15 @@ it('gates dedicated performance source certification behind immutable stable con
 
     $controlSteps = foundationReleaseWorkflowSteps($controls, 'qualify-calibration');
     expect($controlSteps['Verify full frozen control evidence on the selected runner'] ?? null)
-        ->toContain('FOUNDATION_CONTROL_TOOL_SHA', 'calibration_stable', 'exit(1)');
+        ->toContain('calibration_stable', 'exit(1)');
+
+    $calibrationSteps = $calibration['steps'] ?? [];
+    $verifier = array_values(array_filter(
+        $calibrationSteps,
+        static fn(mixed $step): bool => is_array($step) && ($step['name'] ?? null) === 'Verify full frozen control evidence on the selected runner',
+    ));
+    expect($verifier)->toHaveCount(1)
+        ->and($verifier[0]['env']['FOUNDATION_CONTROL_TOOL_SHA'] ?? null)->toContain('github.sha');
 });
 
 it('captures benchmark configuration using only options supported by its PHP version', function (bool $php85): void {

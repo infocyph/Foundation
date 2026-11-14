@@ -60,6 +60,15 @@ jobs:
                 exit(1);
             }
           '
+      - name: Reject mismatched immutable benchmark tooling SHA
+        run: |
+          set -euo pipefail
+          if FOUNDATION_CONTROL_TOOL_SHA=0000000000000000000000000000000000000000 \
+            php benchmarks/foundation4-host-control-verdict.php \
+              build/control-artifacts build/tool-mismatch.json build/tool-mismatch.md; then
+            echo "::error::Tampered tooling identity was accepted." >&2
+            exit 1
+          fi
       - name: Reject altered evidence schema
         run: |
           set -euo pipefail
