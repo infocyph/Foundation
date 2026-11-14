@@ -34,7 +34,9 @@ jobs:
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Validate complete diagnostic and certification workflow syntax
         run: |
-          "$(go env GOPATH)/bin/actionlint" -color -oneline \
+          # SC2016 is a known false positive for intentional single-quoted php -r scripts.
+          # Keep all other ShellCheck and GitHub Actions validations enabled.
+          "$(go env GOPATH)/bin/actionlint" -color -oneline -ignore 'SC2016:info:' \
             .github/workflows/foundation4-host-certification.yml \
             .github/workflows/foundation4-w4c1-control.yml \
             .github/workflows/foundation4-w4c1-evidence.yml \
