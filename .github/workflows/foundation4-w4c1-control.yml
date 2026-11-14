@@ -1,7 +1,8 @@
 # Diagnostic-only. This branch-scoped push trigger does not modify or certify PR #20.
 # Strictly opt-in: only an explicitly named push requests expensive dedicated-host measurements.
-# No default hosted runner fallback and no source changes to PR #20.
-# Dedicated controls requested on 2026-11-14; execution requires a real runner with the expected label.
+# Hosted ARM fallback is deliberately non-certifying until controls prove stability.
+# No source changes to PR #20, no threshold relaxations.
+# 2026-11-14: hosted ARM re-calibration requested because dedicated label has no assigned runner.
 name: Foundation 4 frozen w4c1 measurement controls
 
 on:
@@ -28,7 +29,7 @@ jobs:
       comparison_mode: source-only
       replay_run_id: "43570637823"
       replay_lock_sha256: 47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7
-      host_runner: foundation4-perf-dedicated
+      host_runner: ubuntu-24.04-arm
 
   qualify-calibration:
     name: Verify matched frozen controls on dedicated hardware (not certification)
