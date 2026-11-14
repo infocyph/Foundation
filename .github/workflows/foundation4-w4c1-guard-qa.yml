@@ -1,0 +1,33 @@
+# Temporary diagnostics-branch QA. Does not alter or run on the frozen candidate.
+name: Foundation 4 frozen w4c1 guard QA
+
+on:
+  push:
+    branches:
+      - diagnostics/foundation4-w4c1-controls
+    paths:
+      - .github/workflows/foundation4-w4c1-guard-qa.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "mbstring, intl, sodium, curl, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_pgsql, redis"
+          coverage: none
+      - name: Syntax-check modified workflow guards
+        run: php -l tests/Feature/ReleaseWorkflowGuardTest.php
+      - name: Install repository QA dependencies
+        run: composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+      - name: Run targeted hosted workflow regression tests
+        run: |
+          cp vendor/infocyph/phpforge/resources/pest.xml .foundation-diagnostic-pest.xml
+          vendor/bin/pest -c .foundation-diagnostic-pest.xml tests/Feature/ReleaseWorkflowGuardTest.php
