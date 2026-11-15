@@ -1,0 +1,82 @@
+# Shared-workstation diagnostic ONLY. This job does not qualify release performance.
+# No host-wide CPU topology modifications, no device changes and no PR source changes.
+name: Foundation 4 shared-host Docker diagnostics (not certification)
+
+on:
+  push:
+    branches:
+      - diagnostics/foundation4-w4c1-controls
+    paths:
+      - .github/workflows/foundation4-shared-host-diagnostics.yml
+
+permissions:
+  contents: read
+
+jobs:
+  shared-host-preflight:
+    name: Validate Docker host functionality without changing CPU topology
+    runs-on: [self-hosted, Linux, X64, foundation4-perf-dedicated]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify runner and Docker access
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'Runner: %s (%s/%s)\n' "$RUNNER_NAME" "$RUNNER_OS" "$RUNNER_ARCH"
+          docker info --format 'Docker Engine: {{.ServerVersion}}'
+          test -S /var/run/docker.sock
+          command -v taskset
+      - name: Verify shared workspace paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --mount "type=bind,src=${GITHUB_WORKSPACE},dst=/workspace,readonly" busybox:1.36.1 \
+            test -f /workspace/.github/workflows/foundation4-shared-host-diagnostics.yml
+      - name: Verify Docker service connectivity
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="foundation4-shared-diagnostic-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+          docker run --rm -d --name "$name" -p '127.0.0.1::8080' busybox:1.36.1 \
+            sh -c 'mkdir -p /www; printf "ok\n" > /www/index.html; exec httpd -f -p 8080 -h /www' >/dev/null
+          binding="$(docker port "$name" 8080/tcp)"
+          port="${binding##*:}"
+          for attempt in 1 2 3 4 5; do
+            printf 'Connectivity attempt %s/5\n' "$attempt"
+            if [[ "$(curl --fail --silent --show-error --max-time 2 "http://127.0.0.1:${port}/" 2>/dev/null)" == ok ]]; then
+              echo 'Docker localhost service connectivity passed.'
+              exit 0
+            fi
+            sleep 1
+          done
+          echo '::error::Docker-published localhost port is unreachable.' >&2
+          exit 1
+      - name: Inspect four distinct physical cores without requiring SMT isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          declare -A seen=()
+          for cpu in 0 1 2 3; do
+            test -d "/sys/devices/system/cpu/cpu${cpu}/topology"
+            socket="$(cat "/sys/devices/system/cpu/cpu${cpu}/topology/physical_package_id")"
+            core="$(cat "/sys/devices/system/cpu/cpu${cpu}/topology/core_id")"
+            key="${socket}_${core}"
+            if [[ -v "seen[$key]" ]]; then
+              echo "::error::CPU $cpu repeats a selected physical core. Diagnostic placement is invalid." >&2
+              exit 1
+            fi
+            seen[$key]=1
+            printf 'CPU %s -> physical core %s; possible SMT siblings: %s\n' \
+              "$cpu" "$key" "$(cat "/sys/devices/system/cpu/cpu${cpu}/topology/thread_siblings_list")"
+          done
+          taskset -c 0,1,2,3 true
+          {
+            echo '## Shared-host diagnostic only'
+            echo ''
+            echo 'Docker, workspace mount, service connectivity, and four distinct CPU placements passed.'
+            echo ''
+            echo '**Not release-certified:** SMT siblings or unrelated host processes may compete for CPU resources.'
+            echo 'No host CPU settings were changed. Strict isolated-core certification remains required.'
+          } >> "$GITHUB_STEP_SUMMARY"
