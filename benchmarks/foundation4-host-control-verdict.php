@@ -258,7 +258,7 @@ $result = [
     'cross_vm_reference_drift_percent' => $crossVm,
     'telemetry' => $telemetry,
 ];
-if (file_put_contents($argv[2], json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . PHP_EOL) === false) {
+if (file_put_contents($argv[2], json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_PRESERVE_ZERO_FRACTION) . PHP_EOL) === false) {
     throw new RuntimeException('Unable to write calibration JSON.');
 }
 $md = [
