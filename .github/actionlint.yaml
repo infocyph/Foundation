@@ -1,0 +1,4 @@
+# Known self-hosted runner labels for the Foundation 4 diagnostics branch.
+self-hosted-runner:
+  labels:
+    - foundation4-perf-dedicated
