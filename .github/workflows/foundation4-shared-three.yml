@@ -57,6 +57,7 @@ jobs:
     env:
       FOUNDATION_HOST_QUALIFICATION_SCOPE: diagnostic-only
       FOUNDATION_HOST_WORKLOAD_PROFILE: authenticated-read
+      FOUNDATION_HOST_WRITABLE_NGINX_TMP: "1"
       FOUNDATION_HOST_FILTER_HOST: ${{ matrix.host }}
       FOUNDATION_HOST_FILTER_WORKERS: ${{ matrix.workers }}
       FOUNDATION_HOST_FILTER_CONCURRENCY: ${{ matrix.concurrency }}

@@ -295,6 +295,16 @@ POOL
         -F -y "$cfg" > "$OUTPUT/fpm-$workers.stdout.log" 2>&1 &
     SERVICE_PID=$!
 
+    # Shared Docker runners may lack write access to nginx's compiled /var/lib
+    # temp paths. Keep all nginx scratch state within the writable evidence
+    # directory for NON-CERTIFYING diagnostics only.
+    local nginx_temp_paths=""
+    if [[ "${FOUNDATION_HOST_WRITABLE_NGINX_TMP:-0}" == 1 ]]; then
+        mkdir -p "$OUTPUT/nginx-tmp"
+        printf -v nginx_temp_paths '    client_body_temp_path %s/nginx-tmp/body;\n    fastcgi_temp_path %s/nginx-tmp/fastcgi;\n    proxy_temp_path %s/nginx-tmp/proxy;\n    uwsgi_temp_path %s/nginx-tmp/uwsgi;\n    scgi_temp_path %s/nginx-tmp/scgi;\n' \
+            "$OUTPUT" "$OUTPUT" "$OUTPUT" "$OUTPUT" "$OUTPUT"
+    fi
+
     local nginx_conf="$OUTPUT/nginx-$workers.conf"
     cat > "$nginx_conf" <<NGINX
 worker_processes 1;
@@ -302,7 +312,7 @@ pid $OUTPUT/nginx-$workers.pid;
 error_log $OUTPUT/nginx-$workers.error.log;
 events { worker_connections 1024; }
 http {
-    access_log off;
+$nginx_temp_paths    access_log off;
     server {
         listen 127.0.0.1:$PORT_FPM;
         server_name foundation4.local;
