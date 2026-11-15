@@ -33,6 +33,7 @@ jobs:
           php -l tests/Feature/ReleaseWorkflowGuardTest.php
           php -l benchmarks/foundation4-host-control-verdict.php
           php -l benchmarks/foundation4-calibration-accept.php
+          php -l benchmarks/foundation4-shared-three-report.php
           bash -n benchmarks/foundation4-host-core-guard.sh
       - name: Verify strict CPU topology guard with online and offline SMT fixtures
         run: |
@@ -87,6 +88,7 @@ jobs:
             .github/workflows/foundation4-shared-host-candidate-check.yml \
             .github/workflows/foundation4-same-vm-controls.yml \
             .github/workflows/foundation4-hosted-arm-certify.yml \
+            .github/workflows/foundation4-shared-three.yml \
             .github/workflows/foundation4-same-vm-replay.yml
       - name: Install repository QA dependencies
         run: composer update --no-interaction --no-progress --prefer-dist --prefer-stable

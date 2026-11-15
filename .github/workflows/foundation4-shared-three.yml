@@ -1,0 +1,264 @@
+# Exactly three previously inconsistent scenarios, two execution orders each.
+# Non-certifying, bounded diagnostic on the user's existing Docker-based runner.
+# Never change host /sys, online CPUs, SMT policy, or release acceptance criteria.
+name: Foundation 4 shared-host three-scenario diagnostic
+
+on:
+  push:
+    branches:
+      - diagnostics/foundation4-w4c1-controls
+    paths:
+      - .github/workflows/foundation4-shared-three.yml
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: foundation4-shared-three
+  cancel-in-progress: false
+
+jobs:
+  targeted:
+    if: "${{ github.event.head_commit.message == 'perf: run only three shared-host scenarios' }}"
+    name: Shared-host diagnostic / ${{ matrix.id }}
+    runs-on: [self-hosted, Linux, X64, foundation4-perf-dedicated]
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - id: fpm-w1-c50
+            host: fpm
+            workers: 1
+            concurrency: 50
+          - id: runwire-w1-c10
+            host: runwire
+            workers: 1
+            concurrency: 10
+          - id: runwire-w4-c1
+            host: runwire
+            workers: 4
+            concurrency: 1
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: phpforge
+          POSTGRES_PASSWORD: Phpforge_123!
+          POSTGRES_DB: phpforge
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U phpforge -d phpforge" --health-interval 2s --health-timeout 2s --health-retries 30
+      redis:
+        image: redis:8.10-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 30
+    env:
+      FOUNDATION_HOST_QUALIFICATION_SCOPE: diagnostic-only
+      FOUNDATION_HOST_WORKLOAD_PROFILE: authenticated-read
+      FOUNDATION_HOST_FILTER_HOST: ${{ matrix.host }}
+      FOUNDATION_HOST_FILTER_WORKERS: ${{ matrix.workers }}
+      FOUNDATION_HOST_FILTER_CONCURRENCY: ${{ matrix.concurrency }}
+      FOUNDATION_HOST_REQUESTS: "1000"
+      FOUNDATION_HOST_REPEATS: "3"
+      FOUNDATION_HOST_MIN_SECONDS: "120"
+      FOUNDATION_HOST_WARMUP_SECONDS: "120"
+      FOUNDATION_HOST_SOAK_SECONDS: "0"
+      FOUNDATION_HOST_SERVER_CPU_SET: ${{ matrix.workers == 1 && '2' || '2,3' }}
+      FOUNDATION_HOST_LOAD_CPU_SET: "0"
+      FOUNDATION_HOST_BACKEND_CPU_SET: "1"
+      FOUNDATION_HOST_TOOL_SHA: ${{ github.sha }}
+      BASELINE_SHA: c220759fcbd6654fead843599712a5b79685f02d
+      CANDIDATE_SHA: 3fcebbfe06165a7363ea9e21ef55831469041fb3
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          path: host-tools
+      - uses: actions/checkout@v7
+        with:
+          ref: c220759fcbd6654fead843599712a5b79685f02d
+          path: baseline
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: 3fcebbfe06165a7363ea9e21ef55831469041fb3
+          path: candidate
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "mbstring, intl, sodium, curl, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
+          ini-values: "opcache.enable_cli=1, opcache.jit=disable, opcache.jit_buffer_size=0"
+          coverage: none
+      - uses: actions/download-artifact@v7
+        with:
+          repository: ${{ github.repository }}
+          run-id: "43570637823"
+          github-token: ${{ github.token }}
+          name: foundation4-paired-host-locks
+          path: locked-dependencies
+      - name: Check frozen identity, physical CPU placement and runner isolation limits
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C baseline rev-parse HEAD)" = "$BASELINE_SHA"
+          test "$(git -C candidate rev-parse HEAD)" = "$CANDIDATE_SHA"
+          echo "47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7  locked-dependencies/baseline.lock" | sha256sum -c -
+          echo "47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7  locked-dependencies/candidate.lock" | sha256sum -c -
+          cmp locked-dependencies/baseline.lock locked-dependencies/candidate.lock
+          command -v docker
+          command -v taskset
+          for cpu in 0 1 2 3; do
+            taskset -c "$cpu" true
+          done
+          declare -A cores=()
+          for cpu in 0 1 2 3; do
+            topology="/sys/devices/system/cpu/cpu${cpu}/topology"
+            physical="$(cat "$topology/physical_package_id")"
+            core="$(cat "$topology/core_id")"
+            identity="${physical}_${core}"
+            if [[ -v "cores[$identity]" ]]; then
+              echo "::error::Selected logical CPUs are not four distinct physical cores." >&2
+              exit 1
+            fi
+            cores[$identity]=1
+          done
+          # Reading topology is permitted; online SMT siblings do NOT block diagnostics.
+          # No sysfs or host settings are ever written.
+          printf 'Runnable CPUs 0-3 use four distinct cores; diagnostic only, SMT contention possible.\n'
+      - name: Prepare only the container runner's HTTP tooling and matching dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v php-fpm8.4 >/dev/null || ! command -v nginx >/dev/null; then
+            # This executes INSIDE the existing Docker runner, never on the host OS.
+            test -r /etc/os-release
+            . /etc/os-release
+            if [[ "$ID" != ubuntu ]]; then
+              echo "::error::Container lacks nginx/php-fpm and is not Ubuntu. No host changes attempted." >&2
+              exit 1
+            fi
+            bash host-tools/benchmarks/foundation4-host-prerequisites.sh
+          fi
+          php-fpm8.4 -v
+          nginx -v
+          docker update --cpuset-cpus 1 '${{ job.services.postgres.id }}' '${{ job.services.redis.id }}'
+          for variant in baseline candidate; do
+            cp locked-dependencies/candidate.lock "$variant/composer.lock"
+            cp -a host-tools/benchmarks/. "$variant/benchmarks/"
+            mkdir -p "$variant/tests/Fixtures"
+            cp host-tools/tests/Fixtures/ProbeInput.php "$variant/tests/Fixtures/ProbeInput.php"
+            composer install --working-dir="$variant" --no-interaction --no-progress --prefer-dist
+            php -r '
+              require $argv[1] . "/vendor/autoload.php";
+              if (!class_exists(\Infocyph\Foundation\Tests\Fixtures\ProbeInput::class)) {
+                throw new RuntimeException("Matched benchmark fixture missing.");
+              }
+            ' "$variant"
+          done
+      - name: Run just this scenario, primary then confirmation, on the SAME runner
+        shell: bash
+        timeout-minutes: 75
+        env:
+          FOUNDATION_HOST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+          FOUNDATION_HOST_REDIS_CONTAINER: ${{ job.services.redis.id }}
+          SCENARIO: ${{ matrix.id }}
+        run: |
+          set -euo pipefail
+          boot_id="$(cat /proc/sys/kernel/random/boot_id)"
+          export FOUNDATION_CERTIFICATION_HOST_ID="selfhost-diagnostic-${GITHUB_RUN_ID}-${boot_id}"
+          mkdir -p evidence
+          printf 'runner=%s\nboot_id=%s\ncpu_set=%s\n' "$RUNNER_NAME" "$boot_id" "$(taskset -pc $$)" > evidence/runner.txt
+          lscpu > evidence/cpu.txt
+          for batch in primary confirmation; do
+            echo "::group::${SCENARIO} ${batch}"
+            pair="$GITHUB_WORKSPACE/evidence/${batch}"
+            mkdir -p "$pair"
+            printf 'diagnostic-only\n' > "$pair/scope.txt"
+            php <<'PHP'
+          <?php
+          $pdo = new PDO("pgsql:host=127.0.0.1;dbname=phpforge", "phpforge", "Phpforge_123!");
+          foreach (["foundation_baseline", "foundation_candidate"] as $name) {
+              $pdo->exec("DROP DATABASE IF EXISTS " . $name . " WITH (FORCE)");
+              $pdo->exec("CREATE DATABASE " . $name);
+          }
+          PHP
+            php -r '
+              $redis = new Redis();
+              if (!$redis->connect("127.0.0.1", 6379) || !$redis->flushAll()) {
+                throw new RuntimeException("Diagnostic Redis reset failed.");
+              }
+            '
+            FOUNDATION_HOST_AUTH_SECRET="$(php -r 'echo bin2hex(random_bytes(32));')"
+            FOUNDATION_HOST_MFA_SECRET="$(php -r 'echo rtrim(strtr(base64_encode(random_bytes(32)), "+/", "-_"), "=");')"
+            AUTH_OTP_RECOVERY_HMAC_KEY="$(php -r 'echo bin2hex(random_bytes(32));')"
+            export FOUNDATION_HOST_AUTH_SECRET FOUNDATION_HOST_MFA_SECRET AUTH_OTP_RECOVERY_HMAC_KEY
+            variants=(baseline candidate)
+            if [[ "$batch" == confirmation ]]; then variants=(candidate baseline); fi
+            for variant in "${variants[@]}"; do
+              if [[ "$variant" == baseline ]]; then source_sha="$BASELINE_SHA"; else source_sha="$CANDIDATE_SHA"; fi
+              FOUNDATION_HOST_SOURCE_SHA="$source_sha" \
+                FOUNDATION_HOST_PG_DATABASE="foundation_$variant" \
+                FOUNDATION_HOST_RESULT_DIR="$pair/$variant" \
+                taskset --cpu-list "$FOUNDATION_HOST_LOAD_CPU_SET" \
+                bash "$GITHUB_WORKSPACE/$variant/benchmarks/foundation4-host-certify.sh"
+            done
+            echo "::endgroup::"
+          done
+          echo 'Non-certifying: only 3 targeted scenarios × 2 orders, with shortened sustained diagnostics.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-shared-three-${{ matrix.id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 30
+
+  compare:
+    name: Evaluate only the three targeted scenarios; never certify release
+    if: ${{ always() && needs.targeted.result == 'success' }}
+    needs: targeted
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: foundation4-shared-three-*
+          path: build/shared-three
+      - name: Strictly inspect all 12 source reports, not release-certify them
+        shell: bash
+        env:
+          FOUNDATION_HOST_TOOL_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/three-report
+          php benchmarks/foundation4-shared-three-report.php build/shared-three build/three-report/report.json
+          php -r '
+            $r = json_decode((string) file_get_contents("build/three-report/report.json"), true, flags: JSON_THROW_ON_ERROR);
+            if (!is_array($r) || ($r["release_certified"] ?? true) !== false
+                || ($r["scope"] ?? null) !== "diagnostic-only"
+                || count($r["scenarios"] ?? []) !== 3) {
+              throw new RuntimeException("Three-scenario diagnostic evidence is incomplete.");
+            }
+            foreach ($r["scenarios"] as $entry) {
+              echo $entry["scenario"], " | primary=", $entry["primary"]["status"],
+                   " ", $entry["primary"]["delta_percent"], "%",
+                   " | confirmation=", $entry["confirmation"]["status"],
+                   " ", $entry["confirmation"]["delta_percent"], "%", PHP_EOL;
+            }
+          ' | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-shared-three-comparison
+          path: build/three-report/
+          if-no-files-found: warn
+          retention-days: 30
