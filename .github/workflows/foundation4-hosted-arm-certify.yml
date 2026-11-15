@@ -1,4 +1,5 @@
 # Strictly opt-in, branch-only release performance qualification. Never tags/merges.
+# Admission evidence: immutable 40-trial control replay #43710386184, verified by guard QA #43710386121.
 name: Foundation 4 hosted ARM full source performance qualification
 
 on:
