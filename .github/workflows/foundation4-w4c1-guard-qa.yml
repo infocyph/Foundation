@@ -1,5 +1,6 @@
 # Branch-only diagnostic QA; no candidate or release gate changes.
 # Loads .github/actionlint.yaml to validate the registered custom runner label.
+# Includes bounded shared-host verification workflow and strict ShellCheck guards.
 name: Foundation 4 frozen w4c1 guard QA
 
 on:
