@@ -1,0 +1,217 @@
+# Same-VM frozen identical-runtime source controls on standard GitHub ARM.
+# Non-certifying. No source changes, no desktop CPU changes and no relaxed limits.
+# All four order-reversed measurements share ONE VM and one boot identity.
+name: Foundation 4 same-VM source calibration (non-certifying)
+
+on:
+  push:
+    branches:
+      - diagnostics/foundation4-w4c1-controls
+    paths:
+      - .github/workflows/foundation4-same-vm-controls.yml
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: foundation4-same-vm-controls
+  cancel-in-progress: false
+
+jobs:
+  same-vm-controls:
+    if: "${{ github.event.head_commit.message == 'perf: run same-vm calibration' }}"
+    name: Frozen FPM + Runwire primary and reversed controls on one hosted ARM VM
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 340
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: phpforge
+          POSTGRES_PASSWORD: Phpforge_123!
+          POSTGRES_DB: phpforge
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U phpforge -d phpforge" --health-interval 2s --health-timeout 2s --health-retries 30
+      redis:
+        image: redis:8.10-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 30
+    env:
+      FOUNDATION_HOST_QUALIFICATION_SCOPE: diagnostic-only
+      FOUNDATION_HOST_WORKLOAD_PROFILE: authenticated-read
+      FOUNDATION_HOST_REQUESTS: "1000"
+      FOUNDATION_HOST_REPEATS: "5"
+      FOUNDATION_HOST_MIN_SECONDS: "300"
+      FOUNDATION_HOST_WARMUP_SECONDS: "300"
+      FOUNDATION_HOST_SOAK_SECONDS: "0"
+      FOUNDATION_HOST_FILTER_WORKERS: "4"
+      FOUNDATION_HOST_FILTER_CONCURRENCY: "1"
+      FOUNDATION_HOST_SERVER_CPU_SET: "2,3"
+      FOUNDATION_HOST_LOAD_CPU_SET: "0"
+      FOUNDATION_HOST_BACKEND_CPU_SET: "1"
+      FOUNDATION_HOST_TOOL_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: d6ea8a2a33194396d3dfd93089449aab3653ab81
+          path: baseline
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: 3fcebbfe06165a7363ea9e21ef55831469041fb3
+          path: candidate
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "mbstring, intl, sodium, curl, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
+          ini-values: "opcache.enable_cli=1, opcache.jit=disable, opcache.jit_buffer_size=0"
+          coverage: none
+      - uses: actions/download-artifact@v7
+        with:
+          repository: ${{ github.repository }}
+          run-id: "43570637823"
+          github-token: ${{ github.token }}
+          name: foundation4-paired-host-locks
+          path: locked-dependencies
+      - name: Verify immutable inputs, independent CPU cores and host prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C baseline rev-parse HEAD)" = d6ea8a2a33194396d3dfd93089449aab3653ab81
+          test "$(git -C candidate rev-parse HEAD)" = 3fcebbfe06165a7363ea9e21ef55831469041fb3
+          echo "47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7  locked-dependencies/baseline.lock" | sha256sum -c -
+          echo "47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7  locked-dependencies/candidate.lock" | sha256sum -c -
+          cmp locked-dependencies/baseline.lock locked-dependencies/candidate.lock
+          bash benchmarks/foundation4-host-core-guard.sh 0 1 2 3
+          bash benchmarks/foundation4-host-prerequisites.sh
+          docker update --cpuset-cpus 1 '${{ job.services.postgres.id }}' '${{ job.services.redis.id }}'
+      - name: Install the identical reviewed dependency graph and tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          for variant in baseline candidate; do
+            cp locked-dependencies/candidate.lock "$variant/composer.lock"
+            cp -a benchmarks/. "$variant/benchmarks/"
+            mkdir -p "$variant/tests/Fixtures"
+            cp tests/Fixtures/ProbeInput.php "$variant/tests/Fixtures/ProbeInput.php"
+            composer install --working-dir="$variant" --no-interaction --no-progress --prefer-dist
+            php -r '
+              require $argv[1] . "/vendor/autoload.php";
+              if (!class_exists(\Infocyph\Foundation\Tests\Fixtures\ProbeInput::class)) {
+                fwrite(STDERR, "Shared fixture unavailable in " . $argv[1] . PHP_EOL);
+                exit(1);
+              }
+            ' "$variant"
+          done
+          cmp baseline/tests/Fixtures/ProbeInput.php candidate/tests/Fixtures/ProbeInput.php
+      - name: Four primary/reversed controls on exactly one booted ARM VM
+        timeout-minutes: 300
+        shell: bash
+        env:
+          FOUNDATION_HOST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+          FOUNDATION_HOST_REDIS_CONTAINER: ${{ job.services.redis.id }}
+          BASELINE_SHA: d6ea8a2a33194396d3dfd93089449aab3653ab81
+          CANDIDATE_SHA: 3fcebbfe06165a7363ea9e21ef55831469041fb3
+        run: |
+          set -euo pipefail
+          mkdir -p build/control-artifacts
+          lscpu > build/control-artifacts/cpu.txt
+          boot_id="$(cat /proc/sys/kernel/random/boot_id)"
+          export FOUNDATION_CERTIFICATION_HOST_ID="github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${boot_id}-server2,3-load0-backend1"
+          printf 'Single hosted VM boot id: %s\n' "$boot_id"
+          for host in fpm runwire; do
+            for batch in primary confirmation; do
+              echo "::group::Control ${host} 4 workers/1 concurrency: ${batch}"
+              # Each scenario gets clean independent PostgreSQL databases and Redis.
+              php <<'PHP'
+          <?php
+          $pdo = new PDO("pgsql:host=127.0.0.1;dbname=phpforge", "phpforge", "Phpforge_123!");
+          foreach (["foundation_baseline", "foundation_candidate"] as $database) {
+              $pdo->exec("DROP DATABASE IF EXISTS " . $database . " WITH (FORCE)");
+              $pdo->exec("CREATE DATABASE " . $database);
+          }
+          PHP
+              redis-cli -h 127.0.0.1 -p 6379 FLUSHALL
+              pair="$GITHUB_WORKSPACE/build/control-artifacts/foundation4-diagnostic-pair-${batch}-${host}-4-1"
+              mkdir -p "$pair"
+              printf 'diagnostic-only\n' > "$pair/scope.txt"
+              export FOUNDATION_HOST_FILTER_HOST="$host"
+              export FOUNDATION_HOST_AUTH_SECRET="$(php -r 'echo bin2hex(random_bytes(32));')"
+              export FOUNDATION_HOST_MFA_SECRET="$(php -r 'echo rtrim(strtr(base64_encode(random_bytes(32)), "+/", "-_"), "=");')"
+              export AUTH_OTP_RECOVERY_HMAC_KEY="$(php -r 'echo bin2hex(random_bytes(32));')"
+              variants=(baseline candidate)
+              if [[ "$batch" == confirmation ]]; then
+                variants=(candidate baseline)
+              fi
+              for variant in "${variants[@]}"; do
+                if [[ "$variant" == baseline ]]; then
+                  source_sha="$BASELINE_SHA"
+                else
+                  source_sha="$CANDIDATE_SHA"
+                fi
+                FOUNDATION_HOST_SOURCE_SHA="$source_sha" \
+                  FOUNDATION_HOST_PG_DATABASE="foundation_$variant" \
+                  FOUNDATION_HOST_RESULT_DIR="$pair/$variant" \
+                  taskset --cpu-list "$FOUNDATION_HOST_LOAD_CPU_SET" \
+                  bash "$GITHUB_WORKSPACE/$variant/benchmarks/foundation4-host-certify.sh"
+              done
+              echo "::endgroup::"
+            done
+          done
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-same-vm-control-evidence
+          path: build/control-artifacts
+          if-no-files-found: error
+          retention-days: 90
+
+  evaluate-controls:
+    if: ${{ always() && needs.same-vm-controls.result == 'success' }}
+    needs: same-vm-controls
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+      - uses: actions/download-artifact@v7
+        with:
+          name: foundation4-same-vm-control-evidence
+          path: build/paired
+      - name: Apply unchanged 2% absolute drift, 2.5% CV and 40-trial evidence guard
+        shell: bash
+        env:
+          FOUNDATION_CONTROL_TOOL_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/calibration
+          php benchmarks/foundation4-host-control-verdict.php build/paired build/calibration/calibration.json build/calibration/calibration.md
+          cat build/calibration/calibration.md >> "$GITHUB_STEP_SUMMARY"
+          php -r '
+            $r = json_decode((string) file_get_contents("build/calibration/calibration.json"), true, flags: JSON_THROW_ON_ERROR);
+            if (!is_array($r) || ($r["calibration_stable"] ?? false) !== true
+                || ($r["release_certified"] ?? true) !== false
+                || ($r["telemetry"]["trials"] ?? null) !== 40
+                || count($r["cases"] ?? []) !== 4
+                || ($r["control_absolute_drift_limit_percent"] ?? null) !== 2.0
+                || ($r["control_cv_limit_percent"] ?? null) !== 2.5) {
+                fwrite(STDERR, "::error::Same-VM calibration unstable. Release qualification remains blocked.\n");
+                exit(1);
+            }
+          '
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-same-vm-calibration-verdict
+          path: build/calibration
+          if-no-files-found: warn
+          retention-days: 90
