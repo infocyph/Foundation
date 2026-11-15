@@ -1,0 +1,65 @@
+# Re-evaluate immutable four-hour evidence after fixing JSON 2.0 -> 2 normalization.
+# Cannot change benchmark readings, frozen tool SHA, limits or candidate runtime.
+name: Foundation 4 same-VM calibration evidence replay
+
+on:
+  push:
+    branches:
+      - diagnostics/foundation4-w4c1-controls
+    paths:
+      - .github/workflows/foundation4-same-vm-replay.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  replay:
+    if: "${{ github.event.head_commit.message == 'perf: replay stable same-vm evidence' }}"
+    name: Verify the original 40 raw trials without rerunning hosts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+      - uses: actions/download-artifact@v7
+        with:
+          repository: ${{ github.repository }}
+          run-id: "43686057250"
+          github-token: ${{ github.token }}
+          name: foundation4-same-vm-control-evidence
+          path: build/raw-controls
+      - name: Re-verify immutable 40-trial evidence and unchanged limits
+        shell: bash
+        env:
+          FOUNDATION_CONTROL_TOOL_SHA: "3301810b3fd322e7734163aa24fb68c9f3f9eed4"
+        run: |
+          set -euo pipefail
+          mkdir -p build/calibration
+          php benchmarks/foundation4-host-control-verdict.php \
+            build/raw-controls build/calibration/calibration.json build/calibration/calibration.md
+          php benchmarks/foundation4-calibration-accept.php build/calibration/calibration.json
+          cat build/calibration/calibration.md >> "$GITHUB_STEP_SUMMARY"
+          php -r '
+            $provenance = [
+                "source_run_id" => 43686057250,
+                "source_commit_sha" => "3301810b3fd322e7734163aa24fb68c9f3f9eed4",
+                "source_artifact_id" => 14158132871,
+                "source_artifact_sha256" => "f5b7774e571230cb77f14627aa221b040d3723752c1f047563efb63e45d3bacc",
+                "replay_commit_sha" => getenv("GITHUB_SHA"),
+            ];
+            $file = "build/calibration/provenance.json";
+            if (file_put_contents($file, json_encode($provenance, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . PHP_EOL) === false) {
+                throw new RuntimeException("Cannot record immutable raw-control provenance.");
+            }
+          '
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-same-vm-calibration-verdict
+          path: build/calibration
+          if-no-files-found: error
+          retention-days: 90
