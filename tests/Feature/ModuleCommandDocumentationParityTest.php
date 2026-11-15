@@ -76,7 +76,7 @@ it('keeps the Foundation 4 migration commands compatible with the final v2 catal
     expect($guide)->not->toMatch('/^php infbyte module:(?:show|doctor|plan|install) (?:database|messaging|auth)(?:\s|$)/m');
 });
 
-it('keeps release notes explicit about the v2 features and required host certification', function (): void {
+it('keeps release notes explicit about v2 features and discontinued throughput qualification', function (): void {
     $notes = file_get_contents(dirname(__DIR__, 2) . '/docs/foundation-4.0-release-notes.md');
     $inventory = new ModuleFeatureCommandCatalog()->inventory();
     if ($notes === false) {
@@ -85,7 +85,9 @@ it('keeps release notes explicit about the v2 features and required host certifi
 
     expect($notes)->toContain('schema_version: 2')
         ->and($notes)->toContain('Unpublished release candidate')
-        ->and($notes)->toContain('2% successful-RPM regression');
+        ->and($notes)->toContain('2% median successful-RPM')
+        ->and($notes)->toContain('**both comparison jobs failed**')
+        ->and($notes)->toContain('**explicit release-scope decision, not a repaired or passing');
 
     foreach (array_merge(...array_column($inventory['modules'], 'features')) as $feature) {
         expect($notes)->toContain($feature);
@@ -152,11 +154,10 @@ it('retains explicit publication blockers in the release notes and module API do
         ->and($notes)->toContain('web-auth/webauthn-lib')
         ->and($notes)->toContain('opis/closure')
         ->and($notes)->toContain('final published source SHA')
-        ->and($notes)->toContain('paired same-runner')
-        ->and($notes)->toContain('five runs of at least')
-        ->and($notes)->toContain('2.5% maximum coefficient of variation')
-        ->and($notes)->toContain('2% median')
+        ->and($notes)->toContain('2.5% coefficient-of-variation')
+        ->and($notes)->toContain('2% median successful-RPM')
         ->and($notes)->toContain('Unpublished release candidate')
-        ->and($modules)->toContain('not release-ready')
-        ->and($modules)->toContain('host certification procedure');
+        ->and($notes)->toContain('**did not pass**')
+        ->and($modules)->toContain('release QA workflow')
+        ->and($modules)->toContain('Sustained performance certification was discontinued without a passing verdict');
 });
