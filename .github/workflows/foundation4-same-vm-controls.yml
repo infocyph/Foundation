@@ -137,7 +137,14 @@ jobs:
               $pdo->exec("CREATE DATABASE " . $database);
           }
           PHP
-              redis-cli -h 127.0.0.1 -p 6379 FLUSHALL
+              # The hosted ARM image has phpredis but does not bundle redis-cli.
+              php -r '
+                $redis = new Redis();
+                if (!$redis->connect("127.0.0.1", 6379) || $redis->flushAll(true) === false) {
+                    fwrite(STDERR, "Cannot reset isolated control Redis dataset.\n");
+                    exit(1);
+                }
+              '
               pair="$GITHUB_WORKSPACE/build/control-artifacts/foundation4-diagnostic-pair-${batch}-${host}-4-1"
               mkdir -p "$pair"
               printf 'diagnostic-only\n' > "$pair/scope.txt"
