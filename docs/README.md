@@ -34,7 +34,6 @@ source documentation, separate from the application-facing manual:
 - [Foundation 4 setup and migration](foundation-4-migration.md)
 - [Foundation 4 release notes](foundation-4.0-release-notes.md)
 - [Retained-state rehearsal](foundation-4-retained-data-rehearsal.md)
-- [Native-host performance certification](foundation-4-host-benchmark-certification.md)
 - [Optional feature internals](modules.md)
 - [OAuth 2.1/OIDC/PAT internals](oauth-2.1.md)
 - [OTP and passkey internals](otp.md)

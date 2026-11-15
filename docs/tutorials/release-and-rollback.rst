@@ -224,10 +224,9 @@ Confirm TLS termination/proxy headers, response emission,
 CSRF/session behavior and selected native host mode.
 
 A docs build, in-process HTTP test or quick health response
-is **not** sustained host-performance certification.
-The Foundation 4 release plan requires separate paired
-FPM/Runwire, workers/concurrency, baseline and dependency
-qualification evidence.
+does not establish production performance or capacity. Sustained
+Foundation-wide throughput certification was discontinued without
+passing; operators with performance SLOs must validate their own hosts.
 
 Step 9 — perform a controlled rollback if needed
 ------------------------------------------------
@@ -268,7 +267,7 @@ Evaluate separately:
 * behavior after the independent dependency upgrade;
 * security and lifecycle regressions;
 * session/auth/queue/data rollback safety;
-* sustained performance across required hosts and concurrency.
+* deployment-specific sustained performance where required by SLOs.
 
 Do not merge/tag Foundation 4 based only on passing
 documentation or smoke checks.
@@ -316,5 +315,4 @@ See :doc:`../deployment/overview`,
 `Foundation retained-state rehearsals
 <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/foundation-4-retained-data-rehearsal.md>`_
 and the
-`host certification procedure
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/foundation-4-host-benchmark-certification.md>`_.
+:doc:`../reference/publication-readiness`.

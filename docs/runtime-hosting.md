@@ -121,7 +121,7 @@ A Runwire-hosted Foundation application must:
 The installed Webrick bridge remains the runtime integration boundary. Compiled
 host identity, generation leases, cancellation, deferred response drain and scoped
 native integration are verified by the
-[native host workflow](../.github/workflows/foundation4-host-certification.yml).
+[Security & Standards native-host checks](../.github/workflows/security-standards.yml).
 Rehearse the actual chosen FPM/RoadRunner/Swoole host and transport before deployment.
 
 ## Compiled web loading
@@ -184,7 +184,7 @@ Expired handles, unrelated container handles and missing scoped execution IDs
 must fail, not trigger new runtime construction. This API intentionally rejects
 web mode: Webrick is the sole owner of its HTTP request scope.
 
-The [native host workflow](../.github/workflows/foundation4-host-certification.yml)
+The [Security & Standards native-host checks](../.github/workflows/security-standards.yml)
 verifies compiled-host Runwire identity, request/writer, coroutine scope,
 cancellation and deferred output behavior.
 Call `WebReleaseRuntime::runwireApplication($runtime)` only on a *trusted

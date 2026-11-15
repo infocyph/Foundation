@@ -235,9 +235,10 @@ Run `composer ic:release:guard` and the full Security & Standards matrix
 (PHP 8.4/8.5, lowest/stable dependencies, clean installs, consumer checks
 and service-backed integration). Track exact source SHA, dependency versions
 and CI links. Do not merge, tag or publish Foundation 4 until all
-applicable release gates are accepted. See the
-[host certification procedure](foundation-4-host-benchmark-certification.md) and
-[QA workflow](../.github/workflows/security-standards.yml) for required evidence.
+applicable security, functional, dependency and release gates are accepted.
+See the [QA workflow](../.github/workflows/security-standards.yml) for
+required evidence. Sustained host-performance certification was discontinued
+by maintainer decision and must not be represented as passed.
 
 
 ## Runnable candidate bootstrap examples

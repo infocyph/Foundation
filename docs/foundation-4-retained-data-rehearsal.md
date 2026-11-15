@@ -4,8 +4,8 @@ This guide distinguishes **Foundation 4-native state verification** from the sep
 
 The selected SQLite/Redis source, state and four-runtime artifact rehearsal
 implementation is covered by the workflow and native integration suites below.
-The [release qualification procedure](foundation-4-host-benchmark-certification.md)
-separates implementation from final release verification.
+The [release QA workflow](../.github/workflows/security-standards.yml)
+separates migration/retained-state verification from publication approval.
 The original-lock absence is an accepted policy exception, not a recovered
 lock. Current passwordless links additionally depend on their shared atomic
 auth TTL markers; include that authority in a coordinated application recovery
