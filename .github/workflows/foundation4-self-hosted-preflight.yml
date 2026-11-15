@@ -1,0 +1,124 @@
+# Diagnostic-only on the isolated Foundation 4 tools branch.
+# Never merges, tags, certifies source, or changes the user's host configuration.
+name: Foundation 4 self-hosted runner preflight
+
+on:
+  push:
+    branches:
+      - diagnostics/foundation4-w4c1-controls
+    paths:
+      - .github/workflows/foundation4-self-hosted-preflight.yml
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Verify Docker runner, service networking and physical CPU topology
+    runs-on: [self-hosted, Linux, X64, foundation4-perf-dedicated]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect runner identity and Docker access (read-only)
+        id: docker
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'Runner: %s / %s / %s\n' "$RUNNER_NAME" "$RUNNER_OS" "$RUNNER_ARCH"
+          printf 'Workspace: %s\n' "$GITHUB_WORKSPACE"
+          id
+          test -S /var/run/docker.sock
+          docker info --format 'Docker server: {{.ServerVersion}} / {{.OperatingSystem}}'
+          command -v taskset
+          command -v sudo
+          sudo -n true
+          test "$(nproc)" -ge 4
+      - name: Validate workspace paths shared with the host Docker daemon
+        id: workspace
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --mount "type=bind,src=${GITHUB_WORKSPACE},dst=/workspace,readonly" busybox:1.36.1             test -f /workspace/.github/workflows/foundation4-self-hosted-preflight.yml
+      - name: Probe Docker service access on runner localhost (no persistent changes)
+        id: network
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="foundation4-preflight-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          cleanup() { docker rm -f "$name" >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          docker run -d --rm --name "$name" \
+            -p '127.0.0.1::8080' busybox:1.36.1 \
+            sh -c 'mkdir -p /www; printf "ok\n" > /www/index.html; exec httpd -f -p 8080 -h /www' >/dev/null
+          binding="$(docker port "$name" 8080/tcp)"
+          printf 'Service binding (host Docker): %s\n' "$binding"
+          port="${binding##*:}"
+          for i in 1 2 3 4 5; do
+            if [[ "$(curl -fsS --max-time 2 "http://127.0.0.1:${port}/" 2>/dev/null)" == ok ]]; then
+              echo 'Service localhost connectivity: PASS'
+              exit 0
+            fi
+            sleep 1
+          done
+          echo '::error::Docker service port is not reachable from runner localhost. Runner may need host networking.' >&2
+          exit 1
+      - name: Verify exact current Foundation CPU allocation and physical isolation
+        id: cores
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          declare -A seen=()
+          topology_ok=true
+          siblings_clear=true
+          echo 'Requested Foundation 4 CPU layout: 0 load, 1 backend, 2-3 PHP workers'
+          lscpu -e=CPU,CORE,SOCKET,ONLINE
+          for cpu in 0 1 2 3; do
+            core="$(cat "/sys/devices/system/cpu/cpu${cpu}/topology/core_id")"
+            socket="$(cat "/sys/devices/system/cpu/cpu${cpu}/topology/physical_package_id")"
+            siblings="$(cat "/sys/devices/system/cpu/cpu${cpu}/topology/thread_siblings_list")"
+            online="$(cat "/sys/devices/system/cpu/cpu${cpu}/online" 2>/dev/null || echo 1)"
+            printf 'CPU %s = socket %s, core %s, siblings %s, online %s\n' "$cpu" "$socket" "$core" "$siblings" "$online"
+            key="${socket}_${core}"
+            if [[ -v "seen[$key]" ]] || [[ "$online" != 1 ]]; then topology_ok=false; fi
+            seen[$key]=1
+            if [[ "$siblings" != "$cpu" ]]; then siblings_clear=false; fi
+          done
+          if [[ "$topology_ok" != true ]]; then
+            echo '::error::Selected CPUs do not represent four online independent physical cores.' >&2
+            exit 1
+          fi
+          if [[ "$siblings_clear" != true ]]; then
+            echo '::error::Existing Foundation benchmark requires each selected CPU to have no SMT siblings. Host-level isolation is not yet certified.' >&2
+            exit 1
+          fi
+          echo 'Foundation physical CPU topology: PASS'
+      - name: Report preflight and require all safety checks
+        if: always()
+        shell: bash
+        env:
+          DOCKER: ${{ steps.docker.outcome }}
+          WORKSPACE: ${{ steps.workspace.outcome }}
+          NETWORK: ${{ steps.network.outcome }}
+          CORES: ${{ steps.cores.outcome }}
+        run: |
+          set -euo pipefail
+          {
+            echo '# Foundation 4 runner preflight'
+            echo ''
+            echo '| Check | Result |'
+            echo '|---|---|'
+            printf '| Runner Docker access and sudo | %s |\n' "$DOCKER"
+            printf '| Shared host/container workspace | %s |\n' "$WORKSPACE"
+            printf '| Docker service localhost access | %s |\n' "$NETWORK"
+            printf '| Exact Foundation CPU topology/isolation | %s |\n' "$CORES"
+            echo ''
+            echo 'Non-certifying: no runtime benchmark measurements, no host configuration changes.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          [[ "$DOCKER" == success && "$WORKSPACE" == success && "$NETWORK" == success && "$CORES" == success ]] || {
+            echo '::error::Dedicated calibration remains blocked until all preflight requirements pass.' >&2
+            exit 1
+          }
