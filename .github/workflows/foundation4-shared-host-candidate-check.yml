@@ -1,0 +1,94 @@
+# Branch-scoped, bounded shared-workstation verification of the frozen Foundation candidate.
+# Never a performance certification, source comparison, merge, release, or host CPU modification.
+name: Foundation 4 shared-host candidate verification (non-certifying)
+
+on:
+  push:
+    branches:
+      - diagnostics/foundation4-w4c1-controls
+    paths:
+      - .github/workflows/foundation4-shared-host-candidate-check.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  candidate:
+    name: Frozen Foundation 4 candidate / smoke, contract and diagnostic benchmark
+    if: "${{ github.event.head_commit.message == 'ci: run shared-host Foundation candidate verification' }}"
+    runs-on: [self-hosted, Linux, X64, foundation4-perf-dedicated]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 3fcebbfe06165a7363ea9e21ef55831469041fb3
+          path: candidate
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "mbstring, intl, sodium, curl, zip, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached, fileinfo"
+          ini-values: "opcache.enable_cli=1, opcache.jit=disable, opcache.jit_buffer_size=0"
+          coverage: none
+      - uses: actions/download-artifact@v7
+        with:
+          repository: ${{ github.repository }}
+          run-id: "43570637823"
+          github-token: ${{ github.token }}
+          name: foundation4-paired-host-locks
+          path: reviewed-locks
+      - name: Verify frozen source and reviewed dependency identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C candidate rev-parse HEAD)" = 3fcebbfe06165a7363ea9e21ef55831469041fb3
+          test -f reviewed-locks/candidate.lock
+          cp reviewed-locks/candidate.lock candidate/composer.lock
+          echo "47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7  candidate/composer.lock" | sha256sum -c -
+          mkdir -p evidence
+          printf 'candidate_sha=3fcebbfe06165a7363ea9e21ef55831469041fb3\n' > evidence/identity.txt
+          sha256sum candidate/composer.lock >> evidence/identity.txt
+          php -v >> evidence/identity.txt
+          composer --version >> evidence/identity.txt
+      - name: Install exact reviewed dependencies without updating the lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer validate --working-dir=candidate --strict
+          composer install --working-dir=candidate --no-interaction --no-progress --prefer-dist
+      - name: Exercise Foundation boot, native Runwire, security and performance contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp candidate/vendor/infocyph/phpforge/resources/pest.xml candidate/.shared-host-pest.xml
+          cd candidate
+          vendor/bin/pest -c .shared-host-pest.xml \
+            tests/Feature/FoundationSmokeTest.php \
+            tests/Feature/Foundation4NativeRunwireProviderTest.php \
+            tests/Feature/Foundation4SecurityBoundariesTest.php \
+            tests/Feature/Foundation4HostComparisonTest.php
+      - name: Run short representative diagnostic (never release qualification)
+        shell: bash
+        env:
+          FOUNDATION_BENCHMARK_REPETITIONS: "3"
+          FOUNDATION_BENCHMARK_WARMUP: "100"
+          FOUNDATION_BENCHMARK_OPERATIONS: "1000"
+          FOUNDATION_BENCHMARK_OUTPUT: build/shared-host-representative.json
+        run: |
+          set -euo pipefail
+          cd candidate
+          mkdir -p build
+          php benchmarks/run-representative.php
+          test -s build/shared-host-representative.json
+          echo 'Shared-host throughput and latency values are diagnostics only. No release certification implied.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-shared-host-candidate-verification
+          path: |
+            evidence/identity.txt
+            candidate/build/shared-host-representative.json
+          if-no-files-found: warn
+          retention-days: 30
