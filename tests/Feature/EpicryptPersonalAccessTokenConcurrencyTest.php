@@ -28,6 +28,7 @@ it('serializes PAT issue against concurrent revoke-all for the same subject', fu
 
         $commands = [];
         foreach (['issue', 'revoke'] as $operation) {
+            $pipes = [];
             $commands[$operation] = proc_open(
                 [
                     PHP_BINARY,

@@ -146,6 +146,7 @@ it('redeems one shared passwordless link across independent application processe
 
             $token = $issuer->issue('owner@example.test')->token ?? '';
             for ($index = 0; $index < 4; ++$index) {
+                $pipes = [];
                 $process = proc_open([
                     PHP_BINARY, dirname(__DIR__) . '/Fixtures/passwordless_worker.php', $directory . '/configuration.json',
                 ], [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
