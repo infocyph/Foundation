@@ -28,6 +28,41 @@ jobs:
         run: |
           php -l tests/Feature/ReleaseWorkflowGuardTest.php
           php -l benchmarks/foundation4-host-control-verdict.php
+      - name: Verify strict CPU topology guard with online and offline SMT fixtures
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -d)"
+          trap 'rm -rf "$fixture"' EXIT
+          for cpu in 0 1 2 3; do
+            mkdir -p "$fixture/cpu$cpu/topology" "$fixture/cpu$((cpu+8))"
+            printf '%s\n' "$cpu" > "$fixture/cpu$cpu/topology/core_id"
+            printf '%s\n' 0 > "$fixture/cpu$cpu/topology/physical_package_id"
+            printf '%s,%s\n' "$cpu" "$((cpu+8))" > "$fixture/cpu$cpu/topology/thread_siblings_list"
+            printf '%s\n' 1 > "$fixture/cpu$cpu/online"
+            printf '%s\n' 0 > "$fixture/cpu$((cpu+8))/online"
+          done
+          # Offline SMT sibling is permissible: all four measured cores remain isolated.
+          FOUNDATION_HOST_CPU_SYS_ROOT="$fixture" bash benchmarks/foundation4-host-core-guard.sh 0 1 2 3
+          # An online sibling MUST block the certification workflow.
+          printf '%s\n' 1 > "$fixture/cpu8/online"
+          if FOUNDATION_HOST_CPU_SYS_ROOT="$fixture" bash benchmarks/foundation4-host-core-guard.sh 0 1 2 3; then
+            echo "::error::An online SMT sibling was accepted." >&2
+            exit 1
+          fi
+          printf '%s\n' 0 > "$fixture/cpu8/online"
+          # Two selected logical CPUs from the same physical core MUST be rejected.
+          printf '%s\n' 0 > "$fixture/cpu1/topology/core_id"
+          if FOUNDATION_HOST_CPU_SYS_ROOT="$fixture" bash benchmarks/foundation4-host-core-guard.sh 0 1 2 3; then
+            echo "::error::Duplicate selected physical core was accepted." >&2
+            exit 1
+          fi
+          printf '%s\n' 1 > "$fixture/cpu1/topology/core_id"
+          # Offline selected CPU MUST be rejected.
+          printf '%s\n' 0 > "$fixture/cpu2/online"
+          if FOUNDATION_HOST_CPU_SYS_ROOT="$fixture" bash benchmarks/foundation4-host-core-guard.sh 0 1 2 3; then
+            echo "::error::An offline selected CPU was accepted." >&2
+            exit 1
+          fi
       - name: Install pinned GitHub Actions workflow validator
         run: |
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.10
