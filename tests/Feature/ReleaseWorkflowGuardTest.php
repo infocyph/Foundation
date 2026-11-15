@@ -35,19 +35,21 @@ it('requires tagged releases to pass the complete security, consumer, migration 
 it('checks real native Runwire serving on both supported PHP versions and Swoole drivers', function (): void {
     $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
     $host = $workflow['jobs']['runtime-hosts'] ?? null;
-    if (!is_array($host) || !is_array($host['strategy']['matrix'] ?? null)
-        || !is_array($host['steps'] ?? null)) {
+    $strategy = is_array($host) ? ($host['strategy'] ?? null) : null;
+    $matrix = is_array($strategy) ? ($strategy['matrix'] ?? null) : null;
+    $steps = is_array($host) ? ($host['steps'] ?? null) : null;
+    if (!is_array($host) || !is_array($strategy) || !is_array($matrix) || !is_array($steps)) {
         throw new UnexpectedValueException('Native runtime job must declare a PHP/driver matrix and test steps.');
     }
 
-    expect($host['strategy']['matrix']['php'] ?? null)->toBe(['8.4', '8.5'])
-        ->and($host['strategy']['matrix']['extension'] ?? null)->toBe(['swoole', 'openswoole'])
-        ->and($host['strategy']['fail-fast'] ?? null)->toBeFalse()
+    expect($matrix['php'] ?? null)->toBe(['8.4', '8.5'])
+        ->and($matrix['extension'] ?? null)->toBe(['swoole', 'openswoole'])
+        ->and($strategy['fail-fast'] ?? null)->toBeFalse()
         ->and($host['runs-on'] ?? null)->toBe('ubuntu-latest')
         ->and($host)->not->toHaveKey('continue-on-error');
 
     $steps = [];
-    foreach ($host['steps'] as $step) {
+    foreach ($steps as $step) {
         if (!is_array($step)) {
             throw new UnexpectedValueException('Native runtime steps must be YAML mappings.');
         }
@@ -91,6 +93,8 @@ it('keeps the retired full throughput certification out of the release workflow 
  * Parse actual GitHub Actions release triggers and named jobs.
  *
  * @return array{on:array<string,mixed>,jobs:array<string,array<string,mixed>>}
+ * @throws \\UnexpectedValueException
+ * @throws \\Symfony\\Component\\Yaml\\Exception\\ParseException
  */
 function foundationReleaseWorkflow(string $path): array
 {
