@@ -239,8 +239,12 @@ it('permits dedicated isolated-CPU certification without weakening existing benc
         ->and($measure['env']['FOUNDATION_HOST_MIN_SECONDS'] ?? null)->toBe('300')
         ->and($measure['env']['FOUNDATION_HOST_WARMUP_SECONDS'] ?? null)->toBe('300')
         ->and($measure['env']['FOUNDATION_HOST_REPEATS'] ?? null)->toBe('5')
-        ->and($install)->toContain('thread_siblings_list', 'refusing this allocation')
+        ->and($install)->toContain('foundation4-host-core-guard.sh 0 1 2 3')
         ->not->toContain('|| true');
+
+    $guard = file_get_contents(dirname(__DIR__, 2) . '/benchmarks/foundation4-host-core-guard.sh');
+    expect($guard)->toBeString()
+        ->toContain('thread_siblings_list', 'online_file', 'ONLINE CPU', 'Selected CPU');
 });
 
 
