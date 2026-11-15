@@ -48,7 +48,7 @@ it('checks real native Runwire serving on both supported PHP versions and Swoole
         ->and($host['runs-on'] ?? null)->toBe('ubuntu-latest')
         ->and($host)->not->toHaveKey('continue-on-error');
 
-    $steps = [];
+    $scripts = [];
     foreach ($steps as $step) {
         if (!is_array($step)) {
             throw new UnexpectedValueException('Native runtime steps must be YAML mappings.');
@@ -57,10 +57,10 @@ it('checks real native Runwire serving on both supported PHP versions and Swoole
             if (!is_string($step['run'])) {
                 throw new UnexpectedValueException('Native runtime step must use a literal shell script.');
             }
-            $steps[] = $step['run'];
+            $scripts[] = $step['run'];
         }
     }
-    $commands = implode("\n", $steps);
+    $commands = implode("\n", $scripts);
     expect($commands)->toContain(
         'RuntimeEnvironmentProbe',
         'RuntimeDriver::SWOOLE',
@@ -93,8 +93,8 @@ it('keeps the retired full throughput certification out of the release workflow 
  * Parse actual GitHub Actions release triggers and named jobs.
  *
  * @return array{on:array<string,mixed>,jobs:array<string,array<string,mixed>>}
- * @throws \\UnexpectedValueException
- * @throws \\Symfony\\Component\\Yaml\\Exception\\ParseException
+ * @throws \UnexpectedValueException
+ * @throws \Symfony\Component\Yaml\Exception\ParseException
  */
 function foundationReleaseWorkflow(string $path): array
 {
