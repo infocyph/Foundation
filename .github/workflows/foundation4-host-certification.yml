@@ -380,13 +380,10 @@ jobs:
       - name: Install host prerequisites
         run: |
           test "$(nproc)" -ge 4
-          for cpu in 0 1 2 3; do
-            siblings="$(cat "/sys/devices/system/cpu/cpu$cpu/topology/thread_siblings_list")"
-            if [[ "$siblings" != "$cpu" ]]; then
-              printf 'CPU %s shares a reported core with %s; refusing this allocation.\n' "$cpu" "$siblings" >&2
-              exit 1
-            fi
-          done
+          # The sysfs sibling mask lists possible siblings even when they are
+          # offline. Reject ONLINE sibling contention and duplicate cores,
+          # not mere presence of SMT capability in the physical CPU.
+          bash host-tools/benchmarks/foundation4-host-core-guard.sh 0 1 2 3
           bash host-tools/benchmarks/foundation4-host-prerequisites.sh
           docker update --cpuset-cpus 1 '${{ job.services.postgres.id }}' '${{ job.services.redis.id }}'
       - uses: actions/download-artifact@v7
