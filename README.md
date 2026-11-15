@@ -138,7 +138,7 @@ Operational behavior and safety constraints are documented in
 
 The [Infbyte framework manual](docs/index.rst) provides developer-facing
 RST/Sphinx guides. The [Foundation technical reference](docs/reference/technical-guides.rst)
-retains only deep implementation, migration and certification guidance. The Infbyte manual currently covers
+retains deep implementation, migration and publication guidance. The Infbyte manual currently covers
 **unpublished Foundation 4 development contracts**; the public Infbyte skeleton
 on `main` still targets Foundation 3. Configuration templates under
 `resources/config/` are the canonical key-by-key reference.

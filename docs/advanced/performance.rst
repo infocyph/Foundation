@@ -65,22 +65,20 @@ Before changing worker counts or protocol settings:
 5. Repeat trials and compare variance; do not cherry-pick the fastest run.
 6. Check security and correctness under the same workload after tuning.
 
-Foundation release qualification is stricter
---------------------------------------------
+Performance evidence and release scope
+--------------------------------------
 
-Foundation PR #20 uses explicit sustained comparison gates;
-its current candidate requires a full FPM/Runwire,
-1/4-worker, concurrency 1/10/50 matrix, two batches and
-multiple sustained trials, plus soak/recovery and bounded
-median regression/variance acceptance criteria.
+Production throughput and capacity depend on the application's routes,
+dependencies, workload, data and hosting environment. The Foundation 4
+maintainer discontinued release-wide sustained source comparisons after
+non-reproducible results on shared runners. Those runs **did not pass**
+formal certification and must not be presented as evidence of
+regression-free throughput.
 
-A focused short diagnostic, local Sphinx build or benchmark smoke
-is **not release certification**. Keep failed and inconclusive
-evidence when investigating performance regressions.
-
-For the exact, source-controlled acceptance budget, see
-`Foundation 4 host benchmark certification
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/foundation-4-host-benchmark-certification.md>`_.
+Use optional representative benchmarks for investigation. Where a deployment
+has throughput or latency SLOs, validate those on production-equivalent
+hardware and retain failures and inconclusive results. Functional host,
+security and lifecycle checks remain mandatory release QA.
 
 Scale safely
 ------------

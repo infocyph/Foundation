@@ -5,12 +5,15 @@ layer used by Infbyte. This is a breaking major release with current native
 library contracts, required Core Runwire, explicit optional features and trusted
 compiled generations.
 
-**Unpublished release candidate.** Publication requires final-source QA and the
-complete strict performance matrix described in the
-[host certification procedure](foundation-4-host-benchmark-certification.md).
-The release pull request and its CI artifacts record the exact source, resolved
-dependencies and acceptance results. These notes do not announce a published tag
-or release date.
+**Unpublished release candidate.** Publication requires green final-source
+security, static analysis, native runtime, integration, production-consumer,
+migration and documentation checks. The maintainer discontinued the sustained
+baseline/candidate throughput qualification for this release candidate.
+It **did not pass** the former full-matrix acceptance criteria; no performance
+equivalence, capacity or regression-free claim is made.
+The release pull request and its CI artifacts identify the exact source,
+dependency graph and verification results. These notes do not announce a
+published tag or release date.
 
 ## Core runtime and architecture
 
@@ -88,39 +91,33 @@ Foundation 4.0 is a deliberate breaking major release. **There are no backwards-
 
 The release candidate declares Composer package `infocyph/foundation`, type `library`, license `MIT`, PHP `^8.4`, Composer runtime API `^2.0`, PSR-4 namespace `Infocyph\Foundation\`, and shipped CLI entry `bin/infbyte`. Optional specialist and passkey dependencies are declared as suggested packages and available in `require-dev` for development/test coverage; application owners install only explicitly selected package requirements. The candidate `composer.json` does not hardcode a release `version`: Composer release identity will come from the operator-published Git tag.
 
-Release evidence must identify the **final published source SHA**, complete resolved dependency manifest, Composer lock digest, PHP/extensions and CI runs. Retain paired same-runner baseline/candidate acceptance and immutable artifact hashes with the release pull request. CI smoke and synthetic benchmark results do not replace sustained host certification.
+Release evidence must identify the **final published source SHA**, resolved
+dependencies and lock digest, PHP/extensions, security results and CI runs.
 
-## Certification still required before publication
+## Performance qualification disposition
 
-FPM, native Runwire and PHP 8.4/8.5 Swoole/OpenSwoole functional hosting have
-passed actual request, error-recovery and lifecycle checks. Bounded authenticated
-PostgreSQL/Redis soaks also cover cancellation recovery and native supervisor
-worker replacement. These results establish functional hosting and bounded-soak
-behavior; they do not establish stable throughput equivalence or capacity for an
-unmeasured production deployment.
+The maintainer elected to **stop further sustained-host performance testing**
+for Foundation 4.0 and remove the release-specific comparison pipeline.
+The earlier [complete 24-pair hosted-ARM attempt](https://github.com/infocyph/Foundation/actions/runs/43710493075)
+finished its paired measurements, but **both comparison jobs failed** the
+then-required 2% median successful-RPM and 2.5% coefficient-of-variation
+acceptance gates. A later
+[three-scenario self-hosted diagnostic](https://github.com/infocyph/Foundation/actions/runs/43731149599)
+completed without functional errors but did not establish a complete release
+performance verdict. Historical failures and raw artifacts remain available
+in GitHub Actions and [tracking issue #21](https://github.com/infocyph/Foundation/issues/21).
 
-Release qualification uses standard GitHub workers, with Docker for local
-verification. The current standard workflow collects **five runs of at least
-120 seconds** after 60-second warm-up for each revision/case, plus sixteen
-120-second soak windows across independent primary and confirmation batches.
-The full matrix is FPM/Runwire, one/four workers and concurrency 1/10/50.
-Each baseline/candidate pair shares its runner, dependency lock, tools and
-isolated equivalent PostgreSQL/Redis data. Confirmation reverses variant order.
-Cold compilation, first readiness and CLI measurements are reported separately.
+This is an **explicit release-scope decision, not a repaired or passing
+performance certification**. No production code, security assertion or runtime
+constraint is changed to manufacture a performance pass. Deployments requiring
+measured throughput SLOs must validate them on their own production-equivalent
+hardware before adopting this release.
 
-Acceptance preserves the **2.5% maximum coefficient of variation** and unchanged
-**2% median** successful-RPM budget. A case exceeding the 2% successful-RPM regression
-budget or the variability limit prevents complete-matrix acceptance. No subset
-of passing cases, short smoke run or invalid response replaces this gate.
-Production service backup/disaster recovery also requires deployment-specific
-validation.
-
-Before publication, the release evidence must identify the final published
-source SHA, complete resolved dependency manifest, Composer lock digest,
-PHP/extensions, actual supported hosts and exact CI/qualification artifacts.
-Publish only after every applicable release gate passes on the final source and
-dependency set and the operator approves the release. Until then, these notes
-remain unpublished.
+Final publication still requires the normal PHP 8.4/8.5 QA, native runtime
+serving checks, production consumers, retained-data migration/rollback,
+security audit, documentation and explicit maintainer approval. Production
+backup/disaster-recovery requirements also need deployment-specific validation.
+Until a tag is actually published, these notes remain unpublished.
 
 ## Security and reliability corrections
 

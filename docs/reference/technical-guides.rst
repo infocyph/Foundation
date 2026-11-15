@@ -16,12 +16,11 @@ For day-to-day usage prefer :doc:`../start/overview`,
 and :doc:`../testing/overview`.
 
 The remaining Markdown files document advanced ownership, migration,
-protocol and certification topics that do not belong in the quickstart:
+protocol and migration topics that do not belong in the quickstart:
 
 * `Foundation 4 setup and migration <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/foundation-4-migration.md>`_
 * `Foundation 4 release notes <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/foundation-4.0-release-notes.md>`_
 * `Retained-state and recovery rehearsal <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/foundation-4-retained-data-rehearsal.md>`_
-* `Native host certification <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/foundation-4-host-benchmark-certification.md>`_
 * `Module implementation contracts <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/modules.md>`_
 * `OAuth 2.1, OIDC and PAT <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/oauth-2.1.md>`_
 * `OTP and WebAuthn internals <https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/otp.md>`_

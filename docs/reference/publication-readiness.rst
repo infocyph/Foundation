@@ -64,8 +64,8 @@ What is still blocked
        exact-source integration remain blocked; public ``main`` is Foundation 3.
    * - Foundation release qualification
      - Exact final source/vendor SHA, security/lifecycle readiness,
-       retained-state rehearsal and required sustained host comparison
-     - **Independent release gate; not certified by docs**
+       retained-state rehearsal and required functional host checks
+     - **Independent QA gate; sustained throughput certification discontinued, not passed**
    * - Hosted Read the Docs project
      - Infbyte-branded project linked to this source, version routing
        configured, hosted Sphinx HTML build succeeds
@@ -86,7 +86,7 @@ What is still blocked
      - **Do not label stable yet**
 
 A successful docs CI run does **not** permit merging PR #20, tagging a
-release or clearing unrelated benchmark and migration gates.
+release or clearing unrelated migration and runtime-compatibility gates.
 
 Local and CI verification
 =========================

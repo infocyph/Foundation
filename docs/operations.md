@@ -338,9 +338,11 @@ capabilities need their documented writable storage/cache/database locations.
 
 ## Release verification status
 
-Foundation's full Composer/PHPForge/static-analysis/PHPUnit/integration/runtime
-and benchmark matrix is a separate release phase. Do not infer that those gates
-have run merely because source/config documentation is reconciled.
+Foundation's Composer/PHPForge/static-analysis/PHPUnit/integration/runtime
+quality gates are independent of source/config documentation. The former
+full sustained-host comparison was discontinued by maintainer decision
+**without passing performance certification**. Do not infer throughput
+qualification from green functional checks.
 
 The repository's explicit representative benchmark entry point is:
 

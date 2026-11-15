@@ -63,7 +63,8 @@ Inspect an intended candidate from a controlled deployment context:
    php infbyte app:ready
 
 A successful report shows build/dependency readiness, not proof
-that the exact source has passed all host-performance gates.
+that the deployment meets its performance/capacity SLOs or has passed
+all release QA. Verify selected host and workload independently.
 
 Production loaders verify the manifest against an **external** trusted
 SHA-256 and check the currently installed dependency graph. The

@@ -190,7 +190,7 @@ Stable release remains gated
 
 The Infbyte production entrypoint validates a trusted Foundation
 generation, then delegates HTTP to Webrick. Foundation's independent
-P6 source/performance and retained-data gates remain prerequisites.
+source/security readiness and retained-data migration checks remain prerequisites. Sustained performance certification was discontinued without a passing verdict.
 
 After a real Foundation 4 release becomes available, apply the
 prepared stable cutover on Infbyte PR #11: require ``^4.0``,
