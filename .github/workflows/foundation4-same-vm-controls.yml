@@ -142,9 +142,10 @@ jobs:
               mkdir -p "$pair"
               printf 'diagnostic-only\n' > "$pair/scope.txt"
               export FOUNDATION_HOST_FILTER_HOST="$host"
-              export FOUNDATION_HOST_AUTH_SECRET="$(php -r 'echo bin2hex(random_bytes(32));')"
-              export FOUNDATION_HOST_MFA_SECRET="$(php -r 'echo rtrim(strtr(base64_encode(random_bytes(32)), "+/", "-_"), "=");')"
-              export AUTH_OTP_RECOVERY_HMAC_KEY="$(php -r 'echo bin2hex(random_bytes(32));')"
+              FOUNDATION_HOST_AUTH_SECRET="$(php -r 'echo bin2hex(random_bytes(32));')"
+              FOUNDATION_HOST_MFA_SECRET="$(php -r 'echo rtrim(strtr(base64_encode(random_bytes(32)), "+/", "-_"), "=");')"
+              AUTH_OTP_RECOVERY_HMAC_KEY="$(php -r 'echo bin2hex(random_bytes(32));')"
+              export FOUNDATION_HOST_AUTH_SECRET FOUNDATION_HOST_MFA_SECRET AUTH_OTP_RECOVERY_HMAC_KEY
               variants=(baseline candidate)
               if [[ "$batch" == confirmation ]]; then
                 variants=(candidate baseline)
