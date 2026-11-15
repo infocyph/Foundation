@@ -16,7 +16,8 @@ permissions:
 
 concurrency:
   group: foundation4-shared-three
-  cancel-in-progress: false
+  # Supersede obsolete pre-measurement failures; never run duplicate long diagnostics.
+  cancel-in-progress: true
 
 jobs:
   targeted:
