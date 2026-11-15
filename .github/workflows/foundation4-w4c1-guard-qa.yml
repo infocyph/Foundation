@@ -28,6 +28,7 @@ jobs:
         run: |
           php -l tests/Feature/ReleaseWorkflowGuardTest.php
           php -l benchmarks/foundation4-host-control-verdict.php
+          bash -n benchmarks/foundation4-host-core-guard.sh
       - name: Verify strict CPU topology guard with online and offline SMT fixtures
         run: |
           set -euo pipefail
@@ -76,7 +77,8 @@ jobs:
             .github/workflows/foundation4-w4c1-control.yml \
             .github/workflows/foundation4-w4c1-evidence.yml \
             .github/workflows/foundation4-dedicated-certify.yml \
-            .github/workflows/foundation4-w4c1-guard-qa.yml
+            .github/workflows/foundation4-w4c1-guard-qa.yml \
+            .github/workflows/foundation4-self-hosted-preflight.yml
       - name: Install repository QA dependencies
         run: composer update --no-interaction --no-progress --prefer-dist --prefer-stable
       - name: Run workflow, dedicated runner and source certification guards
