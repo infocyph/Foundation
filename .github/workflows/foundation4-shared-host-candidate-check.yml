@@ -48,10 +48,12 @@ jobs:
           cp reviewed-locks/candidate.lock candidate/composer.lock
           echo "47714e7847c611f6cd8cef4caa45ac9ffae71188c93b7424d9daa867866f4ec7  candidate/composer.lock" | sha256sum -c -
           mkdir -p evidence
-          printf 'candidate_sha=3fcebbfe06165a7363ea9e21ef55831469041fb3\n' > evidence/identity.txt
-          sha256sum candidate/composer.lock >> evidence/identity.txt
-          php -v >> evidence/identity.txt
-          composer --version >> evidence/identity.txt
+          {
+            printf 'candidate_sha=3fcebbfe06165a7363ea9e21ef55831469041fb3\n'
+            sha256sum candidate/composer.lock
+            php -v
+            composer --version
+          } > evidence/identity.txt
       - name: Install exact reviewed dependencies without updating the lock
         shell: bash
         run: |
