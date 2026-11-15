@@ -118,6 +118,19 @@ jobs:
                 exit(1);
             }
           '
+      - name: Preserve exact numeric threshold types in calibration JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -r '
+            $r = json_decode((string) file_get_contents("build/qa-calibration.json"), true, flags: JSON_THROW_ON_ERROR);
+            if (!is_array($r)
+                || ($r["control_absolute_drift_limit_percent"] ?? null) !== 2.0
+                || ($r["control_cv_limit_percent"] ?? null) !== 2.5) {
+                fwrite(STDERR, "::error::Calibration JSON lost floating-point gate identity.\n");
+                exit(1);
+            }
+          '
       - name: Reject mismatched immutable benchmark tooling SHA
         run: |
           set -euo pipefail
