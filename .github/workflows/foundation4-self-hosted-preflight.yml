@@ -71,31 +71,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          declare -A seen=()
-          topology_ok=true
-          siblings_clear=true
           echo 'Requested Foundation 4 CPU layout: 0 load, 1 backend, 2-3 PHP workers'
           lscpu -e=CPU,CORE,SOCKET,ONLINE
-          for cpu in 0 1 2 3; do
-            core="$(cat "/sys/devices/system/cpu/cpu${cpu}/topology/core_id")"
-            socket="$(cat "/sys/devices/system/cpu/cpu${cpu}/topology/physical_package_id")"
-            siblings="$(cat "/sys/devices/system/cpu/cpu${cpu}/topology/thread_siblings_list")"
-            online="$(cat "/sys/devices/system/cpu/cpu${cpu}/online" 2>/dev/null || echo 1)"
-            printf 'CPU %s = socket %s, core %s, siblings %s, online %s\n' "$cpu" "$socket" "$core" "$siblings" "$online"
-            key="${socket}_${core}"
-            if [[ -v "seen[$key]" ]] || [[ "$online" != 1 ]]; then topology_ok=false; fi
-            seen[$key]=1
-            if [[ "$siblings" != "$cpu" ]]; then siblings_clear=false; fi
-          done
-          if [[ "$topology_ok" != true ]]; then
-            echo '::error::Selected CPUs do not represent four online independent physical cores.' >&2
-            exit 1
-          fi
-          if [[ "$siblings_clear" != true ]]; then
-            echo '::error::Existing Foundation benchmark requires each selected CPU to have no SMT siblings. Host-level isolation is not yet certified.' >&2
-            exit 1
-          fi
-          echo 'Foundation physical CPU topology: PASS'
+          # Verify separate physical cores and reject ONLINE SMT siblings;
+          # static sibling masks may retain CPUs that have been offlined.
+          bash benchmarks/foundation4-host-core-guard.sh 0 1 2 3
       - name: Report preflight and require all safety checks
         if: always()
         shell: bash
