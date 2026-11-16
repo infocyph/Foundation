@@ -19,6 +19,12 @@ use Infocyph\UID\Id;
 final readonly class RuntimeControl
 {
     public function __construct(private Application $application) {}
+    /**
+     * @throws InvalidArgumentException
+     * @throws Psr\SimpleCache\InvalidArgumentException
+     * @throws RuntimeException
+     * @throws LogicException
+     */
 
     public function changed(string $scope, ?string $name, string $baseline): bool
     {
@@ -73,6 +79,12 @@ final readonly class RuntimeControl
 
         return $normalized;
     }
+    /**
+     * @throws InvalidArgumentException
+     * @throws Psr\SimpleCache\InvalidArgumentException
+     * @throws RuntimeException
+     * @throws LogicException
+     */
 
     public function token(string $scope, ?string $name = null): string
     {

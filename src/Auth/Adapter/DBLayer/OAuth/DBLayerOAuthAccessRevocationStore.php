@@ -13,6 +13,9 @@ final readonly class DBLayerOAuthAccessRevocationStore extends DBLayerStore impl
 {
     /**
      * @throws \RuntimeException
+     * @throws LogicException
+     * @throws Psr\Container\ContainerExceptionInterface
+     * @throws Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function isRevoked(string $tokenId, int $now): bool

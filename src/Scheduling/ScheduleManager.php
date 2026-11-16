@@ -252,7 +252,13 @@ final readonly class ScheduleManager
         );
     }
 
-    /** @phpstan-impure */
+    /**
+     * @phpstan-impure
+     * @throws InvalidArgumentException
+     * @throws Psr\SimpleCache\InvalidArgumentException
+     * @throws RuntimeException
+     * @throws LogicException
+     */
     private function interrupted(
         RuntimeControl $control,
         string $runtimeToken,

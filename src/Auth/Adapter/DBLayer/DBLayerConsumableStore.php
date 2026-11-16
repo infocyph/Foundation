@@ -22,6 +22,9 @@ abstract readonly class DBLayerConsumableStore extends ClockedDBLayerStore
      * @param callable(array<string, mixed>): TRequest $mapper
      * @return TRequest|null
      * @throws \RuntimeException
+     * @throws LogicException
+     * @throws Psr\Container\ContainerExceptionInterface
+     * @throws Psr\Container\NotFoundExceptionInterface
      */
     protected function findRequest(string $table, callable $mapper, string $requestId): mixed
     {
@@ -34,6 +37,9 @@ abstract readonly class DBLayerConsumableStore extends ClockedDBLayerStore
 
     /**
      * @throws \RuntimeException
+     * @throws LogicException
+     * @throws Psr\Container\ContainerExceptionInterface
+     * @throws Psr\Container\NotFoundExceptionInterface
      */
     protected function requestWasConsumed(string $table, string $requestId): bool
     {

@@ -48,6 +48,9 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
 
     /**
      * @throws \RuntimeException
+     * @throws LogicException
+     * @throws Psr\Container\ContainerExceptionInterface
+     * @throws Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function findByCredentialId(string $credentialId): ?PasskeyCredential

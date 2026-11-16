@@ -49,6 +49,7 @@ final readonly class DBLayerEpicryptOAuthAuthorizationStore extends DBLayerStore
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws RuntimeException
      */
     #[\Override]
     public function find(string $authorizationId): ?OAuthAuthorizationRecord
@@ -79,6 +80,9 @@ final readonly class DBLayerEpicryptOAuthAuthorizationStore extends DBLayerStore
 
         return $result instanceof OAuthAuthorizationRecord ? $result : null;
     }
+    /**
+     * @throws RuntimeException
+     */
 
     private function findUsing(Connection $connection, string $authorizationId): ?OAuthAuthorizationRecord
     {

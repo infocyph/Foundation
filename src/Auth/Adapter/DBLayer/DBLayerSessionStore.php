@@ -32,6 +32,9 @@ final readonly class DBLayerSessionStore extends DBLayerStore implements Session
 
     /**
      * @throws \RuntimeException
+     * @throws LogicException
+     * @throws Psr\Container\ContainerExceptionInterface
+     * @throws Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function find(string $sessionId): ?AuthSession

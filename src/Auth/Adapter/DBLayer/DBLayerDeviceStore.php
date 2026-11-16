@@ -11,6 +11,9 @@ final readonly class DBLayerDeviceStore extends ClockedDBLayerStore implements D
 {
     /**
      * @throws \RuntimeException
+     * @throws LogicException
+     * @throws Psr\Container\ContainerExceptionInterface
+     * @throws Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function find(string $deviceId): ?DeviceRecord

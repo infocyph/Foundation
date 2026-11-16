@@ -66,6 +66,7 @@ final readonly class OmnibusWorkerFactory
 
     /**
      * @throws \InvalidArgumentException
+     * @throws UnexpectedValueException
      */
     public function options(string $name): WorkerOptions
     {
@@ -120,6 +121,7 @@ final readonly class OmnibusWorkerFactory
      *   shutdown_grace_seconds:float
      * }
      * @throws \InvalidArgumentException
+     * @throws UnexpectedValueException
      */
     public function pool(string $name): array
     {
@@ -146,6 +148,10 @@ final readonly class OmnibusWorkerFactory
             ),
         ];
     }
+    /**
+     * @throws UnexpectedValueException
+     * @throws InvalidArgumentException
+     */
 
     public function transport(string $name): string
     {
@@ -172,7 +178,10 @@ final readonly class OmnibusWorkerFactory
         return $factory;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws UnexpectedValueException
+     */
     private function definition(string $name): array
     {
         return $this->all()[$name] ?? throw new \InvalidArgumentException(sprintf(
