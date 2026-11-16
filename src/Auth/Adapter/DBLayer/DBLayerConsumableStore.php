@@ -34,6 +34,9 @@ abstract readonly class DBLayerConsumableStore extends ClockedDBLayerStore
 
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     protected function requestWasConsumed(string $table, string $requestId): bool
     {

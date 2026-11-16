@@ -90,6 +90,10 @@ abstract readonly class DBLayerStore
 
     /**
      * @param list<mixed> $bindings
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     protected function exists(string $sql, array $bindings = []): bool
     {
@@ -114,6 +118,10 @@ abstract readonly class DBLayerStore
      * @param callable(array<string, mixed>): TResult $mapper
      * @param list<mixed> $bindings
      * @return TResult|null
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     protected function firstMapped(string $sql, callable $mapper, array $bindings = []): mixed
     {

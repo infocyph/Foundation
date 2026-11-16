@@ -371,6 +371,10 @@ final class CommandCatalog
         return $this->all()[$name] ?? null;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function runtimeFor(string $name): RuntimeMode
     {
         return $this->find($name)?->commandRuntime() ?? RuntimeMode::Cli;

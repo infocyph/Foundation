@@ -20,7 +20,13 @@ final readonly class RuntimeControl
 {
     public function __construct(private Application $application) {}
 
-    public function changed(string $scope, ?string $name, string $baseline): bool
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \LogicException
+     */
+    public function changed(
     {
         return !hash_equals($baseline, $this->token($scope, $name));
     }

@@ -49,6 +49,7 @@ final readonly class DBLayerEpicryptOAuthAuthorizationStore extends DBLayerStore
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \RuntimeException
      */
     #[\Override]
     public function find(string $authorizationId): ?OAuthAuthorizationRecord
