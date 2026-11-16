@@ -26,7 +26,7 @@ final readonly class RuntimeControl
      * @throws \RuntimeException
      * @throws \LogicException
      */
-    public function changed(
+    public function changed(string $scope, ?string $name, string $baseline): bool
     {
         return !hash_equals($baseline, $this->token($scope, $name));
     }
