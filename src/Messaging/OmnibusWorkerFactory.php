@@ -155,7 +155,7 @@ final readonly class OmnibusWorkerFactory
      * @throws \InvalidArgumentException
      * @throws \UnexpectedValueException
      */
-    public function transport(
+    public function transport(string $name): string
     {
         $definition = $this->definition($name);
 
