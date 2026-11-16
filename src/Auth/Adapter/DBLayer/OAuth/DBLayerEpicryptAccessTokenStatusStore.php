@@ -43,9 +43,6 @@ final readonly class DBLayerEpicryptAccessTokenStatusStore extends DBLayerStore 
 
     /**
      * @throws \RuntimeException
-     * @throws \LogicException
-     * @throws \Psr\Container\ContainerExceptionInterface
-     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function find(string $issuer, string $tokenId): ?OAuthAccessTokenStatusRecord

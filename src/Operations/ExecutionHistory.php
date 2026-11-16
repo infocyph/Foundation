@@ -61,11 +61,7 @@ final readonly class ExecutionHistory
         });
     }
 
-    /**
-     * @return array<string,mixed>|null
-     * @throws \InvalidArgumentException
-     * @throws \RuntimeException
-     */
+    /** @return array<string,mixed>|null */
     public function latest(?string $kind = null, ?string $name = null): ?array
     {
         return $this->recent(1, $kind, $name)[0] ?? null;

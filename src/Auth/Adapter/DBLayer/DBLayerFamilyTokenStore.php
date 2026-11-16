@@ -70,9 +70,6 @@ abstract readonly class DBLayerFamilyTokenStore extends ClockedDBLayerStore
 
     /**
      * @throws \RuntimeException
-     * @throws \LogicException
-     * @throws \Psr\Container\ContainerExceptionInterface
-     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     protected function tokenFamilyWasRevoked(string $table, string $familyId): bool
     {

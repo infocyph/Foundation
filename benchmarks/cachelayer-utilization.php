@@ -366,9 +366,7 @@ $workloads = [
         static function () use ($cache, $batch, $batchKeys): array {
             $cache->setMultiple($batch, 60);
             $result = [];
-            /** @var iterable<array-key, mixed> $values */
-            $values = $cache->getMultiple($batchKeys);
-            foreach ($values as $key => $value) {
+            foreach ($cache->getMultiple($batchKeys) as $key => $value) {
                 $result[$key] = $value;
             }
 

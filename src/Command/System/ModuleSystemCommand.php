@@ -310,8 +310,6 @@ final class ModuleSystemCommand extends SystemCommand
     /**
      * @phpstan-return Context
      * @throws \RuntimeException
-     * @throws \InvalidArgumentException
-     * @throws \LogicException
      */
     private function snapshot(): array
     {

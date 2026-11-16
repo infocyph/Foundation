@@ -53,7 +53,6 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
-     * @throws \RuntimeException
      */
     #[\Override]
     public function find(string $tokenId): ?PersonalAccessTokenRecord
@@ -63,9 +62,6 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
 
     /**
      * @throws \RuntimeException
-     * @throws \LogicException
-     * @throws \Psr\Container\ContainerExceptionInterface
-     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function lastUsedAt(string $tokenId, string $subject): ?int
@@ -205,7 +201,6 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
         return is_int($result) ? $result : null;
     }
 
-    /** @throws \RuntimeException */
     private function findUsing(Connection $connection, string $tokenId): ?PersonalAccessTokenRecord
     {
         $row = $connection->select(

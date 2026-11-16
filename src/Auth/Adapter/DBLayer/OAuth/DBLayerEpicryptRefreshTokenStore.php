@@ -41,7 +41,6 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
-     * @throws \RuntimeException
      */
     #[\Override]
     public function inspect(#[\SensitiveParameter] RefreshTokenRecord $record, int $now): RefreshTokenInspectionStatus
@@ -157,10 +156,7 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
             : throw new \RuntimeException('OAuth refresh-token transaction returned an invalid status.');
     }
 
-    /**
-     * @return array<string,mixed>|null
-     * @throws \RuntimeException
-     */
+    /** @return array<string,mixed>|null */
     private function findRow(Connection $connection, string $tokenId): ?array
     {
         $row = $connection->select(

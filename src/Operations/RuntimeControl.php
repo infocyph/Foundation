@@ -20,12 +20,6 @@ final readonly class RuntimeControl
 {
     public function __construct(private Application $application) {}
 
-    /**
-     * @throws \InvalidArgumentException
-     * @throws \Psr\SimpleCache\InvalidArgumentException
-     * @throws \RuntimeException
-     * @throws \LogicException
-     */
     public function changed(string $scope, ?string $name, string $baseline): bool
     {
         return !hash_equals($baseline, $this->token($scope, $name));
@@ -80,12 +74,6 @@ final readonly class RuntimeControl
         return $normalized;
     }
 
-    /**
-     * @throws \InvalidArgumentException
-     * @throws \Psr\SimpleCache\InvalidArgumentException
-     * @throws \RuntimeException
-     * @throws \LogicException
-     */
     public function token(string $scope, ?string $name = null): string
     {
         $entry = $this->read()[$this->key($scope, $name)] ?? null;

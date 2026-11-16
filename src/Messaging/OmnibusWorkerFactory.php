@@ -54,8 +54,6 @@ final readonly class OmnibusWorkerFactory
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
-     * @throws \UnexpectedValueException
-     * @throws \InvalidArgumentException
      */
     public function make(string $name, ?WorkerLifecycle $lifecycle = null): Worker
     {
@@ -68,7 +66,6 @@ final readonly class OmnibusWorkerFactory
 
     /**
      * @throws \InvalidArgumentException
-     * @throws \UnexpectedValueException
      */
     public function options(string $name): WorkerOptions
     {
@@ -123,7 +120,6 @@ final readonly class OmnibusWorkerFactory
      *   shutdown_grace_seconds:float
      * }
      * @throws \InvalidArgumentException
-     * @throws \UnexpectedValueException
      */
     public function pool(string $name): array
     {
@@ -151,10 +147,6 @@ final readonly class OmnibusWorkerFactory
         ];
     }
 
-    /**
-     * @throws \InvalidArgumentException
-     * @throws \UnexpectedValueException
-     */
     public function transport(string $name): string
     {
         $definition = $this->definition($name);
@@ -180,11 +172,7 @@ final readonly class OmnibusWorkerFactory
         return $factory;
     }
 
-    /**
-     * @return array<string, mixed>
-     * @throws \UnexpectedValueException
-     * @throws \InvalidArgumentException
-     */
+    /** @return array<string, mixed> */
     private function definition(string $name): array
     {
         return $this->all()[$name] ?? throw new \InvalidArgumentException(sprintf(

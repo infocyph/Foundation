@@ -41,8 +41,6 @@ final readonly class ModuleFeatureCommandSnapshot
     /**
      * @phpstan-return Context
      * @throws \RuntimeException
-     * @throws \InvalidArgumentException
-     * @throws \LogicException
      */
     public function capture(): array
     {
