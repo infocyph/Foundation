@@ -41,7 +41,7 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
-     * @throws RuntimeException
+     * @throws \RuntimeException
      */
     #[\Override]
     public function inspect(#[\SensitiveParameter] RefreshTokenRecord $record, int $now): RefreshTokenInspectionStatus
@@ -159,7 +159,7 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
 
     /**
      * @return array<string,mixed>|null
-     * @throws RuntimeException
+     * @throws \RuntimeException
      */
     private function findRow(Connection $connection, string $tokenId): ?array
     {

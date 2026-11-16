@@ -16,9 +16,9 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
 {
     /**
      * @throws \RuntimeException
-     * @throws LogicException
-     * @throws Psr\Container\ContainerExceptionInterface
-     * @throws Psr\Container\NotFoundExceptionInterface
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function find(string $recordId): ?RememberTokenRecord
@@ -32,9 +32,9 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
 
     /**
      * @throws \RuntimeException
-     * @throws LogicException
-     * @throws Psr\Container\ContainerExceptionInterface
-     * @throws Psr\Container\NotFoundExceptionInterface
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function findBySelector(string $selector): ?RememberTokenRecord
@@ -124,9 +124,9 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
 
     /**
      * @throws \RuntimeException
-     * @throws LogicException
-     * @throws Psr\Container\ContainerExceptionInterface
-     * @throws Psr\Container\NotFoundExceptionInterface
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function wasFamilyRevoked(string $familyId): bool

@@ -16,9 +16,9 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
 {
     /**
      * @throws \RuntimeException
-     * @throws LogicException
-     * @throws Psr\Container\ContainerExceptionInterface
-     * @throws Psr\Container\NotFoundExceptionInterface
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function find(string $tokenId): ?RefreshTokenRecord
@@ -96,9 +96,9 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
 
     /**
      * @throws \RuntimeException
-     * @throws LogicException
-     * @throws Psr\Container\ContainerExceptionInterface
-     * @throws Psr\Container\NotFoundExceptionInterface
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function wasFamilyRevoked(string $familyId): bool

@@ -53,14 +53,13 @@ final class MaintenanceRuntimeState implements MaintenanceStateInterface
         return $status['message'] ?? 'Service temporarily unavailable for maintenance.';
     }
     /**
-     * @throws LogicException
-     * @throws Psr\Container\ContainerExceptionInterface
-     * @throws Psr\Container\NotFoundExceptionInterface
-     * @throws Psr\SimpleCache\InvalidArgumentException
-     * @throws RuntimeException
-     * @throws UnexpectedValueException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
-
     public function retryAfter(): int
     {
         return $this->status()['retry_after'] ?? $this->defaultRetryAfter;

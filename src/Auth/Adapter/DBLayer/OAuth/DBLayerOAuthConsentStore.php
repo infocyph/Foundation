@@ -13,9 +13,9 @@ final readonly class DBLayerOAuthConsentStore extends DBLayerStore implements OA
 {
     /**
      * @throws \RuntimeException
-     * @throws LogicException
-     * @throws Psr\Container\ContainerExceptionInterface
-     * @throws Psr\Container\NotFoundExceptionInterface
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function find(string $accountId, string $clientId, string $scopeFingerprint): ?OAuthConsent

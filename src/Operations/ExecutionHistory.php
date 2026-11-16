@@ -63,8 +63,8 @@ final readonly class ExecutionHistory
 
     /**
      * @return array<string,mixed>|null
-     * @throws InvalidArgumentException
-     * @throws RuntimeException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function latest(?string $kind = null, ?string $name = null): ?array
     {

@@ -71,7 +71,7 @@ final class ModuleSystemCommand extends SystemCommand
     /**
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
-     * @throws LogicException
+     * @throws \LogicException
      */
     private function inspect(): int
     {
@@ -206,7 +206,7 @@ final class ModuleSystemCommand extends SystemCommand
     /**
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
-     * @throws LogicException
+     * @throws \LogicException
      */
     private function plan(): int
     {
@@ -255,7 +255,7 @@ final class ModuleSystemCommand extends SystemCommand
     /**
      * @throws \RuntimeException
      * @throws \InvalidArgumentException
-     * @throws LogicException
+     * @throws \LogicException
      */
     private function schemas(): int
     {
@@ -313,8 +313,8 @@ final class ModuleSystemCommand extends SystemCommand
     /**
      * @phpstan-return Context
      * @throws \RuntimeException
-     * @throws InvalidArgumentException
-     * @throws LogicException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     private function snapshot(): array
     {
