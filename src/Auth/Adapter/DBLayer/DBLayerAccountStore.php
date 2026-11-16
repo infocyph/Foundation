@@ -94,6 +94,7 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         }
 
         $identifier = $this->string($row['identifier'] ?? null);
+        /** @var mixed $originalMetadata */
         $originalMetadata = $row['metadata'] ?? null;
         $metadata = DBLayerJson::decode($originalMetadata);
         $storedEmail = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false

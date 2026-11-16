@@ -51,6 +51,7 @@ final readonly class EpicryptOAuthScopeAudienceResolver implements OAuthScopeAud
             return;
         }
 
+        /** @var list<mixed> $values */
         foreach ($values as $audience) {
             if (is_string($audience) && $audience !== '') {
                 $selected[$audience] = true;

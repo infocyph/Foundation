@@ -66,6 +66,7 @@ final class BenchmarkSupport
             throw new \InvalidArgumentException('Benchmark evidence must be an object map.');
         }
         $map = [];
+        /** @var array<array-key, mixed> $input */
         foreach ($input as $key => $value) {
             if (!is_string($key)) {
                 throw new \InvalidArgumentException('Benchmark object maps require string keys.');

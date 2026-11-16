@@ -30,6 +30,9 @@ use UnexpectedValueException;
 final readonly class AuthAuthorizationRegistrar extends AbstractAuthRegistrar
 {
     /**
+     * Called by the container's registered static recipe rather than a direct PHP call.
+     *
+     * @psalm-api
      * @throws \UnexpectedValueException
      */
     public static function gate(ContainerInterface $container, PermissionAuthorizer $fallback): Gate
