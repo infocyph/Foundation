@@ -7,12 +7,20 @@ namespace Infocyph\Foundation\Auth\Adapter\WebAuthn;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
 
+/**
+ * OTP/WebAuthn capability resolver selected by the application provider graph.
+ *
+ * @api
+ */
 final readonly class WebAuthnConfigResolver
 {
     public function __construct(
         private ConfigRepository $config,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function resolve(): WebAuthnConfig
     {
         $configured = $this->config->get('auth.webauthn', []);

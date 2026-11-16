@@ -12,20 +12,25 @@ use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\InterMix\DI\ContainerBuilder;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-/** @return array{delta_ns:float,percent:float} */
+/**
+ * @param array{median_ns:float|int, ...} $foundation
+ * @param array{median_ns:float|int, ...} $direct
+ * @return array{delta_ns:float,percent:float}
+ */
 function phase9DiTax(array $foundation, array $direct): array
 {
-    $delta = $foundation['median_ns'] - $direct['median_ns'];
+    $directMedian = (float) $direct['median_ns'];
+    $delta = (float) $foundation['median_ns'] - $directMedian;
 
     return [
         'delta_ns' => round($delta, 2),
-        'percent' => round(($delta / max(0.000001, $direct['median_ns'])) * 100, 2),
+        'percent' => round(($delta / max(0.000001, $directMedian)) * 100.0, 2),
     ];
 }
 
-$operations = max(1_000, (int) (getenv('PHASE9_DI_OPERATIONS') ?: 100_000));
-$repetitions = max(3, (int) (getenv('PHASE9_DI_REPETITIONS') ?: 7));
-$warmup = max(100, (int) (getenv('PHASE9_DI_WARMUP') ?: 1_000));
+$operations = max(1_000, (int) ((($__foundation154_26 = getenv('PHASE9_DI_OPERATIONS')) !== false && $__foundation154_26 !== '' && $__foundation154_26 !== '0' ? $__foundation154_26 : 100_000)));
+$repetitions = max(3, (int) ((($__foundation154_27 = getenv('PHASE9_DI_REPETITIONS')) !== false && $__foundation154_27 !== '' && $__foundation154_27 !== '0' ? $__foundation154_27 : 7)));
+$warmup = max(100, (int) ((($__foundation154_28 = getenv('PHASE9_DI_WARMUP')) !== false && $__foundation154_28 !== '' && $__foundation154_28 !== '0' ? $__foundation154_28 : 1_000)));
 $root = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR
     . 'foundation-phase9-di-' . bin2hex(random_bytes(6));
 mkdir($root . '/bootstrap/cache', 0777, true);
@@ -60,13 +65,13 @@ try {
     }
 
     $directResolve = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::throughputMeasure(
-        static fn(): object => $direct->get(Phase9DiNode::class),
+        static fn(): mixed => $direct->get(Phase9DiNode::class),
         $operations,
         $repetitions,
         $warmup,
     );
     $foundationContainerResolve = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::throughputMeasure(
-        static fn(): object => $foundation->container->get(Phase9DiNode::class),
+        static fn(): mixed => $foundation->container->get(Phase9DiNode::class),
         $operations,
         $repetitions,
         $warmup,
@@ -80,9 +85,9 @@ try {
 
     $scopeOperations = max(1_000, intdiv($operations, 10));
     $directScope = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::throughputMeasure(
-        static fn(): object => $direct->withinScope(
+        static fn(): mixed => $direct->withinScope(
             'foundation.cli',
-            static fn(): object => $direct->get(Phase9DiScopedProbe::class),
+            static fn(): mixed => $direct->get(Phase9DiScopedProbe::class),
         ),
         $scopeOperations,
         $repetitions,
@@ -107,7 +112,7 @@ try {
             'opcache_cli' => filter_var(ini_get('opcache.enable_cli'), FILTER_VALIDATE_BOOL),
         ],
         'source' => [
-            'foundation_commit' => getenv('GITHUB_SHA') ?: 'working-tree',
+            'foundation_commit' => (($__foundation154_110 = getenv('GITHUB_SHA')) !== false && $__foundation154_110 !== '' && $__foundation154_110 !== '0' ? $__foundation154_110 : 'working-tree'),
             'intermix_version' => InstalledVersions::getPrettyVersion('infocyph/intermix'),
             'intermix_reference' => InstalledVersions::getReference('infocyph/intermix'),
         ],
@@ -149,13 +154,13 @@ try {
         ],
     ];
 
-    $output = getenv('PHASE9_DI_OUTPUT') ?: dirname(__DIR__) . '/build/phase9-di-attribution.json';
+    $output = (($__foundation157_152 = getenv('PHASE9_DI_OUTPUT')) !== false && $__foundation157_152 !== '' && $__foundation157_152 !== '0') ? $__foundation157_152 : dirname(__DIR__) . '/build/phase9-di-attribution.json';
     $directory = dirname($output);
     if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
         throw new RuntimeException(sprintf('Unable to create benchmark output directory "%s".', $directory));
     }
-    file_put_contents($output, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL, LOCK_EX);
-    fwrite(STDOUT, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+    file_put_contents($output, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL, LOCK_EX);
+    fwrite(STDOUT, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL);
 } finally {
     \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($root);
 }

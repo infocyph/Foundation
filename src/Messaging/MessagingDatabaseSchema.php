@@ -19,6 +19,9 @@ final readonly class MessagingDatabaseSchema
         private DBLayerFactory $database,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function install(?string $connection = null): void
     {
         $state = $this->readiness($connection);
@@ -51,6 +54,7 @@ final readonly class MessagingDatabaseSchema
      *   missing_tables:list<string>,
      *   connection:string|null
      * }
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function readiness(?string $connection = null): array
     {
@@ -74,6 +78,9 @@ final readonly class MessagingDatabaseSchema
         ];
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function connection(?string $connection): Connection
     {
         return $this->database->infrastructureConnection($connection ?? $this->connectionName());

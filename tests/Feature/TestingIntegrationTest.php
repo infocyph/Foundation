@@ -2,14 +2,18 @@
 
 declare(strict_types=1);
 
-use Infocyph\CacheLayer\Cache\CacheInterface;
+namespace Infocyph\Foundation\Tests\Feature;
+
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Foundation;
+
 use Infocyph\Foundation\Testing\TestKit;
 use Infocyph\TalkingBytes\Email\Emailer;
 use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Http\Testing\FakeHttpTransport;
+use InvalidArgumentException;
 use League\Flysystem\FilesystemOperator;
+use stdClass;
 
 it('composes package fakes without replacing their implementations', function (): void {
     $app = Foundation::cli([
@@ -34,14 +38,27 @@ it('composes package fakes without replacing their implementations', function ()
     $http->assert()->assertRequestCount(1);
     $notifications->assertable()->assertNothingSent();
 
-    expect($cache)->toBeInstanceOf(CacheInterface::class)
-        ->and($testing->cache()->store())->toBe($cache)
+    expect($testing->cache()->store())->toBe($cache)
         ->and($cache->get('answer'))->toBe(42)
         ->and($app->make(HttpClient::class))->toBe($http)
         ->and($result->successful)->toBeTrue()
         ->and($app->make(Emailer::class))->toBe($notifications)
         ->and($app->make(ClockInterface::class))->toBe($clock)
         ->and($clock->advance(60)->now())->toBe(1_700_000_060);
+});
+
+it('keeps test service replacements confined to their own application and type', function (): void {
+    $left = Foundation::cli([]);
+    $right = Foundation::cli([]);
+    $frozen = $left->make(TestKit::class)->freezeTime(1_700_000_000);
+    $other = $right->make(TestKit::class)->freezeTime(1_700_000_001);
+
+    expect($left->make(ClockInterface::class))->toBe($frozen)
+        ->and($right->make(ClockInterface::class))->toBe($other)
+        ->and($other)->not->toBe($frozen);
+
+    expect(fn() => $left->replaceForTesting(ClockInterface::class, new stdClass()))
+        ->toThrow(InvalidArgumentException::class);
 });
 
 it('exposes the configured filesystem operator through the testing boundary', function (): void {
@@ -51,6 +68,5 @@ it('exposes the configured filesystem operator through the testing boundary', fu
     ]);
     $testing = $app->make(TestKit::class);
 
-    expect($testing->files())->toBeInstanceOf(FilesystemOperator::class)
-        ->and($testing->files())->toBe($app->make(FilesystemOperator::class));
+    expect($testing->files())->toBe($app->make(FilesystemOperator::class));
 });

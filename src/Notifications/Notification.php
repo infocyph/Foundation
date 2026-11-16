@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Notifications;
 
+/**
+ * Application notification channel contract.
+ *
+ * @api
+ */
 interface Notification
 {
     /**

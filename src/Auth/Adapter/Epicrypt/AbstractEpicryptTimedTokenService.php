@@ -18,6 +18,7 @@ abstract readonly class AbstractEpicryptTimedTokenService
 
     /**
      * @param array<string, mixed> $claims
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     protected function issueTimedToken(string $context, array $claims): string
     {
@@ -45,6 +46,7 @@ abstract readonly class AbstractEpicryptTimedTokenService
 
     /**
      * @return array<string, mixed>|TokenVerificationResult
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     protected function verifyTimedToken(string $token, string $context, string $purpose): array|TokenVerificationResult
     {

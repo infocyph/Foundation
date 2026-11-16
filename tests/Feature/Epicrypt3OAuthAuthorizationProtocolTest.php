@@ -34,10 +34,9 @@ it('delegates authorization request singleton and audience validation to Epicryp
         expect($request->audiences)->toBe([$audience]);
 
         try {
-            $fixture->requests->validate([
-                ...$base,
+            $fixture->requests->validate(array_replace($base, [
                 'client_id' => [$registration->client->clientId, $registration->client->clientId],
-            ]);
+            ]));
             throw new RuntimeException('Expected duplicate client_id rejection.');
         } catch (OAuthProtocolException $exception) {
             expect($exception->error)->toBe('invalid_request')

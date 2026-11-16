@@ -6,6 +6,9 @@ namespace Infocyph\Foundation\Messaging;
 
 final readonly class JobContext
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         public string $queue,
         public int $attempt = 1,

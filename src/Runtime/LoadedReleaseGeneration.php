@@ -9,6 +9,9 @@ final readonly class LoadedReleaseGeneration
 {
     public string $releaseRoot;
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         string $releaseRoot,
         public string $generation,

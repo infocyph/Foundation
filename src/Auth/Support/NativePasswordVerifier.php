@@ -14,6 +14,7 @@ final readonly class NativePasswordVerifier implements PasswordVerifierInterface
         private PasswordHasherInterface $hasher,
     ) {}
 
+    #[\Override]
     public function verify(string $plainPassword, string $storedHash): PasswordVerificationResult
     {
         $verified = password_verify($plainPassword, $storedHash);

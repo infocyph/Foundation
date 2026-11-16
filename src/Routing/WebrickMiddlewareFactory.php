@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Routing;
 
 use Infocyph\CacheLayer\Cache\CacheInterface;
-use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
@@ -26,12 +25,13 @@ use Infocyph\Webrick\Middleware\VaryAccumulatorMiddleware;
 use Infocyph\Webrick\Middleware\VerifySignedUrlMiddleware;
 use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
 use Infocyph\Webrick\Router\Url\SignedUrlConfig;
+use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class WebrickMiddlewareFactory
 {
     public function __construct(
-        private Application $app,
+        private ContainerInterface $container,
         private ConfigRepository $config,
         private LoggerInterface $logger,
     ) {}
@@ -79,6 +79,7 @@ final readonly class WebrickMiddlewareFactory
 
     /**
      * @param array<string, mixed> $definition
+     * @throws \RuntimeException
      */
     private function aliasMiddleware(array $definition, string ...$parameters): object|string
     {
@@ -105,11 +106,21 @@ final readonly class WebrickMiddlewareFactory
         return $resolved;
     }
 
+    /**
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     private function cacheStore(mixed $name): CacheInterface
     {
         $store = ValueNormalizer::nullableString($name);
 
-        return $this->app->make(CacheManager::class)->store($store);
+        $manager = $this->container->get(CacheManager::class);
+        if (!$manager instanceof CacheManager) {
+            throw new \UnexpectedValueException('Webrick cache middleware requires the Foundation cache manager.');
+        }
+
+        return $manager->store($store);
     }
 
     /**
@@ -139,6 +150,9 @@ final readonly class WebrickMiddlewareFactory
 
     /**
      * @param array<string, mixed> $definition
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     private function cookieEncryption(array $definition): ?CookieEncryptionMiddleware
     {
@@ -442,7 +456,11 @@ final readonly class WebrickMiddlewareFactory
             return $path;
         }
 
-        $basePath = $this->config->getString('app.base_path', getcwd() ?: '.') ?: (getcwd() ?: '.');
+        $cwd = getcwd() ?: '.';
+        $basePath = $this->config->getString('app.base_path', $cwd);
+        if ($basePath === null || $basePath === '') {
+            $basePath = $cwd;
+        }
 
         return rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR);
     }
@@ -450,7 +468,7 @@ final readonly class WebrickMiddlewareFactory
     private function resolveClass(string $class): object|string
     {
         try {
-            $service = $this->app->make($class);
+            $service = $this->container->get($class);
 
             return is_object($service) ? $service : $class;
         } catch (\Throwable) {

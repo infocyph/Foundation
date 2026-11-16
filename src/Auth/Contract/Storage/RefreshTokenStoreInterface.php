@@ -14,6 +14,8 @@ interface RefreshTokenStoreInterface
 
     public function rotate(string $tokenId, RefreshTokenRecord $replacement): void;
 
+    public function rotateIfActive(RefreshTokenRecord $current, RefreshTokenRecord $replacement): bool;
+
     public function save(RefreshTokenRecord $record): void;
 
     public function wasFamilyRevoked(string $familyId): bool;

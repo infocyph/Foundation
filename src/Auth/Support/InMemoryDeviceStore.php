@@ -19,11 +19,13 @@ final class InMemoryDeviceStore implements DeviceStoreInterface
         private readonly ClockInterface $clock = new SystemClock(),
     ) {}
 
+    #[\Override]
     public function find(string $deviceId): ?DeviceRecord
     {
         return $this->devices[$deviceId] ?? null;
     }
 
+    #[\Override]
     public function findForAccount(string $accountId): array
     {
         return array_values(array_filter(
@@ -32,6 +34,7 @@ final class InMemoryDeviceStore implements DeviceStoreInterface
         ));
     }
 
+    #[\Override]
     public function markTrusted(string $deviceId, bool $trusted): void
     {
         $device = $this->devices[$deviceId] ?? null;
@@ -55,6 +58,7 @@ final class InMemoryDeviceStore implements DeviceStoreInterface
             );
     }
 
+    #[\Override]
     public function revoke(string $deviceId): void
     {
         $device = $this->devices[$deviceId] ?? null;
@@ -66,11 +70,13 @@ final class InMemoryDeviceStore implements DeviceStoreInterface
         $this->devices[$deviceId] = $device->revokedAt($this->clock->now());
     }
 
+    #[\Override]
     public function save(DeviceRecord $device): void
     {
         $this->devices[$device->id] = $device;
     }
 
+    #[\Override]
     public function touch(string $deviceId, int $lastSeenAt): void
     {
         $device = $this->devices[$deviceId] ?? null;

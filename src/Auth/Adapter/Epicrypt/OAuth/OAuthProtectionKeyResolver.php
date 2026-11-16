@@ -16,6 +16,11 @@ use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
 
+/**
+ * Application-configured OAuth protection key resolver used by generated service recipes.
+ *
+ * @api
+ */
 final readonly class OAuthProtectionKeyResolver
 {
     private const string AUTHORIZATION_CODE_LABEL = 'foundation.oauth.authorization-code.v1';
@@ -27,6 +32,9 @@ final readonly class OAuthProtectionKeyResolver
         private ClockInterface $clock,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function authorizationCodeKeys(): KeyRing
     {
         return $this->resolve(
@@ -36,6 +44,9 @@ final readonly class OAuthProtectionKeyResolver
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function refreshTokenKeys(): KeyRing
     {
         return $this->resolve(
@@ -65,6 +76,9 @@ final readonly class OAuthProtectionKeyResolver
         ], new EpicryptClockAdapter($this->clock));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function issuer(): string
     {
         $issuer = $this->config->get('auth.oauth.issuer');
@@ -73,6 +87,45 @@ final readonly class OAuthProtectionKeyResolver
         }
 
         return trim($issuer);
+    }
+
+    /**
+     * @param array<array-key,mixed> $item
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
+    private function keyRingEntry(
+        array $item,
+        string $configKey,
+        KeyDeriver $deriver,
+        string $label,
+        string $issuer,
+        KeyPurpose $purpose,
+    ): KeyRingEntry {
+        $id = $item['id'] ?? null;
+        $environment = $item['environment'] ?? null;
+        if (!is_string($id)
+            || preg_match('/\A[A-Za-z0-9_-]{1,128}\z/D', $id) !== 1
+            || !is_string($environment)
+            || preg_match('/\A[A-Z][A-Z0-9_]{1,127}\z/D', $environment) !== 1
+        ) {
+            throw new ConfigurationException(sprintf('%s contains an invalid key id or environment locator.', $configKey));
+        }
+
+        $root = Environment::get($environment);
+        if (!is_string($root) || strlen($root) < 32) {
+            throw new ConfigurationException(sprintf('%s must provide at least 32 raw key bytes.', $environment));
+        }
+
+        return new KeyRingEntry(
+            id: $id,
+            key: $deriver->derivePurposeKeyBinary($root, $label, $issuer, 32),
+            status: $this->keyStatus($item['status'] ?? null),
+            purpose: $purpose,
+            algorithm: JweKeyManagementAlgorithm::DIRECT->value,
+            notBefore: $this->nullableTimestamp($item['not_before'] ?? null),
+            notAfter: $this->nullableTimestamp($item['not_after'] ?? null),
+            issuer: $issuer,
+        );
     }
 
     private function keyStatus(mixed $status): KeyStatus
@@ -89,6 +142,9 @@ final readonly class OAuthProtectionKeyResolver
         return is_int($value) && $value > 0 ? $value : null;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function resolve(string $configKey, KeyPurpose $purpose, string $label): KeyRing
     {
         $configured = $this->config->get($configKey, []);
@@ -110,31 +166,7 @@ final readonly class OAuthProtectionKeyResolver
             if (!is_array($item)) {
                 throw new ConfigurationException(sprintf('%s entries must be maps.', $configKey));
             }
-            $id = $item['id'] ?? null;
-            $environment = $item['environment'] ?? null;
-            if (!is_string($id)
-                || preg_match('/\A[A-Za-z0-9_-]{1,128}\z/D', $id) !== 1
-                || !is_string($environment)
-                || preg_match('/\A[A-Z][A-Z0-9_]{1,127}\z/D', $environment) !== 1
-            ) {
-                throw new ConfigurationException(sprintf('%s contains an invalid key id or environment locator.', $configKey));
-            }
-
-            $root = Environment::get($environment);
-            if (!is_string($root) || strlen($root) < 32) {
-                throw new ConfigurationException(sprintf('%s must provide at least 32 raw key bytes.', $environment));
-            }
-
-            $entries[] = new KeyRingEntry(
-                id: $id,
-                key: $deriver->derivePurposeKeyBinary($root, $label, $issuer, 32),
-                status: $this->keyStatus($item['status'] ?? null),
-                purpose: $purpose,
-                algorithm: JweKeyManagementAlgorithm::DIRECT->value,
-                notBefore: $this->nullableTimestamp($item['not_before'] ?? null),
-                notAfter: $this->nullableTimestamp($item['not_after'] ?? null),
-                issuer: $issuer,
-            );
+            $entries[] = $this->keyRingEntry($item, $configKey, $deriver, $label, $issuer, $purpose);
         }
 
         return new KeyRing($entries, new EpicryptClockAdapter($this->clock));

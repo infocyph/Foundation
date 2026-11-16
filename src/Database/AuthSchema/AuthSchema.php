@@ -15,6 +15,7 @@ final readonly class AuthSchema implements Migration
         private AuthTables $tables,
     ) {}
 
+    #[\Override]
     public function down(SchemaManager $schema, MigrationContext $context): void
     {
         foreach (array_reverse($this->tables->all()) as $table) {
@@ -23,11 +24,13 @@ final readonly class AuthSchema implements Migration
         }
     }
 
+    #[\Override]
     public function id(): string
     {
         return '20260730000000_foundation_auth_schema';
     }
 
+    #[\Override]
     public function up(SchemaManager $schema, MigrationContext $context): void
     {
         $this->createAccounts($schema);
@@ -161,7 +164,8 @@ final readonly class AuthSchema implements Migration
         $schema->create($this->tables->passkeyCredentials(), static function (Blueprint $table): void {
             $table->string('id', 64)->primary();
             $table->string('account_id', 64)->index();
-            $table->string('credential_id', 1024)->unique();
+            $table->text('credential_id');
+            $table->string('credential_id_hash', 64)->unique();
             $table->text('credential_record')->nullable();
             $table->text('public_key');
             $table->bigInteger('sign_count');

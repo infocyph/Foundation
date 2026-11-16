@@ -11,6 +11,11 @@ final class ArtifactSystemCommand extends SystemCommand
 {
     public function __construct(private readonly ArtifactGenerator $generator) {}
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
+    #[\Override]
     protected function handle(): int
     {
         $artifact = substr($this->canonicalName(), strlen('create:'));

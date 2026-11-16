@@ -18,6 +18,8 @@ interface RememberTokenStoreInterface
 
     public function rotate(string $recordId, RememberTokenRecord $replacement): void;
 
+    public function rotateIfActive(RememberTokenRecord $current, RememberTokenRecord $replacement): bool;
+
     public function save(RememberTokenRecord $record): void;
 
     public function wasFamilyRevoked(string $familyId): bool;

@@ -8,6 +8,9 @@ use Infocyph\UID\Id;
 
 final readonly class ExecutionId implements \Stringable
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(public string $value)
     {
         if ($value === '') {
@@ -15,11 +18,15 @@ final readonly class ExecutionId implements \Stringable
         }
     }
 
+    #[\Override]
     public function __toString(): string
     {
         return $this->value;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function generate(): self
     {
         return new self(Id::ulid());

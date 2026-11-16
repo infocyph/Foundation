@@ -4,23 +4,22 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Auth\Authorization\Decision\AuthorizationDecision;
 use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 use Infocyph\Foundation\Auth\Principal\PrincipalType;
-use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Http\Middleware\AuthMiddleware;
 use Infocyph\Foundation\Http\Middleware\PermissionMiddleware;
 use Infocyph\Foundation\Http\Resolver\OAuthBearerTokenPrincipalResolver;
 use Infocyph\Foundation\Http\Response\AuthExceptionMapper;
 use Infocyph\Foundation\Http\Response\AuthResponseFactory;
-use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
@@ -40,7 +39,9 @@ it('resolves account and service OAuth bearer tokens into the existing principal
                 ],
                 'oauth' => ['resource_audiences' => [$audience]],
             ],
-        ]), $validator);
+        ]), new RuntimeStateContainer([
+            \Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator::class => $validator,
+        ]));
 
         $account = $resolver->resolve(Request::fake(headers: ['Authorization' => 'Bearer ' . $accountToken]));
         $service = $resolver->resolve(Request::fake(headers: ['Authorization' => 'Bearer ' . $serviceToken]));
@@ -56,19 +57,18 @@ it('resolves account and service OAuth bearer tokens into the existing principal
             ->and($service?->metadata()['auth_via'] ?? null)->toBe('oauth_bearer')
             ->and($service?->metadata()['oauth_scopes'] ?? null)->toBe(['service.read']);
 
-        $seen = [];
-        $authorizer = new class($seen) implements AuthorizerInterface {
+        $authorizer = new class implements AuthorizerInterface {
             /** @var list<array{principal:PrincipalInterface,ability:string}> */
             public array $seen = [];
 
-            public function __construct(array $seen) { unset($seen); }
-
+            #[\Override]
             public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void
             {
                 unset($resource, $context);
                 $this->seen[] = ['principal' => $principal, 'ability' => $ability];
             }
 
+            #[\Override]
             public function can(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): AuthorizationDecision
             {
                 unset($resource, $context);
@@ -105,6 +105,11 @@ it('resolves account and service OAuth bearer tokens into the existing principal
     }
 });
 
+/**
+ * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ */
 function oauth21AccountBearerToken(OAuth21FlowFixture $fixture, string $audience): string
 {
     $redirect = 'https://account-resource.example.test/callback';
@@ -140,6 +145,10 @@ function oauth21AccountBearerToken(OAuth21FlowFixture $fixture, string $audience
     ))->accessToken;
 }
 
+/**
+ * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+ * @throws \InvalidArgumentException
+ */
 function oauth21ServiceBearerToken(OAuth21FlowFixture $fixture, string $audience): string
 {
     $registration = $fixture->clients->register(

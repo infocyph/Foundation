@@ -14,14 +14,19 @@ final class FoundationOperationsReleaseIO implements CommandIO
     /** @var list<string> */
     public array $errors = [];
 
-    /** @var list<mixed> */
+    /** @var list<array<array-key,mixed>> */
     public array $json = [];
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
         throw new LogicException('Choice input is not expected in this test IO.');
     }
 
+    #[\Override]
     public function confirm(string $question, bool $default = false): bool
     {
         unset($question, $default);
@@ -29,53 +34,74 @@ final class FoundationOperationsReleaseIO implements CommandIO
         return false;
     }
 
+    #[\Override]
     public function error(string $message): void
     {
         $this->errors[] = $message;
     }
 
+    #[\Override]
     public function info(string $message): void {}
 
+    #[\Override]
     public function interactive(): bool
     {
         return false;
     }
 
-    public function json(mixed $value): void
+    /** @param array<array-key, mixed> $value */
+    #[\Override]
+    public function json(array $value): void
     {
         $this->json[] = $value;
     }
 
+    #[\Override]
     public function machineReadable(): bool
     {
         return true;
     }
 
+    #[\Override]
     public function note(string $message): void {}
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function password(string $question): string
     {
         throw new LogicException('Password input is not expected in this test IO.');
     }
 
+    #[\Override]
     public function quiet(): bool
     {
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function read(string $question, ?string $default = null): string
     {
         throw new LogicException('Text input is not expected in this test IO.');
     }
 
+    #[\Override]
     public function success(string $message): void {}
 
+    #[\Override]
     public function table(array $headers, array $rows): void {}
 
+    #[\Override]
     public function warning(string $message): void {}
 
+    #[\Override]
     public function write(string $message): void {}
 
+    #[\Override]
     public function writeln(string $message = ''): void {}
 }
 
@@ -196,10 +222,18 @@ it('closes maintenance runtime control and process registry operations through r
         $activeStatus = foundationOperationsPayload(
             foundationOperationsRun($dispatcher, ['infbyte', 'worker:status', 'jobs']),
         );
+        if (!is_array($activeStatus['configured'] ?? null)) {
+            throw new \UnexpectedValueException('Worker status must provide a structured configuration.');
+        }
+        if (!is_array($activeStatus['configured']['jobs'] ?? null)
+            || !is_array($activeStatus['processes'] ?? null)
+            || !is_array($activeStatus['processes'][0] ?? null)) {
+            throw new \UnexpectedValueException('Worker status must contain configured job and process records.');
+        }
         expect($activeStatus['worker'] ?? null)->toBe('jobs')
             ->and($activeStatus['registry_visibility'] ?? null)->toBe('host')
             ->and($activeStatus['configured']['jobs']['type'] ?? null)->toBe('messaging')
-            ->and($activeStatus['processes'] ?? null)->toHaveCount(1)
+            ->and($activeStatus['processes'])->toHaveCount(1)
             ->and($activeStatus['processes'][0]['id'] ?? null)->toBe($record['id'])
             ->and($activeStatus['processes'][0]['running'] ?? null)->toBeTrue();
 
@@ -207,7 +241,10 @@ it('closes maintenance runtime control and process registry operations through r
         $staleStatus = foundationOperationsPayload(
             foundationOperationsRun($dispatcher, ['infbyte', 'worker:status', 'jobs']),
         );
-        expect($staleStatus['processes'] ?? null)->toHaveCount(1)
+        \PHPUnit\Framework\Assert::assertIsArray(($staleStatus['processes'] ?? null));
+        \PHPUnit\Framework\Assert::assertIsArray(($staleStatus['processes'][0] ?? null));
+
+        expect($staleStatus['processes'])->toHaveCount(1)
             ->and($staleStatus['processes'][0]['id'] ?? null)->toBe($record['id'])
             ->and($staleStatus['processes'][0]['running'] ?? null)->toBeFalse();
 
@@ -218,13 +255,13 @@ it('closes maintenance runtime control and process registry operations through r
         expect($cleanStatus['processes'] ?? null)->toBe([])
             ->and($registry->all('worker', 'jobs'))->toBe([]);
     } finally {
-        $registryApp->container()->unset();
         foundationOperationsRemove($basePath);
     }
 });
 
 /**
  * @param array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:true} $record
+ * @throws \RuntimeException
  */
 function foundationOperationsMakeStale(string $basePath, array $record): void
 {
@@ -237,7 +274,10 @@ function foundationOperationsMakeStale(string $basePath, array $record): void
     }
 }
 
-/** @return array<string, mixed> */
+/**
+ * @return array<string, mixed>
+ * @throws \RuntimeException
+ */
 function foundationOperationsPayload(FoundationOperationsReleaseIO $io): array
 {
     $payload = $io->json[0] ?? null;
@@ -245,10 +285,15 @@ function foundationOperationsPayload(FoundationOperationsReleaseIO $io): array
         throw new RuntimeException('Operations command did not emit a machine-readable payload.');
     }
 
-    return $payload;
+    return foundationStringMap($payload);
 }
 
-/** @param list<string> $argv */
+/**
+ * @param list<string> $argv
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \RuntimeException
+ */
 function foundationOperationsRun(CommandDispatcher $dispatcher, array $argv): FoundationOperationsReleaseIO
 {
     $io = new FoundationOperationsReleaseIO();
@@ -265,15 +310,19 @@ function foundationOperationsRun(CommandDispatcher $dispatcher, array $argv): Fo
     return $io;
 }
 
+/** @throws \UnexpectedValueException */
 function foundationOperationsRemove(string $directory): void
 {
     if (!is_dir($directory)) {
         return;
     }
 
-    foreach (scandir($directory) ?: [] as $entry) {
+    foreach (((array) scandir($directory)) as $entry) {
         if ($entry === '.' || $entry === '..') {
             continue;
+        }
+        if (!is_string($entry)) {
+            throw new \UnexpectedValueException('Directory listing contains an invalid entry.');
         }
 
         $path = $directory . DIRECTORY_SEPARATOR . $entry;

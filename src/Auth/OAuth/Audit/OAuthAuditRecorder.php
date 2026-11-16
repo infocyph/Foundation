@@ -53,6 +53,11 @@ final readonly class OAuthAuditRecorder
         );
     }
 
+    private function allowedScalar(mixed $value): bool
+    {
+        return is_bool($value) || is_int($value) || is_string($value) || $value === null;
+    }
+
     /**
      * @param array<string, mixed> $metadata
      * @return array<string, mixed>
@@ -66,7 +71,7 @@ final readonly class OAuthAuditRecorder
                 continue;
             }
             $value = $metadata[$key];
-            if (is_bool($value) || is_int($value) || is_string($value) || $value === null) {
+            if ($this->allowedScalar($value)) {
                 $safe[$key] = is_string($value) ? mb_substr($value, 0, 2048) : $value;
 
                 continue;

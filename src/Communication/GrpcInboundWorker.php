@@ -28,14 +28,62 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         private ConfigRepository $config,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
+     * @throws \Throwable
+     */
+    #[\Override]
     public function run(WorkerRuntime $runtime): int
     {
         $sourceService = $this->sourceService();
         $source = $this->source($sourceService);
-        $lastHeartbeat = self::monotonicNanoseconds();
-        $heartbeatInterval = $this->heartbeatIntervalMilliseconds() * 1_000_000;
+        $cancellation = $this->cancellationSignal($runtime);
 
-        $cancellation = CancellationSignal::fromCallable(
+        while (!$cancellation->isRequested()) {
+            $served = $runtime->execute(
+                function (ExecutionId $_executionId) use ($source, $cancellation): bool {
+                    unset($_executionId);
+                    $dispatcher = $this->services->get(GrpcInboundDispatcher::class);
+                    if (!$dispatcher instanceof GrpcInboundDispatcher) {
+                        throw new \LogicException('Foundation inbound gRPC dispatcher binding is invalid.');
+                    }
+
+                    return $dispatcher->serveOne($source, $cancellation);
+                },
+            );
+
+            if ($served || $cancellation->isRequested()) {
+                continue;
+            }
+
+            $idleSleep = $this->idleSleepMilliseconds();
+            if ($idleSleep > 0) {
+                usleep($idleSleep * 1_000);
+            }
+        }
+
+        return 0;
+    }
+
+    private static function monotonicNanoseconds(): int
+    {
+        $value = hrtime(true);
+
+        return is_int($value) ? $value : (int) ($value * 1_000_000_000.0);
+    }
+
+    /**
+     * @throws \InvalidArgumentException
+     */
+    private function cancellationSignal(WorkerRuntime $runtime): CancellationSignal
+    {
+        $lastHeartbeat = self::monotonicNanoseconds();
+        $heartbeatInterval = (int) round((float) $this->heartbeatIntervalMilliseconds() * 1_000_000.0);
+
+        return CancellationSignal::fromCallable(
             function () use ($runtime, &$lastHeartbeat, $heartbeatInterval): bool {
                 if ($runtime->stopRequested()) {
                     return true;
@@ -56,41 +104,11 @@ final readonly class GrpcInboundWorker implements WorkerProvider
                 return $runtime->stopRequested();
             },
         );
-
-        while (!$cancellation->isRequested()) {
-            $served = $runtime->execute(
-                function (ExecutionId $_executionId) use ($source, $cancellation): bool {
-                    unset($_executionId);
-                    $dispatcher = $this->services->get(GrpcInboundDispatcher::class);
-                    if (!$dispatcher instanceof GrpcInboundDispatcher) {
-                        throw new \LogicException('Foundation inbound gRPC dispatcher binding is invalid.');
-                    }
-
-                    return $dispatcher->serveOne($source, $cancellation);
-                },
-                ['foundation.grpc.inbound.source_service' => $sourceService],
-            );
-
-            if ($served || $cancellation->isRequested()) {
-                continue;
-            }
-
-            $idleSleep = $this->idleSleepMilliseconds();
-            if ($idleSleep > 0) {
-                usleep($idleSleep * 1_000);
-            }
-        }
-
-        return 0;
     }
 
-    private static function monotonicNanoseconds(): int
-    {
-        $value = hrtime(true);
-
-        return is_int($value) ? $value : (int) ((float) $value * 1_000_000_000);
-    }
-
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function heartbeatIntervalMilliseconds(): int
     {
         $milliseconds = ValueNormalizer::int(
@@ -106,6 +124,9 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         return $milliseconds;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function idleSleepMilliseconds(): int
     {
         $milliseconds = ValueNormalizer::int(
@@ -121,6 +142,9 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         return $milliseconds;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function source(string $service): GrpcInboundSource
     {
         try {
@@ -142,6 +166,9 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         return $source;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function sourceService(): string
     {
         $service = $this->config->get('communication.grpc.inbound.source_service');

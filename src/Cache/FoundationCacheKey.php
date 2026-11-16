@@ -21,6 +21,10 @@ final class FoundationCacheKey
 
     private const int MAX_PREFIX_LENGTH = 20;
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public static function fingerprint(string $prefix, string $domain, string $logicalKey): string
     {
         return self::physical(
@@ -29,6 +33,10 @@ final class FoundationCacheKey
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public static function security(string $prefix, string $domain, string $logicalKey): string
     {
         $digest = hash('sha3-256', self::material($domain, $logicalKey), true);
@@ -37,6 +45,9 @@ final class FoundationCacheKey
         return self::physical($prefix, $encoded);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function material(string $domain, string $logicalKey): string
     {
         if ($domain === '') {
@@ -46,6 +57,10 @@ final class FoundationCacheKey
         return $domain . "\0" . $logicalKey;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private static function physical(string $prefix, string $encoded): string
     {
         if (

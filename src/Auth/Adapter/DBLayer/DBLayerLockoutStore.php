@@ -9,6 +9,13 @@ use Infocyph\Foundation\Auth\Contract\Storage\LockoutStoreInterface;
 
 final readonly class DBLayerLockoutStore extends ClockedDBLayerStore implements LockoutStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    #[\Override]
     public function isLocked(string $accountId): bool
     {
         $row = $this->first(
@@ -30,6 +37,14 @@ final readonly class DBLayerLockoutStore extends ClockedDBLayerStore implements 
         return true;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function lock(string $accountId, LockoutReason $reason, ?int $until = null): void
     {
         $this->upsertRecord('lockouts', 'account_id', [
@@ -39,6 +54,13 @@ final readonly class DBLayerLockoutStore extends ClockedDBLayerStore implements 
         ]);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function unlock(string $accountId): void
     {
         $this->deleteWhere('lockouts', 'account_id = ?', [$accountId]);

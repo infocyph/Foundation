@@ -41,7 +41,6 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptRefreshTokenSt
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAuthorizationStore;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthClientStore;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthConsentStore;
-use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthRefreshTokenStore;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptClockAdapter;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthAuthorizationClientStore;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthClientAuthenticationAdapter;
@@ -92,13 +91,18 @@ final class OAuth21FlowFixture
     public readonly ?AsymmetricSigningKeySet $openIdKeys;
     public readonly OAuthSigningKeySet $keys;
     public readonly RefreshTokenManager $refreshTokens;
-    public readonly DBLayerOAuthRefreshTokenStore $refreshStore;
     public readonly AuthorizationRequestValidator $requests;
     public readonly OAuthRevocationManager $revocation;
     public readonly OAuthResourceAccessTokenValidator $resourceValidator;
     public readonly OAuthScopeResolver $scopes;
     public readonly AuthTables $tables;
     public readonly OAuthTokenManager $tokens;
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
 
     public function __construct(
         public readonly int $now = 0,
@@ -112,11 +116,20 @@ final class OAuth21FlowFixture
         $psrClock = new EpicryptClockAdapter($this->clock);
 
         $this->accounts = new class implements AccountProviderInterface {
+            #[\Override]
             public function findById(string $id): ?AccountInterface
             {
                 return $id === 'account-1' ? new OAuth21FlowAccount($id) : null;
             }
 
+            /**
+             * @throws \Infocyph\Foundation\Exception\ConfigurationException
+             * @throws \InvalidArgumentException
+             * @throws \LogicException
+             * @throws \Psr\Container\ContainerExceptionInterface
+             * @throws \Psr\Container\NotFoundExceptionInterface
+             */
+            #[\Override]
             public function findByIdentifier(string $identifier): ?AccountInterface
             {
                 return $identifier === 'account@example.test' ? new OAuth21FlowAccount('account-1') : null;
@@ -152,10 +165,9 @@ final class OAuth21FlowFixture
             new AuthOAuthEpicryptProtocolSchema($this->tables),
         ])->run();
 
-        $clientStore = new DBLayerOAuthClientStore($this->factory, $this->tables);
-        $consentStore = new DBLayerOAuthConsentStore($this->factory, $this->tables);
-        $this->authorizationStore = new DBLayerOAuthAuthorizationStore($this->factory, $this->tables);
-        $this->refreshStore = new DBLayerOAuthRefreshTokenStore($this->factory, $this->tables);
+        $clientStore = new DBLayerOAuthClientStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
+        $consentStore = new DBLayerOAuthConsentStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
+        $this->authorizationStore = new DBLayerOAuthAuthorizationStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
 
         $this->clients = new OAuthClientManager(
             $clientStore,
@@ -170,11 +182,11 @@ final class OAuth21FlowFixture
         $authorizer = self::authorizer();
         $this->consents = new ConsentManager($consentStore, $authorizer, $this->clock);
 
-        $this->epicryptAuthorizations = new DBLayerEpicryptOAuthAuthorizationStore($this->factory, $this->tables);
-        $epicryptCodes = new DBLayerEpicryptAuthorizationCodeStore($this->factory, $this->tables);
-        $epicryptRefresh = new DBLayerEpicryptRefreshTokenStore($this->factory, $this->tables);
-        $status = new DBLayerEpicryptAccessTokenStatusStore($this->factory, $this->tables);
-        $replay = new DBLayerEpicryptJwtReplayStore($this->factory, $this->tables);
+        $this->epicryptAuthorizations = new DBLayerEpicryptOAuthAuthorizationStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
+        $epicryptCodes = new DBLayerEpicryptAuthorizationCodeStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
+        $epicryptRefresh = new DBLayerEpicryptRefreshTokenStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
+        $status = new DBLayerEpicryptAccessTokenStatusStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
+        $replay = new DBLayerEpicryptJwtReplayStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $this->factory]), $this->tables);
 
         $codeArtifact = new AuthorizationCodeArtifact(
             self::protectionKeys(KeyPurpose::OAUTH_AUTHORIZATION_CODE_PROTECTION, $issuer, 'code'),
@@ -320,6 +332,9 @@ final class OAuth21FlowFixture
         );
         $this->accessTokens = new OAuth21AccessTokenHarness($nativeAccess);
     }
+    /**
+     * @throws \InvalidArgumentException
+     */
 
     public function advance(int $seconds): void
     {
@@ -339,11 +354,13 @@ final class OAuth21FlowFixture
     private static function authorizer(): AuthorizerInterface
     {
         return new class implements AuthorizerInterface {
+            #[\Override]
             public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void
             {
                 unset($principal, $ability, $resource, $context);
             }
 
+            #[\Override]
             public function can(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): AuthorizationDecision
             {
                 unset($principal, $ability, $resource, $context);
@@ -360,6 +377,10 @@ final class OAuth21FlowFixture
         return new readonly class($state) implements ContainerInterface {
             public function __construct(private RuntimeExecutionState $state) {}
 
+            /**
+             * @throws \LogicException
+             */
+            #[\Override]
             public function get(string $id): mixed
             {
                 if ($id === RuntimeExecutionState::class) {
@@ -369,6 +390,7 @@ final class OAuth21FlowFixture
                 throw new \LogicException(sprintf('Fixture container has no service "%s".', $id));
             }
 
+            #[\Override]
             public function has(string $id): bool
             {
                 return $id === RuntimeExecutionState::class;
@@ -379,6 +401,7 @@ final class OAuth21FlowFixture
     private static function hasher(): PasswordHasherInterface
     {
         return new class implements PasswordHasherInterface {
+            #[\Override]
             public function hash(string $plainPassword, array $context = []): string
             {
                 unset($context);
@@ -405,6 +428,7 @@ final class OAuth21FlowFixture
     private static function verifier(): PasswordVerifierInterface
     {
         return new class implements PasswordVerifierInterface {
+            #[\Override]
             public function verify(string $plainPassword, string $storedHash): PasswordVerificationResult
             {
                 return new PasswordVerificationResult(password_verify($plainPassword, $storedHash));

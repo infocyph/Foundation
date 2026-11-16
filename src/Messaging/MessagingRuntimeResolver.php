@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Messaging;
 
-use Infocyph\InterMix\DI\Container;
-use Infocyph\InterMix\DI\ProductionContainer;
+use Infocyph\InterMix\DI\RuntimeContainerInterface;
 use Infocyph\Omnibus\Handler\HandlerMiddleware;
 use Psr\Container\ContainerInterface;
 
@@ -13,11 +12,18 @@ use Psr\Container\ContainerInterface;
  * Explicit dynamic island for application-configured messaging service IDs.
  * The provider graph itself remains generated; user-selected callables and
  * middleware resolve from the finalized runtime container inside execution.
+ *
+ * @api
  */
 final readonly class MessagingRuntimeResolver
 {
     public function __construct(private ContainerInterface $container) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function callable(mixed $definition): callable
     {
         if (is_callable($definition)) {
@@ -27,11 +33,7 @@ final readonly class MessagingRuntimeResolver
             throw new \InvalidArgumentException('Messaging definitions must be callables or service class names.');
         }
 
-        $service = match (true) {
-            $this->container instanceof Container,
-            $this->container instanceof ProductionContainer => $this->container->make($definition, false),
-            default => $this->container->get($definition),
-        };
+        $service = $this->resolveService($definition);
         if (!is_callable($service)) {
             throw new \InvalidArgumentException(sprintf('Messaging service "%s" is not callable.', $definition));
         }
@@ -39,7 +41,10 @@ final readonly class MessagingRuntimeResolver
         return $service;
     }
 
-    /** @return list<HandlerMiddleware> */
+    /**
+     * @return list<HandlerMiddleware>
+     * @throws \InvalidArgumentException
+     */
     public function handlerMiddleware(mixed $configured, mixed $configuredJobs): array
     {
         if (!is_array($configured)) {
@@ -70,7 +75,10 @@ final readonly class MessagingRuntimeResolver
         return $middleware;
     }
 
-    /** @return array<class-string, callable> */
+    /**
+     * @return array<class-string, callable>
+     * @throws \InvalidArgumentException
+     */
     public function handlers(mixed $configured): array
     {
         $handlers = [];
@@ -84,7 +92,10 @@ final readonly class MessagingRuntimeResolver
         return $handlers;
     }
 
-    /** @return list<JobMiddleware> */
+    /**
+     * @return list<JobMiddleware>
+     * @throws \InvalidArgumentException
+     */
     public function jobMiddleware(mixed $configured): array
     {
         if (!is_array($configured)) {
@@ -110,7 +121,10 @@ final readonly class MessagingRuntimeResolver
         return $middleware;
     }
 
-    /** @return array<class-string, list<callable>> */
+    /**
+     * @return array<class-string, list<callable>>
+     * @throws \InvalidArgumentException
+     */
     public function listeners(mixed $configured): array
     {
         $listeners = [];
@@ -129,7 +143,10 @@ final readonly class MessagingRuntimeResolver
         return $listeners;
     }
 
-    /** @return array<string, callable(): object> */
+    /**
+     * @return array<string, callable(): object>
+     * @throws \InvalidArgumentException
+     */
     public function scheduledMessages(mixed $configured): array
     {
         $messages = [];
@@ -150,6 +167,11 @@ final readonly class MessagingRuntimeResolver
         return $messages;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function service(mixed $definition): object
     {
         if (is_object($definition)) {
@@ -159,11 +181,7 @@ final readonly class MessagingRuntimeResolver
             throw new \InvalidArgumentException('Messaging service definitions must be objects or service class names.');
         }
 
-        $service = match (true) {
-            $this->container instanceof Container,
-            $this->container instanceof ProductionContainer => $this->container->make($definition, false),
-            default => $this->container->get($definition),
-        };
+        $service = $this->resolveService($definition);
         if (!is_object($service)) {
             throw new \InvalidArgumentException(sprintf('Messaging service "%s" did not resolve to an object.', $definition));
         }
@@ -175,5 +193,22 @@ final readonly class MessagingRuntimeResolver
     private function map(mixed $value): array
     {
         return is_array($value) ? $value : [];
+    }
+
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    private function resolveService(string $id): mixed
+    {
+        if ($this->container->has($id)) {
+            return $this->container->get($id);
+        }
+        if ($this->container instanceof RuntimeContainerInterface && class_exists($id)) {
+            return $this->container->make($id);
+        }
+
+        throw new \InvalidArgumentException(sprintf('Configured messaging service "%s" does not exist.', $id));
     }
 }

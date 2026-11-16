@@ -15,7 +15,10 @@ final class GeneratedRuntimeMetadata
 {
     private const int SCHEMA_VERSION = 2;
 
-    /** @param array<string,mixed> $metadata */
+    /**
+     * @param array<string,mixed> $metadata
+     * @throws \RuntimeException
+     */
     public static function assertMatches(
         array $metadata,
         NonWebGraphComposition $graph,
@@ -42,6 +45,8 @@ final class GeneratedRuntimeMetadata
      *
      * @param array<string,mixed> $metadata
      * @param array<int|string,mixed> $capabilities
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
     public static function assertPrevalidatedIdentity(
         array $metadata,
@@ -82,6 +87,7 @@ final class GeneratedRuntimeMetadata
      *   intermix_digest:string,
      *   compiled_count:int
      * }
+     * @throws \RuntimeException
      */
     public static function create(NonWebGraphComposition $graph, array $report): array
     {
@@ -107,8 +113,12 @@ final class GeneratedRuntimeMetadata
         return $artifactPath . '.foundation.json';
     }
 
-    /** @return array<string,mixed> */
-    public static function read(string $artifactPath): array
+    /**
+     * @return array<string,mixed>
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
+    public static function read(string $artifactPath, ?string $trustedSha256 = null): array
     {
         $path = self::path($artifactPath);
         if (!is_file($path) || !is_readable($path)) {
@@ -118,6 +128,9 @@ final class GeneratedRuntimeMetadata
         $contents = file_get_contents($path);
         if (!is_string($contents)) {
             throw new \RuntimeException(sprintf('Unable to read generated runtime metadata: "%s".', $path));
+        }
+        if ($trustedSha256 !== null && !hash_equals($trustedSha256, hash('sha256', $contents))) {
+            throw new \RuntimeException('Foundation generated-runtime metadata trust identity mismatch.');
         }
 
         try {
@@ -140,6 +153,10 @@ final class GeneratedRuntimeMetadata
         return $metadata;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public static function resolvePath(Application $application, string $path): string
     {
         if ($path === '') {
@@ -152,7 +169,10 @@ final class GeneratedRuntimeMetadata
         return $application->basePath($path);
     }
 
-    /** @param array<string,mixed> $metadata */
+    /**
+     * @param array<string,mixed> $metadata
+     * @throws \RuntimeException
+     */
     public static function write(string $artifactPath, array $metadata): string
     {
         $path = self::path($artifactPath);
@@ -208,6 +228,9 @@ final class GeneratedRuntimeMetadata
         return $value;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private static function configFingerprint(NonWebGraphComposition $graph): string
     {
         ConfigExportValidator::assertExportable($graph->context->config);

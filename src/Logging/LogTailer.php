@@ -4,9 +4,18 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Logging;
 
+/**
+ * Application-facing log reading and following utility.
+ *
+ * @api
+ */
 final readonly class LogTailer
 {
-    /** @param callable(string):void $consumer */
+    /**
+     * @param callable(string):void $consumer
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function follow(string $path, callable $consumer, int $sleepMicros = 250_000): void
     {
         if ($sleepMicros < 10_000 || $sleepMicros > 5_000_000) {
@@ -29,13 +38,15 @@ final readonly class LogTailer
                 usleep($sleepMicros);
             }
         } finally {
-            if (is_resource($stream)) {
-                fclose($stream);
-            }
+            fclose($stream);
         }
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function tail(string $path, int $lines = 100): array
     {
         if ($lines < 1 || $lines > 10_000) {
@@ -59,19 +70,7 @@ final readonly class LogTailer
                 return [];
             }
 
-            $buffer = '';
-            $chunkSize = 8192;
-            while ($position > 0 && substr_count($buffer, "\n") <= $lines) {
-                $read = min($chunkSize, $position);
-                $position -= $read;
-                fseek($stream, $position);
-                $chunk = fread($stream, $read);
-                if (!is_string($chunk)) {
-                    break;
-                }
-                $buffer = $chunk . $buffer;
-            }
-
+            $buffer = $this->readTailBuffer($stream, $position, $lines);
             $rows = preg_split('/\R/', rtrim($buffer, "\r\n"));
             if (!is_array($rows)) {
                 return [];
@@ -117,7 +116,10 @@ final readonly class LogTailer
             && ($streamInode !== $pathInode || $streamDevice !== $pathDevice);
     }
 
-    /** @return resource */
+    /**
+     * @return resource
+     * @throws \RuntimeException
+     */
     private function open(string $path)
     {
         $stream = fopen($path, 'rb');
@@ -128,9 +130,29 @@ final readonly class LogTailer
         return $stream;
     }
 
+    /** @param resource $stream */
+    private function readTailBuffer($stream, int $position, int $lines): string
+    {
+        $buffer = '';
+        $chunkSize = 8192;
+        while ($position > 0 && substr_count($buffer, "\n") <= $lines) {
+            $read = min($chunkSize, $position);
+            $position -= $read;
+            fseek($stream, $position);
+            $chunk = fread($stream, $read);
+            if (!is_string($chunk)) {
+                break;
+            }
+            $buffer = $chunk . $buffer;
+        }
+
+        return $buffer;
+    }
+
     /**
      * @param resource $stream
      * @return resource
+     * @throws \RuntimeException
      */
     private function refreshStream($stream, string $path)
     {
@@ -143,9 +165,11 @@ final readonly class LogTailer
         }
 
         if ($this->identityChanged($streamStat, $pathStat)) {
+            // Retain the current stream if the rotated replacement cannot be opened.
+            $replacement = $this->open($path);
             fclose($stream);
 
-            return $this->open($path);
+            return $replacement;
         }
 
         $size = $pathStat['size'] ?? null;

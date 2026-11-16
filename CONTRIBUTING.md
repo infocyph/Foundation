@@ -72,10 +72,43 @@ Automated processing may modify source files and `composer.json`. Review all res
 
 ## Validation
 
+Foundation's complete suite requires disposable MySQL, PostgreSQL, Redis,
+Valkey and Memcached backends, plus the matching PHP extensions. Git hooks
+run the same suite and inherit the current shell's connection settings.
+Starting containers alone does not export those settings into your shell.
+
+For the default PHPForge local test services, use:
+
+```bash
+export COMPOSE_PROJECT_NAME=foundation_qa
+composer ic:services:up --services='["mysql","postgres","redis","valkey","memcached"]'
+export IC_MYSQL_DSN='mysql:host=127.0.0.1;port=3306;dbname=phpforge;charset=utf8mb4'
+export IC_POSTGRES_DSN='pgsql:host=127.0.0.1;port=5432;dbname=phpforge'
+export IC_MYSQL_USER=phpforge IC_POSTGRES_USER=phpforge
+export IC_MYSQL_PASSWORD='Phpforge_123!' IC_POSTGRES_PASSWORD='Phpforge_123!'
+export IC_REDIS_HOST=127.0.0.1 IC_REDIS_PORT=6379 IC_REDIS_PASSWORD='Phpforge_123!'
+export IC_VALKEY_HOST=127.0.0.1 IC_VALKEY_PORT=6380 IC_VALKEY_PASSWORD='Phpforge_123!'
+export IC_MEMCACHED_HOST=127.0.0.1 IC_MEMCACHED_PORT=11211
+```
+
+These are disposable test credentials. If your test backends use different
+ports or credentials, supply their actual settings. The `redis` PHP extension
+serves both Redis and Valkey. Install `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`
+and `memcached` in the CLI PHP used by Composer as well. Never point
+this suite at production data. Missing connections are prerequisite failures;
+keep the integration assertions enabled.
+
 Run the complete project validation suite before opening a pull request:
 
 ```bash
 composer ic:ci
+```
+
+Use the same configured shell for `git commit`. To remove only the disposable
+Compose project selected above after testing:
+
+```bash
+composer ic:services:down --services='["mysql","postgres","redis","valkey","memcached"]'
 ```
 
 When `composer ic:ci` passes, running the same checks individually is unnecessary.

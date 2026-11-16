@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Authorization\Grant;
 
+/**
+ * Public authorization delegation result.
+ *
+ * @api
+ */
 final readonly class DelegationResult
 {
     /**

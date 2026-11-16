@@ -13,6 +13,7 @@ final readonly class AuthMfaRevisionSchema implements Migration
 {
     public function __construct(private AuthTables $tables) {}
 
+    #[\Override]
     public function down(SchemaManager $schema, MigrationContext $context): void
     {
         $table = $this->tables->mfaFactors();
@@ -24,11 +25,13 @@ final readonly class AuthMfaRevisionSchema implements Migration
         $context->checkpoint();
     }
 
+    #[\Override]
     public function id(): string
     {
         return '20260822000000_foundation_auth_mfa_revision';
     }
 
+    #[\Override]
     public function up(SchemaManager $schema, MigrationContext $context): void
     {
         $table = $this->tables->mfaFactors();

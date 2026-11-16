@@ -23,6 +23,7 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\{
     DBLayerSessionStore
 };
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\MfaSecretProtector;
+use Infocyph\Foundation\Auth\Audit\AuthEvent;
 use Infocyph\Foundation\Auth\Authorization\Grant\GrantStoreInterface;
 use Infocyph\Foundation\Auth\Authorization\Permission\{PermissionAssignmentStoreInterface, PermissionStoreInterface};
 use Infocyph\Foundation\Auth\Authorization\Role\{RoleAssignmentStoreInterface, RoleStoreInterface};
@@ -48,6 +49,7 @@ use Infocyph\Foundation\Auth\Passkey\{
     PasskeyCredentialStoreInterface
 };
 use Infocyph\Foundation\Auth\Support\{
+    ForwardingAuditEventStore,
     InMemoryAccountStore,
     InMemoryAuditEventStore,
     InMemoryDeviceStore,
@@ -65,17 +67,32 @@ use Infocyph\Foundation\Auth\Support\{
 };
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
-use Infocyph\Foundation\Database\DBLayerFactory;
+use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
 final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
 {
     private const string AUDIT_STORAGE = 'foundation.auth.audit.storage';
 
+    public static function forwardingAuditStore(
+        AuditEventStoreInterface $storage,
+        EventDispatcherInterface $dispatcher,
+    ): AuditEventStoreInterface {
+        return new ForwardingAuditEventStore(
+            $storage,
+            static function (AuthEvent $event) use ($dispatcher): void {
+                $dispatcher->dispatch($event);
+            },
+        );
+    }
+
+    /**
+     * @throws \LogicException
+     */
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->storage() === AuthStorageDriver::DATABASE) {
-            $this->requirePackage(Connection::class, 'infocyph/dblayer', 'db');
+            $this->requirePackage(Connection::class, 'infocyph/dblayer', 'data.database');
             $this->registerDBLayerStores($drivers->mfa() === AuthMfaDriver::OTP);
 
             return;
@@ -85,7 +102,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
 
     private function authConnection(): ?string
     {
-        $default = $this->app->config()->get('database.default');
+        $default = $this->config->get('database.default');
 
         return is_string($default) && $default !== '' ? $default : null;
     }
@@ -94,23 +111,26 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
     private function bindClockedDbStore(string $id, string $storeClass, ?string $connection): void
     {
         $this->recipe($id, $storeClass, [
-            $this->ref(DBLayerFactory::class),
+            $this->ref(ContainerInterface::class),
             $this->ref(AuthTables::class),
             $this->ref(ClockInterface::class),
             $connection,
         ]);
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function bindMfaDbStore(?string $connection, bool $protectSecrets): void
     {
         $arguments = [
-            $this->ref(DBLayerFactory::class),
+            $this->ref(ContainerInterface::class),
             $this->ref(AuthTables::class),
             $connection,
         ];
 
         if ($protectSecrets) {
-            $this->requirePackage(StringProtector::class, 'infocyph/epicrypt', 'crypto');
+            $this->requirePackage(StringProtector::class, 'infocyph/epicrypt', 'security.crypto');
             $this->staticRecipe(
                 MfaSecretProtector::class,
                 AuthMfaGraphFactory::class,
@@ -131,7 +151,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
     private function bindPlainDbStore(string $id, string $storeClass, ?string $connection): void
     {
         $this->recipe($id, $storeClass, [
-            $this->ref(DBLayerFactory::class),
+            $this->ref(ContainerInterface::class),
             $this->ref(AuthTables::class),
             $connection,
         ]);
@@ -192,6 +212,9 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         ];
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function registerDBLayerStores(bool $protectMfaSecrets): void
     {
         $connection = $this->authConnection();
@@ -224,7 +247,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         if ($this->boolConfig('messaging.forward_auth_events', false)) {
             $this->staticRecipe(
                 AuditEventStoreInterface::class,
-                AuthStoreGraphFactory::class,
+                self::class,
                 'forwardingAuditStore',
                 [
                     $this->ref(self::AUDIT_STORAGE),

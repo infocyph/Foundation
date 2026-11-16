@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Command;
 
+/**
+ * Public command-line shell completion generator.
+ *
+ * @api
+ */
 final readonly class CompletionGenerator
 {
     public function __construct(private CommandRegistry $registry) {}
@@ -116,17 +121,7 @@ BASH,
         $map = [];
         foreach ($this->registry->visible() as $descriptor) {
             $definition = $descriptor->definition;
-            $options = ['--help', '-h', '--quiet', '-q', '--no-interaction', '-n', '--json', '--env='];
-            foreach ($definition->options() as $option) {
-                $options[] = '--' . $option['name'] . ($option['accepts_value'] ? '=' : '');
-                if ($option['negatable']) {
-                    $options[] = '--no-' . $option['name'];
-                }
-                if ($option['short'] !== null) {
-                    $options[] = '-' . $option['short'];
-                }
-            }
-            $map[$definition->commandName()] = array_values(array_unique($options));
+            $map[$definition->commandName()] = $this->optionsForCommand($definition);
             foreach ($definition->aliases() as $alias) {
                 $map[$alias] = $map[$definition->commandName()];
             }
@@ -135,8 +130,26 @@ BASH,
         return $map;
     }
 
+    /** @return list<string> */
+    private function optionsForCommand(CommandDefinition $definition): array
+    {
+        $options = ['--help', '-h', '--quiet', '-q', '--no-interaction', '-n', '--json', '--env='];
+        foreach ($definition->options() as $option) {
+            $options[] = '--' . $option['name'] . ($option['accepts_value'] ? '=' : '');
+            if ($option['negatable']) {
+                $options[] = '--no-' . $option['name'];
+            }
+            if ($option['short'] !== null) {
+                $options[] = '-' . $option['short'];
+            }
+        }
+
+        return array_values(array_unique($options));
+    }
+
     private function zsh(string $executable): string
     {
+        $function = preg_replace('/[^A-Za-z0-9_]/', '_', basename($executable)) ?? 'infbyte';
         $commands = [];
         foreach ($this->registry->visible() as $descriptor) {
             $definition = $descriptor->definition;
@@ -171,10 +184,10 @@ _%s() {
 compdef _%s %s
 ZSH,
             $executable,
-            preg_replace('/[^A-Za-z0-9_]/', '_', basename($executable)),
+            $function,
             implode(PHP_EOL, array_map(static fn(string $line): string => '        ' . $line, $commands)),
             $this->zshCases(),
-            preg_replace('/[^A-Za-z0-9_]/', '_', basename($executable)),
+            $function,
             $executable,
         );
     }

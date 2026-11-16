@@ -40,28 +40,7 @@ final readonly class RuntimeCoreValidator
     /** @return list<ConfigIssue> */
     public function notifications(): array
     {
-        $issues = [];
-        $channels = $this->config->get('notifications.channels', []);
-        if (!is_array($channels)) {
-            $issues[] = new ConfigIssue(
-                'notifications.channels must be a channel service map.',
-                'notifications.channels',
-            );
-        } else {
-            foreach ($channels as $name => $definition) {
-                if (!is_string($name)
-                    || trim($name) === ''
-                    || ((!is_string($definition) || trim($definition) === '') && !is_object($definition))
-                ) {
-                    $issues[] = new ConfigIssue(
-                        'notifications.channels must map non-empty names to service class names or channel instances.',
-                        'notifications.channels',
-                    );
-
-                    break;
-                }
-            }
-        }
+        $issues = $this->notificationChannelIssues($this->config->get('notifications.channels', []));
 
         $sender = $this->config->get('notifications.email.default_sender', 'default');
         if (!is_string($sender) || trim($sender) === '') {
@@ -132,5 +111,30 @@ final readonly class RuntimeCoreValidator
                 sprintf('%s must be one of: %s.', $key, implode(', ', $allowed)),
                 $key,
             )];
+    }
+
+    /** @return list<ConfigIssue> */
+    private function notificationChannelIssues(mixed $channels): array
+    {
+        if (!is_array($channels)) {
+            return [new ConfigIssue(
+                'notifications.channels must be a channel service map.',
+                'notifications.channels',
+            )];
+        }
+
+        foreach ($channels as $name => $definition) {
+            if (!is_string($name)
+                || trim($name) === ''
+                || ((!is_string($definition) || trim($definition) === '') && !is_object($definition))
+            ) {
+                return [new ConfigIssue(
+                    'notifications.channels must map non-empty names to service class names or channel instances.',
+                    'notifications.channels',
+                )];
+            }
+        }
+
+        return [];
     }
 }

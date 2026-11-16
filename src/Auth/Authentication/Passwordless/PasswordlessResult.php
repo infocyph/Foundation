@@ -25,6 +25,7 @@ final readonly class PasswordlessResult
     /**
      * @return list<\UnitEnum>
      */
+    #[\Override]
     protected function successfulStatuses(): array
     {
         return [PasswordlessStatus::ISSUED, PasswordlessStatus::VERIFIED];

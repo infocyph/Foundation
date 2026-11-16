@@ -10,14 +10,20 @@ use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
+/**
+ * Built-in application service provider selected through Foundation composition.
+ *
+ * @api
+ */
 final class JsonDispatchServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $responses = is_array($context->config['responses'] ?? null) ? $context->config['responses'] : [];
         $json = is_array($responses['json_dispatch'] ?? null) ? $responses['json_dispatch'] : [];
 
-        $builder->singleton(
+        $builder->factory(
             JsonDispatchResponseFactory::class,
             FactoryDefinition::construct(JsonDispatchResponseFactory::class, [
                 ValueNormalizer::string($json['vendor'] ?? null, 'infocyph'),

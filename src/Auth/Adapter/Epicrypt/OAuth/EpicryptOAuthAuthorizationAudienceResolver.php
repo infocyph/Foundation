@@ -17,6 +17,7 @@ final readonly class EpicryptOAuthAuthorizationAudienceResolver implements OAuth
         private array $parameters,
     ) {}
 
+    #[\Override]
     public function resolve(OAuthClient $client, array $scopes): array
     {
         unset($scopes);

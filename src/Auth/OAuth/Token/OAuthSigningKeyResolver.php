@@ -23,16 +23,20 @@ final readonly class OAuthSigningKeyResolver
         private ?OAuthAuditRecorder $audit = null,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Throwable
+     */
     public function resolve(): OAuthSigningKeySet
     {
         try {
             $resolved = $this->resolveConfigured();
-        } catch (SigningKeyReadinessException $exception) {
-            $this->recordReadiness(['result' => 'failure'], AuthEventSeverity::CRITICAL);
-
-            throw new ConfigurationException('OAuth signing key material is not ready.', 0, $exception);
         } catch (\Throwable $exception) {
             $this->recordReadiness(['result' => 'failure'], AuthEventSeverity::CRITICAL);
+
+            if ($exception instanceof SigningKeyReadinessException) {
+                throw new ConfigurationException('OAuth signing key material is not ready.', 0, $exception);
+            }
 
             throw $exception;
         }
@@ -51,6 +55,9 @@ final readonly class OAuthSigningKeyResolver
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function algorithm(): AsymmetricJwtAlgorithm
     {
         $configured = $this->config->get('auth.oauth.signing.algorithm', 'RS256');
@@ -77,7 +84,10 @@ final readonly class OAuthSigningKeyResolver
         return is_int($value) && $value > 0 ? $value : null;
     }
 
-    /** @return list<KeyRingEntry> */
+    /**
+     * @return list<KeyRingEntry>
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function publicKeyEntries(
         string $issuer,
         string $activeKeyId,
@@ -125,6 +135,9 @@ final readonly class OAuthSigningKeyResolver
         return $entries;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function readKey(mixed $locator): string
     {
         if (!is_string($locator) || trim($locator) === '') {
@@ -165,6 +178,9 @@ final readonly class OAuthSigningKeyResolver
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function requiredKeyId(string $key): string
     {
         $value = $this->requiredString($key);
@@ -175,6 +191,9 @@ final readonly class OAuthSigningKeyResolver
         return $value;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function requiredString(string $key): string
     {
         $value = $this->config->get($key);
@@ -185,6 +204,9 @@ final readonly class OAuthSigningKeyResolver
         return trim($value);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function resolveConfigured(): OAuthSigningKeySet
     {
         $issuer = $this->requiredString('auth.oauth.issuer');

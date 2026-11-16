@@ -13,7 +13,6 @@ use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\LockoutReason;
 use Infocyph\Foundation\Auth\Contract\Storage\LockoutStoreInterface;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
-use Infocyph\Foundation\Auth\Support\ContextValue;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
 final readonly class LockoutManager
@@ -105,8 +104,6 @@ final readonly class LockoutManager
             $accountId,
             metadata: $metadata,
             severity: $severity,
-            sessionId: ContextValue::stringOrNull($metadata, 'session_id'),
-            deviceId: ContextValue::stringOrNull($metadata, 'device_id'),
         );
     }
 

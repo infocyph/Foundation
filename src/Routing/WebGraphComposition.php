@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Routing;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\ServiceRegistry;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\ContainerBuilder;
 
@@ -16,5 +17,6 @@ final readonly class WebGraphComposition
         public Application $application,
         public FoundationBuildContext $context,
         public ConfigRepository $config,
+        public ServiceRegistry $providers,
     ) {}
 }

@@ -28,10 +28,32 @@ final readonly class AuthorizationRequestValidator
         private ConfigRepository $config,
     ) {}
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
+    public function evaluate(array $parameters): AuthorizationProtocolResult
+    {
+        return $this->protocolResult($parameters);
+    }
+
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function redirectContext(array $parameters): AuthorizationRedirectContext
     {
-        $result = $this->protocolResult($parameters);
+        return $this->redirectContextFor($parameters, $this->protocolResult($parameters));
+    }
+
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
+    public function redirectContextFor(
+        array $parameters,
+        AuthorizationProtocolResult $result,
+    ): AuthorizationRedirectContext {
         if ($result->request !== null) {
             return $this->redirectFromAccepted($result);
         }
@@ -54,10 +76,20 @@ final readonly class AuthorizationRequestValidator
         );
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function validate(array $parameters): AuthorizationRequest
     {
-        $result = $this->protocolResult($parameters);
+        return $this->validateResult($this->protocolResult($parameters));
+    }
+
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
+    public function validateResult(AuthorizationProtocolResult $result): AuthorizationRequest
+    {
         if ($result->request === null) {
             throw $this->protocolException($result->error);
         }
@@ -89,7 +121,7 @@ final readonly class AuthorizationRequestValidator
                 ? []
                 : array_map(static fn($prompt): string => $prompt->value, $openId->prompts),
             openIdMaximumAuthenticationAge: $openId?->maximumAuthenticationAge,
-            openIdAcrValues: $openId === null ? [] : $openId->acrValues,
+            openIdAcrValues: $openId->acrValues ?? [],
             openIdProtocol: $openId,
         );
     }
@@ -102,6 +134,7 @@ final readonly class AuthorizationRequestValidator
     /**
      * @param array<string, mixed> $parameters
      * @return array<string, string|list<string>>
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
      */
     private function protocolParameters(array $parameters): array
     {
@@ -126,7 +159,10 @@ final readonly class AuthorizationRequestValidator
         return $normalized;
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function protocolResult(array $parameters): AuthorizationProtocolResult
     {
         $protocolParameters = $this->protocolParameters($parameters);
@@ -161,6 +197,9 @@ final readonly class AuthorizationRequestValidator
         return new AuthorizationProtocolResult($result->request, null, $result->error);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     private function redirectFromAccepted(AuthorizationProtocolResult $result): AuthorizationRedirectContext
     {
         $request = $result->request

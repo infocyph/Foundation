@@ -22,8 +22,8 @@ return [
     |
     | Database-backed sessions use the built-in session schema. Module installation
     | synchronizes it when SESSION_DRIVER=database; prepare it explicitly with
-    | `module:schema:install session` or inspect it with
-    | `module:schema:status session`.
+    | `SessionDatabaseSchema::install()` in a CLI execution; inspect it with
+    | `SessionDatabaseSchema::readiness()`.
     |
     | "lifetime" is the idle lifetime in seconds and must be a positive
     | integer; examples: `7200` (two hours) or `1209600` (fourteen days).

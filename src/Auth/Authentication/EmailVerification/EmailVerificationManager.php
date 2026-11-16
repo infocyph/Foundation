@@ -10,13 +10,13 @@ use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
 use Infocyph\Foundation\Auth\Contract\Security\TokenVerificationResult;
+use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\EmailVerificationStoreInterface;
 use Infocyph\Foundation\Auth\Notification\AuthNotification;
 use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
-use Infocyph\Foundation\Auth\Support\ContextValue;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
 final readonly class EmailVerificationManager
@@ -27,6 +27,7 @@ final readonly class EmailVerificationManager
         private EmailVerificationTokenServiceInterface $tokens,
         private EmailVerificationStoreInterface $store,
         private AccountStoreInterface $accounts,
+        private AccountProviderInterface $accountProvider,
         private AuthNotifierInterface $notifier,
         private AuditEventStoreInterface $audit,
         private AuthIdGeneratorInterface $ids,
@@ -39,6 +40,10 @@ final readonly class EmailVerificationManager
      */
     public function issue(string $accountId, string $email, array $context = []): EmailVerificationResult
     {
+        if (!$this->trustedDestination($accountId, $email)) {
+            return $this->invalidVerificationResult('email_destination_untrusted', $context);
+        }
+
         $now = $this->clock->now();
         $requestId = $this->ids->challengeId();
         $request = new EmailVerificationRequest($requestId, $accountId, $email, $now, $now + $this->ttlSeconds, context: $context);
@@ -54,6 +59,7 @@ final readonly class EmailVerificationManager
 
     /**
      * @param array<string, mixed> $context
+     * @throws \RuntimeException
      */
     public function verify(string $token, array $context = []): EmailVerificationResult
     {
@@ -70,6 +76,12 @@ final readonly class EmailVerificationManager
             return $this->missingVerificationResult($context);
         }
 
+        if ($verification->subjectId !== $request->accountId
+            || ($verification->claims['email'] ?? null) !== $request->email
+        ) {
+            return $this->invalidVerificationResult('verification_request_mismatch', $context);
+        }
+
         if ($request->isConsumed()) {
             return $this->consumedVerificationResult($request, $context);
         }
@@ -78,16 +90,39 @@ final readonly class EmailVerificationManager
             return $this->expiredVerificationResult($request, $context);
         }
 
+        if (!$this->trustedDestination($request->accountId, $request->email)) {
+            return $this->invalidVerificationResult('email_destination_untrusted', $context);
+        }
+
         return $this->completeVerification($request, $context);
     }
 
     /**
      * @param array<string, mixed> $context
+     * @throws \RuntimeException
      */
     private function completeVerification(EmailVerificationRequest $request, array $context): EmailVerificationResult
     {
-        $this->store->consume($request->id);
-        $this->accounts->markVerified($request->accountId, $this->clock->now());
+        // An address change between the read and write must rollback the
+        // one-time token consumption together with the account mutation.
+        $destinationChanged = new EmailDestinationChanged('Verification destination changed before account mutation.');
+
+        try {
+            $consumed = $this->store->consumeAndApply(
+                $request->id,
+                function () use ($request, $destinationChanged): void {
+                    if (!$this->accounts->markVerifiedForEmail($request->accountId, $request->email, $this->clock->now())) {
+                        throw $destinationChanged;
+                    }
+                },
+            );
+        } catch (EmailDestinationChanged) {
+            return $this->invalidVerificationResult('email_destination_untrusted', $context);
+        }
+
+        if (!$consumed) {
+            return $this->consumedVerificationResult($request, $context);
+        }
         $this->recordEvent(
             AuthEventType::EMAIL_VERIFIED,
             $request->accountId,
@@ -150,8 +185,6 @@ final readonly class EmailVerificationManager
             $accountId,
             metadata: $metadata + $context,
             severity: $severity,
-            sessionId: ContextValue::stringOrNull($context, 'session_id'),
-            deviceId: ContextValue::stringOrNull($context, 'device_id'),
         );
     }
 
@@ -164,5 +197,22 @@ final readonly class EmailVerificationManager
         }
 
         return $this->store->find($requestId);
+    }
+
+    private function trustedDestination(string $accountId, string $email): bool
+    {
+        $account = $this->accountProvider->findById($accountId);
+        if ($account === null) {
+            return false;
+        }
+
+        $identifier = $account->identifier();
+        $stored = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false
+            ? $identifier
+            : ($account->metadata()['email'] ?? null);
+
+        return is_string($stored)
+            && filter_var($stored, FILTER_VALIDATE_EMAIL) !== false
+            && strcasecmp($stored, $email) === 0;
     }
 }

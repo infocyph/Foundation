@@ -46,7 +46,13 @@ it('uses ordinary account semantics for OAuth bearer principals across existing 
     $responses = new AuthResponseFactory();
     $exceptions = new AuthExceptionMapper($responses);
     $accounts = new class implements AccountProviderInterface {
-        public function findById(string $id): ?AccountInterface { return oauth21CompatibilityAccount($id); }
+        #[\Override]
+        public function findById(string $id): AccountInterface
+        {
+            return oauth21CompatibilityAccount($id);
+        }
+
+        #[\Override]
         public function findByIdentifier(string $identifier): ?AccountInterface
         {
             unset($identifier);
@@ -56,11 +62,15 @@ it('uses ordinary account semantics for OAuth bearer principals across existing 
     };
     $authorizer = new class implements AuthorizerInterface {
         public ?PrincipalInterface $seen = null;
+
+        #[\Override]
         public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void
         {
             unset($ability, $resource, $context);
             $this->seen = $principal;
         }
+
+        #[\Override]
         public function can(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): AuthorizationDecision
         {
             unset($ability, $resource, $context);
@@ -71,6 +81,7 @@ it('uses ordinary account semantics for OAuth bearer principals across existing 
     };
     $roles = new RoleManager(
         new class implements RoleStoreInterface {
+            #[\Override]
             public function rolesForAccount(string $accountId): array
             {
                 unset($accountId);
@@ -79,9 +90,23 @@ it('uses ordinary account semantics for OAuth bearer principals across existing 
             }
         },
         new class implements RoleAssignmentStoreInterface {
-            public function assignRole(string $accountId, string $roleId): void { unset($accountId, $roleId); }
-            public function revokeRole(string $accountId, string $roleId): void { unset($accountId, $roleId); }
-            public function save(Role $role): void { unset($role); }
+            #[\Override]
+            public function assignRole(string $accountId, string $roleId): void
+            {
+                unset($accountId, $roleId);
+            }
+
+            #[\Override]
+            public function revokeRole(string $accountId, string $roleId): void
+            {
+                unset($accountId, $roleId);
+            }
+
+            #[\Override]
+            public function save(Role $role): void
+            {
+                unset($role);
+            }
         },
         oauth21CompatibilityIds(),
     );
@@ -138,7 +163,13 @@ it('keeps account-only middleware account-only for OAuth service principals', fu
     ));
     $responses = new AuthResponseFactory();
     $accounts = new class implements AccountProviderInterface {
-        public function findById(string $id): ?AccountInterface { return oauth21CompatibilityAccount($id); }
+        #[\Override]
+        public function findById(string $id): AccountInterface
+        {
+            return oauth21CompatibilityAccount($id);
+        }
+
+        #[\Override]
         public function findByIdentifier(string $identifier): ?AccountInterface
         {
             unset($identifier);
@@ -148,6 +179,7 @@ it('keeps account-only middleware account-only for OAuth service principals', fu
     };
     $roles = new RoleManager(
         new class implements RoleStoreInterface {
+            #[\Override]
             public function rolesForAccount(string $accountId): array
             {
                 unset($accountId);
@@ -156,9 +188,23 @@ it('keeps account-only middleware account-only for OAuth service principals', fu
             }
         },
         new class implements RoleAssignmentStoreInterface {
-            public function assignRole(string $accountId, string $roleId): void { unset($accountId, $roleId); }
-            public function revokeRole(string $accountId, string $roleId): void { unset($accountId, $roleId); }
-            public function save(Role $role): void { unset($role); }
+            #[\Override]
+            public function assignRole(string $accountId, string $roleId): void
+            {
+                unset($accountId, $roleId);
+            }
+
+            #[\Override]
+            public function revokeRole(string $accountId, string $roleId): void
+            {
+                unset($accountId, $roleId);
+            }
+
+            #[\Override]
+            public function save(Role $role): void
+            {
+                unset($role);
+            }
         },
         oauth21CompatibilityIds(),
     );
@@ -176,28 +222,102 @@ it('keeps account-only middleware account-only for OAuth service principals', fu
 
 function oauth21CompatibilityAccount(string $id): AccountInterface
 {
-    return new readonly class($id) implements AccountInterface {
+    return new readonly class ($id) implements AccountInterface {
         public function __construct(private string $id) {}
-        public function id(): string { return $this->id; }
-        public function identifier(): string { return $this->id . '@example.test'; }
-        public function metadata(): array { return []; }
-        public function passwordHash(): ?string { return null; }
-        public function status(): AccountStatus { return AccountStatus::ACTIVE; }
+
+        #[\Override]
+        public function id(): string
+        {
+            return $this->id;
+        }
+
+        #[\Override]
+        public function identifier(): string
+        {
+            return $this->id . '@example.test';
+        }
+
+        #[\Override]
+        public function metadata(): array
+        {
+            return [];
+        }
+
+        #[\Override]
+        public function passwordHash(): ?string
+        {
+            return null;
+        }
+
+        #[\Override]
+        public function status(): AccountStatus
+        {
+            return AccountStatus::ACTIVE;
+        }
     };
 }
 
 function oauth21CompatibilityIds(): AuthIdGeneratorInterface
 {
     return new class implements AuthIdGeneratorInterface {
-        public function accountId(): string { return 'account-id'; }
-        public function auditEventId(): string { return 'audit-id'; }
-        public function challengeId(): string { return 'challenge-id'; }
-        public function correlationId(): string { return 'correlation-id'; }
-        public function credentialId(): string { return 'credential-id'; }
-        public function deviceId(): string { return 'device-id'; }
-        public function grantId(): string { return 'grant-id'; }
-        public function permissionId(): string { return 'permission-id'; }
-        public function roleId(): string { return 'role-id'; }
-        public function sessionId(): string { return 'session-id'; }
+        #[\Override]
+        public function accountId(): string
+        {
+            return 'account-id';
+        }
+
+        #[\Override]
+        public function auditEventId(): string
+        {
+            return 'audit-id';
+        }
+
+        #[\Override]
+        public function challengeId(): string
+        {
+            return 'challenge-id';
+        }
+
+        #[\Override]
+        public function correlationId(): string
+        {
+            return 'correlation-id';
+        }
+
+        #[\Override]
+        public function credentialId(): string
+        {
+            return 'credential-id';
+        }
+
+        #[\Override]
+        public function deviceId(): string
+        {
+            return 'device-id';
+        }
+
+        #[\Override]
+        public function grantId(): string
+        {
+            return 'grant-id';
+        }
+
+        #[\Override]
+        public function permissionId(): string
+        {
+            return 'permission-id';
+        }
+
+        #[\Override]
+        public function roleId(): string
+        {
+            return 'role-id';
+        }
+
+        #[\Override]
+        public function sessionId(): string
+        {
+            return 'session-id';
+        }
     };
 }

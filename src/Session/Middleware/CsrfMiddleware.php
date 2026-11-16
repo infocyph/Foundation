@@ -23,6 +23,8 @@ final readonly class CsrfMiddleware
 
     /**
      * @param callable(Request): Response $next
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function __invoke(Request $request, callable $next): Response
     {

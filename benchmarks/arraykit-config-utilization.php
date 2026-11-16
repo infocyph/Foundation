@@ -80,7 +80,7 @@ try {
     $workloads = [
         arrayKitBenchmarkMeasure('source-config-composition', 250, static function () use ($sourceInput): void {
             $config = (new ConfigLoader())->load($sourceInput)->all();
-            if (($config['app']['name'] ?? null) !== 'benchmark') {
+            if (!is_array($config['app'] ?? null) || ($config['app']['name'] ?? null) !== 'benchmark') {
                 throw new RuntimeException('Unexpected source configuration result.');
             }
         }),
@@ -109,7 +109,7 @@ try {
                 overrides: [],
                 namespaces: ['app', 'cache'],
             )->all();
-            if (($config['cache']['default'] ?? null) !== 'local') {
+            if (!is_array($config['cache'] ?? null) || ($config['cache']['default'] ?? null) !== 'local') {
                 throw new RuntimeException('Unexpected materialized configuration result.');
             }
         }),
@@ -218,10 +218,10 @@ function arrayKitBenchmarkMeasure(string $name, int $iterations, Closure $operat
     }
 
     $durationNanoseconds = max(1, hrtime(true) - $started);
-    $durationSeconds = $durationNanoseconds / 1_000_000_000;
+    $durationSeconds = (float) $durationNanoseconds / 1_000_000_000.0;
     $attempted = $successful + $failed;
     $averageLatencyMilliseconds = $attempted > 0
-        ? $durationNanoseconds / $attempted / 1_000_000
+        ? (float) $durationNanoseconds / (float) $attempted / 1_000_000.0
         : 0.0;
 
     return [
@@ -240,7 +240,7 @@ function arrayKitBenchmarkMeasure(string $name, int $iterations, Closure $operat
             'successful_operations' => $successful,
             'failed_operations' => $failed,
             'timeouts' => 0,
-            'successful_rpm' => $durationSeconds > 0.0 ? $successful * 60 / $durationSeconds : 0.0,
+            'successful_rpm' => $durationSeconds > 0.0 ? (float) $successful * 60.0 / $durationSeconds : 0.0,
             'error_rate' => $attempted > 0 ? $failed / $attempted : 0.0,
             'latency_ms' => [
                 'minimum' => null,
@@ -286,9 +286,9 @@ function arrayKitBenchmarkRuntimeEnvironment(string $arrayKitVersion): array
         'php_sapi' => PHP_SAPI,
         'operating_system' => php_uname(),
         'cpu_model' => $cpuModel,
-        'memory_limit' => ini_get('memory_limit') ?: 'unknown',
+        'memory_limit' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::iniValue('memory_limit', 'unknown'),
         'opcache' => extension_loaded('Zend OPcache'),
-        'jit' => ini_get('opcache.jit') ?: false,
+        'jit' => (($__foundation154_291 = ini_get('opcache.jit')) !== false && $__foundation154_291 !== '' && $__foundation154_291 !== '0' ? $__foundation154_291 : false),
         'xdebug' => extension_loaded('xdebug'),
         'extensions' => $extensions,
         'runner' => $runner,
@@ -314,15 +314,25 @@ function arrayKitBenchmarkEnvironmentSnapshot(string $key): array
     ];
 }
 
+/** @throws \InvalidArgumentException */
 function arrayKitBenchmarkEnvironmentUnset(string $key): void
 {
+    if ($key === '') {
+        throw new \InvalidArgumentException('Environment keys must not be empty.');
+    }
     unset($_ENV[$key], $_SERVER[$key]);
     putenv($key);
 }
 
-/** @param array{env_exists:bool,env:mixed,server_exists:bool,server:mixed,process:string|false} $snapshot */
+/**
+ * @param array{env_exists:bool,env:mixed,server_exists:bool,server:mixed,process:string|false} $snapshot
+ * @throws \InvalidArgumentException
+ */
 function arrayKitBenchmarkEnvironmentRestore(string $key, array $snapshot): void
 {
+    if ($key === '') {
+        throw new \InvalidArgumentException('Environment keys must not be empty.');
+    }
     if ($snapshot['env_exists']) {
         $_ENV[$key] = $snapshot['env'];
     } else {

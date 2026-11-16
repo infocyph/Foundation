@@ -15,6 +15,12 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerStore;
 
 final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore implements RefreshTokenStoreInterface
 {
+    private const int ROTATION_TRANSACTION_ATTEMPTS = 3;
+
+    /**
+     * @throws \Throwable
+     */
+    #[\Override]
     public function create(#[\SensitiveParameter] RefreshTokenRecord $record): bool
     {
         try {
@@ -30,6 +36,14 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function inspect(#[\SensitiveParameter] RefreshTokenRecord $record, int $now): RefreshTokenInspectionStatus
     {
         $row = $this->findRow($this->connection(), $record->tokenId);
@@ -53,6 +67,13 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         return RefreshTokenInspectionStatus::ACTIVE;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function revokeAuthorization(string $authorizationId, int $revokedAt): int
     {
         $connection = $this->connection();
@@ -78,6 +99,13 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         return count($families);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function revokeFamily(string $tokenId, int $revokedAt): bool
     {
         $row = $this->findRow($this->connection(), $tokenId);
@@ -96,6 +124,13 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         return true;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
+    #[\Override]
     public function rotate(
         #[\SensitiveParameter]
         RefreshTokenRecord $current,
@@ -114,6 +149,7 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
                 $dpopKeyThumbprint,
                 $now,
             ),
+            self::ROTATION_TRANSACTION_ATTEMPTS,
         );
 
         return $result instanceof RefreshTokenRotationStatus
@@ -121,7 +157,10 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
             : throw new \RuntimeException('OAuth refresh-token transaction returned an invalid status.');
     }
 
-    /** @return array<string,mixed>|null */
+    /**
+     * @return array<string,mixed>|null
+     * @throws \RuntimeException
+     */
     private function findRow(Connection $connection, string $tokenId): ?array
     {
         $row = $connection->select(
@@ -132,6 +171,9 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         return is_array($row) ? $row : null;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function insert(Connection $connection, RefreshTokenRecord $record): void
     {
         $grant = $record->grant;
@@ -179,6 +221,9 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function revokeFamilyUsing(Connection $connection, string $familyId, int $revokedAt): void
     {
         $connection->execute(
@@ -190,6 +235,9 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function rotateTransaction(
         Connection $transaction,
         RefreshTokenRecord $current,

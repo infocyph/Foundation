@@ -25,21 +25,25 @@ final class InMemoryPermissionStore implements PermissionAssignmentStoreInterfac
      */
     private array $rolePermissions = [];
 
+    #[\Override]
     public function assignPermissionToAccount(string $accountId, string $permissionId): void
     {
         $this->assign($this->accountPermissions, $accountId, $permissionId);
     }
 
+    #[\Override]
     public function assignPermissionToRole(string $roleId, string $permissionId): void
     {
         $this->assign($this->rolePermissions, $roleId, $permissionId);
     }
 
+    #[\Override]
     public function permissionsForAccount(string $accountId): array
     {
         return $this->resolve($this->accountPermissions[$accountId] ?? []);
     }
 
+    #[\Override]
     public function permissionsForRoles(array $roleIds): array
     {
         $ids = [];
@@ -53,16 +57,19 @@ final class InMemoryPermissionStore implements PermissionAssignmentStoreInterfac
         return $this->resolve(array_keys($ids));
     }
 
+    #[\Override]
     public function revokePermissionFromAccount(string $accountId, string $permissionId): void
     {
         $this->revoke($this->accountPermissions, $accountId, $permissionId);
     }
 
+    #[\Override]
     public function revokePermissionFromRole(string $roleId, string $permissionId): void
     {
         $this->revoke($this->rolePermissions, $roleId, $permissionId);
     }
 
+    #[\Override]
     public function save(Permission $permission): void
     {
         $this->permissions[$permission->id] = $permission;

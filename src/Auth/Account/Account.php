@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Account;
 
+/** @api */
 final readonly class Account implements AccountInterface
 {
     /**
@@ -17,26 +18,31 @@ final readonly class Account implements AccountInterface
         private array $metadata = [],
     ) {}
 
+    #[\Override]
     public function id(): string
     {
         return $this->id;
     }
 
+    #[\Override]
     public function identifier(): string
     {
         return $this->identifier;
     }
 
+    #[\Override]
     public function metadata(): array
     {
         return $this->metadata;
     }
 
+    #[\Override]
     public function passwordHash(): ?string
     {
         return $this->passwordHash;
     }
 
+    #[\Override]
     public function status(): AccountStatus
     {
         return $this->status;

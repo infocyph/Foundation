@@ -29,6 +29,7 @@ final readonly class RememberMeResult
     /**
      * @return list<\UnitEnum>
      */
+    #[\Override]
     protected function successfulStatuses(): array
     {
         return [

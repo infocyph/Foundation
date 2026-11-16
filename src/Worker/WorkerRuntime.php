@@ -9,11 +9,13 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Runtime\ExecutionId;
 
+/** @api */
 final readonly class WorkerRuntime
 {
     /**
      * @param null|Closure():void $heartbeat
      * @param null|Closure():bool $stopRequested
+     * @throws \LogicException
      */
     public function __construct(
         private Application $application,
@@ -32,6 +34,10 @@ final readonly class WorkerRuntime
      * @param callable(ExecutionId):T $handler
      * @param array<string, mixed> $context
      * @return T
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
+     * @throws \LogicException
+     * @throws \Throwable
      */
     public function execute(
         callable $handler,
@@ -46,6 +52,7 @@ final readonly class WorkerRuntime
     /**
      * Refresh provider-level singleton ownership during long-running work and
      * terminate cleanly when Foundation has requested a runtime/worker reload.
+     * @throws \Infocyph\Foundation\Worker\WorkerRestartRequested
      */
     public function heartbeat(): void
     {

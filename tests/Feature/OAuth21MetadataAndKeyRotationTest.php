@@ -21,6 +21,10 @@ use Infocyph\Foundation\Config\ConfigRepository;
 
 it('publishes bounded authorization server metadata', function (): void {
     $config = AuthDefaults::all();
+    if (!is_array($config['auth'] ?? null)
+        || !is_array($config['auth']['oauth'] ?? null)) {
+        throw new \UnexpectedValueException('OAuth default configuration must be an array.');
+    }
     $config['auth']['oauth']['issuer'] = 'https://issuer.example.test';
     $metadata = new AuthorizationServerMetadata(new ConfigRepository($config));
 
@@ -92,10 +96,18 @@ it('keeps old access tokens verifiable through fallback keys and rejects unknown
     expect($rotatedService->verify($rotatedService->issue($newClaims), $audience))->toEqual($newClaims);
 
     $jwks = new EpicryptOAuthJwkSetProvider($rotatedKeys)->jwks();
-    $kids = array_column($jwks['keys'], 'kid');
+    $keys = $jwks['keys'];
+
+    $kids = [];
+    foreach ($keys as $key) {
+        if (!is_string($key['kid'] ?? null)) {
+            throw new \UnexpectedValueException('OAuth JWK must contain a string key ID.');
+        }
+        $kids[] = $key['kid'];
+    }
     sort($kids, SORT_STRING);
     expect($kids)->toBe(['new-key', 'old-key']);
-    foreach ($jwks['keys'] as $jwk) {
+    foreach ($keys as $jwk) {
         expect($jwk)->not->toHaveKey('d');
     }
 

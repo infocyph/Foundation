@@ -4,12 +4,33 @@ declare(strict_types=1);
 
 use Infocyph\DBLayer\DB;
 use Infocyph\Epicrypt\Certificate\KeyPairGenerator;
+use Infocyph\Epicrypt\Token\Opaque\OpaqueToken;
+use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthClientStore;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordVerificationResult;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordVerifierInterface;
+use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequest;
+use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequestValidator;
+use Infocyph\Foundation\Auth\OAuth\Client\OAuthClient;
+use Infocyph\Foundation\Auth\OAuth\Client\OAuthClientManager;
+use Infocyph\Foundation\Auth\OAuth\Contract\JwkSetProviderInterface;
+use Infocyph\Foundation\Auth\OAuth\Contract\OAuthClientStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthAuthorizationController;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpHandler;
-use Infocyph\Foundation\Auth\OAuth\Http\OAuthRateLimitMiddleware;
+use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpInput;
+use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpResponseFactory;
+use Infocyph\Foundation\Auth\OAuth\Metadata\AuthorizationServerMetadata;
 use Infocyph\Foundation\Auth\OAuth\OAuthManager;
+use Infocyph\Foundation\Auth\OAuth\Scope\OAuthScopeResolver;
+use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
+use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
+use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Router\Build\CompiledRouterArtifact;
 use Infocyph\Webrick\Router\Definition\Registrar;
@@ -17,16 +38,29 @@ use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
 
 it('keeps the Foundation-owned OAuth HTTP surface absent while disabled', function (): void {
     $root = foundationOAuthHttpProject();
+    $observer = new class extends ServiceProvider {
+        public bool $resolved = false;
+
+        #[\Override]
+        public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+        {
+            unset($context);
+            $builder->onResolved(OAuthManager::class, function (): void {
+                $this->resolved = true;
+            });
+        }
+    };
 
     try {
         $app = Foundation::web([
             'base_path' => $root,
             '_config_cache' => false,
             'router' => ['cache' => false, 'files' => []],
+            'providers' => ['web' => [$observer]],
         ])->boot();
 
         expect(foundationOAuthHttpRoutes($app->make(Registrar::class)))->toBe([])
-            ->and($app->container()->getRepository()->hasResolvedSingleton(OAuthManager::class))->toBeFalse();
+            ->and($observer->resolved)->toBeFalse();
     } finally {
         foundationOAuthHttpRemoveProject($root);
     }
@@ -57,10 +91,11 @@ it('owns and resolves the complete opt-in OAuth HTTP surface', function (): void
                 'auth',
             ])->and($routes['POST /oauth/token']->getHandler())->toBe([OAuthHttpHandler::class, 'token'])
             ->and($routes['POST /oauth/token']->getMiddlewares())->toBe(['oauth-throttle:token'])
-            ->and($app->make(OAuthHttpHandler::class))->toBeInstanceOf(OAuthHttpHandler::class)
-            ->and($app->make(OAuthAuthorizationController::class))->toBeInstanceOf(OAuthAuthorizationController::class)
             ->and(MiddlewareAliases::resolveString('oauth-throttle:token'))
             ->toBeInstanceOf(Closure::class);
+
+        $app->make(OAuthHttpHandler::class);
+        $app->make(OAuthAuthorizationController::class);
     } finally {
         DB::purge();
         foundationOAuthHttpRemoveProject($root);
@@ -81,21 +116,26 @@ it('includes Foundation OAuth routes in compiled Webrick releases', function ():
             $root . '/bootstrap/cache/release.json',
             ['auth', 'cache', 'database', 'session'],
         );
+        if (!is_array($release['intermix'] ?? null)) {
+            throw new \UnexpectedValueException('Compiled OAuth release must provide InterMix evidence.');
+        }
         expect($release['intermix']['skipped'] ?? null)->toBe([]);
 
-        $payload = require $router;
-        expect($payload)->toBeArray();
+        $payload = \foundationReadPhpFixtureArray($router);
         $artifact = CompiledRouterArtifact::fromPayload($payload);
         $oauthMetadata = null;
         foreach ($artifact->routes() as $route) {
             if ($route->getName() === 'oauth.metadata') {
                 $oauthMetadata = $route;
+
                 break;
             }
         }
 
-        expect($oauthMetadata)->not->toBeNull()
-            ->and($oauthMetadata->getPath())->toBe('/.well-known/oauth-authorization-server');
+        if ($oauthMetadata === null) {
+            throw new \UnexpectedValueException('Compiled OAuth metadata route is missing.');
+        }
+        expect($oauthMetadata->getPath())->toBe('/.well-known/oauth-authorization-server');
 
         $oauthPlan = $artifact->planForIndex($oauthMetadata->getIndex());
         expect($oauthPlan->resolverSpec())->toBe([OAuthHttpHandler::class, 'metadata']);
@@ -144,12 +184,13 @@ it('resolves Foundation-owned OAuth environment configuration once at bootstrap'
     }
 });
 
-/** @return array<string, object> */
+/** @return array<string, \Infocyph\Webrick\Interfaces\RouteInterface> */
 function foundationOAuthHttpRoutes(Registrar $registrar): array
 {
     $routes = [];
     foreach ($registrar->compile()->all() as $route) {
-        if (str_starts_with($route->getName(), 'oauth.')) {
+        $name = $route->getName();
+        if ($name !== null && str_starts_with($name, 'oauth.')) {
             $routes[$route->getMethod() . ' ' . $route->getPath()] = $route;
         }
     }
@@ -238,10 +279,16 @@ function foundationOAuthHttpEnvironmentSnapshot(array $keys): array
     return $snapshot;
 }
 
-/** @param array<string, array{env:mixed,server:mixed,process:string|false,env_exists:bool,server_exists:bool}> $snapshot */
+/**
+ * @param array<string, array{env:mixed,server:mixed,process:string|false,env_exists:bool,server_exists:bool}> $snapshot
+ * @throws \InvalidArgumentException
+ */
 function foundationOAuthHttpRestoreEnvironment(array $snapshot): void
 {
     foreach ($snapshot as $key => $state) {
+        if ($key === '') {
+            throw new \InvalidArgumentException('Environment keys must not be empty.');
+        }
         if ($state['env_exists']) {
             $_ENV[$key] = $state['env'];
         } else {
@@ -271,7 +318,188 @@ function foundationOAuthHttpRemoveProject(string $root): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        \PHPUnit\Framework\Assert::assertInstanceOf(\SplFileInfo::class, $file);
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($root);
+}
+
+it('performs one native OAuth protocol validation per HTTP authorization request', function (): void {
+    $fixture = new OAuth21FlowFixture();
+    $clientStore = new FoundationOAuthClientStoreProbe(
+        new DBLayerOAuthClientStore(new \Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer([\Infocyph\Foundation\Database\DBLayerFactory::class => $fixture->factory]), $fixture->tables),
+    );
+    $config = new ConfigRepository([
+        'auth' => [
+            'oauth' => [
+                'issuer' => 'https://issuer.example.test',
+                'oidc' => ['enabled' => false],
+                'scope_permissions' => [],
+                'routes' => [
+                    'authorization' => '/oauth/authorize',
+                    'token' => '/oauth/token',
+                    'revocation' => '/oauth/revoke',
+                    'introspection' => '/oauth/introspect',
+                    'jwks' => '/.well-known/jwks.json',
+                ],
+                'grants' => [OAuthGrantType::AuthorizationCode->value],
+            ],
+        ],
+    ]);
+    $clients = new OAuthClientManager(
+        $clientStore,
+        new class implements PasswordHasherInterface {
+            #[\Override]
+            public function hash(string $plainPassword, array $context = []): string
+            {
+                unset($context);
+
+                return password_hash($plainPassword, PASSWORD_BCRYPT, ['cost' => 4]);
+            }
+        },
+        new class implements PasswordVerifierInterface {
+            #[\Override]
+            public function verify(string $plainPassword, string $storedHash): PasswordVerificationResult
+            {
+                return new PasswordVerificationResult(password_verify($plainPassword, $storedHash));
+            }
+        },
+        $fixture->clock,
+        new OpaqueToken(),
+        false,
+    );
+    $requests = new AuthorizationRequestValidator(
+        $clients,
+        new OAuthScopeResolver($clientStore, $config),
+        $config,
+    );
+    $manager = new OAuthManager(
+        $requests,
+        $fixture->consents,
+        $fixture->codes,
+        $fixture->tokens,
+        $fixture->revocation,
+        $fixture->introspection,
+        new AuthorizationServerMetadata($config),
+        new class implements JwkSetProviderInterface {
+            #[\Override]
+            public function jwks(): array
+            {
+                return ['keys' => []];
+            }
+        },
+        $clients,
+    );
+    $handler = new OAuthHttpHandler(
+        $manager,
+        new OAuthHttpInput(),
+        new OAuthHttpResponseFactory(),
+        $config,
+    );
+    $redirectUri = 'https://client.example.test/callback';
+    $audience = 'https://api.example.test';
+    $verifier = str_repeat('v', 64);
+
+    try {
+        $registration = $clients->register(
+            OAuthClientType::Public,
+            [OAuthGrantType::AuthorizationCode],
+            [$redirectUri],
+            ['profile.read'],
+            [$audience],
+        );
+        $clientStore->resetCounts();
+
+        $query = http_build_query([
+            'client_id' => $registration->client->clientId,
+            'redirect_uri' => $redirectUri,
+            'response_type' => 'code',
+            'code_challenge' => OAuth21FlowFixture::pkceChallenge($verifier),
+            'code_challenge_method' => 'S256',
+            'scope' => 'profile.read',
+        ], '', '&', PHP_QUERY_RFC3986);
+        $result = $handler->authorization(Request::fake(
+            headers: ['Host' => 'issuer.example.test'],
+            uri: 'https://issuer.example.test/oauth/authorize?' . $query,
+        ));
+
+        \PHPUnit\Framework\Assert::assertInstanceOf(AuthorizationRequest::class, $result);
+        expect($clientStore->redirectUriReads)->toBe(1)
+            ->and($clientStore->findReads)->toBe(2)
+            ->and($clientStore->scopeReads)->toBe(2);
+    } finally {
+        $fixture->close();
+    }
+});
+
+final class FoundationOAuthClientStoreProbe implements OAuthClientStoreInterface
+{
+    public int $findReads = 0;
+
+    public int $redirectUriReads = 0;
+
+    public int $scopeReads = 0;
+
+    public function __construct(private readonly OAuthClientStoreInterface $inner) {}
+
+    #[\Override]
+    public function find(string $clientId): ?OAuthClient
+    {
+        ++$this->findReads;
+
+        return $this->inner->find($clientId);
+    }
+
+    #[\Override]
+    public function list(int $limit = 100): array
+    {
+        return $this->inner->list($limit);
+    }
+
+    #[\Override]
+    public function redirectUris(string $clientId): array
+    {
+        ++$this->redirectUriReads;
+
+        return $this->inner->redirectUris($clientId);
+    }
+
+    #[\Override]
+    public function register(OAuthClient $client, array $redirectUris, array $scopes): void
+    {
+        $this->inner->register($client, $redirectUris, $scopes);
+    }
+
+    #[\Override]
+    public function replaceRedirectUris(string $clientId, array $redirectUris, int $createdAt): void
+    {
+        $this->inner->replaceRedirectUris($clientId, $redirectUris, $createdAt);
+    }
+
+    #[\Override]
+    public function replaceScopes(string $clientId, array $scopes, int $createdAt): void
+    {
+        $this->inner->replaceScopes($clientId, $scopes, $createdAt);
+    }
+
+    public function resetCounts(): void
+    {
+        $this->findReads = 0;
+        $this->redirectUriReads = 0;
+        $this->scopeReads = 0;
+    }
+
+    #[\Override]
+    public function save(OAuthClient $client): void
+    {
+        $this->inner->save($client);
+    }
+
+    #[\Override]
+    public function scopes(string $clientId): array
+    {
+        ++$this->scopeReads;
+
+        return $this->inner->scopes($clientId);
+    }
 }

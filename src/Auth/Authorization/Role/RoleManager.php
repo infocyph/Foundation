@@ -6,6 +6,11 @@ namespace Infocyph\Foundation\Auth\Authorization\Role;
 
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 
+/**
+ * Application-facing role assignment and management.
+ *
+ * @api
+ */
 final readonly class RoleManager
 {
     public function __construct(

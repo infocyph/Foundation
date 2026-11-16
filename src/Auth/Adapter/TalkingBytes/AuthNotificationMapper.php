@@ -11,6 +11,11 @@ use Infocyph\TalkingBytes\Email\Template\ArrayVariableRenderer;
 use Infocyph\TalkingBytes\Email\Template\TemplateRendererInterface;
 use Infocyph\TalkingBytes\Email\ValueObject\EmailAddress;
 
+/**
+ * TalkingBytes authentication notification mapping service used by application DI recipes.
+ *
+ * @api
+ */
 final readonly class AuthNotificationMapper
 {
     public function __construct(
@@ -35,7 +40,7 @@ final readonly class AuthNotificationMapper
             ->withMetadata([
                 'account_id' => $notification->accountId,
                 'auth_notification_type' => $notification->type->value,
-            ] + $notification->payload);
+            ]);
 
         if ($from === null || $from === '') {
             return $message;
@@ -48,6 +53,13 @@ final readonly class AuthNotificationMapper
             : $message->from($address->email, $address->name);
     }
 
+    private static function encodePayload(mixed $value): string
+    {
+        $encoded = json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        return $encoded === false ? '' : $encoded;
+    }
+
     /**
      * @param array<string, mixed> $payload
      */
@@ -58,7 +70,7 @@ final readonly class AuthNotificationMapper
         foreach ($payload as $key => $value) {
             $rendered = is_scalar($value) || $value === null
                 ? (string) $value
-                : (json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '');
+                : self::encodePayload($value);
 
             $lines[] = sprintf('%s: %s', $key, $rendered);
         }
@@ -90,7 +102,7 @@ final readonly class AuthNotificationMapper
         foreach ($notification->payload as $key => $value) {
             $variables[$key] = is_scalar($value) || $value === null
                 ? $value
-                : (json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '');
+                : self::encodePayload($value);
         }
 
         return $variables;

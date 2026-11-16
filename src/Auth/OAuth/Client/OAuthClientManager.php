@@ -13,6 +13,11 @@ use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 
+/**
+ * Application-facing OAuth client registration and authentication.
+ *
+ * @api
+ */
 final readonly class OAuthClientManager
 {
     private const int MAX_AUDIENCES = 16;
@@ -77,6 +82,7 @@ final readonly class OAuthClientManager
      * @param list<string> $scopes
      * @param list<string> $audiences
      * @param array<string, mixed> $metadata
+     * @throws \InvalidArgumentException
      */
     public function register(
         OAuthClientType $type,
@@ -128,6 +134,9 @@ final readonly class OAuthClientManager
         return new OAuthClientRegistration($client, $secret);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function rotateSecret(string $clientId): string
     {
         $client = $this->enabled($clientId);
@@ -179,6 +188,7 @@ final readonly class OAuthClientManager
     /**
      * @param list<string> $audiences
      * @return list<string>
+     * @throws \InvalidArgumentException
      */
     private function validateAudiences(array $audiences): array
     {
@@ -197,7 +207,10 @@ final readonly class OAuthClientManager
         return array_keys($normalized);
     }
 
-    /** @param array<string, mixed> $metadata */
+    /**
+     * @param array<string, mixed> $metadata
+     * @throws \InvalidArgumentException
+     */
     private function validateAuthenticationMethod(
         OAuthClientType $type,
         OAuthClientAuthenticationMethod $method,
@@ -225,6 +238,7 @@ final readonly class OAuthClientManager
     /**
      * @param list<OAuthGrantType> $grants
      * @return list<OAuthGrantType>
+     * @throws \InvalidArgumentException
      */
     private function validateGrants(OAuthClientType $type, array $grants): array
     {
@@ -250,7 +264,10 @@ final readonly class OAuthClientManager
         return $grants;
     }
 
-    /** @param array<string, mixed> $metadata */
+    /**
+     * @param array<string, mixed> $metadata
+     * @throws \InvalidArgumentException
+     */
     private function validateMetadata(array $metadata): void
     {
         if (count($metadata) > 32) {
@@ -264,9 +281,10 @@ final readonly class OAuthClientManager
     }
 
     /**
-     * @param list<string> $redirectUris
+     * @param list<mixed> $redirectUris
      * @param array<string, mixed> $metadata
      * @return list<string>
+     * @throws \InvalidArgumentException
      */
     private function validateRedirectUris(array $redirectUris, array $metadata): array
     {
@@ -276,7 +294,7 @@ final readonly class OAuthClientManager
 
         $normalized = [];
         foreach ($redirectUris as $uri) {
-            if (!$this->validRedirectUri($uri, $metadata) || isset($normalized[$uri])) {
+            if (!is_string($uri) || !$this->validRedirectUri($uri, $metadata) || isset($normalized[$uri])) {
                 throw new \InvalidArgumentException('OAuth redirect URI policy is invalid.');
             }
             $normalized[$uri] = true;
@@ -288,6 +306,7 @@ final readonly class OAuthClientManager
     /**
      * @param list<string> $scopes
      * @return list<string>
+     * @throws \InvalidArgumentException
      */
     private function validateScopes(array $scopes): array
     {
@@ -306,10 +325,12 @@ final readonly class OAuthClientManager
         return array_keys($normalized);
     }
 
-    /** @param array<string, mixed> $metadata */
-    private function validRedirectUri(mixed $uri, array $metadata): bool
+    /**
+     * @param array<string, mixed> $metadata
+     */
+    private function validRedirectUri(string $uri, array $metadata): bool
     {
-        if (!is_string($uri) || $uri === '' || strlen($uri) > 2048 || str_contains($uri, '*')) {
+        if ($uri === '' || strlen($uri) > 2048 || str_contains($uri, '*')) {
             return false;
         }
         $parts = parse_url($uri);
@@ -317,8 +338,8 @@ final readonly class OAuthClientManager
             return false;
         }
 
-        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
-        $host = strtolower((string) ($parts['host'] ?? ''));
+        $scheme = strtolower($parts['scheme'] ?? '');
+        $host = strtolower($parts['host'] ?? '');
         if ($scheme === '' || $host === '') {
             return false;
         }

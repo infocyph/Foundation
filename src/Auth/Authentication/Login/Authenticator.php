@@ -37,6 +37,7 @@ final readonly class Authenticator implements AuthenticatorInterface
         private ClockInterface $clock = new SystemClock(),
     ) {}
 
+    #[\Override]
     public function login(LoginRequest $request): LoginResult
     {
         $account = $this->accounts->findByIdentifier($request->identifier);
@@ -98,12 +99,14 @@ final readonly class Authenticator implements AuthenticatorInterface
         return new LoginResult(LoginStatus::AUTHENTICATED, $principal, $session, 'authenticated', $verification->needsRehash, $request->context);
     }
 
+    #[\Override]
     public function logout(PrincipalInterface $principal, ?string $sessionId = null): void
     {
+        $accountId = $principal->accountId();
         if ($sessionId !== null) {
             $this->sessions->revoke($sessionId);
-        } elseif ($principal->accountId() !== null) {
-            $this->sessions->revokeAllForAccount($principal->accountId());
+        } elseif ($accountId !== null) {
+            $this->sessions->revokeAllForAccount($accountId);
         }
 
         AuthEventRecorder::record(
@@ -111,7 +114,7 @@ final readonly class Authenticator implements AuthenticatorInterface
             $this->ids,
             $this->clock,
             AuthEventType::LOGOUT,
-            $principal->accountId(),
+            $accountId,
             actorId: $principal->id(),
             sessionId: $sessionId,
         );
@@ -130,7 +133,6 @@ final readonly class Authenticator implements AuthenticatorInterface
             $account?->id(),
             metadata: ['code' => $code] + $context,
             severity: AuthEventSeverity::WARNING,
-            deviceId: ContextValue::stringOrNull($context, 'device_id'),
         );
 
         return new LoginResult($status, code: $code, context: $context);

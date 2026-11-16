@@ -15,6 +15,10 @@ it('keeps OAuth validation dormant while OAuth is disabled', function (): void {
 
 it('fails closed when enabled OAuth is missing issuer keys or database state', function (): void {
     $config = AuthDefaults::all();
+    if (!is_array($config['auth'] ?? null)
+        || !is_array($config['auth']['oauth'] ?? null)) {
+        throw new \UnexpectedValueException('OAuth default configuration must be an array.');
+    }
     $config['auth']['oauth']['enabled'] = true;
     $issues = new OAuthConfigValidator(new ConfigRepository($config))->validate(false);
     $keys = array_map(static fn($issue): string => $issue->key, $issues);
@@ -29,7 +33,10 @@ it('fails closed when enabled OAuth is missing issuer keys or database state', f
 
 it('accepts the supported OAuth profile when required deployment state is configured', function (): void {
     $config = AuthDefaults::all();
-    $config['auth']['oauth'] = array_replace_recursive($config['auth']['oauth'], [
+    if (!is_array($config['auth'] ?? null) || !is_array($config['auth']['oauth'] ?? null)) {
+        throw new \UnexpectedValueException('OAuth defaults must contain a structured configuration.');
+    }
+    $config['auth']['oauth'] = array_replace_recursive(foundationStringMap($config['auth']['oauth']), [
         'enabled' => true,
         'issuer' => 'https://issuer.example.test',
         'signing' => [
@@ -63,7 +70,8 @@ it('accepts the supported OAuth profile when required deployment state is config
 
 it('requires host-visible OAuth rate-limit state in production', function (): void {
     $config = AuthDefaults::all();
-    $config['auth']['oauth'] = array_replace_recursive($config['auth']['oauth'], [
+    \PHPUnit\Framework\Assert::assertIsArray(($config['auth'] ?? null));
+    $config['auth']['oauth'] = array_replace_recursive(foundationStringMap($config['auth']['oauth']), [
         'enabled' => true,
         'issuer' => 'https://issuer.example.test',
         'signing' => [
@@ -94,7 +102,8 @@ it('requires host-visible OAuth rate-limit state in production', function (): vo
 
 it('rejects insecure issuer and protocol downgrade configuration', function (): void {
     $config = AuthDefaults::all();
-    $config['auth']['oauth'] = array_replace_recursive($config['auth']['oauth'], [
+    \PHPUnit\Framework\Assert::assertIsArray(($config['auth'] ?? null));
+    $config['auth']['oauth'] = array_replace_recursive(foundationStringMap($config['auth']['oauth']), [
         'enabled' => true,
         'issuer' => 'http://issuer.example.test',
         'grants' => ['password'],

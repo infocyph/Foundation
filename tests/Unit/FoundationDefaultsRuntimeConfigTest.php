@@ -6,11 +6,12 @@ use Infocyph\Foundation\Config\FoundationDefaults;
 
 it('does not expose obsolete resolver-map or Foundation route-cache defaults', function (): void {
     $defaults = FoundationDefaults::all();
+    \PHPUnit\Framework\Assert::assertIsArray(($defaults['app'] ?? null));
     $container = $defaults['app']['container'] ?? null;
     $router = $defaults['router'] ?? null;
 
-    expect($container)->toBeArray()
-        ->and($container)->not->toHaveKey('alias')
+    \PHPUnit\Framework\Assert::assertIsArray($container);
+    expect($container)->not->toHaveKey('alias')
         ->and($container)->not->toHaveKey('compiled')
         ->and($container)->not->toHaveKey('compiled_activation')
         ->and($container)->toHaveKey('environment')

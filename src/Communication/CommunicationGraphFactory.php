@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Communication;
 
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\CacheLayer\Cache\CacheInterface;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundHandlerInterface;
+use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundRequest;
+use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse;
 use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Http\HttpClientConfig;
 use Infocyph\TalkingBytes\Webhook\WebhookReceiver;
@@ -16,8 +19,16 @@ use Infocyph\TalkingBytes\Webhook\WebhookSender;
 use Infocyph\TalkingBytes\Webhook\WebhookVerifier;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Generated runtime communication capability factory entrypoint.
+ *
+ * @api
+ */
 final class CommunicationGraphFactory
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function grpcInbound(
         CommunicationProfiles $profiles,
         ContainerInterface $services,
@@ -35,42 +46,36 @@ final class CommunicationGraphFactory
                 );
             }
 
-            $handler = $services->get($service);
-            if ($handler instanceof GrpcInboundHandlerInterface) {
-                $handlers[$method] = $handler->handle(...);
-
-                continue;
-            }
-            if (is_callable($handler)) {
-                $handlers[$method] = $handler;
-
-                continue;
-            }
-
-            throw new \InvalidArgumentException(sprintf(
-                'Configured gRPC handler service "%s" must be callable or implement %s.',
-                $service,
-                GrpcInboundHandlerInterface::class,
-            ));
+            $handlers[$method] = static fn(GrpcInboundRequest $request): GrpcInboundResponse => self::invokeGrpcHandler($services, $service, $request);
         }
 
         return $profiles->grpcInbound($handlers);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     public static function http(CommunicationProfiles $profiles): HttpClient
     {
         return $profiles->http();
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function httpConfig(CommunicationProfiles $profiles): HttpClientConfig
     {
         return $profiles->httpConfig();
     }
 
+    /**
+     * @throws \LogicException
+     */
     public static function protectedWebhookReceiver(
         CommunicationProfiles $profiles,
         ConfigRepository $config,
-        CacheLayerFactory $cache,
+        ContainerInterface $services,
     ): WebhookReceiver {
         $profile = $config->get('communication.webhooks.default_inbound', 'default');
         $profile = is_string($profile) && trim($profile) !== '' ? trim($profile) : 'default';
@@ -84,11 +89,22 @@ final class CommunicationGraphFactory
         }
 
         $ttl = max(1, ValueNormalizer::int($replay['ttl_seconds'] ?? null, 86_400));
-        $replayStore = new CacheLayerWebhookReplayStore($cache->make($store));
+        $replayStore = new CacheLayerWebhookReplayStore(static function () use ($services, $store): CacheInterface {
+            $cache = $services->get(CacheManager::class);
+            if (!$cache instanceof CacheManager) {
+                throw new \LogicException('Webhook replay CacheManager binding is invalid.');
+            }
+
+            return $cache->store($store);
+        });
 
         return $profiles->webhookReceiver($profile, $replayStore, $ttl);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public static function webhookReceiver(
         CommunicationProfiles $profiles,
         ConfigRepository $config,
@@ -99,13 +115,50 @@ final class CommunicationGraphFactory
         return $profiles->webhookReceiver($profile);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     public static function webhookSender(CommunicationProfiles $profiles): WebhookSender
     {
         return $profiles->webhookSender();
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public static function webhookVerifier(CommunicationProfiles $profiles): WebhookVerifier
     {
         return $profiles->webhookVerifier();
+    }
+
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    private static function invokeGrpcHandler(
+        ContainerInterface $services,
+        string $service,
+        GrpcInboundRequest $request,
+    ): GrpcInboundResponse {
+        $handler = $services->get($service);
+        if ($handler instanceof GrpcInboundHandlerInterface) {
+            return $handler->handle($request);
+        }
+        if (!is_callable($handler)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Configured gRPC handler service "%s" must be callable or implement %s.',
+                $service,
+                GrpcInboundHandlerInterface::class,
+            ));
+        }
+        $response = $handler($request);
+
+        return $response instanceof GrpcInboundResponse
+            ? $response
+            : throw new \UnexpectedValueException('Configured gRPC handlers must return GrpcInboundResponse.');
     }
 }

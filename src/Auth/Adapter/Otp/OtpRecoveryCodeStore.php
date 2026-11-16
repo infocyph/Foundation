@@ -5,12 +5,19 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Adapter\Otp;
 
 use DateTimeImmutable;
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorType;
 use Infocyph\OTP\Contracts\RecoveryCodeStoreInterface;
+use Infocyph\OTP\Support\RunwireState;
 use RuntimeException;
 
+/**
+ * Application-backed OTP recovery-code storage implementation.
+ *
+ * @api
+ */
 final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
 {
     private const int MAX_CAS_ATTEMPTS = 5;
@@ -19,6 +26,11 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
 
     public function __construct(private MfaFactorCompareAndSwapStoreInterface $factors) {}
 
+    /**
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
+    #[\Override]
     public function consume(string $binding, string $hashedCode, DateTimeImmutable $usedAt): array
     {
         $accountId = $this->accountId($binding);
@@ -49,6 +61,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
                 $state['issuedAt'],
                 $usedAt,
             ));
+            RunwireState::checkpoint(CacheRunwire::current());
             if ($this->factors->compareAndSwap($factor, $updated)) {
                 return [
                     'consumed' => true,
@@ -62,6 +75,8 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
         throw new RuntimeException('Unable to atomically consume recovery state after concurrent updates.');
     }
 
+    /** @throws \RuntimeException */
+    #[\Override]
     public function metadata(string $binding): array
     {
         $factor = $this->find($this->accountId($binding));
@@ -78,6 +93,11 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
         ];
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
+    #[\Override]
     public function replace(string $binding, array $hashedCodes, DateTimeImmutable $issuedAt): array
     {
         $accountId = $this->accountId($binding);
@@ -96,6 +116,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
                     createdAt: $issuedAt->getTimestamp(),
                     metadata: $this->withRecoveryMetadata([], $hashes, $total, $issuedAt, null),
                 );
+                RunwireState::checkpoint(CacheRunwire::current());
                 if ($this->factors->compareAndSwap(null, $created)) {
                     return ['total' => $total, 'remaining' => $total, 'lastUsedAt' => null];
                 }
@@ -110,6 +131,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
                 $issuedAt,
                 null,
             ));
+            RunwireState::checkpoint(CacheRunwire::current());
             if ($this->factors->compareAndSwap($factor, $updated)) {
                 return ['total' => $total, 'remaining' => $total, 'lastUsedAt' => null];
             }
@@ -118,6 +140,9 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
         throw new RuntimeException('Unable to atomically replace recovery state after concurrent updates.');
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function accountId(string $binding): string
     {
         if (!str_starts_with($binding, 'account:')) {
@@ -163,6 +188,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
     /**
      * @param array<array-key, mixed> $hashes
      * @return list<string>
+     * @throws \RuntimeException
      */
     private function hashes(array $hashes): array
     {
@@ -187,6 +213,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
      *     lastUsedAt:DateTimeImmutable|null,
      *     total:int
      * }
+     * @throws \RuntimeException
      */
     private function state(MfaFactor $factor): array
     {

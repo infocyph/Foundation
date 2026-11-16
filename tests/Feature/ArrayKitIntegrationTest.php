@@ -22,6 +22,11 @@ final class ArrayKitProfileDto
     public int $age = 0;
 
     public string $name = '';
+
+    public function __construct()
+    {
+        $this->address = new ArrayKitProfileAddressDto();
+    }
 }
 
 it('extends foundation config repository with arraykit config capabilities', function (): void {
@@ -68,14 +73,13 @@ return [
 ];
 PHP);
 
-    $collection = ArrayKit::collection([
+    $collection = array_values(ArrayKit::collection([
         ['name' => 'Ada', 'score' => 10],
         ['name' => 'Linus', 'score' => 25],
     ])
         ->process()
         ->where('score', '>=', 20)
-        ->values()
-        ->all();
+        ->all());
 
     expect($collection)->toBe([
         ['name' => 'Linus', 'score' => 25],
@@ -92,15 +96,14 @@ PHP);
         coerce: true,
     );
 
-    expect($dto)->toBeInstanceOf(ArrayKitProfileDto::class)
-        ->and($dto->age)->toBe(36)
+    expect($dto->age)->toBe(36)
         ->and($dto->address->city)->toBe('Dhaka');
 
-    expect(ArrayKit::dot()->get([
+    expect(ArrayKit::dot()->__call('get', [[
         'profile' => [
             'name' => 'Ada',
         ],
-    ], 'profile.name'))->toBe('Ada');
+    ], 'profile.name']))->toBe('Ada');
 
     $lazyConfig = ArrayKit::lazyConfig(
         directory: $basePath . '/config',
@@ -108,8 +111,29 @@ PHP);
     );
     $lazyConfig->warmNamespaceCache('data');
 
+    $cacheDirectory = $basePath . '/cache/config';
+    $activeDirectory = foundationArrayKitActiveCacheDirectory($cacheDirectory);
+    $flatIndex = is_file($activeDirectory . '/.arraykit-flat.php')
+        ? $activeDirectory . '/.arraykit-flat.php'
+        : $cacheDirectory . '/__flat.php';
+
     expect($lazyConfig->get('data.answer'))->toBe(42)
-        ->and($lazyConfig->namespaceCacheDirectory())->toBe($basePath . '/cache/config')
-        ->and($basePath . '/cache/config/data.php')->toBeFile()
-        ->and($basePath . '/cache/config/__flat.php')->toBeFile();
+        ->and($lazyConfig->namespaceCacheDirectory())->toBe($cacheDirectory)
+        ->and($activeDirectory . '/data.php')->toBeFile()
+        ->and($flatIndex)->toBeFile();
 });
+
+function foundationArrayKitActiveCacheDirectory(string $directory): string
+{
+    $pointer = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '.arraykit-generation';
+    if (!is_file($pointer) || !is_readable($pointer)) {
+        return rtrim($directory, DIRECTORY_SEPARATOR);
+    }
+
+    $generation = trim((string) file_get_contents($pointer));
+    $active = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $generation;
+
+    return preg_match('/^\.arraykit-gen-[a-f0-9]+$/', $generation) === 1 && is_dir($active)
+        ? $active
+        : rtrim($directory, DIRECTORY_SEPARATOR);
+}

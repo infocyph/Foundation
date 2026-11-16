@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Command\CommandContext;
 use Infocyph\Foundation\Command\CommandDefinition;
 use Infocyph\Foundation\Command\CommandDispatcher;
@@ -13,6 +15,13 @@ use Infocyph\Foundation\Command\CommandIO;
 use Infocyph\Foundation\Command\CommandRegistry;
 use Infocyph\Foundation\Command\ExitCode;
 use Infocyph\Foundation\Command\OverlapMode;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\Runwire\Exception\RuntimeUnavailableException;
+use Infocyph\Runwire\Http\Enum\AdaptivePolicyMode;
+use Infocyph\Runwire\Runtime\Enum\RuntimeDriver;
+use Infocyph\Runwire\Runtime\RuntimeEnvironmentProbe;
+use Infocyph\Runwire\Runtime\RuntimeSelector;
+use Infocyph\Runwire\RuntimeOptions;
 
 final class FoundationCliRuntimeIO implements CommandIO
 {
@@ -30,6 +39,10 @@ final class FoundationCliRuntimeIO implements CommandIO
 
     public function __construct(private readonly bool $machine = false) {}
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
         unset($question, $choices, $default);
@@ -37,6 +50,7 @@ final class FoundationCliRuntimeIO implements CommandIO
         throw new LogicException('Choice input is not expected in CLI runtime tests.');
     }
 
+    #[\Override]
     public function confirm(string $question, bool $default = false): bool
     {
         unset($question, $default);
@@ -44,36 +58,46 @@ final class FoundationCliRuntimeIO implements CommandIO
         return false;
     }
 
+    #[\Override]
     public function error(string $message): void
     {
         $this->errors[] = $message;
     }
 
+    #[\Override]
     public function info(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function interactive(): bool
     {
         return false;
     }
 
+    #[\Override]
     public function json(mixed $value): void
     {
         $this->payloads[] = $value;
     }
 
+    #[\Override]
     public function machineReadable(): bool
     {
         return $this->machine;
     }
 
+    #[\Override]
     public function note(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function password(string $question): string
     {
         unset($question);
@@ -81,11 +105,16 @@ final class FoundationCliRuntimeIO implements CommandIO
         throw new LogicException('Password input is not expected in CLI runtime tests.');
     }
 
+    #[\Override]
     public function quiet(): bool
     {
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function read(string $question, ?string $default = null): string
     {
         unset($question, $default);
@@ -93,34 +122,39 @@ final class FoundationCliRuntimeIO implements CommandIO
         throw new LogicException('Text input is not expected in CLI runtime tests.');
     }
 
+    #[\Override]
     public function success(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function table(array $headers, array $rows): void
     {
         $this->payloads[] = ['headers' => $headers, 'rows' => $rows];
     }
 
+    public function text(): string
+    {
+        return implode("\n", [...$this->lines, ...$this->writes]);
+    }
+
+    #[\Override]
     public function warning(string $message): void
     {
         $this->lines[] = $message;
     }
 
+    #[\Override]
     public function write(string $message): void
     {
         $this->writes[] = $message;
     }
 
+    #[\Override]
     public function writeln(string $message = ''): void
     {
         $this->lines[] = $message;
-    }
-
-    public function text(): string
-    {
-        return implode("\n", [...$this->lines, ...$this->writes]);
     }
 }
 
@@ -128,6 +162,11 @@ final readonly class FoundationCliProbeCommand implements CommandHandlerInterfac
 {
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command
@@ -141,6 +180,7 @@ final readonly class FoundationCliProbeCommand implements CommandHandlerInterfac
             ->option('tag', 'Repeatable tag.', short: 't', acceptsValue: true, multiple: true);
     }
 
+    #[\Override]
     public function run(CommandContext $context): int
     {
         $input = $context->input();
@@ -168,11 +208,16 @@ final readonly class FoundationCliProbeCommand implements CommandHandlerInterfac
 
 final class FoundationCliExitCommand implements CommandHandlerInterface
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command->name('cli:exit')->description('Return a deliberate non-zero exit code.')->group('Testing');
     }
 
+    #[\Override]
     public function run(CommandContext $context): int
     {
         unset($context);
@@ -183,11 +228,19 @@ final class FoundationCliExitCommand implements CommandHandlerInterface
 
 final class FoundationCliThrowCommand implements CommandHandlerInterface
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command->name('cli:throw')->description('Throw a deliberate command failure.')->group('Testing');
     }
 
+    /**
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function run(CommandContext $context): int
     {
         unset($context);
@@ -200,6 +253,10 @@ final readonly class FoundationCliOverlapCommand implements CommandHandlerInterf
 {
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command
@@ -213,6 +270,10 @@ final readonly class FoundationCliOverlapCommand implements CommandHandlerInterf
             ));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
+    #[\Override]
     public function run(CommandContext $context): int
     {
         unset($context);
@@ -224,11 +285,16 @@ final readonly class FoundationCliOverlapCommand implements CommandHandlerInterf
 
 final class FoundationCliHiddenCommand implements CommandHandlerInterface
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command->name('cli:hidden')->description('Hidden command.')->group('Testing')->hidden();
     }
 
+    #[\Override]
     public function run(CommandContext $context): int
     {
         unset($context);
@@ -398,7 +464,9 @@ it('skips overlapping commands under a shared file lock and records cancellation
     $lockPath = $project . '/storage/cache/locks';
     $locks = new FileLockProvider($lockPath);
     $held = $locks->acquire('foundation-cli-runtime-overlap', 0.0, 5.0);
-    expect($held)->not->toBeNull();
+    if ($held === null) {
+        throw new \RuntimeException('Expected a CLI overlap lock.');
+    }
 
     try {
         $dispatcher = foundationCliRuntimeDispatcher($project, history: true, lockPath: $lockPath);
@@ -410,13 +478,134 @@ it('skips overlapping commands under a shared file lock and records cancellation
             ->and(foundationCliRuntimeStatuses(foundationCliRuntimeHistory($project), 'cli:overlap'))
             ->toBe(['pending', 'cancelled']);
     } finally {
-        if ($held !== null) {
-            $locks->release($held);
-        }
+        $locks->release($held);
         foundationCliRuntimeRemoveDirectory($project);
     }
 });
 
+final class FoundationServeUnbootedProvider extends ServiceProvider
+{
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
+    public function boot(Application $app): void
+    {
+        unset($app);
+
+        throw new LogicException('Serve supervisor booted application services before its worker.');
+    }
+
+    #[\Override]
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+    {
+        unset($builder, $context);
+    }
+}
+
+it('preflights Runwire serving without publishing a release or opening a listener', function (): void {
+    $project = foundationCliRuntimeProject();
+    mkdir($project . '/public');
+    file_put_contents($project . '/bootstrap/providers.php', '<?php return ["common" => ['
+        . FoundationServeUnbootedProvider::class . '::class]];');
+
+    try {
+        $io = new FoundationCliRuntimeIO(machine: true);
+        $selected = new RuntimeSelector()->select(new RuntimeOptions(), new RuntimeEnvironmentProbe()->probe());
+
+        expect(foundationCliRuntimeDispatcher($project)->run(['infbyte', 'serve', '--dry-run', '--json'], $io))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($io->payloads[0])->toMatchArray([
+                'requested_runtime' => RuntimeDriver::AUTO->value,
+                'runtime' => $selected->driver->value,
+                'endpoint' => 'http://127.0.0.1:8000',
+                'protocol_policy' => AdaptivePolicyMode::FIXED->value,
+            ])
+            ->and(is_dir($project . '/storage/releases'))->toBeFalse();
+    } finally {
+        foundationCliRuntimeRemoveDirectory($project);
+    }
+});
+
+it('uses the native selector for every installed runtime enum case', function (): void {
+    $project = foundationCliRuntimeProject();
+    mkdir($project . '/public');
+
+    try {
+        $environment = new RuntimeEnvironmentProbe()->probe();
+        foreach (RuntimeDriver::cases() as $driver) {
+            $io = new FoundationCliRuntimeIO(machine: true);
+
+            try {
+                $selected = new RuntimeSelector()->select(new RuntimeOptions(driver: $driver), $environment);
+            } catch (RuntimeUnavailableException $exception) {
+                expect(foundationCliRuntimeDispatcher($project)->run([
+                    'infbyte', 'serve', '--runtime=' . $driver->value, '--dry-run', '--json',
+                ], $io))->toBe(ExitCode::FAILURE)
+                    ->and($io->errors)->toContain($exception->getMessage());
+
+                continue;
+            }
+
+            expect(foundationCliRuntimeDispatcher($project)->run([
+                'infbyte', 'serve', '--runtime=' . $driver->value, '--dry-run', '--json',
+            ], $io))->toBe(ExitCode::SUCCESS);
+            if (!isset($io->payloads[0]) || !is_array($io->payloads[0])) {
+                throw new \UnexpectedValueException('Serve dry-run must return a structured payload.');
+            }
+            expect($io->payloads[0]['requested_runtime'])->toBe($driver->value)
+                ->and($io->payloads[0]['runtime'])->toBe($selected->driver->value);
+        }
+        expect(is_dir($project . '/storage/releases'))->toBeFalse();
+    } finally {
+        foundationCliRuntimeRemoveDirectory($project);
+    }
+});
+
+it('accepts native protocol policies independently of runtime selection', function (): void {
+    $project = foundationCliRuntimeProject();
+    mkdir($project . '/public');
+
+    try {
+        foreach (AdaptivePolicyMode::cases() as $policy) {
+            $io = new FoundationCliRuntimeIO(machine: true);
+            expect(foundationCliRuntimeDispatcher($project)->run([
+                'infbyte', 'serve', '--runtime=native', '--workers=1',
+                '--protocol-policy=' . $policy->value, '--dry-run', '--json',
+            ], $io))->toBe(ExitCode::SUCCESS)
+                ->and($io->payloads[0])->toMatchArray([
+                    'requested_runtime' => 'native',
+                    'runtime' => 'native',
+                    'workers' => 1,
+                    'protocol_policy' => $policy->value,
+                ]);
+        }
+    } finally {
+        foundationCliRuntimeRemoveDirectory($project);
+    }
+});
+
+it('rejects malformed serving options before creating release artifacts', function (string $option): void {
+    $project = foundationCliRuntimeProject();
+    mkdir($project . '/public');
+
+    try {
+        $io = new FoundationCliRuntimeIO();
+        expect(foundationCliRuntimeDispatcher($project)->run([
+            'infbyte', 'serve', $option, '--dry-run',
+        ], $io))->toBe(ExitCode::FAILURE)
+            ->and($io->errors)->not->toBeEmpty()
+            ->and(is_dir($project . '/storage/releases'))->toBeFalse();
+    } finally {
+        foundationCliRuntimeRemoveDirectory($project);
+    }
+})->with(['--runtime=imaginary', '--protocol-policy=imaginary', '--workers=-1', '--workers=1.5', '--workers=1025', '--port=65536', '--host=']);
+
+/**
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \UnexpectedValueException
+ */
 function foundationCliRuntimeDispatcher(
     string $project,
     bool $history = false,
@@ -476,6 +665,9 @@ function foundationCliRuntimeProject(bool $history = false): string
     return $project;
 }
 
+/**
+ * @throws \LogicException
+ */
 function foundationCliRuntimeWriteManifest(string $project, CommandRegistry $registry): void
 {
     file_put_contents(
@@ -484,7 +676,10 @@ function foundationCliRuntimeWriteManifest(string $project, CommandRegistry $reg
     );
 }
 
-/** @return list<array<string,mixed>> */
+/**
+ * @return list<array<string,mixed>>
+ * @throws \UnexpectedValueException
+ */
 function foundationCliRuntimeHistory(string $project): array
 {
     $path = $project . '/storage/logs/executions.jsonl';
@@ -501,7 +696,7 @@ function foundationCliRuntimeHistory(string $project): array
     foreach ($lines as $line) {
         $decoded = json_decode($line, true, 32, JSON_THROW_ON_ERROR);
         if (is_array($decoded)) {
-            $records[] = $decoded;
+            $records[] = foundationStringMap($decoded);
         }
     }
 

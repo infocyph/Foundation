@@ -18,6 +18,9 @@ final readonly class FilesystemPublicFileResolver
         private PathManager $paths,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function resolve(string $relativePath): PublicFileResolution
     {
         return new PublicFileResolver()->resolve(
@@ -27,6 +30,9 @@ final readonly class FilesystemPublicFileResolver
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function root(): string
     {
         $configured = $this->config->get('filesystem.public_files.root', 'public');

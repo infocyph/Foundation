@@ -8,11 +8,12 @@ use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Query\QueryBuilder;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DBLayerFactory;
+use Psr\Container\ContainerInterface;
 
 abstract readonly class DBLayerStore
 {
     public function __construct(
-        protected DBLayerFactory $db,
+        protected ContainerInterface $services,
         protected AuthTables $tables,
         protected ?string $connection = null,
     ) {}
@@ -20,6 +21,10 @@ abstract readonly class DBLayerStore
     /**
      * @param list<mixed> $bindings
      * @return list<array<string, mixed>>
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     protected function all(string $sql, array $bindings = []): array
     {
@@ -31,19 +36,38 @@ abstract readonly class DBLayerStore
      * @param callable(array<string, mixed>): TResult $mapper
      * @param list<mixed> $bindings
      * @return list<TResult>
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     protected function allMapped(string $sql, callable $mapper, array $bindings = []): array
     {
         return array_map($mapper, $this->all($sql, $bindings));
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     protected function connection(): Connection
     {
-        return $this->db->connection($this->connection);
+        $database = $this->services->get(DBLayerFactory::class);
+        if (!$database instanceof DBLayerFactory) {
+            throw new \LogicException('Auth DBLayerFactory binding is invalid.');
+        }
+
+        return $database->connection($this->connection);
     }
 
     /**
      * @param list<mixed> $bindings
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     protected function deleteWhere(string $table, string $where, array $bindings = []): void
     {
@@ -54,6 +78,10 @@ abstract readonly class DBLayerStore
      * Execute intentionally raw SQL that is not a generic CRUD operation.
      *
      * @param list<mixed> $bindings
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     protected function execute(string $sql, array $bindings = []): void
     {
@@ -62,6 +90,10 @@ abstract readonly class DBLayerStore
 
     /**
      * @param list<mixed> $bindings
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     protected function exists(string $sql, array $bindings = []): bool
     {
@@ -71,6 +103,10 @@ abstract readonly class DBLayerStore
     /**
      * @param list<mixed> $bindings
      * @return array<string, mixed>|null
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     protected function first(string $sql, array $bindings = []): ?array
     {
@@ -82,6 +118,10 @@ abstract readonly class DBLayerStore
      * @param callable(array<string, mixed>): TResult $mapper
      * @param list<mixed> $bindings
      * @return TResult|null
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     protected function firstMapped(string $sql, callable $mapper, array $bindings = []): mixed
     {
@@ -92,6 +132,10 @@ abstract readonly class DBLayerStore
 
     /**
      * @param array<string, mixed> $record
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     protected function insertRecord(string $table, array $record): void
     {
@@ -108,6 +152,12 @@ abstract readonly class DBLayerStore
         return is_numeric($value) ? (int) $value : null;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     protected function query(string $table): QueryBuilder
     {
         return $this->connection()->table($this->table($table));
@@ -123,6 +173,9 @@ abstract readonly class DBLayerStore
         return is_string($value) && $value !== '' ? $value : null;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     protected function table(string $name): string
     {
         if (!method_exists($this->tables, $name)) {
@@ -151,6 +204,10 @@ abstract readonly class DBLayerStore
     /**
      * @param array<string, mixed> $values
      * @param list<mixed> $bindings
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     protected function updateWhere(string $table, array $values, string $where, array $bindings = []): void
     {
@@ -159,6 +216,11 @@ abstract readonly class DBLayerStore
 
     /**
      * @param array<string, mixed> $record
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     protected function upsertRecord(string $table, string $keyColumn, array $record): void
     {

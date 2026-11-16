@@ -10,6 +10,13 @@ use Infocyph\Foundation\Auth\Authorization\Role\RoleStoreInterface;
 
 final readonly class DBLayerRoleStore extends ClockedDBLayerStore implements RoleAssignmentStoreInterface, RoleStoreInterface
 {
+    /**
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    #[\Override]
     public function assignRole(string $accountId, string $roleId): void
     {
         if ($this->exists(
@@ -25,6 +32,13 @@ final readonly class DBLayerRoleStore extends ClockedDBLayerStore implements Rol
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    #[\Override]
     public function revokeRole(string $accountId, string $roleId): void
     {
         $this->execute(
@@ -33,6 +47,13 @@ final readonly class DBLayerRoleStore extends ClockedDBLayerStore implements Rol
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    #[\Override]
     public function rolesForAccount(string $accountId): array
     {
         return $this->allMapped(
@@ -42,6 +63,14 @@ final readonly class DBLayerRoleStore extends ClockedDBLayerStore implements Rol
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function save(Role $role): void
     {
         $this->upsertRecord('roles', 'id', [

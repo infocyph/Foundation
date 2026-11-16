@@ -16,6 +16,9 @@ final readonly class AuthorizationServerMetadata
 {
     public function __construct(private ConfigRepository $config) {}
 
+    /**
+     * @throws \LogicException
+     */
     public function epicrypt(): EpicryptAuthorizationServerMetadata
     {
         return new EpicryptAuthorizationServerMetadata(
@@ -47,15 +50,18 @@ final readonly class AuthorizationServerMetadata
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \LogicException
+     */
     public function toArray(): array
     {
-        /** @var array<string, mixed> $metadata */
-        $metadata = $this->epicrypt()->toArray();
-
-        return $metadata;
+        return $this->epicrypt()->toArray();
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function endpoint(string $name): string
     {
         $parts = parse_url($this->issuer());
@@ -71,7 +77,10 @@ final readonly class AuthorizationServerMetadata
         return $origin . $this->string('auth.oauth.routes.' . $name);
     }
 
-    /** @return list<EpicryptGrantType> */
+    /**
+     * @return list<EpicryptGrantType>
+     * @throws \LogicException
+     */
     private function grantTypes(): array
     {
         $configured = $this->config->get('auth.oauth.grants', []);
@@ -94,11 +103,17 @@ final readonly class AuthorizationServerMetadata
         return $grants;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function issuer(): string
     {
         return $this->string('auth.oauth.issuer');
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function string(string $key): string
     {
         $value = $this->config->get($key);

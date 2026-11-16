@@ -204,6 +204,9 @@ it('accepts a secure single-node production posture and reports production confi
 
 it('accepts cluster-visible database cache lock counter and OTP replay policy for distributed production', function (): void {
     $config = foundationSecureProductionConfig('distributed');
+    if (!is_array($config['database'] ?? null) || !is_array($config['database']['connections'] ?? null)) {
+        throw new \UnexpectedValueException('Distributed production configuration must define database connections.');
+    }
     $config['database']['connections']['primary'] = [
         'driver' => 'mysql',
         'host' => '127.0.0.1',

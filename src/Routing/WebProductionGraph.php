@@ -8,8 +8,6 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Http\HttpKernel;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
-use Infocyph\Webrick\Router\Build\CompiledRouterArtifact;
-use Infocyph\Webrick\Router\Build\RouterBuildResult;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Kernel\ErrorHandler;
 use Infocyph\Webrick\Router\Kernel\RouterKernel;
@@ -37,24 +35,17 @@ final class WebProductionGraph
         'foundation.http',
     ];
 
-    public function prepareBuild(ContainerBuilder $builder, RouterBuildResult $routes): void
+    /** @param array<string, bool> $capabilities */
+    public function prepare(ContainerBuilder $builder, array $capabilities = []): void
     {
-        new WebRouteGraphEnricher()->enrich($builder, $routes);
         $this->removeDevelopmentDefinitions($builder);
-    }
-
-    public function prepareRuntime(ContainerBuilder $builder, CompiledRouterArtifact $artifact): void
-    {
-        new WebRouteGraphEnricher()->enrichArtifact($builder, $artifact);
-        $this->removeDevelopmentDefinitions($builder);
+        $builder->value('foundation.web.capabilities', $capabilities);
     }
 
     private function removeDevelopmentDefinitions(ContainerBuilder $builder): void
     {
         foreach (self::DEVELOPMENT_ONLY as $id) {
-            if ($builder->definitions()->has($id)) {
-                $builder->unbind($id);
-            }
+            $builder->unbind($id);
         }
     }
 }

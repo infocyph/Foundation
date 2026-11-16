@@ -14,6 +14,10 @@ it('keeps Foundation portable response producers free of direct output streams',
     );
 
     foreach ($files as $file) {
+        if (!($file instanceof \SplFileInfo)) {
+            throw new \UnexpectedValueException('Unexpected directory iterator entry.');
+        }
+
         if (!$file->isFile() || $file->getExtension() !== 'php') {
             continue;
         }

@@ -6,6 +6,9 @@ namespace Infocyph\Foundation\Command;
 
 final readonly class CommandExecutionPolicy
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         public bool $isolated = false,
         public OverlapMode $overlap = OverlapMode::Allow,
@@ -26,11 +29,7 @@ final readonly class CommandExecutionPolicy
         if (!is_finite($leaseSeconds) || $leaseSeconds <= 0.0) {
             throw new \InvalidArgumentException('Command lock lease must be positive and finite.');
         }
-        foreach (['timeout' => $timeoutSeconds, 'idle timeout' => $idleTimeoutSeconds] as $label => $seconds) {
-            if ($seconds !== null && (!is_finite($seconds) || $seconds <= 0.0)) {
-                throw new \InvalidArgumentException(sprintf('Command %s must be positive and finite.', $label));
-            }
-        }
+        $this->assertTimeouts($timeoutSeconds, $idleTimeoutSeconds);
         if ($memoryLimitMegabytes !== null && $memoryLimitMegabytes < 1) {
             throw new \InvalidArgumentException('Command memory limit must be a positive MiB value.');
         }
@@ -39,7 +38,11 @@ final readonly class CommandExecutionPolicy
         }
     }
 
-    /** @param array<string, mixed> $manifest */
+    /**
+     * @param array<string, mixed> $manifest
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     */
     public static function fromManifest(array $manifest): self
     {
         $isolated = $manifest['isolated'] ?? false;
@@ -107,5 +110,17 @@ final readonly class CommandExecutionPolicy
             'memory_limit_megabytes' => $this->memoryLimitMegabytes,
             'termination_grace_seconds' => $this->terminationGraceSeconds,
         ];
+    }
+
+    /**
+     * @throws \InvalidArgumentException
+     */
+    private function assertTimeouts(?float $timeoutSeconds, ?float $idleTimeoutSeconds): void
+    {
+        foreach (['timeout' => $timeoutSeconds, 'idle timeout' => $idleTimeoutSeconds] as $label => $seconds) {
+            if ($seconds !== null && (!is_finite($seconds) || $seconds <= 0.0)) {
+                throw new \InvalidArgumentException(sprintf('Command %s must be positive and finite.', $label));
+            }
+        }
     }
 }

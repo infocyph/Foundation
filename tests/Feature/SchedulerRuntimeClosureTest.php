@@ -13,10 +13,12 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Operations\ExecutionHistory;
 use Infocyph\Foundation\Operations\RuntimeControl;
 use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
+use Infocyph\Foundation\Scheduling\ScheduledCommand;
 use Infocyph\Foundation\Scheduling\ScheduleManager;
 use Infocyph\Foundation\Scheduling\SchedulerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
 final class FoundationSchedulerRuntimeIO implements CommandIO
 {
@@ -26,6 +28,10 @@ final class FoundationSchedulerRuntimeIO implements CommandIO
     /** @var list<mixed> */
     public array $payloads = [];
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
         unset($question, $choices, $default);
@@ -33,6 +39,7 @@ final class FoundationSchedulerRuntimeIO implements CommandIO
         throw new LogicException('Choice input is not expected in Scheduler runtime tests.');
     }
 
+    #[\Override]
     public function confirm(string $question, bool $default = false): bool
     {
         unset($question, $default);
@@ -40,36 +47,46 @@ final class FoundationSchedulerRuntimeIO implements CommandIO
         return false;
     }
 
+    #[\Override]
     public function error(string $message): void
     {
         $this->errors[] = $message;
     }
 
+    #[\Override]
     public function info(string $message): void
     {
         unset($message);
     }
 
+    #[\Override]
     public function interactive(): bool
     {
         return false;
     }
 
+    #[\Override]
     public function json(mixed $value): void
     {
         $this->payloads[] = $value;
     }
 
+    #[\Override]
     public function machineReadable(): bool
     {
         return true;
     }
 
+    #[\Override]
     public function note(string $message): void
     {
         unset($message);
     }
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function password(string $question): string
     {
         unset($question);
@@ -77,11 +94,16 @@ final class FoundationSchedulerRuntimeIO implements CommandIO
         throw new LogicException('Password input is not expected in Scheduler runtime tests.');
     }
 
+    #[\Override]
     public function quiet(): bool
     {
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function read(string $question, ?string $default = null): string
     {
         unset($question, $default);
@@ -89,26 +111,31 @@ final class FoundationSchedulerRuntimeIO implements CommandIO
         throw new LogicException('Text input is not expected in Scheduler runtime tests.');
     }
 
+    #[\Override]
     public function success(string $message): void
     {
         unset($message);
     }
 
+    #[\Override]
     public function table(array $headers, array $rows): void
     {
         $this->payloads[] = ['headers' => $headers, 'rows' => $rows];
     }
 
+    #[\Override]
     public function warning(string $message): void
     {
         unset($message);
     }
 
+    #[\Override]
     public function write(string $message): void
     {
         unset($message);
     }
 
+    #[\Override]
     public function writeln(string $message = ''): void
     {
         unset($message);
@@ -121,21 +148,25 @@ final class FoundationSchedulerScopedProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
 final class FoundationSchedulerServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
 
-        $builder->scoped(
+        $builder->factory(
             'scheduler.runtime.scoped',
             FactoryDefinition::construct(FoundationSchedulerScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
     }
 }
@@ -168,6 +199,15 @@ beforeEach(function (): void {
     FoundationSchedulerScheduledMessageHandler::$handled = [];
 });
 
+it('rejects an empty schedule timezone and keeps explicit DateTimeZone objects', function (): void {
+    $scheduled = new ScheduledCommand('scheduler:probe');
+    expect(fn() => $scheduled->timezone(''))
+        ->toThrow(InvalidArgumentException::class, 'non-empty');
+
+    $scheduled->timezone(new DateTimeZone('UTC'));
+    expect($scheduled->toManifest()['timezone'])->toBe('UTC');
+});
+
 it('runs Scheduler execution units in fresh InterMix scopes', function (): void {
     $project = foundationSchedulerProject();
 
@@ -182,11 +222,19 @@ it('runs Scheduler execution units in fresh InterMix scopes', function (): void 
             $left = $app->make('scheduler.runtime.scoped');
             $right = $app->make('scheduler.runtime.scoped');
 
+            if (!$left instanceof FoundationSchedulerScopedProbe || !$right instanceof FoundationSchedulerScopedProbe) {
+                throw new \UnexpectedValueException('Scheduler scope must resolve the registered probe type.');
+            }
+
             return [$left->sequence, $right->sequence];
         });
         $second = $runtime->execute(function () use ($app): array {
             $left = $app->make('scheduler.runtime.scoped');
             $right = $app->make('scheduler.runtime.scoped');
+
+            if (!$left instanceof FoundationSchedulerScopedProbe || !$right instanceof FoundationSchedulerScopedProbe) {
+                throw new \UnexpectedValueException('Scheduler scope must resolve the registered probe type.');
+            }
 
             return [$left->sequence, $right->sequence];
         });
@@ -284,6 +332,7 @@ it('filters due entries deterministically and records non-zero and timeout outco
         $timeout = $manager->runNamed('timeout');
         expect($timeout->successful())->toBeFalse();
         $timedOut = (new ExecutionHistory($app))->latest('schedule', 'sched:slow');
+        \PHPUnit\Framework\Assert::assertIsArray(($timedOut['metadata'] ?? null));
         expect($timedOut['status'] ?? null)->toBe('timed_out')
             ->and($timedOut['metadata']['reason'] ?? null)->toBe('timed_out');
     } finally {
@@ -314,7 +363,9 @@ it('skips overlapping scheduled work under shared CacheLayer ownership and recor
             0.0,
             5.0,
         );
-        expect($held)->not->toBeNull();
+        if ($held === null) {
+            throw new \RuntimeException('Expected a scheduler overlap lock.');
+        }
 
         try {
             $run = $manager->runNamed('locked');
@@ -327,16 +378,15 @@ it('skips overlapping scheduled work under shared CacheLayer ownership and recor
                 'schedule_identity',
                 $entry->identity(),
             );
+            \PHPUnit\Framework\Assert::assertIsArray(($latest['metadata'] ?? null));
             expect($latest['status'] ?? null)->toBe('cancelled')
                 ->and($latest['metadata']['reason'] ?? null)->toBe('overlap');
             $executionId = $latest['execution_id'] ?? null;
-            expect($executionId)->toBeString();
+            \PHPUnit\Framework\Assert::assertIsString($executionId);
             $records = (new ExecutionHistory($app))->find($executionId);
             expect(array_column($records, 'status'))->toBe(['pending', 'cancelled']);
         } finally {
-            if ($held !== null) {
-                $locks->release($held);
-            }
+            $locks->release($held);
         }
     } finally {
         foundationSchedulerRemove($project);
@@ -463,6 +513,11 @@ function foundationSchedulerConfig(string $project, bool $locks = false, bool $m
     return $config;
 }
 
+/**
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \UnexpectedValueException
+ */
 function foundationSchedulerDispatcher(string $project): CommandDispatcher
 {
     return CommandDispatcher::project(
@@ -591,9 +646,10 @@ function foundationSchedulerLines(string $path): array
     }
     $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
-    return is_array($lines) ? array_values($lines) : [];
+    return is_array($lines) ? $lines : [];
 }
 
+/** @throws \UnexpectedValueException */
 function foundationSchedulerRemove(string $directory): void
 {
     if (!is_dir($directory)) {
@@ -605,6 +661,9 @@ function foundationSchedulerRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!$file instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('Scheduler fixture cleanup requires filesystem entries.');
+        }
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

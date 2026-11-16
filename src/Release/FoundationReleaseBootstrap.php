@@ -7,15 +7,21 @@ namespace Infocyph\Foundation\Release;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
+use Infocyph\Runwire\Runtime\RuntimeApplicationFactoryInterface;
+use Infocyph\Runwire\Runtime\RuntimeApplicationInterface;
+use Infocyph\Runwire\RuntimeContext;
 use Infocyph\Webrick\Runtime\Http\RuntimeAdapterInterface;
 
 /** External deployment input selecting one trusted active Foundation generation. */
-final readonly class FoundationReleaseBootstrap
+final readonly class FoundationReleaseBootstrap implements RuntimeApplicationFactoryInterface
 {
     public const string MANIFEST_SHA256_ENV = 'INFOCYPH_FOUNDATION_RELEASE_MANIFEST_SHA256';
 
     public const string RELEASE_ROOT_ENV = 'INFOCYPH_FOUNDATION_RELEASE_ROOT';
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         public string $releaseRoot,
         public string $trustedFoundationManifestSha256,
@@ -28,7 +34,10 @@ final readonly class FoundationReleaseBootstrap
         }
     }
 
-    /** @param array<string,mixed> $config */
+    /**
+     * @param array<string,mixed> $config
+     * @throws \InvalidArgumentException
+     */
     public static function fromEnvironment(array $config = []): ?self
     {
         $trustedSha256 = self::environment(self::MANIFEST_SHA256_ENV);
@@ -55,7 +64,22 @@ final readonly class FoundationReleaseBootstrap
         return rtrim($releaseRoot, DIRECTORY_SEPARATOR);
     }
 
-    /** @param array<string,mixed> $config */
+    /**
+     * @throws \LogicException
+     * @throws \Throwable
+     */
+    #[\Override]
+    public function create(RuntimeContext $context): RuntimeApplicationInterface
+    {
+        return $this->web()->runwireApplication($context);
+    }
+
+    /**
+     * @param array<string,mixed> $config
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
+     * @throws \UnexpectedValueException
+     */
     public function nonWeb(array $config, RuntimeMode $runtime): Application
     {
         return new FoundationReleaseRuntime()->nonWebPrevalidated(
@@ -71,6 +95,9 @@ final readonly class FoundationReleaseBootstrap
      * native request adaptation and response emission.
      *
      * @param array<string,mixed> $config
+     * @throws \InvalidArgumentException
+     * @throws \Throwable
+     * @throws \UnexpectedValueException
      */
     public function web(
         array $config = [],
@@ -103,7 +130,9 @@ final readonly class FoundationReleaseBootstrap
 
     private static function environment(string $name): ?string
     {
-        $value = $_ENV[$name] ?? $_SERVER[$name] ?? getenv($name);
+        // Release identity is a deployment process setting, never a request-populated
+        // PHP superglobal. Do not let application/request overlays select artifacts.
+        $value = getenv($name);
 
         return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }

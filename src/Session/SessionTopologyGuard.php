@@ -9,6 +9,11 @@ use Infocyph\Foundation\Config\DeploymentTopology;
 use Infocyph\Foundation\Config\SharedStateTopology;
 use Infocyph\Foundation\Exception\ConfigurationException;
 
+/**
+ * Explicit session topology validation for application-selected session stores.
+ *
+ * @api
+ */
 final readonly class SessionTopologyGuard
 {
     private SharedStateTopology $state;
@@ -18,6 +23,9 @@ final readonly class SessionTopologyGuard
         $this->state = new SharedStateTopology($config);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function assert(SessionConfig $session): void
     {
         if (!$this->config->isProduction()) {
@@ -38,7 +46,6 @@ final readonly class SessionTopologyGuard
             'cache' => $this->state->cacheStoreScope($session->cacheStore),
             'database' => $this->state->databaseConnectionScope($session->databaseConnection),
             'file' => SharedStateTopology::HOST,
-            'array' => SharedStateTopology::PROCESS,
             default => SharedStateTopology::NONE,
         };
         if (!$this->state->satisfies($storeScope, SharedStateTopology::CLUSTER)) {

@@ -14,6 +14,7 @@ final class InMemoryRecoveryCodeService implements RecoveryCodeServiceInterface
      */
     private array $codes = [];
 
+    #[\Override]
     public function generate(string $accountId, int $count = 0): array
     {
         $count = $count > 0 ? $count : 10;
@@ -29,6 +30,7 @@ final class InMemoryRecoveryCodeService implements RecoveryCodeServiceInterface
         return $plain;
     }
 
+    #[\Override]
     public function verify(string $accountId, string $code): RecoveryCodeVerificationResult
     {
         $stored = $this->codes[$accountId][$code] ?? null;

@@ -10,6 +10,10 @@ use Infocyph\Foundation\Command\ExitCode;
 
 abstract class SystemCommand extends Command
 {
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     final public static function define(CommandDefinition $command): void
     {
         unset($command);
@@ -22,14 +26,15 @@ abstract class SystemCommand extends Command
         return $this->context()->definition()->commandName();
     }
 
-    final protected function emit(mixed $data, ?string $message = null): int
+    /**
+     * @psalm-param array<int<0, max>|string, mixed> $data
+     */
+    final protected function emit(array $data, ?string $message = null): int
     {
         if ($this->io()->machineReadable()) {
             $this->io()->json($data);
         } elseif ($message !== null) {
             $this->io()->writeln($message);
-        } elseif (is_scalar($data) || $data === null) {
-            $this->io()->writeln($data === null ? '' : (string) $data);
         } else {
             $this->io()->json($data);
         }

@@ -49,7 +49,7 @@ $optionalMarkers = [
 
 $loadedBeforeIsolation = [];
 foreach ($optionalMarkers as $name => $class) {
-    $loadedBeforeIsolation[$name] = class_exists($class, false) || interface_exists($class, false);
+    $loadedBeforeIsolation[$name] = class_exists($class, false);
 }
 
 $optionalPrefixes = [
@@ -101,6 +101,7 @@ try {
 
     foreach ($services as $service => $expected) {
         $message = null;
+
         try {
             $isolated->make($service);
         } catch (ServiceResolutionException $failure) {
@@ -122,6 +123,7 @@ try {
     ];
     $notificationsApp = Foundation::cli($notificationsConfig)->boot();
     $mailError = null;
+
     try {
         $notificationsApp->make(NotificationChannelRegistry::class)->channel('mail');
     } catch (Throwable $failure) {
@@ -134,6 +136,7 @@ try {
 
     $defaultAuth = Foundation::cli($baseConfig);
     $defaultError = null;
+
     try {
         $defaultAuth->make(AuthManager::class);
     } catch (Throwable $failure) {
@@ -147,6 +150,7 @@ try {
     $otpConfig = $baseConfig;
     $otpConfig['auth'] = ['drivers' => ['mfa' => 'otp', 'passkey' => 'memory']];
     $otpError = null;
+
     try {
         Foundation::cli($otpConfig)->make(AuthManager::class);
     } catch (Throwable $failure) {
@@ -157,6 +161,7 @@ try {
     $webauthnConfig = $baseConfig;
     $webauthnConfig['auth'] = ['drivers' => ['mfa' => 'simple', 'passkey' => 'webauthn']];
     $webauthnError = null;
+
     try {
         Foundation::cli($webauthnConfig)->make(AuthManager::class);
     } catch (Throwable $failure) {
@@ -170,7 +175,7 @@ try {
     ];
 }
 
-file_put_contents(
-    'php://stdout',
+fwrite(
+    STDOUT,
     json_encode($probe, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . PHP_EOL,
 );

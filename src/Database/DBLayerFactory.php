@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Database;
 
 use Infocyph\CacheLayer\Cache\CacheInterface;
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\Connection\Pool;
 use Infocyph\DBLayer\Connection\PoolManager;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
 use Psr\Container\ContainerInterface;
@@ -32,10 +33,6 @@ final class DBLayerFactory
     private array $pooledConfigurations = [];
 
     private ?PoolManager $poolManager = null;
-
-    private ?CacheInterface $queryCache = null;
-
-    private bool $queryCacheResolved = false;
 
     private bool $resolvingQueryCache = false;
 
@@ -61,6 +58,12 @@ final class DBLayerFactory
         }
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function connection(?string $name = null, bool $fresh = false): Connection
     {
         $name = $this->resolver->connectionName($name);
@@ -68,14 +71,14 @@ final class DBLayerFactory
         $state = $this->executionState();
 
         if ($fresh) {
-            return $this->bindQueryCache($state->freshConnection($name, $config));
+            return $this->configureConnection($state->freshConnection($name, $config));
         }
 
         $connection = $this->resolver->poolEnabled()
             ? $this->pooledConnection($state, $name, $config)
             : $state->connection($name, $config);
 
-        return $this->bindQueryCache($connection);
+        return $this->configureConnection($connection);
     }
 
     /**
@@ -83,29 +86,22 @@ final class DBLayerFactory
      * that retains its PDO independently of an execution scope.
      *
      * Application repositories and request/job work must use connection().
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function infrastructureConnection(?string $name = null): Connection
     {
         $name = $this->resolver->connectionName($name);
 
-        return $this->infrastructureConnections[$name]
+        $connection = $this->infrastructureConnections[$name]
             ??= new Connection($this->configuration($name), $name);
+        $connection->setRunwireContextProvider(RunwireIntegration::current(...));
+
+        return $connection;
     }
 
     public function resolver(): DatabaseConnectionResolver
     {
         return $this->resolver;
-    }
-
-    private function bindQueryCache(Connection $connection): Connection
-    {
-        if (!$this->resolver->queryCacheEnabled() || $this->resolvingQueryCache) {
-            return $connection;
-        }
-
-        $connection->setQueryCache($this->queryCache());
-
-        return $connection;
     }
 
     private function configuration(string $name): ConnectionConfig
@@ -114,6 +110,24 @@ final class DBLayerFactory
             ??= ConnectionConfig::fromArray($this->resolver->configuration($name));
     }
 
+    private function configureConnection(Connection $connection): Connection
+    {
+        $connection->setRunwireContextProvider(RunwireIntegration::current(...));
+
+        if (!$this->resolver->queryCacheEnabled() || $this->resolvingQueryCache) {
+            return $connection;
+        }
+
+        $connection->setQueryCacheResolver($this->queryCache(...));
+
+        return $connection;
+    }
+
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function executionState(): RuntimeExecutionState
     {
         $state = $this->container->get(RuntimeExecutionState::class);
@@ -124,6 +138,9 @@ final class DBLayerFactory
         return $state;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function pooledConnection(
         RuntimeExecutionState $state,
         string $name,
@@ -143,13 +160,14 @@ final class DBLayerFactory
         return $this->poolManager ??= new PoolManager(new Pool($this->resolver->poolOptions()));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function queryCache(): CacheInterface
     {
-        if ($this->queryCacheResolved && $this->queryCache instanceof CacheInterface) {
-            return $this->queryCache;
-        }
-
-        if (!$this->container->has(CacheLayerFactory::class)) {
+        if (!$this->container->has(CacheManager::class)) {
             throw new ConfigurationException(
                 'Database query caching requires the Foundation cache capability and an explicit database.query_cache.store.',
             );
@@ -158,15 +176,12 @@ final class DBLayerFactory
         $this->resolvingQueryCache = true;
 
         try {
-            $factory = $this->container->get(CacheLayerFactory::class);
-            if (!$factory instanceof CacheLayerFactory) {
-                throw new ConfigurationException('CacheLayerFactory binding is invalid.');
+            $manager = $this->container->get(CacheManager::class);
+            if (!$manager instanceof CacheManager) {
+                throw new ConfigurationException('CacheManager binding is invalid.');
             }
 
-            $this->queryCache = $factory->make($this->resolver->queryCacheStore());
-            $this->queryCacheResolved = true;
-
-            return $this->queryCache;
+            return $manager->store($this->resolver->queryCacheStore());
         } finally {
             $this->resolvingQueryCache = false;
         }

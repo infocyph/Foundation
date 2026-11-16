@@ -2,13 +2,24 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../tests/Fixtures/ProbeInput.php';
+$argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::fromServer($_SERVER);
+
 use Infocyph\Foundation\Benchmarks\Support\FoundationMaintenanceBenchmarkAdapter;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
-/** @return array<string,mixed> */
+/**
+ * @return array<string,mixed>
+ * @throws \Exception
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \Psr\Cache\InvalidArgumentException
+ * @throws \RuntimeException
+ * @throws \UnexpectedValueException
+ */
 function foundationMaintenanceBenchmarkMode(string $mode): array
 {
     $enabled = $mode === 'enabled';
@@ -16,9 +27,9 @@ function foundationMaintenanceBenchmarkMode(string $mode): array
         throw new InvalidArgumentException('Benchmark mode must be enabled or disabled.');
     }
 
-    $operations = max(1, (int) (getenv('FOUNDATION_MAINTENANCE_BENCHMARK_OPERATIONS') ?: 25_000));
-    $warmup = max(0, (int) (getenv('FOUNDATION_MAINTENANCE_BENCHMARK_WARMUP') ?: 2_500));
-    $repetitions = max(1, (int) (getenv('FOUNDATION_MAINTENANCE_BENCHMARK_REPETITIONS') ?: 5));
+    $operations = max(1, (int) ((($__foundation154_27 = getenv('FOUNDATION_MAINTENANCE_BENCHMARK_OPERATIONS')) !== false && $__foundation154_27 !== '' && $__foundation154_27 !== '0' ? $__foundation154_27 : 25_000)));
+    $warmup = max(0, (int) ((($__foundation154_28 = getenv('FOUNDATION_MAINTENANCE_BENCHMARK_WARMUP')) !== false && $__foundation154_28 !== '' && $__foundation154_28 !== '0' ? $__foundation154_28 : 2_500)));
+    $repetitions = max(1, (int) ((($__foundation154_29 = getenv('FOUNDATION_MAINTENANCE_BENCHMARK_REPETITIONS')) !== false && $__foundation154_29 !== '' && $__foundation154_29 !== '0' ? $__foundation154_29 : 5)));
     $project = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR
         . 'foundation-maintenance-benchmark-' . $mode . '-' . bin2hex(random_bytes(5));
     mkdir($project . '/routes', 0777, true);
@@ -62,10 +73,7 @@ PHP);
         $manifest,
         capabilities: [],
     );
-    $trustedSha256 = $release['release_runtime_manifest_sha256'] ?? null;
-    if (!is_string($trustedSha256)) {
-        throw new RuntimeException('Maintenance benchmark release digest is unavailable.');
-    }
+    $trustedSha256 = $release['release_runtime_manifest_sha256'];
 
     $adapter = new FoundationMaintenanceBenchmarkAdapter();
     $runtime = WebReleaseRuntime::loadPrevalidated(
@@ -87,7 +95,7 @@ PHP);
             for ($i = 0; $i < $operations; ++$i) {
                 $runtime->server->handle();
             }
-            $samples[] = (hrtime(true) - $started) / $operations;
+            $samples[] = (float) (hrtime(true) - $started) / (float) $operations;
         }
     } finally {
         \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($project);
@@ -102,12 +110,16 @@ PHP);
         'warmup_operations' => $warmup,
         'repetitions' => $repetitions,
         'median_ns_per_operation' => $medianNs,
-        'median_rpm' => 60_000_000_000 / $medianNs,
+        'median_rpm' => 60_000_000_000.0 / $medianNs,
         'request_materializations' => $adapter->requestMaterializations,
         'samples_ns_per_operation' => $samples,
     ];
 }
 
+/**
+ * @return array{median_ns_per_operation:float, ...}
+ * @throws \RuntimeException
+ */
 function foundationMaintenanceBenchmarkChild(string $mode): array
 {
     $command = [PHP_BINARY, __FILE__, '--mode=' . $mode];
@@ -135,9 +147,13 @@ function foundationMaintenanceBenchmarkChild(string $mode): array
     }
 
     $result = json_decode(trim($stdout), true, flags: JSON_THROW_ON_ERROR);
-    if (!is_array($result)) {
-        throw new RuntimeException('Maintenance benchmark child returned an invalid result.');
+    if (!is_array($result)
+        || (!is_int($result['median_ns_per_operation'] ?? null)
+            && !is_float($result['median_ns_per_operation'] ?? null))
+    ) {
+        throw new RuntimeException('Maintenance benchmark child returned invalid latency measurements.');
     }
+    $result['median_ns_per_operation'] = (float) $result['median_ns_per_operation'];
 
     return $result;
 }
@@ -145,11 +161,15 @@ function foundationMaintenanceBenchmarkChild(string $mode): array
 $mode = null;
 foreach (array_slice($argv, 1) as $argument) {
     if (str_starts_with($argument, '--mode=')) {
-        $mode = substr($argument, strlen('--mode='));
+        $mode = match (substr($argument, strlen('--mode='))) {
+            'enabled' => 'enabled',
+            'disabled' => 'disabled',
+            default => throw new InvalidArgumentException('Unsupported maintenance benchmark mode.'),
+        };
     }
 }
 
-if (is_string($mode) && $mode !== '') {
+if ($mode !== null) {
     fwrite(STDOUT, json_encode(foundationMaintenanceBenchmarkMode($mode), JSON_THROW_ON_ERROR) . "\n");
 
     return;
@@ -157,8 +177,8 @@ if (is_string($mode) && $mode !== '') {
 
 $disabled = foundationMaintenanceBenchmarkChild('disabled');
 $enabled = foundationMaintenanceBenchmarkChild('enabled');
-$disabledNs = (float) ($disabled['median_ns_per_operation'] ?? 0.0);
-$enabledNs = (float) ($enabled['median_ns_per_operation'] ?? 0.0);
+$disabledNs = $disabled['median_ns_per_operation'];
+$enabledNs = $enabled['median_ns_per_operation'];
 if ($disabledNs <= 0.0 || $enabledNs <= 0.0) {
     throw new RuntimeException('Maintenance benchmark did not produce positive timings.');
 }
@@ -176,7 +196,7 @@ $document = [
         ? 'pre-routing-gate-justified'
         : 'retain-compiled-middleware-gate',
 ];
-$output = getenv('FOUNDATION_MAINTENANCE_BENCHMARK_OUTPUT') ?: dirname(__DIR__) . '/build/maintenance-overhead.json';
+$output = (($__foundation157_190 = getenv('FOUNDATION_MAINTENANCE_BENCHMARK_OUTPUT')) !== false && $__foundation157_190 !== '' && $__foundation157_190 !== '0') ? $__foundation157_190 : dirname(__DIR__) . '/build/maintenance-overhead.json';
 $directory = dirname($output);
 if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
     throw new RuntimeException(sprintf('Unable to create benchmark output directory "%s".', $directory));

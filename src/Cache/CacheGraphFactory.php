@@ -10,9 +10,16 @@ use Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Filesystem\PathManager;
+use Psr\Container\ContainerInterface;
 
+/**
+ * Generated runtime cache capability factory entrypoint.
+ *
+ * @api
+ */
 final class CacheGraphFactory
 {
+    /** @throws \Infocyph\Foundation\Exception\ConfigurationException */
     public static function counters(CacheLayerFactory $factory, string $name): AtomicCounterStoreInterface
     {
         return $factory->counters($name);
@@ -21,12 +28,12 @@ final class CacheGraphFactory
     public static function layerFactory(
         ConfigRepository $config,
         PathManager $paths,
-        DBLayerFactory $database,
+        ContainerInterface $container,
     ): CacheLayerFactory {
         return new CacheLayerFactory(
             config: $config,
             paths: $paths,
-            database: static fn(?string $name = null) => $database->infrastructureConnection($name),
+            database: static fn(?string $name = null) => self::database($container)->infrastructureConnection($name),
         );
     }
 
@@ -47,24 +54,24 @@ final class CacheGraphFactory
         );
     }
 
-    public static function lock(CacheLayerFactory $factory): LockProviderInterface
+    public static function lock(CacheManager $manager): LockProviderInterface
     {
-        return $factory->lock();
+        return $manager->lock();
     }
 
     public static function manager(
         CacheLayerFactory $factory,
-        DBLayerFactory $database,
+        ContainerInterface $container,
         ConfigRepository $config,
         PathManager $paths,
     ): CacheManager {
         return new CacheManager(
             factory: $factory,
-            database: static fn(?string $name = null) => $database->connection($name),
+            database: static fn(?string $name = null) => self::database($container)->connection($name),
             transactionalFactory: new CacheLayerFactory(
                 config: $config,
                 paths: $paths,
-                database: static fn(?string $name = null) => $database->connection($name),
+                database: static fn(?string $name = null) => self::database($container)->connection($name),
             ),
         );
     }
@@ -86,5 +93,20 @@ final class CacheGraphFactory
     public static function store(CacheManager $manager): CacheInterface
     {
         return $manager->store();
+    }
+
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    private static function database(ContainerInterface $container): DBLayerFactory
+    {
+        $database = $container->get(DBLayerFactory::class);
+        if (!$database instanceof DBLayerFactory) {
+            throw new \LogicException('DBLayerFactory binding is invalid.');
+        }
+
+        return $database;
     }
 }

@@ -13,29 +13,33 @@ use Infocyph\InterMix\DI\Support\ServiceReference;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
+/**
+ * Built-in application service provider selected through Foundation composition.
+ *
+ * @api
+ */
 final class LoggingServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $logging = is_array($context->config['logging'] ?? null) ? $context->config['logging'] : [];
         $exceptions = is_array($logging['exceptions'] ?? null) ? $logging['exceptions'] : [];
 
-        if (!$builder->definitions()->has(LoggerInterface::class)) {
-            $driver = ValueNormalizer::string($logging['driver'] ?? null, 'null');
-            $definition = $driver === 'null'
-                ? FactoryDefinition::construct(NullLogger::class)
-                : FactoryDefinition::construct(JsonLogger::class, [
-                    $driver,
-                    ValueNormalizer::string($logging['level'] ?? null, 'warning'),
-                    $this->logPath($context, $logging['path'] ?? null),
-                    ValueNormalizer::stringList($logging['redact'] ?? []),
-                    ValueNormalizer::bool($exceptions['include_message'] ?? null, false),
-                    ValueNormalizer::bool($exceptions['include_trace'] ?? null, false),
-                ]);
-            $builder->singleton(LoggerInterface::class, $definition);
-        }
+        $driver = ValueNormalizer::string($logging['driver'] ?? null, 'null');
+        $definition = $driver === 'null'
+            ? FactoryDefinition::construct(NullLogger::class)
+            : FactoryDefinition::construct(JsonLogger::class, [
+                $driver,
+                ValueNormalizer::string($logging['level'] ?? null, 'warning'),
+                $this->logPath($context, $logging['path'] ?? null),
+                ValueNormalizer::stringList($logging['redact'] ?? []),
+                ValueNormalizer::bool($exceptions['include_message'] ?? null, false),
+                ValueNormalizer::bool($exceptions['include_trace'] ?? null, false),
+            ]);
+        $builder->factory(LoggerInterface::class, $definition);
 
-        $builder->singleton(
+        $builder->factory(
             ExceptionReporter::class,
             FactoryDefinition::construct(ExceptionReporter::class, [
                 new ServiceReference(LoggerInterface::class),
@@ -46,7 +50,7 @@ final class LoggingServiceProvider extends ServiceProvider
                 ValueNormalizer::int($exceptions['throttle_limit'] ?? null, 1),
             ]),
         );
-        $builder->singleton(
+        $builder->factory(
             HttpExceptionLogger::class,
             FactoryDefinition::construct(HttpExceptionLogger::class, [
                 new ServiceReference(ExceptionReporter::class),

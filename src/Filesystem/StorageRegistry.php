@@ -16,6 +16,8 @@ use League\Flysystem\FilesystemOperator;
  * Named filesystem lifecycle, lazy operator creation, path identity, custom
  * drivers, and isolation are Pathwise-owned. Foundation only loads application
  * configuration and resolves relative local roots against the application base.
+ *
+ * @api
  */
 final readonly class StorageRegistry
 {
@@ -23,6 +25,7 @@ final readonly class StorageRegistry
 
     /**
      * @param array<array-key, mixed> $drivers Optional Pathwise custom-driver factories.
+     * @throws \InvalidArgumentException
      */
     public function __construct(
         ConfigRepository $config,
@@ -89,7 +92,10 @@ final readonly class StorageRegistry
         return $candidate;
     }
 
-    /** @return array<string, array<string, mixed>> */
+    /**
+     * @return array<string, array<string, mixed>>
+     * @throws \InvalidArgumentException
+     */
     private function loadConfigurations(ConfigRepository $config, PathManager $paths): array
     {
         $configured = $config->get('filesystem.disks', []);

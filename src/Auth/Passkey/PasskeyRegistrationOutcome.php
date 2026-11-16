@@ -24,6 +24,7 @@ final readonly class PasskeyRegistrationOutcome
     /**
      * @return list<\UnitEnum>
      */
+    #[\Override]
     protected function successfulStatuses(): array
     {
         return [PasskeyRegistrationStatus::STARTED, PasskeyRegistrationStatus::REGISTERED];

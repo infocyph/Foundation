@@ -11,6 +11,11 @@ final readonly class CommandResolver
 {
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Throwable
+     */
     public function run(
         CommandDescriptor $descriptor,
         ParsedInput $input,
@@ -74,6 +79,9 @@ final readonly class CommandResolver
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function activateCapabilities(CommandDefinition $definition): void
     {
         foreach ($definition->capabilities() as $capability) {
@@ -94,7 +102,10 @@ final readonly class CommandResolver
         }
     }
 
-    /** @param class-string<CommandHandlerInterface> $handler */
+    /**
+     * @param class-string<CommandHandlerInterface> $handler
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function resolve(string $handler): CommandHandlerInterface
     {
         return $this->application->make($handler);

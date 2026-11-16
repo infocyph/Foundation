@@ -24,11 +24,23 @@ final readonly class AuthSchemaInstaller
         private bool $personalAccessTokensEnabled = false,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function install(?string $connection = null): void
     {
         $this->runner($connection)->run();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function installed(?string $connection = null): bool
     {
         return $this->readiness($connection)['installed'];
@@ -41,6 +53,10 @@ final readonly class AuthSchemaInstaller
      *   missing_tables: list<string>,
      *   missing_columns: list<string>
      * }
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function readiness(?string $connection = null): array
     {
@@ -69,6 +85,7 @@ final readonly class AuthSchemaInstaller
             [$this->tables->mfaFactors(), 'revision'],
             [$this->tables->passkeyCredentials(), 'revision'],
             [$this->tables->passkeyCredentials(), 'credential_record'],
+            [$this->tables->passkeyCredentials(), 'credential_id_hash'],
         ];
         foreach ($requiredColumns as [$table, $column]) {
             if ($schema->hasTable($table) && !$schema->hasColumn($table, $column)) {
@@ -84,6 +101,12 @@ final readonly class AuthSchemaInstaller
         ];
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function runner(?string $connection = null): MigrationRunner
     {
         $migrations = [
@@ -91,6 +114,7 @@ final readonly class AuthSchemaInstaller
             $this->mfaRevisionSchema,
             $this->passkeyRevisionSchema,
             $this->passkeyRecordSchema,
+            new AuthPasskeyIdentityHashSchema($this->tables),
             ...($this->oauthEnabled ? [
                 $this->oauthSchema(),
                 new AuthOAuthEpicryptRevisionSchema($this->tables),
@@ -105,11 +129,20 @@ final readonly class AuthSchemaInstaller
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     public function uninstall(?string $connection = null): void
     {
         $this->runner($connection)->reset(true);
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function oauthSchema(): Migration
     {
         if (!$this->oauthRevisionSchema instanceof AuthOAuthRevisionSchema) {
@@ -119,6 +152,9 @@ final readonly class AuthSchemaInstaller
         return $this->oauthRevisionSchema;
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function personalAccessTokenSchema(): Migration
     {
         if (!$this->personalAccessTokenSchema instanceof AuthPersonalAccessTokenSchema) {

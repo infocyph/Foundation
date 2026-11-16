@@ -18,8 +18,9 @@ build/deploy plane; runtime code may consume immutable generated artifacts and
 loaded-generation identities only.
 
 Optional specialist packages remain outside Foundation's runtime `require` set.
-CacheLayer is the deliberate exception because cache/coordination is Foundation
-core infrastructure in 3.0.
+ArrayKit, CacheLayer, InterMix, Runwire, UID and Webrick are required Core
+packages. Installing a package never starts its services; runtime mode and
+explicit capability selection determine which integration is registered.
 
 ## Provider lifetimes
 

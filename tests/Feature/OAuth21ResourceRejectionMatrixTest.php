@@ -160,17 +160,24 @@ it('rejects disabled accounts disabled clients and revoked authorizations', func
             ->toBe($registration->client->clientId);
 
         $disabledAccounts = new class implements AccountProviderInterface {
+            #[\Override]
             public function findById(string $id): ?AccountInterface
             {
                 return $id === 'account-1' ? new class implements AccountInterface {
+                    #[\Override]
                     public function id(): string { return 'account-1'; }
+                    #[\Override]
                     public function identifier(): string { return 'disabled@example.test'; }
+                    #[\Override]
                     public function metadata(): array { return []; }
+                    #[\Override]
                     public function passwordHash(): ?string { return null; }
+                    #[\Override]
                     public function status(): AccountStatus { return AccountStatus::DISABLED; }
                 } : null;
             }
 
+            #[\Override]
             public function findByIdentifier(string $identifier): ?AccountInterface
             {
                 unset($identifier);
@@ -200,10 +207,17 @@ it('rejects disabled accounts disabled clients and revoked authorizations', func
     }
 });
 
-/** @param array<string, string> $changes */
+/**
+ * @param array<string, string> $changes
+ * @throws \RuntimeException
+ */
 function oauth21RejectRewriteHeader(string $token, array $changes): string
 {
-    [$encodedHeader, $payload, $signature] = explode('.', $token, 3);
+    $segments = explode('.', $token, 3);
+    if (count($segments) !== 3) {
+        throw new RuntimeException('JWT must have three segments.');
+    }
+    [$encodedHeader, $payload, $signature] = $segments;
     $header = json_decode(oauth21RejectBase64UrlDecode($encodedHeader), true, flags: JSON_THROW_ON_ERROR);
     if (!is_array($header)) {
         throw new RuntimeException('JWT header must decode to an array.');
@@ -213,9 +227,14 @@ function oauth21RejectRewriteHeader(string $token, array $changes): string
         . '.' . $payload . '.' . $signature;
 }
 
+/** @throws \RuntimeException */
 function oauth21RejectCorruptSignature(string $token): string
 {
-    [$header, $payload, $signature] = explode('.', $token, 3);
+    $segments = explode('.', $token, 3);
+    if (count($segments) !== 3) {
+        throw new RuntimeException('JWT must have three segments.');
+    }
+    [$header, $payload, $signature] = $segments;
     $replacement = str_ends_with($signature, 'A') ? 'B' : 'A';
 
     return $header . '.' . $payload . '.' . substr($signature, 0, -1) . $replacement;

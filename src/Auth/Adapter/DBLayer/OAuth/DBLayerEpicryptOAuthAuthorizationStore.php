@@ -12,6 +12,10 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerStore;
 
 final readonly class DBLayerEpicryptOAuthAuthorizationStore extends DBLayerStore implements OAuthAuthorizationStoreInterface
 {
+    /**
+     * @throws \Throwable
+     */
+    #[\Override]
     public function create(OAuthAuthorizationRecord $record): bool
     {
         try {
@@ -40,11 +44,26 @@ final readonly class DBLayerEpicryptOAuthAuthorizationStore extends DBLayerStore
         }
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \RuntimeException
+     */
+    #[\Override]
     public function find(string $authorizationId): ?OAuthAuthorizationRecord
     {
         return $this->findUsing($this->connection(), $authorizationId);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
+    #[\Override]
     public function revoke(string $authorizationId, int $revokedAt): ?OAuthAuthorizationRecord
     {
         $result = $this->connection()->transaction(function (Connection $transaction) use ($authorizationId, $revokedAt): ?OAuthAuthorizationRecord {
@@ -62,6 +81,9 @@ final readonly class DBLayerEpicryptOAuthAuthorizationStore extends DBLayerStore
         return $result instanceof OAuthAuthorizationRecord ? $result : null;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function findUsing(Connection $connection, string $authorizationId): ?OAuthAuthorizationRecord
     {
         $row = $connection->select(

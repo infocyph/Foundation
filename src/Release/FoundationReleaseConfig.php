@@ -12,6 +12,10 @@ final class FoundationReleaseConfig
 {
     private const int FORMAT = 1;
 
+    /**
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     public static function load(string $path, string $trustedSha256): ConfigRepository
     {
         $trustedSha256 = FoundationReleaseManifest::digest($trustedSha256, 64, 'config_sha256');
@@ -19,14 +23,8 @@ final class FoundationReleaseConfig
             throw new \RuntimeException(sprintf('Foundation release config is not readable: "%s".', $path));
         }
 
-        $actualSha256 = hash_file('sha256', $path);
-        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
-            throw new \RuntimeException('Foundation release config trust identity mismatch.');
-        }
-
-        $payload = require $path;
-        if (!is_array($payload)
-            || ($payload['format'] ?? null) !== self::FORMAT
+        $payload = FoundationReleaseManifest::loadTrustedArray($path, $trustedSha256, 'release config');
+        if (($payload['format'] ?? null) !== self::FORMAT
             || !is_array($payload['config'] ?? null)
         ) {
             throw new \UnexpectedValueException('Foundation release config snapshot is malformed.');
@@ -38,7 +36,10 @@ final class FoundationReleaseConfig
         return new ConfigRepository($config, compiled: true);
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \RuntimeException
+     */
     public static function write(string $path, array $config): string
     {
         ConfigExportValidator::assertExportable($config);
@@ -52,9 +53,16 @@ final class FoundationReleaseConfig
             'config' => $config,
         ];
         $contents = "<?php\n\ndeclare(strict_types=1);\n\nreturn " . var_export($payload, true) . ";\n";
-        $temporary = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';
+        // Native temporary-file creation restricts access before any config byte is written.
+        $temporary = tempnam($directory, '.foundation-config-');
+        if (!is_string($temporary)) {
+            throw new \RuntimeException('Unable to create private Foundation release config staging.');
+        }
 
         try {
+            if (dirname($temporary) !== realpath($directory)) {
+                throw new \RuntimeException('Foundation release config staging directory is invalid.');
+            }
             if (file_put_contents($temporary, $contents, LOCK_EX) !== strlen($contents)
                 || !chmod($temporary, 0640)
                 || !rename($temporary, $path)

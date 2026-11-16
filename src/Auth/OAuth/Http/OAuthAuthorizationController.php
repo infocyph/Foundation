@@ -13,6 +13,11 @@ use Infocyph\Foundation\Session\SessionConfig;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
+/**
+ * Application-facing OAuth authorization endpoint controller.
+ *
+ * @api
+ */
 final readonly class OAuthAuthorizationController
 {
     public function __construct(
@@ -21,6 +26,13 @@ final readonly class OAuthAuthorizationController
         private SessionConfig $session,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\Exception\AuthenticationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     public function authorization(Request $request): Response
     {
         $authorization = $this->oauth->authorization($request);
@@ -33,7 +45,7 @@ final readonly class OAuthAuthorizationController
         }
 
         return match ($request->post('decision')) {
-            'approve' => $this->oauth->authorizationApproved($authorization, $this->principals->require()),
+            'approve' => $this->authorizationApprove($authorization),
             'deny' => $this->oauth->authorizationDenied($authorization, $this->principals->require()),
             default => $this->consent(
                 $request,
@@ -43,6 +55,60 @@ final readonly class OAuthAuthorizationController
         };
     }
 
+    /**
+     * @throws \LogicException
+     */
+    private function approveWithProtocolError(
+        AuthorizationRequest $request,
+        \Infocyph\Foundation\Auth\Principal\PrincipalInterface $principal,
+    ): Response {
+        try {
+            return $this->oauth->authorizationApproved($request, $principal);
+        } catch (OAuthProtocolException $exception) {
+            return $this->oauth->authorizationFailure($request, $exception);
+        }
+    }
+
+    /**
+     * @throws \Infocyph\Foundation\Auth\Exception\AuthenticationException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
+    private function authorizationApprove(AuthorizationRequest $request): Response
+    {
+        $principal = $this->principals->require();
+        if ($request->openId()) {
+            try {
+                $requirement = $this->oauth->openIdInteraction($request, $principal);
+            } catch (OAuthProtocolException $exception) {
+                return $this->oauth->authorizationFailure($request, $exception);
+            }
+
+            if ($requirement === OpenIdInteractionRequirement::SUBJECT_AUTHENTICATION) {
+                return $this->oauth->authorizationFailure(
+                    $request,
+                    new OAuthProtocolException('login_required', 'OpenID authorization requires reauthentication.', 400, true),
+                );
+            }
+
+            if ($requirement === OpenIdInteractionRequirement::ACCOUNT_SELECTION) {
+                return $this->oauth->authorizationFailure(
+                    $request,
+                    new OAuthProtocolException('account_selection_required', 'OpenID authorization requires account selection.', 400, true),
+                );
+            }
+        }
+
+        return $this->approveWithProtocolError($request, $principal);
+    }
+
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
+     */
     private function authorizationGet(Request $request, AuthorizationRequest $authorization): Response
     {
         if (!$authorization->openId()) {
@@ -70,7 +136,7 @@ final readonly class OAuthAuthorizationController
                 );
             }
 
-            return $this->oauth->authorizationApproved($authorization, $principal);
+            return $this->approveWithProtocolError($authorization, $principal);
         }
 
         if ($requirement === OpenIdInteractionRequirement::SUBJECT_AUTHENTICATION) {
@@ -100,6 +166,10 @@ final readonly class OAuthAuthorizationController
         return $this->consent($request, $authorization);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     private function consent(
         Request $request,
         AuthorizationRequest $authorization,

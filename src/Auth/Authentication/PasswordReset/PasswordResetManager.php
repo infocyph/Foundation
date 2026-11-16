@@ -18,7 +18,6 @@ use Infocyph\Foundation\Auth\Contract\Storage\PasswordResetStoreInterface;
 use Infocyph\Foundation\Auth\Notification\AuthNotification;
 use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
-use Infocyph\Foundation\Auth\Support\ContextValue;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
 final readonly class PasswordResetManager
@@ -51,6 +50,10 @@ final readonly class PasswordResetManager
             return new PasswordResetResult(PasswordResetStatus::INVALID, code: 'reset_request_not_found', context: $context);
         }
 
+        if ($verification->subjectId !== $request->accountId) {
+            return new PasswordResetResult(PasswordResetStatus::INVALID, code: 'reset_request_mismatch', context: $context);
+        }
+
         if ($request->isConsumed() || $this->store->wasConsumed($request->id)) {
             return new PasswordResetResult(PasswordResetStatus::CONSUMED, $request, code: 'reset_request_consumed', context: $context);
         }
@@ -59,8 +62,12 @@ final readonly class PasswordResetManager
             return new PasswordResetResult(PasswordResetStatus::EXPIRED, $request, code: 'reset_request_expired', context: $context);
         }
 
-        $this->store->consume($request->id);
-        $this->accounts->updatePasswordHash($request->accountId, $passwordHash);
+        if (!$this->store->consumeAndApply(
+            $request->id,
+            fn() => $this->accounts->updatePasswordHash($request->accountId, $passwordHash),
+        )) {
+            return new PasswordResetResult(PasswordResetStatus::CONSUMED, $request, code: 'reset_request_consumed', context: $context);
+        }
         $this->recordEvent(AuthEventType::PASSWORD_RESET_COMPLETED, $request->accountId, $context, ['request_id' => $request->id], AuthEventSeverity::NOTICE);
 
         return new PasswordResetResult(PasswordResetStatus::COMPLETED, $request, code: 'password_reset_completed', context: $context);
@@ -127,8 +134,6 @@ final readonly class PasswordResetManager
             $accountId,
             metadata: $metadata + $context,
             severity: $severity,
-            sessionId: ContextValue::stringOrNull($context, 'session_id'),
-            deviceId: ContextValue::stringOrNull($context, 'device_id'),
         );
     }
 

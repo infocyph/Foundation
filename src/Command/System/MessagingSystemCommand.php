@@ -16,6 +16,7 @@ final class MessagingSystemCommand extends SystemCommand
 {
     public function __construct(private readonly Application $application) {}
 
+    #[\Override]
     protected function handle(): int
     {
         return match ($this->canonicalName()) {
@@ -45,6 +46,10 @@ final class MessagingSystemCommand extends SystemCommand
         return $this->io()->confirm($question, false);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function failed(): int
     {
         $failures = $this->failures()->all($this->positiveIntOption('limit', 100, 1_000));
@@ -73,6 +78,9 @@ final class MessagingSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function failedShow(): int
     {
         $id = $this->argument(0) ?? throw new \LogicException('Validated failed-message id is unavailable.');
@@ -114,11 +122,17 @@ final class MessagingSystemCommand extends SystemCommand
         ];
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function failures(): FailureStore
     {
         return $this->application->make(FailureStore::class);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function flush(): int
     {
         if (!$this->authorize('Flush every failed message?')) {
@@ -130,6 +144,9 @@ final class MessagingSystemCommand extends SystemCommand
         return $this->emit(['flushed' => $count], sprintf('Flushed %d failed message(s).', $count));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function forget(): int
     {
         $id = $this->argument(0) ?? throw new \LogicException('Validated failed-message id is unavailable.');
@@ -143,6 +160,9 @@ final class MessagingSystemCommand extends SystemCommand
         return $this->emit(['id' => $id, 'removed' => true], sprintf('Forgot failed message "%s".', $id));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function manager(): FailureManager
     {
         return new FailureManager($this->failures());
@@ -154,6 +174,9 @@ final class MessagingSystemCommand extends SystemCommand
         return is_array($value) ? $value : [];
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function messagingList(): int
     {
         $config = $this->application->config();
@@ -196,6 +219,10 @@ final class MessagingSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function monitor(): int
     {
         $transport = $this->transport();
@@ -214,6 +241,9 @@ final class MessagingSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function positiveIntOption(string $name, int $default, int $maximum): int
     {
         $value = $this->option($name);
@@ -227,6 +257,10 @@ final class MessagingSystemCommand extends SystemCommand
         return (int) $value;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function pruneFailed(): int
     {
         $hours = $this->positiveIntOption('hours', 168, 24 * 365 * 10);
@@ -239,6 +273,9 @@ final class MessagingSystemCommand extends SystemCommand
         ], sprintf('Pruned %d failed message(s).', $count));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function retry(): int
     {
         $id = $this->argument(0) ?? throw new \LogicException('Validated failed-message id is unavailable.');
@@ -253,6 +290,9 @@ final class MessagingSystemCommand extends SystemCommand
         ], sprintf('Retried failed message "%s".', $id));
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function transport(): \Infocyph\Omnibus\Transport\Sender
     {
         return $this->application->make(TransportRegistry::class)->get($this->transportName());

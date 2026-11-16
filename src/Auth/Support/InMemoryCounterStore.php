@@ -18,6 +18,7 @@ final class InMemoryCounterStore implements CounterStoreInterface
         private readonly ClockInterface $clock = new SystemClock(),
     ) {}
 
+    #[\Override]
     public function increment(string $key, int $by = 1, ?int $ttlSeconds = null): int
     {
         $current = $this->values[$key] ?? null;
@@ -37,6 +38,7 @@ final class InMemoryCounterStore implements CounterStoreInterface
         return $value;
     }
 
+    #[\Override]
     public function reset(string $key): void
     {
         unset($this->values[$key]);

@@ -19,6 +19,7 @@ use Infocyph\Foundation\Scheduling\SchedulerRuntime;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Envelope\MessageIdStamp;
 
@@ -28,20 +29,30 @@ final class FoundationPhase7GeneratedScopedProbe
 
     public readonly int $sequence;
 
+    /** @api Constructed by native container definitions and compiled runtimes. */
     public function __construct()
     {
-        $this->sequence = ++self::$next;
+        self::$next++;
+        $this->sequence = self::$next;
     }
 }
 
 final class FoundationPhase7GeneratedProvider extends ServiceProvider
 {
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        unset($context);
-        $builder->scoped(
+        if ($context->runtimeMode === RuntimeMode::Worker) {
+            $builder->input('foundation.phase7.worker.item');
+            $builder->input(\stdClass::class);
+        }
+        if ($context->runtimeMode === RuntimeMode::Scheduler) {
+            $builder->input('foundation.phase7.scheduler.item');
+        }
+        $builder->factory(
             FoundationPhase7GeneratedScopedProbe::class,
             FactoryDefinition::construct(FoundationPhase7GeneratedScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
     }
 }
@@ -78,8 +89,7 @@ it('runs the existing scheduler manager on one trusted generated container with 
             $artifact,
             ['cache'],
         );
-        expect($report['skipped'])->toBe([])
-            ->and($report['capabilities'])->toBe(['cache' => true]);
+        expect($report['skipped'])->toBe([])->and($report['capabilities'])->toBe(['cache' => true]);
 
         foundationPhase7PoisonProviders($project, 'generated scheduler rebuilt source providers');
         $runtime = GeneratedRuntime::loadPrevalidated(
@@ -115,10 +125,11 @@ it('runs the existing scheduler manager on one trusted generated container with 
             0.0,
             5.0,
         );
-        expect($handle)->not->toBeNull();
-        if ($handle !== null) {
-            $locks->release($handle);
+        if ($handle === null) {
+            throw new \RuntimeException('Expected scheduler lock acquisition.');
         }
+        expect($handle)->not->toBeNull();
+        $locks->release($handle);
 
         $scheduler = new SchedulerRuntime($runtime->application);
         $first = $scheduler->execute(
@@ -160,7 +171,6 @@ it('keeps trusted worker and scheduler production containers bounded across long
     $workerArtifact = $project . '/bootstrap/cache/worker.php';
     $schedulerArtifact = $project . '/bootstrap/cache/scheduler.php';
     $database = $project . '/storage/runtime.sqlite';
-    $pdo = null;
 
     try {
         $compiler = new GeneratedRuntimeCompiler();
@@ -225,6 +235,7 @@ it('keeps trusted worker and scheduler production containers bounded across long
         $workerTemps = [];
         foreach (range(1, 512) as $index) {
             $item = 'worker-item-' . $index;
+
             try {
                 $worker->execute(
                     static function (ExecutionId $id) use (
@@ -315,11 +326,15 @@ it('keeps trusted worker and scheduler production containers bounded across long
         }
         gc_collect_cycles();
 
+        $countStatement = $pdo->query('SELECT COUNT(*) FROM phase7_runtime');
+        if (!$countStatement instanceof \PDOStatement) {
+            throw new \UnexpectedValueException('Phase 7 state-count query failed.');
+        }
         expect($workerFailures)->toBe(intdiv(512, 23))
             ->and(array_unique($messageSequences))->toHaveCount(128)
-            ->and((int) $pdo->query('SELECT COUNT(*) FROM phase7_runtime')->fetchColumn())->toBe(0)
+            ->and((int) $countStatement->fetchColumn())->toBe(0)
             ->and(array_filter($workerTemps, 'is_file'))->toBe([])
-            ->and(fn() => $workerRuntime->application->make('foundation.phase7.worker.item'))
+            ->and(fn(): mixed => $workerRuntime->application->make('foundation.phase7.worker.item'))
             ->toThrow(ServiceResolutionException::class)
             ->and(fn() => $workerRuntime->application->make(Envelope::class))
             ->toThrow(ServiceResolutionException::class)
@@ -403,7 +418,7 @@ it('keeps trusted worker and scheduler production containers bounded across long
         expect($schedulerFailures)->toBe(intdiv(512, 29))
             ->and(array_unique($schedulerSequences))->toHaveCount(512 - $schedulerFailures)
             ->and(array_filter($schedulerTemps, 'is_file'))->toBe([])
-            ->and(fn() => $schedulerRuntime->application->make('foundation.phase7.scheduler.item'))
+            ->and(fn(): mixed => $schedulerRuntime->application->make('foundation.phase7.scheduler.item'))
             ->toThrow(ServiceResolutionException::class)
             ->and(fn() => $schedulerRuntime->application->make(ScheduledCommand::class))
             ->toThrow(ServiceResolutionException::class)
@@ -412,7 +427,6 @@ it('keeps trusted worker and scheduler production containers bounded across long
             ->and(spl_object_id($schedulerRuntime->container))->toBe($schedulerContainerId)
             ->and(max(0, memory_get_usage(true) - $schedulerMemory))->toBeLessThanOrEqual(32 * 1024 * 1024);
     } finally {
-        $pdo = null;
         foundationPhase7GeneratedRemove($project);
     }
 });
@@ -496,9 +510,10 @@ function foundationPhase7Lines(string $path): array
 {
     $lines = is_file($path) ? file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
 
-    return is_array($lines) ? array_values($lines) : [];
+    return is_array($lines) ? $lines : [];
 }
 
+/** @throws \UnexpectedValueException */
 function foundationPhase7GeneratedRemove(string $directory): void
 {
     if (!is_dir($directory)) {
@@ -510,6 +525,10 @@ function foundationPhase7GeneratedRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
+        if (!$file instanceof \SplFileInfo) {
+            throw new \UnexpectedValueException('Expected a filesystem iterator entry.');
+        }
+
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);

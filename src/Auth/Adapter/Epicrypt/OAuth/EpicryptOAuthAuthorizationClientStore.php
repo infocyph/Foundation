@@ -26,6 +26,7 @@ final readonly class EpicryptOAuthAuthorizationClientStore implements EpicryptOA
         private OAuthClientManager $clients,
     ) {}
 
+    #[\Override]
     public function find(string $clientId): ?EpicryptOAuthClient
     {
         $client = $this->clients->enabled($clientId);

@@ -13,40 +13,43 @@ use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 
+/**
+ * Built-in application service provider selected through Foundation composition.
+ *
+ * @api
+ */
 final class SecurityServiceProvider extends ServiceProvider
 {
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if (!class_exists(AeadCipher::class)) {
             throw new \LogicException(
-                'Foundation security services require infocyph/epicrypt; run "php infbyte module:install crypto".',
+                'Foundation security services require infocyph/epicrypt; run "php infbyte module:install security.crypto".',
             );
         }
 
         $security = is_array($context->config['security'] ?? null) ? $context->config['security'] : [];
         $password = is_array($security['password'] ?? null) ? $security['password'] : [];
 
-        if (!$builder->definitions()->has(PasswordHashOptions::class)) {
-            $builder->singleton(
-                PasswordHashOptions::class,
-                FactoryDefinition::staticFactory(
-                    SecurityGraphFactory::class,
-                    'passwordOptions',
-                    [$password],
-                ),
-            );
-        }
-        if (!$builder->definitions()->has(PasswordHasher::class)) {
-            $builder->singleton(
-                PasswordHasher::class,
-                FactoryDefinition::construct(PasswordHasher::class, [
-                    new ServiceReference(PasswordHashOptions::class),
-                ]),
-            );
-        }
-        if (!$builder->definitions()->has(AeadCipher::class)) {
-            $builder->singleton(AeadCipher::class, FactoryDefinition::construct(AeadCipher::class));
-        }
+        $builder->factory(
+            PasswordHashOptions::class,
+            FactoryDefinition::staticFactory(
+                SecurityGraphFactory::class,
+                'passwordOptions',
+                [$password],
+            ),
+        );
+        $builder->factory(
+            PasswordHasher::class,
+            FactoryDefinition::construct(PasswordHasher::class, [
+                new ServiceReference(PasswordHashOptions::class),
+            ]),
+        );
+        $builder->factory(AeadCipher::class, FactoryDefinition::construct(AeadCipher::class));
 
         $builder->alias('foundation.security', AeadCipher::class);
         $builder->alias('foundation.crypto', AeadCipher::class);

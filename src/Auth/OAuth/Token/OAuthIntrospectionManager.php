@@ -17,6 +17,9 @@ final readonly class OAuthIntrospectionManager
         private EpicryptOAuthClientAuthenticationAdapter $authentication,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     */
     public function introspect(
         #[\SensitiveParameter]
         string $token,

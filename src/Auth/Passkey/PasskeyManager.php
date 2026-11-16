@@ -15,7 +15,6 @@ use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Notification\AuthNotification;
 use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
 use Infocyph\Foundation\Auth\Support\AuthEventRecorder;
-use Infocyph\Foundation\Auth\Support\ContextValue;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 
 final readonly class PasskeyManager
@@ -32,6 +31,7 @@ final readonly class PasskeyManager
 
     /**
      * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
      */
     public function finishAuthentication(PasskeyAuthenticationResult $result, array $context = []): PasskeyAuthenticationOutcome
     {
@@ -79,10 +79,12 @@ final readonly class PasskeyManager
                 ['credential_id' => $verification->credentialId, 'reason' => $verification->reason] + $context,
             );
 
-            if ($lockout?->status === LockoutStatus::LOCKED) {
-                $code = $lockout->code ?? 'account_locked';
-            } elseif ($lockout?->code !== null) {
-                $code = $lockout->code;
+            if ($lockout !== null) {
+                if ($lockout->status === LockoutStatus::LOCKED) {
+                    $code = $lockout->code ?? 'account_locked';
+                } elseif ($lockout->code !== null) {
+                    $code = $lockout->code;
+                }
             }
         }
 
@@ -135,10 +137,23 @@ final readonly class PasskeyManager
 
     /**
      * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function revokeCredential(string $accountId, string $credentialId, array $context = []): void
     {
-        $this->credentials->revoke($credentialId);
+        $credential = array_find(
+            $this->credentials->findForAccount($accountId),
+            static fn(PasskeyCredential $candidate): bool => $candidate->id === $credentialId
+                || $candidate->credentialId === $credentialId,
+        );
+        if (!$credential instanceof PasskeyCredential) {
+            throw new \InvalidArgumentException('Passkey credential does not belong to the requested account.');
+        }
+        if (!$this->credentials->compareAndSwap($credential, $credential->revokedAt($this->clock->now()))) {
+            throw new \RuntimeException('Passkey credential changed concurrently during revocation.');
+        }
+
         $this->record(
             AuthEventType::PASSKEY_REMOVED,
             $accountId,
@@ -196,6 +211,9 @@ final readonly class PasskeyManager
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function persistVerifiedCredential(PasskeyVerificationResult $verification): ?PasskeyVerificationResult
     {
         if (
@@ -242,8 +260,6 @@ final readonly class PasskeyManager
             $accountId,
             metadata: $metadata,
             severity: $severity,
-            sessionId: ContextValue::stringOrNull($metadata, 'session_id'),
-            deviceId: ContextValue::stringOrNull($metadata, 'device_id'),
         );
     }
 }

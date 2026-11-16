@@ -22,10 +22,18 @@ it('enforces browser-session contention through every configured shared lock bac
         throw new RuntimeException('The configured CI lock backend is unavailable.');
     }
 
+    if (!is_array($pair) || !array_is_list($pair) || count($pair) !== 2
+        || !$pair[0] instanceof LockProviderInterface
+        || !$pair[1] instanceof LockProviderInterface) {
+        throw new \UnexpectedValueException('Lock fixture must return two lock providers.');
+    }
     [$holder, $contender] = $pair;
     $id = bin2hex(random_bytes(32));
     $key = FoundationCacheKey::security('session-lock', 'browser-session-lock', $id);
     $held = $holder->acquire($key, 0.0, 5.0);
+    if ($held === null) {
+        throw new \UnexpectedValueException('Shared lock fixture must acquire its first lease.');
+    }
     expect($held)->not->toBeNull();
 
     $config = static fn(float $wait): SessionConfig => SessionConfig::fromRepository(
@@ -50,6 +58,10 @@ it('enforces browser-session contention through every configured shared lock bac
         new class(new SessionExecutionState()) implements ContainerInterface {
             public function __construct(private readonly SessionExecutionState $state) {}
 
+            /**
+             * @throws \RuntimeException
+             */
+            #[\Override]
             public function get(string $id): mixed
             {
                 if ($id === SessionExecutionState::class) {
@@ -59,6 +71,7 @@ it('enforces browser-session contention through every configured shared lock bac
                 throw new RuntimeException(sprintf('Unexpected test service "%s".', $id));
             }
 
+            #[\Override]
             public function has(string $id): bool
             {
                 return $id === SessionExecutionState::class;
@@ -67,7 +80,7 @@ it('enforces browser-session contention through every configured shared lock bac
     );
 
     try {
-        expect(fn() => $manager(0.01)->open($id)->get('value'))
+        expect(fn(): mixed => $manager(0.01)->open($id)->get('value'))
             ->toThrow(RuntimeException::class, 'Timed out while waiting for the browser session lock.');
     } finally {
         $holder->release($held);
@@ -90,6 +103,7 @@ it('enforces browser-session contention through every configured shared lock bac
 
 /**
  * @return array{LockProviderInterface, LockProviderInterface}|null
+ * @throws \RuntimeException
  */
 function sessionRedisLockProviders(string $hostKey, string $portKey, string $passwordKey): ?array
 {
@@ -124,6 +138,7 @@ function sessionRedisLockProviders(string $hostKey, string $portKey, string $pas
 
 /**
  * @return array{LockProviderInterface, LockProviderInterface}|null
+ * @throws \RuntimeException
  */
 function sessionMemcachedLockProviders(): ?array
 {

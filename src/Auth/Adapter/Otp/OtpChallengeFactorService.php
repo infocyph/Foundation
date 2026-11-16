@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Adapter\Otp;
 
 use Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface;
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
 use Infocyph\Foundation\Auth\Mfa\MfaChallenge;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Mfa\MfaVerificationResult;
@@ -22,6 +23,9 @@ final readonly class OtpChallengeFactorService
 {
     public function __construct(private AuthenticationStateCacheInterface $stateCache) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function issueAotp(MfaFactor $factor, string $context, int $ttlSeconds = 120): AotpChallenge
     {
         $config = $this->otpMetadata($factor);
@@ -34,12 +38,16 @@ final readonly class OtpChallengeFactorService
             $factor->id,
             $context,
             $ttlSeconds,
+            runwire: CacheRunwire::current(),
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function issueGrid(MfaFactor $factor): GridChallenge
     {
-        return $this->grid($factor)->issue($factor->id);
+        return $this->grid($factor)->issue($factor->id, runwire: CacheRunwire::current());
     }
 
     public function stateCache(): AuthenticationStateCacheInterface
@@ -47,6 +55,9 @@ final readonly class OtpChallengeFactorService
         return $this->stateCache;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function verifyAotp(MfaFactor $factor, MfaChallenge $challenge, string $responseJson): MfaVerificationResult
     {
         $payload = ValueNormalizer::associativeArray($challenge->metadata['aotp_challenge'] ?? null);
@@ -68,6 +79,9 @@ final readonly class OtpChallengeFactorService
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function verifyAotpResponse(
         MfaFactor $factor,
         AotpChallenge $challenge,
@@ -82,11 +96,15 @@ final readonly class OtpChallengeFactorService
             $factor->id,
             $challenge,
             $response,
+            runwire: CacheRunwire::current(),
         );
 
         return $this->verification($factor, $result);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function verifyGrid(MfaFactor $factor, MfaChallenge $challenge, string $response): MfaVerificationResult
     {
         $payload = ValueNormalizer::associativeArray($challenge->metadata['grid_challenge'] ?? null);
@@ -97,6 +115,9 @@ final readonly class OtpChallengeFactorService
         return $this->verifyGridResponse($factor, GridChallenge::fromArray($payload), $response);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function verifyGridResponse(
         MfaFactor $factor,
         GridChallenge $challenge,
@@ -104,10 +125,13 @@ final readonly class OtpChallengeFactorService
     ): MfaVerificationResult {
         return $this->verification(
             $factor,
-            $this->grid($factor)->verifyWithResult($factor->id, $challenge, $response),
+            $this->grid($factor)->verifyWithResult($factor->id, $challenge, $response, runwire: CacheRunwire::current()),
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function verifyLegacyMobile(MfaFactor $factor, string $code): MfaVerificationResult
     {
         $config = $this->otpMetadata($factor);
@@ -130,11 +154,15 @@ final readonly class OtpChallengeFactorService
                 'sha3-256',
                 "foundation:otp-mobile:v1\0" . $factor->id . "\0" . $this->requiredString($config, 'secret'),
             ),
+            runwire: CacheRunwire::current(),
         );
 
         return $this->verification($factor, $result);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function grid(MfaFactor $factor): GridOTP
     {
         $config = $this->otpMetadata($factor);
@@ -148,7 +176,10 @@ final readonly class OtpChallengeFactorService
         );
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \InvalidArgumentException
+     */
     private function integer(array $config, string $key, int $default): int
     {
         $value = $config[$key] ?? $default;
@@ -164,7 +195,10 @@ final readonly class OtpChallengeFactorService
         return new MfaVerificationResult(false, factorId: $factor->id, reason: $reason);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException
+     */
     private function otpMetadata(MfaFactor $factor): array
     {
         $config = ValueNormalizer::associativeArray($factor->metadata['otp'] ?? null);
@@ -175,7 +209,10 @@ final readonly class OtpChallengeFactorService
         return $config;
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @throws \InvalidArgumentException
+     */
     private function requiredString(array $config, string $key): string
     {
         $value = $config[$key] ?? null;

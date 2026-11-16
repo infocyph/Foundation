@@ -25,6 +25,7 @@ final class ExceptionReporter
 
     /**
      * @param array<string, mixed> $context
+     * @throws \Psr\Log\InvalidArgumentException
      */
     public function report(string $level, array $context): void
     {

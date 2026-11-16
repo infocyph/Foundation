@@ -10,6 +10,8 @@ enum DeviceStatus: string
 
     case REGISTERED = 'registered';
 
+    case REJECTED = 'rejected';
+
     case REVOKED = 'revoked';
 
     case TOUCHED = 'touched';

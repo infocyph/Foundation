@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\OAuth\Token;
 
+/**
+ * Public OAuth token revocation record.
+ *
+ * @api
+ */
 final readonly class OAuthAccessTokenRevocation
 {
     /** @param array<string, mixed> $metadata */

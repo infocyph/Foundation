@@ -51,7 +51,7 @@ final class ProcessTree
         }
 
         $this->signal($process, $tree, self::SIGNAL_TERMINATE, force: false);
-        $deadline = ProcessOutcome::clock() + (int) round($graceSeconds * 1_000_000_000);
+        $deadline = ProcessOutcome::clock() + (int) round($graceSeconds * 1_000_000_000.0);
         while ($this->running($process, $tree) && ProcessOutcome::clock() < $deadline) {
             usleep(10_000);
         }
@@ -63,6 +63,7 @@ final class ProcessTree
     /**
      * @param list<string> $command
      * @param array<int, resource> $pipes
+     * @param-out array<array-key, resource> $pipes
      * @return resource|false
      */
     private function openWindowsTerminator(array $command, array &$pipes)
@@ -146,9 +147,7 @@ final class ProcessTree
             return false;
         }
         foreach ($pipes as $pipe) {
-            if (is_resource($pipe)) {
-                fclose($pipe);
-            }
+            fclose($pipe);
         }
 
         return proc_close($process) === 0;

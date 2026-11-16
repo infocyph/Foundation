@@ -29,6 +29,10 @@ final readonly class EpicryptPurposeTokenFactory
         $this->deriver = new KeyDeriver();
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
     public function forPurpose(string $purpose, int $ttlSeconds): PurposeToken
     {
         $domain = self::domain($purpose);
@@ -47,6 +51,9 @@ final readonly class EpicryptPurposeTokenFactory
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private static function domain(string $purpose): string
     {
         if (preg_match('/\A[a-z][a-z0-9_-]{0,63}\z/D', $purpose) !== 1) {

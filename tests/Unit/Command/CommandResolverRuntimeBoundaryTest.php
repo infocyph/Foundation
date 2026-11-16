@@ -21,7 +21,11 @@ use Infocyph\InterMix\DI\ProductionContainer;
 final class FoundationProductionCommandResolverProbe implements CommandHandlerInterface
 {
     public static int $runs = 0;
+    /**
+     * @throws \InvalidArgumentException
+     */
 
+    #[\Override]
     public static function define(CommandDefinition $command): void
     {
         $command
@@ -30,6 +34,7 @@ final class FoundationProductionCommandResolverProbe implements CommandHandlerIn
             ->group('Testing');
     }
 
+    #[\Override]
     public function run(CommandContext $context): int
     {
         unset($context);
@@ -45,6 +50,7 @@ it('resolves command handlers through the runtime-neutral application facade', f
     $runtime = new class extends ProductionContainer {
         private ?ExecutionScope $execution = null;
 
+        #[\Override]
         public function get(string $id): mixed
         {
             return match ($id) {
@@ -55,6 +61,7 @@ it('resolves command handlers through the runtime-neutral application facade', f
             };
         }
 
+        #[\Override]
         public function has(string $id): bool
         {
             return in_array($id, [
@@ -64,6 +71,7 @@ it('resolves command handlers through the runtime-neutral application facade', f
             ], true);
         }
 
+        #[\Override]
         protected function slotFor(string $id): ?int
         {
             unset($id);

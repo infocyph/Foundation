@@ -45,7 +45,7 @@ final readonly class PasskeyCredential
             lastUsedAt: $this->lastUsedAt,
             revokedAt: $timestamp,
             metadata: $this->metadata,
-            revision: $this->revision,
+            revision: $this->revision + 1,
         );
     }
 
@@ -67,6 +67,9 @@ final readonly class PasskeyCredential
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function withCredentialRecord(
         string $credentialRecordJson,
         int $timestamp,

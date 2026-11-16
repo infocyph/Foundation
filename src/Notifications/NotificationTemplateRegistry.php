@@ -8,6 +8,11 @@ use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 
+/**
+ * Application-facing notification template registry.
+ *
+ * @api
+ */
 final readonly class NotificationTemplateRegistry
 {
     /**

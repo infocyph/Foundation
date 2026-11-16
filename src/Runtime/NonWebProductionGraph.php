@@ -19,9 +19,7 @@ final class NonWebProductionGraph
     public function prepare(ContainerBuilder $builder): void
     {
         foreach (self::DEVELOPMENT_ONLY as $id) {
-            if ($builder->definitions()->has($id)) {
-                $builder->unbind($id);
-            }
+            $builder->unbind($id);
         }
     }
 }

@@ -25,6 +25,9 @@ final readonly class SharedStateTopology
 
     public function __construct(private ConfigRepository $config) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public function assertCacheStore(
         ?string $name,
         string $purpose,
@@ -248,7 +251,9 @@ final readonly class SharedStateTopology
 
         $dsn = $this->string($definition['dsn'] ?? null);
         if ($dsn !== null && str_contains($dsn, ':')) {
-            return $this->normalizeDatabaseDriver(strstr($dsn, ':', true) ?: '');
+            $driver = strstr($dsn, ':', true);
+
+            return $this->normalizeDatabaseDriver($driver === false ? '' : $driver);
         }
 
         return '';

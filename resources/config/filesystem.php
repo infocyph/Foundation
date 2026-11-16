@@ -38,7 +38,7 @@ return [
         'allowed_extensions' => [],
         'blocked_extensions' => ['php', 'phtml', 'phar', 'exe', 'sh', 'bat', 'cmd', 'com'],
         'max_file_size' => env('FILESYSTEM_UPLOAD_MAX_FILE_SIZE', 5 * 1024 * 1024),
-        // Pathwise 4.1 UNTRUSTED_DATA requires finite chunk limits. Explicit
+        // Pathwise 4.2 UNTRUSTED_DATA requires finite chunk limits. Explicit
         // zero values remain safe: the trust profile restores bounded defaults.
         'max_chunk_count' => env('FILESYSTEM_UPLOAD_MAX_CHUNK_COUNT', 1_000),
         'max_chunk_size' => env('FILESYSTEM_UPLOAD_MAX_CHUNK_SIZE', 8 * 1024 * 1024),

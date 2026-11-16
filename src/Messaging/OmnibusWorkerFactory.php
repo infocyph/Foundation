@@ -18,7 +18,10 @@ final readonly class OmnibusWorkerFactory
         private ContainerInterface $container,
     ) {}
 
-    /** @return array<string, array<string, mixed>> */
+    /**
+     * @return array<string, array<string, mixed>>
+     * @throws \UnexpectedValueException
+     */
     public function all(): array
     {
         $configured = $this->config->get('messaging.workers', []);
@@ -39,11 +42,20 @@ final readonly class OmnibusWorkerFactory
         return $workers;
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     public function has(string $name): bool
     {
         return isset($this->all()[$name]);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
+     */
     public function make(string $name, ?WorkerLifecycle $lifecycle = null): Worker
     {
         return new Worker(
@@ -53,6 +65,10 @@ final readonly class OmnibusWorkerFactory
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \UnexpectedValueException
+     */
     public function options(string $name): WorkerOptions
     {
         $definition = $this->definition($name);
@@ -105,6 +121,8 @@ final readonly class OmnibusWorkerFactory
      *   restart_backoff_seconds:float,
      *   shutdown_grace_seconds:float
      * }
+     * @throws \InvalidArgumentException
+     * @throws \UnexpectedValueException
      */
     public function pool(string $name): array
     {
@@ -132,6 +150,10 @@ final readonly class OmnibusWorkerFactory
         ];
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     */
     public function transport(string $name): string
     {
         $definition = $this->definition($name);
@@ -142,6 +164,11 @@ final readonly class OmnibusWorkerFactory
         );
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function consumers(): ConsumerFactory
     {
         $factory = $this->container->get(ConsumerFactory::class);
@@ -152,7 +179,10 @@ final readonly class OmnibusWorkerFactory
         return $factory;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \UnexpectedValueException
+     */
     private function definition(string $name): array
     {
         return $this->all()[$name] ?? throw new \InvalidArgumentException(sprintf(
@@ -161,6 +191,9 @@ final readonly class OmnibusWorkerFactory
         ));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function floatValue(mixed $value, float $default, string $key): float
     {
         if ($value === null || $value === '') {
@@ -173,6 +206,9 @@ final readonly class OmnibusWorkerFactory
         throw new \InvalidArgumentException(sprintf('messaging.workers.%s must be numeric.', $key));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function intValue(mixed $value, int $default, string $key): int
     {
         if ($value === null || $value === '') {

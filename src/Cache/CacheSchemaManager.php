@@ -147,7 +147,7 @@ final readonly class CacheSchemaManager
         if (!class_exists(\Infocyph\DBLayer\Connection\Connection::class)) {
             return [
                 'pdo' => null,
-                'detail' => 'Requires the database module; run "php infbyte module:install database".',
+                'detail' => 'Requires the database module; run "php infbyte module:install data.database".',
                 'state' => 'unavailable',
             ];
         }
@@ -191,6 +191,9 @@ final readonly class CacheSchemaManager
         ];
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function ensureDirectory(string $directory): void
     {
         if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
@@ -255,6 +258,7 @@ final readonly class CacheSchemaManager
     /**
      * @param array<string,mixed> $store
      * @return array{pdo:?PDO,detail:string,state:string}
+     * @throws \RuntimeException
      */
     private function sqlitePdo(array $store, bool $forInstall): array
     {

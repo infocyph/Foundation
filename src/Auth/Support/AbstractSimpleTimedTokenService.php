@@ -20,6 +20,8 @@ abstract readonly class AbstractSimpleTimedTokenService
 
     /**
      * @param array<string, mixed> $claims
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
      */
     protected function issueTimedToken(string $purpose, array $claims, ?string $subjectId = null): string
     {
@@ -45,6 +47,10 @@ abstract readonly class AbstractSimpleTimedTokenService
         );
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     */
     protected function verifyTimedToken(string $token, string $purpose): PurposeTokenVerificationResult|TokenVerificationResult
     {
         $verification = $this->tokens

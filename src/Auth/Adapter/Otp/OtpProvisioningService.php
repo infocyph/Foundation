@@ -12,6 +12,8 @@ use Infocyph\OTP\ValueObjects\EnrollmentPayload;
 /**
  * Translate Foundation enrollment policy into native OTP enrollment payloads
  * and canonical MFA factor metadata.
+ *
+ * @api
  */
 final readonly class OtpProvisioningService
 {

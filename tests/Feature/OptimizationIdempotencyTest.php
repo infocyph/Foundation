@@ -11,14 +11,19 @@ final class FoundationOptimizationCommandIO implements CommandIO
     /** @var list<string> */
     public array $errors = [];
 
-    /** @var list<mixed> */
+    /** @var list<array<array-key,mixed>> */
     public array $json = [];
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function choice(string $question, array $choices, ?string $default = null): string
     {
         throw new LogicException('Choice input is not expected in this test IO.');
     }
 
+    #[\Override]
     public function confirm(string $question, bool $default = false): bool
     {
         unset($question, $default);
@@ -26,53 +31,74 @@ final class FoundationOptimizationCommandIO implements CommandIO
         return false;
     }
 
+    #[\Override]
     public function error(string $message): void
     {
         $this->errors[] = $message;
     }
 
+    #[\Override]
     public function info(string $message): void {}
 
+    #[\Override]
     public function interactive(): bool
     {
         return false;
     }
 
-    public function json(mixed $value): void
+    /** @param array<array-key, mixed> $value */
+    #[\Override]
+    public function json(array $value): void
     {
         $this->json[] = $value;
     }
 
+    #[\Override]
     public function machineReadable(): bool
     {
         return true;
     }
 
+    #[\Override]
     public function note(string $message): void {}
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function password(string $question): string
     {
         throw new LogicException('Password input is not expected in this test IO.');
     }
 
+    #[\Override]
     public function quiet(): bool
     {
         return false;
     }
 
+    /**
+     * @throws \LogicException
+     */
+    #[\Override]
     public function read(string $question, ?string $default = null): string
     {
         throw new LogicException('Text input is not expected in this test IO.');
     }
 
+    #[\Override]
     public function success(string $message): void {}
 
+    #[\Override]
     public function table(array $headers, array $rows): void {}
 
+    #[\Override]
     public function warning(string $message): void {}
 
+    #[\Override]
     public function write(string $message): void {}
 
+    #[\Override]
     public function writeln(string $message = ''): void {}
 }
 
@@ -95,8 +121,8 @@ PHP);
             ->and($second['generation'] ?? null)->toBeString()->not->toBe('')
             ->and($second['generation'] ?? null)->not->toBe($first['generation'] ?? null)
             ->and($second['manifest_sha256'] ?? null)->toBeString()->toHaveLength(64)
-            ->and(is_file((string) ($second['manifest'] ?? '')))->toBeTrue()
-            ->and(is_file((string) ($second['active_pointer'] ?? '')))->toBeTrue();
+            ->and(is_file(foundationFixtureString($second['manifest'] ?? '')))->toBeTrue()
+            ->and(is_file(foundationFixtureString($second['active_pointer'] ?? '')))->toBeTrue();
 
         $warm = foundationOptimizationPayload(foundationOptimizationRun($dispatcher, 'optimize:report'));
         expect($warm['ready'] ?? null)->toBeTrue()
@@ -159,9 +185,9 @@ PHP);
         $readiness = new FoundationOptimizationCommandIO();
         $optimize = new FoundationOptimizationCommandIO();
 
-        expect($dispatcher->run(['infbyte', 'module:show', 'database'], $show))->toBe(ExitCode::SUCCESS)
-            ->and($dispatcher->run(['infbyte', 'module:doctor', 'database'], $doctor))->toBe(ExitCode::SUCCESS)
-            ->and($dispatcher->run(['infbyte', 'module:plan', 'database'], $plan))->toBe(ExitCode::SUCCESS)
+        expect($dispatcher->run(['infbyte', 'module:show', 'data.database'], $show))->toBe(ExitCode::SUCCESS)
+            ->and($dispatcher->run(['infbyte', 'module:doctor', 'data.database'], $doctor))->toBe(ExitCode::SUCCESS)
+            ->and($dispatcher->run(['infbyte', 'module:plan', 'data.database'], $plan))->toBe(ExitCode::SUCCESS)
             ->and($dispatcher->run(['infbyte', 'config:validate', '--production'], $validation))->toBe(ExitCode::SUCCESS)
             ->and($dispatcher->run(['infbyte', 'app:ready'], $readiness))->toBe(ExitCode::SUCCESS)
             ->and($dispatcher->run(['infbyte', 'optimize'], $optimize))->toBe(ExitCode::SUCCESS);
@@ -173,27 +199,38 @@ PHP);
         $readinessPayload = $readiness->json[0] ?? null;
         $optimizePayload = $optimize->json[0] ?? null;
 
-        expect($showPayload)->toBeArray()
-            ->and($doctorPayload)->toBeArray()
-            ->and($planPayload)->toBeArray()
+        if (!is_array($showPayload) || !is_array($showPayload['states'] ?? null)
+            || !is_array($showPayload['states']['data.database'] ?? null)) {
+            throw new \UnexpectedValueException('Optimized module status must contain a database state.');
+        }
+        \PHPUnit\Framework\Assert::assertIsArray(($doctorPayload['states'] ?? null));
+        \PHPUnit\Framework\Assert::assertIsArray(($doctorPayload['states']['data.database'] ?? null));
+
+        \PHPUnit\Framework\Assert::assertIsArray(($doctorPayload['states']['data.database']['packages'] ?? null));
+        \PHPUnit\Framework\Assert::assertIsArray(($doctorPayload['states']['data.database']['packages']['infocyph/dblayer'] ?? null));
+
+        expect($planPayload)->toBeArray()
             ->and($validationPayload)->toBeArray()
             ->and($readinessPayload)->toBeArray()
             ->and($optimizePayload)->toBeArray()
-            ->and($showPayload['enabled'] ?? true)->toBeFalse()
-            ->and($doctorPayload['enabled'] ?? true)->toBeFalse()
-            ->and($doctorPayload['ready'] ?? true)->toBeFalse()
-            ->and($planPayload['schema_version'] ?? null)->toBe(1)
-            ->and($planPayload['module'] ?? null)->toBe('database')
+            ->and($showPayload['states']['data.database']['enabled'] ?? true)->toBeFalse()
+            ->and($doctorPayload['states']['data.database']['enabled'] ?? true)->toBeFalse()
+            ->and($doctorPayload['states']['data.database']['packages']['infocyph/dblayer']['version'] ?? null)->toBeNull()
+            ->and($planPayload['schema_version'] ?? null)->toBe(2)
+            ->and($planPayload['requested'] ?? null)->toBe(['data.database'])
             ->and($validationPayload['valid'] ?? false)->toBeTrue()
             ->and($readinessPayload['schema_version'] ?? null)->toBe(1)
             ->and($readinessPayload['ready'] ?? false)->toBeTrue()
-            ->and(array_keys($readinessPayload['checks'] ?? []))->not->toContain('module:database');
+            ->and(array_keys(foundationStringMap($readinessPayload['checks'] ?? [])))->not->toContain('module:database');
 
         $manifestPath = $optimizePayload['manifest'] ?? null;
-        expect($manifestPath)->toBeString()->toBeFile();
-        $manifest = require $manifestPath;
-        expect($manifest)->toBeArray();
+        \PHPUnit\Framework\Assert::assertIsString($manifestPath);
+        expect($manifestPath)->toBeFile();
+        $manifest = \foundationReadPhpFixtureArray($manifestPath);
+
         foreach (['web', 'cli', 'worker', 'scheduler'] as $runtime) {
+            \PHPUnit\Framework\Assert::assertIsArray(($manifest[$runtime] ?? null));
+
             expect($manifest[$runtime]['capabilities'] ?? null)->toBe([]);
         }
     } finally {
@@ -216,7 +253,12 @@ it('requires explicit production capability topology for optimize', function ():
     }
 });
 
-/** @param list<string>|null $capabilities */
+/**
+ * @param list<string>|null $capabilities
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \UnexpectedValueException
+ */
 function foundationOptimizationDispatcher(string $basePath, ?array $capabilities): CommandDispatcher
 {
     $app = [
@@ -240,7 +282,10 @@ function foundationOptimizationDispatcher(string $basePath, ?array $capabilities
     );
 }
 
-/** @return array<string, mixed> */
+/**
+ * @return array<string, mixed>
+ * @throws \RuntimeException
+ */
 function foundationOptimizationPayload(FoundationOptimizationCommandIO $io): array
 {
     $payload = $io->json[0] ?? null;
@@ -248,9 +293,14 @@ function foundationOptimizationPayload(FoundationOptimizationCommandIO $io): arr
         throw new RuntimeException('Optimization command did not emit a machine-readable payload.');
     }
 
-    return $payload;
+    return foundationStringMap($payload);
 }
 
+/**
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ * @throws \RuntimeException
+ */
 function foundationOptimizationRun(CommandDispatcher $dispatcher, string $command): FoundationOptimizationCommandIO
 {
     $io = new FoundationOptimizationCommandIO();
@@ -267,15 +317,19 @@ function foundationOptimizationRun(CommandDispatcher $dispatcher, string $comman
     return $io;
 }
 
+/** @throws \UnexpectedValueException */
 function foundationOptimizationRemove(string $directory): void
 {
     if (!is_dir($directory)) {
         return;
     }
 
-    foreach (scandir($directory) ?: [] as $entry) {
+    foreach (((array) scandir($directory)) as $entry) {
         if ($entry === '.' || $entry === '..') {
             continue;
+        }
+        if (!is_string($entry)) {
+            throw new \UnexpectedValueException('Directory listing contains an invalid entry.');
         }
 
         $path = $directory . DIRECTORY_SEPARATOR . $entry;

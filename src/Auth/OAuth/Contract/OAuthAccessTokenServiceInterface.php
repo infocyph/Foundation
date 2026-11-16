@@ -6,6 +6,11 @@ namespace Infocyph\Foundation\Auth\OAuth\Contract;
 
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenClaims;
 
+/**
+ * Public OAuth access token service extension contract.
+ *
+ * @api
+ */
 interface OAuthAccessTokenServiceInterface
 {
     public function issue(OAuthAccessTokenClaims $claims): string;

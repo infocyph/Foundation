@@ -6,6 +6,11 @@ namespace Infocyph\Foundation\Auth\Authorization\Permission;
 
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 
+/**
+ * Application-facing permission assignment and management.
+ *
+ * @api
+ */
 final readonly class PermissionManager
 {
     public function __construct(

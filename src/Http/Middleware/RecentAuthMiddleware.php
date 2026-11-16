@@ -9,16 +9,19 @@ final readonly class RecentAuthMiddleware extends AbstractPrincipalRequirementMi
     /**
      * @return list<string>
      */
+    #[\Override]
     protected function attributeKeys(): array
     {
         return ['auth.recent_auth', 'auth.recent'];
     }
 
+    #[\Override]
     protected function failureMessage(): string
     {
         return 'Recent authentication is required.';
     }
 
+    #[\Override]
     protected function metadataKey(): string
     {
         return 'recent_auth';

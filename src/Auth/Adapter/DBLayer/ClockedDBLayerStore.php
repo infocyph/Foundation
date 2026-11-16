@@ -6,17 +6,17 @@ namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
-use Infocyph\Foundation\Database\DBLayerFactory;
+use Psr\Container\ContainerInterface;
 
 abstract readonly class ClockedDBLayerStore extends DBLayerStore
 {
     public function __construct(
-        DBLayerFactory $db,
+        ContainerInterface $services,
         AuthTables $tables,
         protected ClockInterface $clock,
         ?string $connection = null,
     ) {
-        parent::__construct($db, $tables, $connection);
+        parent::__construct($services, $tables, $connection);
     }
 
     protected function now(): int

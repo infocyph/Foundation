@@ -11,18 +11,21 @@ use Infocyph\Foundation\Auth\Adapter\Otp\OtpMfaVerifier;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpRecoveryCodeStore;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\OTP\Contracts\RecoveryCodeStoreInterface;
 use Infocyph\OTP\RecoveryCodes;
 
 final class AuthMfaGraphFactory
 {
+    /**
+     * @throws \LogicException
+     */
     public static function challengeFactors(
-        CacheLayerFactory $cache,
+        CacheManager $cache,
         ?string $storeName,
     ): OtpChallengeFactorService {
-        $store = $cache->make($storeName);
+        $store = $cache->store($storeName);
         if (!$store instanceof AuthenticationStateCacheInterface) {
             throw new \LogicException(
                 'OTP authentication state requires a CacheLayer AuthenticationStateCacheInterface store.',
@@ -32,6 +35,9 @@ final class AuthMfaGraphFactory
         return new OtpChallengeFactorService($store);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function recoveryCodes(
         RecoveryCodeStoreInterface $store,
         ConfigRepository $config,
@@ -42,6 +48,9 @@ final class AuthMfaGraphFactory
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     public static function recoveryCodeStore(MfaFactorStoreInterface $factors): RecoveryCodeStoreInterface
     {
         if (!$factors instanceof MfaFactorCompareAndSwapStoreInterface) {
@@ -53,6 +62,9 @@ final class AuthMfaGraphFactory
         return new OtpRecoveryCodeStore($factors);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     public static function secretProtector(ConfigRepository $config): MfaSecretProtector
     {
         $keys = new AuthMfaKeyResolver($config);
@@ -63,6 +75,9 @@ final class AuthMfaGraphFactory
         );
     }
 
+    /**
+     * @throws \LogicException
+     */
     public static function verifier(
         MfaFactorStoreInterface $factors,
         OtpChallengeFactorService $challengeFactors,

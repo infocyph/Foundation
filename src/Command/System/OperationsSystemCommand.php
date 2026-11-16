@@ -25,6 +25,7 @@ final class OperationsSystemCommand extends SystemCommand
 {
     public function __construct(private readonly Application $application) {}
 
+    #[\Override]
     protected function handle(): int
     {
         return match ($this->canonicalName()) {
@@ -84,6 +85,14 @@ final class OperationsSystemCommand extends SystemCommand
         return $this->io()->confirm($question, false);
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function authPrune(): int
     {
         $retention = $this->nonNegativeIntOption('retention-hours', 24);
@@ -102,6 +111,11 @@ final class OperationsSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function configValidate(): int
     {
         $production = $this->flag('production') || $this->application->isProduction();
@@ -170,6 +184,9 @@ final class OperationsSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function executionClear(): int
     {
         if (!$this->authorize('Clear all execution history?')) {
@@ -180,6 +197,10 @@ final class OperationsSystemCommand extends SystemCommand
         return $this->emit(['removed' => $removed], $removed ? 'Execution history cleared.' : 'Execution history is already empty.');
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function executionList(): int
     {
         $records = $this->history()->recent(
@@ -203,6 +224,10 @@ final class OperationsSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function executionShow(): int
     {
         $id = $this->argument(0) ?? throw new \LogicException('Validated execution id is unavailable.');
@@ -221,6 +246,10 @@ final class OperationsSystemCommand extends SystemCommand
         return new ExecutionHistory($this->application);
     }
 
+    /**
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     private function logTail(): int
     {
         if ($this->application->config()->get('logging.driver', 'null') !== 'file') {
@@ -246,11 +275,21 @@ final class OperationsSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     private function maintenance(): MaintenanceManager
     {
         return $this->application->make(MaintenanceManager::class);
     }
 
+    /**
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function maintenanceDisable(): int
     {
         $removed = $this->maintenance()->disable();
@@ -261,6 +300,16 @@ final class OperationsSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function maintenanceEnable(): int
     {
         $retry = $this->nullablePositiveIntOption('retry');
@@ -269,6 +318,15 @@ final class OperationsSystemCommand extends SystemCommand
         return $this->emit($state, 'Maintenance mode enabled.');
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     */
     private function maintenanceStatus(): int
     {
         $state = $this->maintenance()->status();
@@ -289,6 +347,9 @@ final class OperationsSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function nonNegativeIntOption(string $name, int $default): int
     {
         $value = $this->option($name);
@@ -309,6 +370,9 @@ final class OperationsSystemCommand extends SystemCommand
         return $value === null ? null : $this->positiveInt($name, $value);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function positiveInt(string $name, string $value): int
     {
         if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1) {
@@ -318,6 +382,9 @@ final class OperationsSystemCommand extends SystemCommand
         return (int) $value;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function positiveIntOption(string $name, int $default, int $maximum): int
     {
         $value = $this->option($name);
@@ -332,6 +399,13 @@ final class OperationsSystemCommand extends SystemCommand
         return $resolved;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
+     */
     private function runtimeReload(): int
     {
         $token = $this->control()->signal('runtime');
@@ -339,6 +413,13 @@ final class OperationsSystemCommand extends SystemCommand
         return $this->emit(['scope' => 'runtime', 'token' => $token], 'Persistent runtime reload requested.');
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
+     */
     private function scheduleInterrupt(): int
     {
         $token = $this->control()->signal('schedule');
@@ -346,6 +427,13 @@ final class OperationsSystemCommand extends SystemCommand
         return $this->emit(['scope' => 'schedule', 'token' => $token], 'Scheduler interrupt requested.');
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
+     */
     private function workerRestart(): int
     {
         $name = $this->argument(0);
@@ -360,6 +448,11 @@ final class OperationsSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \UnexpectedValueException
+     * @throws \RuntimeException
+     */
     private function workerStatus(): int
     {
         $name = $this->argument(0);

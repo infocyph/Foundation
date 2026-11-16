@@ -11,6 +11,11 @@ use Infocyph\Foundation\Http\Response\AuthResponseFactory;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
+/**
+ * Public policy authorization middleware.
+ *
+ * @api
+ */
 final readonly class PolicyMiddleware
 {
     public function __construct(
@@ -24,6 +29,9 @@ final readonly class PolicyMiddleware
 
     /**
      * @param callable(Request): Response $next
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function __invoke(Request $request, callable $next): Response
     {

@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use Infocyph\Epicrypt\Certificate\Enum\OpenSslCurveName;
 use Infocyph\Epicrypt\Certificate\KeyPairGenerator;
+use Infocyph\Epicrypt\Exception\SigningKeyReadinessException;
 use Infocyph\Epicrypt\Security\KeyPurpose;
 use Infocyph\Epicrypt\Security\KeyRing;
 use Infocyph\Epicrypt\Security\KeyRingEntry;
@@ -90,10 +92,51 @@ it('rejects a JWT with a non OAuth access-token type before claim resolution', f
     expect(fn() => $service->verify($token, $audience))->toThrow(OAuthTokenException::class);
 });
 
-/** @param array{private:string,public:string} $keys */
-function oauth21AccessTokenService(array $keys, string $issuer): EpicryptOAuthAccessTokenService
+it('issues and verifies OAuth access tokens only with their exact JOSE EC curve', function (OpenSslCurveName $curve, AsymmetricJwtAlgorithm $algorithm): void {
+    $issuer = 'https://issuer.example.test';
+    $audience = 'https://api.example.test';
+    $keys = KeyPairGenerator::ec($curve)->generate();
+    $service = oauth21AccessTokenService($keys, $issuer, $algorithm);
+    $now = time();
+    $claims = new OAuthAccessTokenClaims(
+        issuer: $issuer,
+        subject: 'account-curve-check',
+        audiences: [$audience],
+        expiresAt: $now + 180,
+        issuedAt: $now,
+        tokenId: 'token-' . $algorithm->value,
+        clientId: 'client-curve-check',
+        scopes: ['profile.read'],
+        authorizationId: 'authorization-curve-check',
+    );
+
+    expect($service->verify($service->issue($claims), $audience))->toEqual($claims);
+})->with([
+    'ES256 P-256' => [OpenSslCurveName::PRIME256V1, AsymmetricJwtAlgorithm::ES256],
+    'ES384 P-384' => [OpenSslCurveName::SECP384R1, AsymmetricJwtAlgorithm::ES384],
+    'ES512 P-521' => [OpenSslCurveName::SECP521R1, AsymmetricJwtAlgorithm::ES512],
+]);
+
+it('rejects OAuth signing keys whose EC curve does not match the selected JOSE algorithm', function (OpenSslCurveName $curve, AsymmetricJwtAlgorithm $algorithm): void {
+    $keys = KeyPairGenerator::ec($curve)->generate();
+
+    expect(fn() => oauth21AccessTokenService($keys, 'https://issuer.example.test', $algorithm))
+        ->toThrow(SigningKeyReadinessException::class);
+})->with([
+    'P-256 used for ES384' => [OpenSslCurveName::PRIME256V1, AsymmetricJwtAlgorithm::ES384],
+    'P-256 used for ES512' => [OpenSslCurveName::PRIME256V1, AsymmetricJwtAlgorithm::ES512],
+    'P-384 used for ES256' => [OpenSslCurveName::SECP384R1, AsymmetricJwtAlgorithm::ES256],
+    'P-384 used for ES512' => [OpenSslCurveName::SECP384R1, AsymmetricJwtAlgorithm::ES512],
+    'P-521 used for ES256' => [OpenSslCurveName::SECP521R1, AsymmetricJwtAlgorithm::ES256],
+    'P-521 used for ES384' => [OpenSslCurveName::SECP521R1, AsymmetricJwtAlgorithm::ES384],
+]);
+
+/**
+ * @param array{private:string,public:string} $keys
+ * @throws \InvalidArgumentException
+ */
+function oauth21AccessTokenService(array $keys, string $issuer, AsymmetricJwtAlgorithm $algorithm = AsymmetricJwtAlgorithm::ES256): EpicryptOAuthAccessTokenService
 {
-    $algorithm = AsymmetricJwtAlgorithm::ES256;
     $keyId = 'oauth-key-1';
     $ring = new KeyRing([
         new KeyRingEntry(

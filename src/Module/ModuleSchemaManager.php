@@ -19,6 +19,7 @@ final readonly class ModuleSchemaManager
 
     /**
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
+     * @throws \InvalidArgumentException
      */
     public function install(string $module, ?string $connection = null, bool $applicableOnly = false): array
     {
@@ -50,6 +51,7 @@ final readonly class ModuleSchemaManager
      * Provision every schema currently required by configured application capabilities.
      *
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
+     * @throws \InvalidArgumentException
      */
     public function installApplicable(?string $connection = null): array
     {
@@ -68,6 +70,7 @@ final readonly class ModuleSchemaManager
 
     /**
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
+     * @throws \InvalidArgumentException
      */
     public function status(string $module, ?string $connection = null): array
     {
@@ -100,7 +103,7 @@ final readonly class ModuleSchemaManager
                 $applicable,
                 false,
                 'unavailable',
-                'Requires the database module; run "php infbyte module:install database".',
+                'Requires the database module; run "php infbyte module:install data.database".',
             );
         }
 
@@ -161,7 +164,7 @@ final readonly class ModuleSchemaManager
                 $applicable,
                 false,
                 'unavailable',
-                'Requires the messaging module; run "php infbyte module:install messaging".',
+                'Requires the messaging module; run "php infbyte module:install execution.messaging".',
             );
         }
         if (!class_exists(\Infocyph\DBLayer\Connection\Connection::class)) {
@@ -171,7 +174,7 @@ final readonly class ModuleSchemaManager
                 $applicable,
                 false,
                 'unavailable',
-                'Durable messaging requires the database module; run "php infbyte module:install database".',
+                'Durable messaging requires the database module; run "php infbyte module:install data.database".',
             );
         }
 
@@ -250,7 +253,7 @@ final readonly class ModuleSchemaManager
                 $applicable,
                 false,
                 'unavailable',
-                'Requires the database module; run "php infbyte module:install database".',
+                'Requires the database module; run "php infbyte module:install data.database".',
             );
         }
 

@@ -43,6 +43,7 @@ final readonly class SignedUrlKeyResolver
      * Resolve runtime signing material for Webrick.
      *
      * @param array<string, mixed>|null $behaviorOptions
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     public function resolve(?array $behaviorOptions = null): ?SignedUrlConfig
     {
@@ -129,6 +130,9 @@ final readonly class SignedUrlKeyResolver
         return $normalized;
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function entry(mixed $definition, string $algorithm): KeyRingEntry
     {
         if (!is_array($definition)) {
@@ -177,6 +181,9 @@ final readonly class SignedUrlKeyResolver
         };
     }
 
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     */
     private function timestamp(mixed $value): ?int
     {
         if ($value === null) {

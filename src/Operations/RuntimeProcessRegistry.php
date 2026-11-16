@@ -8,11 +8,19 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\UID\Id;
 
+/**
+ * Application-facing runtime process registry and heartbeat lifecycle.
+ *
+ * @api
+ */
 final readonly class RuntimeProcessRegistry
 {
     public function __construct(private Application $application) {}
 
-    /** @return list<array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:bool}> */
+    /**
+     * @return list<array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:bool}>
+     * @throws \UnexpectedValueException
+     */
     public function all(?string $kind = null, ?string $name = null): array
     {
         $directory = $this->directory();
@@ -23,18 +31,13 @@ final readonly class RuntimeProcessRegistry
         $visibility = $this->visibility();
         $host = $this->host();
         $records = [];
-        foreach (glob($directory . DIRECTORY_SEPARATOR . '*.json') ?: [] as $path) {
+        $paths = glob($directory . DIRECTORY_SEPARATOR . '*.json');
+        foreach ($paths === false ? [] : $paths as $path) {
             $record = $this->read($path);
             if ($record === null) {
                 continue;
             }
-            if ($visibility === 'host' && !hash_equals($host, $record['host'])) {
-                continue;
-            }
-            if ($kind !== null && $record['kind'] !== $kind) {
-                continue;
-            }
-            if ($name !== null && $record['name'] !== $name) {
+            if (!$this->matchesRecord($record, $visibility, $host, $kind, $name)) {
                 continue;
             }
             $records[] = [...$record, 'running' => $this->heartbeatFresh($record['heartbeat_at'])];
@@ -48,6 +51,8 @@ final readonly class RuntimeProcessRegistry
     /**
      * @param array<int|string, mixed> $record
      * @return array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:true}
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function heartbeat(array $record): array
     {
@@ -62,7 +67,11 @@ final readonly class RuntimeProcessRegistry
         return [...$normalized, 'running' => true];
     }
 
-    /** @return array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:true} */
+    /**
+     * @return array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:true}
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     public function register(string $kind, string $name): array
     {
         $this->assertIdentity($kind, $name);
@@ -84,7 +93,10 @@ final readonly class RuntimeProcessRegistry
         return [...$record, 'running' => true];
     }
 
-    /** @param array<int|string, mixed> $record */
+    /**
+     * @param array<int|string, mixed> $record
+     * @throws \RuntimeException
+     */
     public function unregister(array $record): void
     {
         $id = $record['id'] ?? null;
@@ -97,6 +109,9 @@ final readonly class RuntimeProcessRegistry
         }
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     */
     public function visibility(): string
     {
         $visibility = strtolower(ValueNormalizer::string(
@@ -112,6 +127,9 @@ final readonly class RuntimeProcessRegistry
         return $visibility;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function assertIdentity(string $kind, string $name): void
     {
         if (!in_array($kind, ['worker', 'schedule'], true)) {
@@ -154,6 +172,19 @@ final readonly class RuntimeProcessRegistry
         $host = gethostname();
 
         return is_string($host) && $host !== '' ? $host : 'unknown';
+    }
+
+    /** @param array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string} $record */
+    private function matchesRecord(
+        array $record,
+        string $visibility,
+        string $host,
+        ?string $kind,
+        ?string $name,
+    ): bool {
+        return !($visibility === 'host' && !hash_equals($host, $record['host']))
+            && ($kind === null || $record['kind'] === $kind)
+            && ($name === null || $record['name'] === $name);
     }
 
     /**
@@ -208,7 +239,10 @@ final readonly class RuntimeProcessRegistry
         return is_array($record) ? $this->normalizeRecord($record) : null;
     }
 
-    /** @param array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string} $record */
+    /**
+     * @param array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string} $record
+     * @throws \RuntimeException
+     */
     private function write(array $record): void
     {
         $directory = $this->directory();

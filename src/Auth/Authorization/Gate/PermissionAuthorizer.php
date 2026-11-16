@@ -22,6 +22,10 @@ final readonly class PermissionAuthorizer implements AuthorizerInterface
         private bool $allowGuests = false,
     ) {}
 
+    /**
+     * @throws \Infocyph\Foundation\Auth\Exception\AuthorizationException
+     */
+    #[\Override]
     public function authorize(
         PrincipalInterface $principal,
         string $ability,
@@ -35,13 +39,15 @@ final readonly class PermissionAuthorizer implements AuthorizerInterface
         }
     }
 
+    #[\Override]
     public function can(
         PrincipalInterface $principal,
         string $ability,
         mixed $resource = null,
         array $context = [],
     ): AuthorizationDecision {
-        if ($principal->accountId() === null) {
+        $accountId = $principal->accountId();
+        if ($accountId === null) {
             return $this->allowGuests
                 ? AuthorizationDecision::allow('guest_allowed')
                 : AuthorizationDecision::deny('guest_forbidden', 'Guest principals cannot access this ability.', $context);
@@ -49,7 +55,7 @@ final readonly class PermissionAuthorizer implements AuthorizerInterface
 
         $requestedAbility = Ability::from($ability, $resource, $context);
 
-        foreach ($this->directAndRolePermissions($principal->accountId()) as $permission) {
+        foreach ($this->directAndRolePermissions($accountId) as $permission) {
             if ($this->matcher->matches($permission->name, $requestedAbility->name)) {
                 return AuthorizationDecision::allow('permission_granted', context: ['permission' => $permission->name] + $context);
             }
@@ -65,20 +71,11 @@ final readonly class PermissionAuthorizer implements AuthorizerInterface
     }
 
     /**
-     * @return list<Permission>
+     * @return iterable<Permission>
      */
-    private function directAndRolePermissions(string $accountId): array
+    private function directAndRolePermissions(string $accountId): iterable
     {
-        $permissions = [];
-
-        foreach ($this->permissions->forAccount($accountId) as $permission) {
-            $permissions[$permission->name] = $permission;
-        }
-
-        foreach ($this->rolePermissions->forAccount($accountId) as $permission) {
-            $permissions[$permission->name] = $permission;
-        }
-
-        return array_values($permissions);
+        yield from $this->permissions->forAccount($accountId);
+        yield from $this->rolePermissions->forAccount($accountId);
     }
 }

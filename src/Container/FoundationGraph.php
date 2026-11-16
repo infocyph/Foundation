@@ -6,14 +6,23 @@ namespace Infocyph\Foundation\Container;
 
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
-use Infocyph\Foundation\Application\RuntimeModeFactory;
+use Infocyph\Foundation\Command\CommandContext;
+use Infocyph\Foundation\Command\CommandDefinition;
+use Infocyph\Foundation\Command\CommandDescriptor;
+use Infocyph\Foundation\Command\CommandIO;
+use Infocyph\Foundation\Command\ParsedInput;
 use Infocyph\Foundation\Config\ConfigExportValidator;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Runtime\ExecutionScope;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
+use Infocyph\Foundation\Scheduling\ScheduledCommand;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
+use Infocyph\InterMix\Integration\Runwire\RunwireIntegration;
+use Infocyph\Webrick\Request\Request;
 use Psr\Container\ContainerInterface;
 
 final class FoundationGraph
@@ -26,19 +35,48 @@ final class FoundationGraph
     public static function contributeTo(ContainerBuilder $builder, FoundationBuildContext $context): ContainerBuilder
     {
         self::registerConfigRepository($builder, $context);
-        $builder->singleton(RuntimeMode::class, FactoryDefinition::staticFactory(
-            RuntimeModeFactory::class,
+        $builder->factory(RuntimeMode::class, FactoryDefinition::staticFactory(
+            RuntimeMode::class,
             'from',
             [$context->runtimeMode->value],
         ));
-        $builder->scoped(RuntimeExecutionState::class, FactoryDefinition::construct(RuntimeExecutionState::class));
-        $builder->singleton(ExecutionScope::class, FactoryDefinition::construct(
+        $builder->factory(
+            RuntimeExecutionState::class,
+            FactoryDefinition::construct(RuntimeExecutionState::class),
+            LifetimeEnum::Scoped,
+        );
+        $builder->factory(ExecutionScope::class, FactoryDefinition::construct(
             ExecutionScope::class,
             [
                 new ServiceReference(ContainerInterface::class),
                 new ServiceReference(RuntimeMode::class),
             ],
         ));
+
+        // Native inputs borrow the caller's context; an ordinary synchronous
+        // execution leaves them unresolved and creates no runtime or loop.
+        RunwireIntegration::registerInputs($builder);
+        $builder->input(\Infocyph\CacheLayer\Integration\Runwire\RunwireExecutionContext::class);
+
+        if ($context->runtimeMode === RuntimeMode::Web) {
+            $builder->input(Request::class);
+        } else {
+            $builder->input(ExecutionId::class);
+        }
+        if ($context->runtimeMode === RuntimeMode::Scheduler) {
+            $builder->input(ScheduledCommand::class);
+        }
+        if ($context->runtimeMode === RuntimeMode::Cli) {
+            foreach ([
+                ParsedInput::class,
+                CommandIO::class,
+                CommandContext::class,
+                CommandDescriptor::class,
+                CommandDefinition::class,
+            ] as $id) {
+                $builder->input($id);
+            }
+        }
 
         return $builder;
     }
@@ -53,7 +91,7 @@ final class FoundationGraph
             $builder->enableLazyLoading();
         }
         if ($context->debugTracing) {
-            $builder->options()->enableDebugTracing(true, $context->debugTraceLevel);
+            $builder->enableDebugTracing(true, $context->debugTraceLevel);
         }
 
         return $builder;
@@ -62,7 +100,7 @@ final class FoundationGraph
     private static function registerConfigRepository(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if (ConfigExportValidator::isExportable($context->config)) {
-            $builder->singleton(ConfigRepository::class, FactoryDefinition::construct(
+            $builder->factory(ConfigRepository::class, FactoryDefinition::construct(
                 ConfigRepository::class,
                 [$context->config, $context->compiledConfig],
             ));

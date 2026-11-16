@@ -67,6 +67,9 @@ final readonly class PathManager
         return $this->path('database', $path);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public function ensureRuntimeDirectories(int $mode = 0775): void
     {
         foreach ($this->runtimeDirectories() as $directory) {

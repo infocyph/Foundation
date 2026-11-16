@@ -20,15 +20,16 @@ use Infocyph\OTP\GridOTP;
 use Infocyph\OTP\MobileOTP;
 use Infocyph\OTP\ValueObjects\AotpChallenge;
 use Infocyph\OTP\ValueObjects\AotpResponse;
-use Infocyph\OTP\ValueObjects\EnrollmentPayload;
 use Infocyph\OTP\ValueObjects\GridChallenge;
 
 /**
  * Foundation-owned OTP enrollment and application challenge workflow.
  *
- * OTP 6.1 owns algorithms, native challenge payloads, verification windows and
+ * The native OTP library owns algorithms, native challenge payloads, verification windows and
  * replay protection. Foundation owns account/factor persistence, activation,
  * recovery codes, audit, notifications and MFA satisfaction policy.
+ *
+ * @api
  */
 final readonly class OtpManager
 {
@@ -39,6 +40,9 @@ final readonly class OtpManager
         private OtpMfaVerifier $verifier,
     ) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function beginEnrollment(
         string $accountId,
         ?string $label = null,
@@ -46,9 +50,7 @@ final readonly class OtpManager
         int $recoveryCodeCount = 10,
     ): OtpEnrollmentResult {
         $provisioned = $this->provisioning->provision($accountId, $label, $withQrSvg);
-        /** @var EnrollmentPayload $payload */
         $payload = $provisioned['payload'];
-        /** @var array<string, mixed> $factorMetadata */
         $factorMetadata = $provisioned['factor_metadata'];
 
         $enrollment = $this->mfa->enrollFactor(
@@ -63,7 +65,11 @@ final readonly class OtpManager
         return new OtpEnrollmentResult($enrollment, $payload, $factorMetadata);
     }
 
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
+     * @throws \OverflowException
+     */
     public function completeAotpEnrollment(
         string $accountId,
         string $factorId,
@@ -88,7 +94,12 @@ final readonly class OtpManager
         return $this->activateVerifiedFactor($accountId, $factor, $verification, $context);
     }
 
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     * @throws \InvalidArgumentException
+     * @throws \OverflowException
+     */
     public function completeEnrollment(
         string $accountId,
         string $factorId,
@@ -111,7 +122,11 @@ final readonly class OtpManager
         );
     }
 
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
+     * @throws \OverflowException
+     */
     public function completeGridEnrollment(
         string $accountId,
         string $factorId,
@@ -136,6 +151,9 @@ final readonly class OtpManager
         return $this->activateVerifiedFactor($accountId, $factor, $verification, $context);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function enrollAotp(
         string $accountId,
         string $publicKey,
@@ -160,6 +178,9 @@ final readonly class OtpManager
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function enrollGridOtp(
         string $accountId,
         ?string $label = null,
@@ -197,6 +218,9 @@ final readonly class OtpManager
         return new GridOtpEnrollmentResult($enrollment, $secret);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function importLegacyMobileOtp(
         string $accountId,
         #[\SensitiveParameter]
@@ -230,7 +254,10 @@ final readonly class OtpManager
         );
     }
 
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
+     */
     public function issueAotpChallenge(
         string $accountId,
         string $factorId,
@@ -254,6 +281,9 @@ final readonly class OtpManager
         return $this->mfa->issueChallenge($accountId, $purpose, $factorId, $context);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function issueAotpEnrollmentChallenge(
         string $accountId,
         string $factorId,
@@ -265,7 +295,10 @@ final readonly class OtpManager
         return $this->verifier->challengeFactors()->issueAotp($factor, $context, $ttlSeconds);
     }
 
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
+     */
     public function issueGridChallenge(
         string $accountId,
         string $factorId,
@@ -282,6 +315,9 @@ final readonly class OtpManager
         return $this->mfa->issueChallenge($accountId, $purpose, $factorId, $context);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function issueGridEnrollmentChallenge(string $accountId, string $factorId): GridChallenge
     {
         return $this->verifier->challengeFactors()->issueGrid(
@@ -289,12 +325,19 @@ final readonly class OtpManager
         );
     }
 
+    /**
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     public function verifyFactor(MfaFactor $factor, string $code): MfaVerificationResult
     {
         return $this->verifier->verifyEnrollment($factor, $code);
     }
 
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @throws \InvalidArgumentException
+     * @throws \OverflowException
+     */
     private function activateVerifiedFactor(
         string $accountId,
         MfaFactor $factor,
@@ -385,6 +428,9 @@ final readonly class OtpManager
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function requireFactor(string $accountId, string $factorId, MfaFactorType $type): MfaFactor
     {
         $factor = $this->findFactor($accountId, $factorId);

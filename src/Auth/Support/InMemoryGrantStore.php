@@ -19,6 +19,7 @@ final class InMemoryGrantStore implements GrantStoreInterface
         private readonly ClockInterface $clock = new SystemClock(),
     ) {}
 
+    #[\Override]
     public function grantsForPrincipal(string $principalId): array
     {
         return array_values(array_filter(
@@ -27,6 +28,7 @@ final class InMemoryGrantStore implements GrantStoreInterface
         ));
     }
 
+    #[\Override]
     public function revoke(string $grantId): void
     {
         $grant = $this->grants[$grantId] ?? null;
@@ -47,6 +49,7 @@ final class InMemoryGrantStore implements GrantStoreInterface
         );
     }
 
+    #[\Override]
     public function save(AccessGrant $grant): void
     {
         $this->grants[$grant->id] = $grant;

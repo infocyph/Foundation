@@ -117,6 +117,10 @@ final readonly class ModuleStateResolver
 
     /**
      * @phpstan-return list<ModuleState>
+     * @throws \UnexpectedValueException
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function all(): array
     {
@@ -151,7 +155,10 @@ final readonly class ModuleStateResolver
         return array_values($modules);
     }
 
-    /** @return array{known:bool,requirements:array<string,string>,error:?string} */
+    /**
+     * @return array{known:bool,requirements:array<string,string>,error:?string}
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     */
     public function rootRequirements(): array
     {
         $path = $this->application->basePath('composer.json');
@@ -238,6 +245,7 @@ final readonly class ModuleStateResolver
      * @phpstan-param ModuleDefinition $definition
      * @param array{known:bool,requirements:array<string,string>,error:?string} $ownership
      * @phpstan-return array<string,FeatureState>
+     * @throws \InvalidArgumentException
      */
     private function featureStates(array $definition, array $ownership): array
     {
@@ -404,6 +412,7 @@ final readonly class ModuleStateResolver
      * @phpstan-param ModuleDefinition $definition
      * @param array{known:bool,requirements:array<string,string>,error:?string} $ownership
      * @phpstan-return ModuleState
+     * @throws \InvalidArgumentException
      */
     private function state(
         string $name,

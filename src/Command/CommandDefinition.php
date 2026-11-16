@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Command;
 
 use Infocyph\Foundation\Application\RuntimeMode;
 
+/** @api */
 final class CommandDefinition
 {
     /** @var list<string> */
@@ -34,7 +35,10 @@ final class CommandDefinition
 
     private bool $scoped = false;
 
-    /** @param list<string> $capabilities */
+    /**
+     * @param list<string> $capabilities
+     * @throws \InvalidArgumentException
+     */
     public function __construct(
         string $name = '',
         string $description = '',
@@ -54,7 +58,12 @@ final class CommandDefinition
         }
     }
 
-    /** @param array<string, mixed> $manifest */
+    /**
+     * @param array<string, mixed> $manifest
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public static function fromManifest(array $manifest): self
     {
         $definition = self::definitionFromScalars($manifest);
@@ -87,6 +96,9 @@ final class CommandDefinition
         return $definition;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function alias(string $alias): self
     {
         $this->assertCommandName($alias, 'alias');
@@ -106,6 +118,10 @@ final class CommandDefinition
         return $this->aliases;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function argument(
         string $name,
         string $description = '',
@@ -141,6 +157,9 @@ final class CommandDefinition
         return $this->arguments;
     }
 
+    /**
+     * @throws \LogicException
+     */
     public function assertComplete(): void
     {
         if ($this->name === '') {
@@ -154,6 +173,9 @@ final class CommandDefinition
         return $this->capabilities;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function capability(string $capability): self
     {
         $capability = trim($capability);
@@ -206,6 +228,9 @@ final class CommandDefinition
         return $this->execution;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function group(string $group): self
     {
         $group = trim($group);
@@ -229,6 +254,9 @@ final class CommandDefinition
         return $this->hidden;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function name(string $name): self
     {
         $this->assertCommandName($name, 'name');
@@ -237,6 +265,10 @@ final class CommandDefinition
         return $this;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function option(
         string $name,
         string $description = '',
@@ -316,7 +348,10 @@ final class CommandDefinition
         return $this;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \LogicException
+     */
     public function toManifest(): array
     {
         $this->assertComplete();
@@ -336,6 +371,11 @@ final class CommandDefinition
         ];
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private static function applyArguments(self $definition, mixed $arguments): void
     {
         if (!is_array($arguments)) {
@@ -353,6 +393,11 @@ final class CommandDefinition
         }
     }
 
+    /**
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private static function applyOptions(self $definition, mixed $options): void
     {
         if (!is_array($options)) {
@@ -372,7 +417,10 @@ final class CommandDefinition
         }
     }
 
-    /** @return array{name:string,description:string,required:bool,variadic:bool} */
+    /**
+     * @return array{name:string,description:string,required:bool,variadic:bool}
+     * @throws \UnexpectedValueException
+     */
     private static function argumentMetadata(mixed $argument): array
     {
         if (!is_array($argument)) {
@@ -390,7 +438,10 @@ final class CommandDefinition
         return compact('name', 'description', 'required', 'variadic');
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * @return array<string,mixed>
+     * @throws \UnexpectedValueException
+     */
     private static function associative(mixed $value, string $field): array
     {
         if (!is_array($value)) {
@@ -411,7 +462,11 @@ final class CommandDefinition
         return $normalized;
     }
 
-    /** @param array<string, mixed> $manifest */
+    /**
+     * @param array<string, mixed> $manifest
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     */
     private static function definitionFromScalars(array $manifest): self
     {
         $name = $manifest['name'] ?? null;
@@ -432,7 +487,10 @@ final class CommandDefinition
         }
     }
 
-    /** @return array{name:string,description:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool} */
+    /**
+     * @return array{name:string,description:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}
+     * @throws \UnexpectedValueException
+     */
     private static function optionMetadata(mixed $option): array
     {
         if (!is_array($option)) {
@@ -465,7 +523,10 @@ final class CommandDefinition
         ];
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \UnexpectedValueException
+     */
     private static function stringList(mixed $value, string $field): array
     {
         if (!is_array($value)) {
@@ -486,6 +547,9 @@ final class CommandDefinition
         return $items;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function assertCommandName(string $name, string $field): void
     {
         if ($name === '' || preg_match('/^[a-z][a-z0-9:_-]*$/D', $name) !== 1) {

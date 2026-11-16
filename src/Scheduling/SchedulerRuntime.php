@@ -8,8 +8,16 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Runtime\ExecutionId;
 
+/**
+ * Public scheduler-scoped runtime execution service.
+ *
+ * @api
+ */
 final readonly class SchedulerRuntime
 {
+    /**
+     * @throws \LogicException
+     */
     public function __construct(private Application $application)
     {
         if ($application->runtimeMode() !== RuntimeMode::Scheduler) {
@@ -24,6 +32,9 @@ final readonly class SchedulerRuntime
      * @param callable(ExecutionId):T $handler
      * @param array<string, mixed> $context
      * @return T
+     * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
+     * @throws \LogicException
+     * @throws \Throwable
      */
     public function execute(
         callable $handler,
