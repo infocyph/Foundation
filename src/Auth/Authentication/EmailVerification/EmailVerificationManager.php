@@ -208,7 +208,6 @@ final readonly class EmailVerificationManager
 
         $identifier = $account->identifier();
         $metadata = $account->metadata();
-        /** @var mixed $stored */
         $stored = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false
             ? $identifier
             : ($metadata['email'] ?? null);
