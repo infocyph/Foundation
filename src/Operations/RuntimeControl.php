@@ -74,6 +74,12 @@ final readonly class RuntimeControl
         return $normalized;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \LogicException
+     */
     public function token(string $scope, ?string $name = null): string
     {
         $entry = $this->read()[$this->key($scope, $name)] ?? null;

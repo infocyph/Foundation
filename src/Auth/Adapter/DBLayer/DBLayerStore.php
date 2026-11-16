@@ -99,6 +99,10 @@ abstract readonly class DBLayerStore
     /**
      * @param list<mixed> $bindings
      * @return array<string, mixed>|null
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
      */
     protected function first(string $sql, array $bindings = []): ?array
     {

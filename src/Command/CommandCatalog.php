@@ -362,6 +362,10 @@ final class CommandCatalog
         return $descriptors;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function find(string $name): ?CommandDefinition
     {
         return $this->all()[$name] ?? null;

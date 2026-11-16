@@ -80,6 +80,7 @@ final readonly class DBLayerEpicryptOAuthAuthorizationStore extends DBLayerStore
         return $result instanceof OAuthAuthorizationRecord ? $result : null;
     }
 
+    /** @throws \RuntimeException */
     private function findUsing(Connection $connection, string $authorizationId): ?OAuthAuthorizationRecord
     {
         $row = $connection->select(

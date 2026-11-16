@@ -172,7 +172,11 @@ final readonly class OmnibusWorkerFactory
         return $factory;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
+     */
     private function definition(string $name): array
     {
         return $this->all()[$name] ?? throw new \InvalidArgumentException(sprintf(

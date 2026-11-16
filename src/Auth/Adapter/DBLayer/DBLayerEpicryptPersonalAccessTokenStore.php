@@ -201,6 +201,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
         return is_int($result) ? $result : null;
     }
 
+    /** @throws \RuntimeException */
     private function findUsing(Connection $connection, string $tokenId): ?PersonalAccessTokenRecord
     {
         $row = $connection->select(
