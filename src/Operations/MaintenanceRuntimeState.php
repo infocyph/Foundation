@@ -52,6 +52,7 @@ final class MaintenanceRuntimeState implements MaintenanceStateInterface
 
         return $status['message'] ?? 'Service temporarily unavailable for maintenance.';
     }
+
     /**
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface

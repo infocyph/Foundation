@@ -54,6 +54,7 @@ final readonly class OmnibusWorkerFactory
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \UnexpectedValueException
      */
     public function make(string $name, ?WorkerLifecycle $lifecycle = null): Worker
     {
@@ -148,6 +149,7 @@ final readonly class OmnibusWorkerFactory
             ),
         ];
     }
+
     /**
      * @throws \UnexpectedValueException
      * @throws \InvalidArgumentException

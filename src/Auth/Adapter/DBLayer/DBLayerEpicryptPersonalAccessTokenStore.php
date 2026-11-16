@@ -204,6 +204,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
 
         return is_int($result) ? $result : null;
     }
+
     /**
      * @throws \RuntimeException
      */

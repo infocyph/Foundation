@@ -361,6 +361,7 @@ final class CommandCatalog
 
         return $descriptors;
     }
+
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException
@@ -369,6 +370,7 @@ final class CommandCatalog
     {
         return $this->all()[$name] ?? null;
     }
+
     /**
      * @throws \InvalidArgumentException
      * @throws \LogicException

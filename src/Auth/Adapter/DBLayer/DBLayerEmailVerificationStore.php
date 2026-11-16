@@ -65,6 +65,9 @@ final readonly class DBLayerEmailVerificationStore extends DBLayerConsumableStor
 
     /**
      * @throws \RuntimeException
+     * @throws \LogicException
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     #[\Override]
     public function find(string $requestId): ?EmailVerificationRequest

@@ -268,6 +268,12 @@ final readonly class ScheduleManager
             || $control->changed('schedule', null, $scheduleToken);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \LogicException
+     */
     private function interruptedDuringWait(
         int $seconds,
         RuntimeControl $control,
