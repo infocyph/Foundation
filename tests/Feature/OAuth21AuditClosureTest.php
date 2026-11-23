@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph;
 
+use ReflectionClass;
 use RuntimeException;
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\OAuth\Contract\JwkSetProviderInterface;

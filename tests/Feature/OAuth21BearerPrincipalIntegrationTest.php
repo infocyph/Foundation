@@ -48,6 +48,9 @@ it('resolves account and service OAuth bearer tokens into the existing principal
         $account = $resolver->resolve(Request::fake(headers: ['Authorization' => 'Bearer ' . $accountToken]));
         $service = $resolver->resolve(Request::fake(headers: ['Authorization' => 'Bearer ' . $serviceToken]));
 
+        \PHPUnit\Framework\Assert::assertInstanceOf(PrincipalInterface::class, $account);
+        \PHPUnit\Framework\Assert::assertInstanceOf(PrincipalInterface::class, $service);
+
         expect($account)->not->toBeNull()
             ->and($account->type())->toBe(PrincipalType::ACCOUNT)
             ->and($account->accountId())->toBe('account-1')
