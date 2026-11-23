@@ -124,12 +124,12 @@ it('keeps published risk admission opt-in and outbound challenge destinations ex
         static function (Request $request) use (&$evaluations): RiskDecision {
             ++$evaluations;
 
-            return RiskDecision::allow();
+            return $request->getMethod() === 'GET' ? RiskDecision::allow() : RiskDecision::deny();
         },
     );
     $response = $middleware(
         Request::fake(),
-        static fn(Request $request): Response => Response::plaintext('ok', 200),
+        static fn(Request $request): Response => Response::plaintext($request->getMethod(), 200),
     );
 
     expect($response->getStatusCode())->toBe(200)
