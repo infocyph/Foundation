@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use LogicException;
+use RuntimeException;
 use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\Epicrypt\Security\RememberToken as EpicryptRememberToken;
