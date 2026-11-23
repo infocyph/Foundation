@@ -50,14 +50,16 @@ it('qualifies local and SQLite native CacheLayer operations through Foundation c
 
                 $writer = $first->atomic();
                 $reader = $second->atomic();
+                \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\CacheLayer\Cache\AtomicCacheInterface::class, $writer);
+                \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\CacheLayer\Cache\AtomicCacheInterface::class, $reader);
                 expect($writer)->not->toBeNull()
                     ->and($reader)->not->toBeNull()
-                    ->and($writer?->setIfAbsent('atomic-' . $key, 0, 60))->toBeTrue()
-                    ->and($reader?->setIfAbsent('atomic-' . $key, 1, 60))->toBeFalse()
-                    ->and($reader?->compareAndSet('atomic-' . $key, 0, 2, 60))->toBeTrue()
-                    ->and($writer?->compareAndSet('atomic-' . $key, 0, 3, 60))->toBeFalse()
-                    ->and($writer?->getAndDelete('atomic-' . $key))->toBe(2)
-                    ->and($reader?->getAndDelete('atomic-' . $key, 'missing'))->toBe('missing');
+                    ->and($writer->setIfAbsent('atomic-' . $key, 0, 60))->toBeTrue()
+                    ->and($reader->setIfAbsent('atomic-' . $key, 1, 60))->toBeFalse()
+                    ->and($reader->compareAndSet('atomic-' . $key, 0, 2, 60))->toBeTrue()
+                    ->and($writer->compareAndSet('atomic-' . $key, 0, 3, 60))->toBeFalse()
+                    ->and($writer->getAndDelete('atomic-' . $key))->toBe(2)
+                    ->and($reader->getAndDelete('atomic-' . $key, 'missing'))->toBe('missing');
             }
         }
     } finally {
@@ -140,14 +142,16 @@ it('qualifies selected Redis, Valkey and Memcached stores against live service d
         }
         $writer = $producer->atomic();
         $reader = $consumer->atomic();
+        \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\CacheLayer\Cache\AtomicCacheInterface::class, $writer);
+        \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\CacheLayer\Cache\AtomicCacheInterface::class, $reader);
         expect($writer)->not->toBeNull()
             ->and($reader)->not->toBeNull()
-            ->and($writer?->setIfAbsent('atomic-' . $key, 0, 60))->toBeTrue()
-            ->and($reader?->setIfAbsent('atomic-' . $key, 1, 60))->toBeFalse()
-            ->and($reader?->compareAndSet('atomic-' . $key, 0, 2, 60))->toBeTrue()
-            ->and($writer?->compareAndSet('atomic-' . $key, 0, 3, 60))->toBeFalse()
-            ->and($writer?->getAndDelete('atomic-' . $key))->toBe(2)
-            ->and($reader?->getAndDelete('atomic-' . $key, 'missing'))->toBe('missing');
+            ->and($writer->setIfAbsent('atomic-' . $key, 0, 60))->toBeTrue()
+            ->and($reader->setIfAbsent('atomic-' . $key, 1, 60))->toBeFalse()
+            ->and($reader->compareAndSet('atomic-' . $key, 0, 2, 60))->toBeTrue()
+            ->and($writer->compareAndSet('atomic-' . $key, 0, 3, 60))->toBeFalse()
+            ->and($writer->getAndDelete('atomic-' . $key))->toBe(2)
+            ->and($reader->getAndDelete('atomic-' . $key, 'missing'))->toBe('missing');
     } finally {
         if ($client instanceof Redis) {
             $client->close();

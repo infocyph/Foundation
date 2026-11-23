@@ -339,13 +339,14 @@ it('registers an actual none-attested WebAuthn credential and signs its first as
         $registered = $services->passkeys()->finishRegistration($registrationResult);
         $store = $app->make(\Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface::class);
         $saved = $store->findByCredentialId($credentialId);
+        \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\Foundation\Auth\Passkey\PasskeyCredential::class, $saved);
 
         expect($registered->successful())->toBeTrue()
             ->and($saved)->not->toBeNull()
-            ->and($saved?->accountId)->toBe($account->id())
-            ->and($saved?->credentialId)->toBe($credentialId)
-            ->and($saved?->credentialRecordJson)->toBeString()->not->toBeEmpty()
-            ->and($saved?->revision)->toBe(0);
+            ->and($saved->accountId)->toBe($account->id())
+            ->and($saved->credentialId)->toBe($credentialId)
+            ->and($saved->credentialRecordJson)->toBeString()->not->toBeEmpty()
+            ->and($saved->revision)->toBe(0);
         expect(fn() => $services->passkeys()->finishRegistration($registrationResult))
             ->toThrow(RuntimeException::class);
 
