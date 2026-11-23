@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\Foundation\Auth\Authorization\Decision\AuthorizationDecision;
 use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;

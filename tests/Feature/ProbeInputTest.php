@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use InvalidArgumentException;
+use RuntimeException;
+use stdClass;
 use Infocyph\Foundation\Tests\Fixtures\ProbeInput;
 
 it('resolves local probe inputs and new outputs without allowing remote wrappers or traversal', function (): void {
