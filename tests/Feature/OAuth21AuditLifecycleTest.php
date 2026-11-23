@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use RuntimeException;
 use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
