@@ -227,6 +227,9 @@ final readonly class FilesystemResponseFactory
         ));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function freshRangeHeader(Request $request, DownloadPreparation $manifest): ?string
     {
         if (!$this->isGetOrHead($request)) {
@@ -243,6 +246,9 @@ final readonly class FilesystemResponseFactory
         return $validator->isRangeFresh($request) ? $rangeHeader : null;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function isGetOrHead(Request $request): bool
     {
         $method = HttpMethodEnum::normalize($request->getMethod());
@@ -251,6 +257,9 @@ final readonly class FilesystemResponseFactory
             || $method === HttpMethodEnum::HEAD->value;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function isHead(Request $request): bool
     {
         return HttpMethodEnum::normalize($request->getMethod()) === HttpMethodEnum::HEAD->value;
@@ -310,6 +319,8 @@ final readonly class FilesystemResponseFactory
      * @throws \Infocyph\Pathwise\Exceptions\DownloadException
      * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
      * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     private function offloadResponse(
         Request $request,
@@ -419,6 +430,8 @@ final readonly class FilesystemResponseFactory
      * @throws \Infocyph\Pathwise\Exceptions\DownloadException
      * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
      * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     private function respond(
         Request $request,
@@ -482,7 +495,11 @@ final readonly class FilesystemResponseFactory
         return $response;
     }
 
-    /** @param array<string, string|list<string>> $headers */
+    /**
+     * @param array<string, string|list<string>> $headers
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function shortCircuitResponse(Request $request, DownloadPreparation $manifest, array $headers): ?Response
     {
         $validator = new ConditionalValidator($manifest->etag, $manifest->lastModified);

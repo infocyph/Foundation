@@ -43,6 +43,7 @@ final readonly class RouteFileLoader
      * needed by HandlerCompiler and the generated artifact.
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function loadForRelease(Registrar $router): void
     {
@@ -89,6 +90,11 @@ final readonly class RouteFileLoader
         return $resolved;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     private function loadAttributeRoutes(Registrar $router): void
     {
         $attributes = ValueNormalizer::associativeArray($this->config->get('router.attributes', []));

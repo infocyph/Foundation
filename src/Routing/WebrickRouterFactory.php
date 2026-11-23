@@ -42,6 +42,9 @@ final class WebrickRouterFactory
 
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function kernel(?ErrorHandler $errorHandler = null): RouterKernel
     {
@@ -84,6 +87,8 @@ final class WebrickRouterFactory
 
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function router(): Registrar
     {
@@ -201,7 +206,11 @@ final class WebrickRouterFactory
             : null;
     }
 
-    /** @param list<string> $aliases */
+    /**
+     * @param list<string> $aliases
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     private function replayRoute(Registrar $registrar, RouteInterface $route, array $aliases): void
     {
         $register = function (Registrar $target) use ($route, $aliases): void {
