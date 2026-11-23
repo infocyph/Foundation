@@ -136,6 +136,9 @@ it('exposes context-routed Pathwise responses as Webrick chunk iterables without
         \PHPUnit\Framework\Assert::assertNotNull($producer);
         $body = '';
         foreach ($producer() as $chunk) {
+            if (!is_string($chunk)) {
+                throw new \UnexpectedValueException('Streaming response must yield string chunks.');
+            }
             $body .= $chunk;
         }
         expect($body)->toBe($contents);

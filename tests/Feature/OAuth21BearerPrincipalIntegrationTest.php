@@ -49,15 +49,15 @@ it('resolves account and service OAuth bearer tokens into the existing principal
         $service = $resolver->resolve(Request::fake(headers: ['Authorization' => 'Bearer ' . $serviceToken]));
 
         expect($account)->not->toBeNull()
-            ->and($account?->type())->toBe(PrincipalType::ACCOUNT)
-            ->and($account?->accountId())->toBe('account-1')
-            ->and($account?->metadata()['auth_via'] ?? null)->toBe('oauth_bearer')
-            ->and($account?->metadata()['oauth_scopes'] ?? null)->toBe(['profile.read'])
+            ->and($account->type())->toBe(PrincipalType::ACCOUNT)
+            ->and($account->accountId())->toBe('account-1')
+            ->and($account->metadata()['auth_via'] ?? null)->toBe('oauth_bearer')
+            ->and($account->metadata()['oauth_scopes'] ?? null)->toBe(['profile.read'])
             ->and($service)->not->toBeNull()
-            ->and($service?->type())->toBe(PrincipalType::SERVICE)
-            ->and($service?->accountId())->toBeNull()
-            ->and($service?->metadata()['auth_via'] ?? null)->toBe('oauth_bearer')
-            ->and($service?->metadata()['oauth_scopes'] ?? null)->toBe(['service.read']);
+            ->and($service->type())->toBe(PrincipalType::SERVICE)
+            ->and($service->accountId())->toBeNull()
+            ->and($service->metadata()['auth_via'] ?? null)->toBe('oauth_bearer')
+            ->and($service->metadata()['oauth_scopes'] ?? null)->toBe(['service.read']);
 
         $authorizer = new class implements AuthorizerInterface {
             /** @var list<array{principal:PrincipalInterface,ability:string}> */
