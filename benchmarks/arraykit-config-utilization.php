@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use RuntimeException;
+use Throwable;
 use Composer\InstalledVersions;
 use Infocyph\ArrayKit\Config\Config as ArrayKitConfig;
 use Infocyph\Foundation\Config\ConfigLoader;

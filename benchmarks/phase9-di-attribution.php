@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use RuntimeException;
 use Composer\InstalledVersions;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Benchmarks\Support\Phase9DiNode;
