@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\DBLayer\DB;
 use Infocyph\Epicrypt\Certificate\KeyPairGenerator;
 use Infocyph\Epicrypt\Token\Opaque\OpaqueToken;

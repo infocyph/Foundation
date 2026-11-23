@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
