@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
 use Composer\InstalledVersions;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\FilesystemPublicFileResolver;

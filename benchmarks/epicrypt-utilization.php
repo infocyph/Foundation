@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use FilesystemIterator;
+use LogicException;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use Composer\InstalledVersions;
 use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Migration\MigrationRunner;
