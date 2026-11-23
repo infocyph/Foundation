@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph;
 
+use Closure;
 use RuntimeException;
 use Throwable;
 use Composer\InstalledVersions;
