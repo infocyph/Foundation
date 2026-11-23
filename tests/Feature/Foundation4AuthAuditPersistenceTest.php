@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use LogicException;
 use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerAuditEventStore;
 use Infocyph\Foundation\Auth\Adapter\Uid\UidAuthIdGenerator;
