@@ -36,8 +36,7 @@ it('feeds one active and fallback derived key into Webrick native signed URL con
 
         $config = $resolver->resolve();
         \PHPUnit\Framework\Assert::assertInstanceOf(SignedUrlConfig::class, $config);
-        expect($config)->toBeInstanceOf(SignedUrlConfig::class)
-            ->and($config->generationKey)->toBeString()
+        expect($config->generationKey)->toBeString()
             ->and(strlen((string) $config->generationKey))->toBe(32)
             ->and($config->verificationKeys)->toHaveCount(2)
             ->and($config->verificationKeys[0] ?? null)->toBe($config->generationKey)
@@ -72,9 +71,7 @@ it('keeps the previous signing key readable after active key rotation', function
         \PHPUnit\Framework\Assert::assertInstanceOf(SignedUrlConfig::class, $old);
         \PHPUnit\Framework\Assert::assertInstanceOf(SignedUrlConfig::class, $rotated);
 
-        expect($old)->toBeInstanceOf(SignedUrlConfig::class)
-            ->and($rotated)->toBeInstanceOf(SignedUrlConfig::class)
-            ->and($rotated->generationKey)->not->toBe($old->generationKey)
+        expect($rotated->generationKey)->not->toBe($old->generationKey)
             ->and($rotated->verificationKeys)->toContain($old->generationKey);
     } finally {
         unset($_ENV[$oldEnvironment], $_ENV[$newEnvironment]);

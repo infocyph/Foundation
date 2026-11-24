@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\Foundation\Benchmarks\RepresentativeBenchmark;
 
 require dirname(__DIR__) . '/vendor/autoload.php';

@@ -44,6 +44,7 @@ final readonly class SignedUrlKeyResolver
      *
      * @param array<string, mixed>|null $behaviorOptions
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
      */
     public function resolve(?array $behaviorOptions = null): ?SignedUrlConfig
     {

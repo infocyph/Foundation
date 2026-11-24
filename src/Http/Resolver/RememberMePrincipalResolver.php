@@ -64,6 +64,9 @@ final class RememberMePrincipalResolver extends AbstractPrincipalResolver
         ]);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function rememberToken(Request $request): ?string
     {
         $header = $request->header($this->header);

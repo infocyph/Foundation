@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\Foundation\Benchmarks\RepresentativeBenchmark;
 use Infocyph\PHPForge\Support\BenchmarkResult;
 

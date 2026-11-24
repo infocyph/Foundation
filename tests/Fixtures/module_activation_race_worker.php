@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use RuntimeException;
+use Throwable;
+
 require_once __DIR__ . '/ProbeInput.php';
 $argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::fromServer($_SERVER);
 

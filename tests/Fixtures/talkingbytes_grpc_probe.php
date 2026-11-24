@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use InvalidArgumentException;
+use RuntimeException;
+
 use Infocyph\Foundation\Communication\CommunicationProfiles;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Tests\Fixtures\FoundationGrpcFixtureMessage;

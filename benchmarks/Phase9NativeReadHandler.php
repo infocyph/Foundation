@@ -24,6 +24,7 @@ final readonly class Phase9NativeReadHandler
     /**
      * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public static function read(): Response
     {

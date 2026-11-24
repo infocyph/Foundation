@@ -33,6 +33,8 @@ final readonly class FilesystemResponseFactory
      * @throws \Infocyph\Pathwise\Exceptions\DownloadException
      * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
      * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function download(
         Request $request,
@@ -58,6 +60,8 @@ final readonly class FilesystemResponseFactory
      * @throws \Infocyph\Pathwise\Exceptions\DownloadException
      * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
      * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function inline(
         Request $request,
@@ -84,6 +88,7 @@ final readonly class FilesystemResponseFactory
      * @throws \Infocyph\Pathwise\Exceptions\DownloadException
      * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
      * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     * @throws \RuntimeException
      */
     public function publicFile(Request $request, string $relativePath, array $headers = []): Response
     {
@@ -107,6 +112,7 @@ final readonly class FilesystemResponseFactory
      * @throws \Infocyph\Pathwise\Exceptions\DownloadException
      * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
      * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     * @throws \RuntimeException
      */
     public function xAccelRedirect(
         Request $request,
@@ -144,6 +150,7 @@ final readonly class FilesystemResponseFactory
      * @throws \Infocyph\Pathwise\Exceptions\DownloadException
      * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
      * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     * @throws \RuntimeException
      */
     public function xSendfile(
         Request $request,
@@ -387,6 +394,8 @@ final readonly class FilesystemResponseFactory
      * @throws \Infocyph\Pathwise\Exceptions\DownloadException
      * @throws \Infocyph\Pathwise\Exceptions\FileNotFoundException
      * @throws \Infocyph\Pathwise\Exceptions\FileSizeExceededException
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     private function prepareInitialDownload(
         Request $request,

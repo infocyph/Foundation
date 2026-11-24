@@ -241,6 +241,7 @@ final readonly class JsonDispatchResponseFactory
 
     /**
      * @param array<string, mixed> $envelope
+     * @throws \RuntimeException
      */
     private function respond(array $envelope, int $semanticStatus, bool $problem = false): Response
     {

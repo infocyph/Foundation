@@ -34,6 +34,10 @@ final class AuthResponseFactory
         return $this->respond($request, 401, $message);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function respond(Request $request, int $status, string $message): Response
     {
         if ($request->expectsJson()) {

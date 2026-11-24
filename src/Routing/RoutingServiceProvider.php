@@ -25,7 +25,11 @@ use Psr\Log\LoggerInterface;
  */
 final class RoutingServiceProvider extends ServiceProvider
 {
-    /** @throws \Infocyph\Foundation\Exception\ConfigurationException */
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public static function registrar(WebrickRouterFactory $factory): Registrar
     {
         return $factory->router();

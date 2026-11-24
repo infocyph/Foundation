@@ -458,6 +458,7 @@ PHP);
      * @param string $path Request path.
      * @param string $expectedBody Exact expected JSON body.
      * @return callable():bool
+     * @throws \InvalidArgumentException
      */
     private function requestOperation(Application $application, string $path, string $expectedBody): callable
     {

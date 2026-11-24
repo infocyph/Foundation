@@ -100,6 +100,8 @@ final readonly class OAuthRouteRegistrar
      * @param array{0:class-string,1:non-empty-string} $handler
      * @param string|array{as:string,middleware:list<string>} $options
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     private static function registerVerb(
         Registrar $router,

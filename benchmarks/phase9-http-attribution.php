@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use InvalidArgumentException;
+use RuntimeException;
+
 use Composer\InstalledVersions;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;

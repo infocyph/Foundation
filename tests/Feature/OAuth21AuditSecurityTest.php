@@ -2,12 +2,15 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeyResolver;
 use Infocyph\Foundation\Config\AuthDefaults;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Tests\Fixtures\OAuthAuditCapture;
+use RuntimeException;
 
 it('allows only non-secret OAuth audit metadata', function (): void {
     $capture = new OAuthAuditCapture();

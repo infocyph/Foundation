@@ -468,6 +468,7 @@ final readonly class FoundationReleaseCompiler
     /**
      * @throws \RuntimeException
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     private function rebaseWebReleaseManifest(string $stage, string $final): string
     {

@@ -83,6 +83,9 @@ final class OAuthBearerTokenPrincipalResolver extends AbstractPrincipalResolver
             : $this->principalForAccount($verified->account, $metadata);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function bearerToken(Request $request): ?string
     {
         $header = $request->header($this->header);

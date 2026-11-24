@@ -49,6 +49,8 @@ final readonly class RouteMiddlewareRegistrar
      * registry may be reset independently of the Foundation service instance.
      *
      * @param list<string>|null $requirements
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function register(?array $requirements = null): void
     {

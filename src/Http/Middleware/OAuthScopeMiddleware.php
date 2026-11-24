@@ -57,6 +57,9 @@ final readonly class OAuthScopeMiddleware
         return $next($request);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function insufficientScope(): Response
     {
         return Response::json(
@@ -83,6 +86,10 @@ final readonly class OAuthScopeMiddleware
         return array_values(array_filter($value, static fn(mixed $item): bool => is_string($item) && $item !== ''));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function unauthorized(string $description): Response
     {
         return Response::json(

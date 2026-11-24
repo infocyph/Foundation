@@ -57,6 +57,9 @@ final readonly class OAuthAudienceMiddleware
         return $this->invalidToken('The bearer token is not valid for this resource audience.');
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function invalidToken(string $description): Response
     {
         return Response::json(

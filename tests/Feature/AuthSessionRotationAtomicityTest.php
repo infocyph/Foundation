@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph;
 
+use Fiber;
 use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerSessionStore;
 use Infocyph\Foundation\Auth\Adapter\Uid\UidAuthIdGenerator;

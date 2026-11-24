@@ -36,6 +36,7 @@ final class VerifiedManifestStream
      * @throws \JsonException
      * @throws RuntimeException
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     public static function load(string $verifiedBytes, bool $runtimePhp): array
     {

@@ -15,6 +15,10 @@ use Infocyph\Webrick\Router\Definition\Attribute\Route;
 final readonly class AttributeGreetingController
 {
     #[Route('GET', '/attribute-hello/{name}', name: 'attribute.hello')]
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function show(string $name): Response
     {
         return Response::json(['hello' => $name]);

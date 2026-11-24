@@ -190,6 +190,9 @@ final readonly class OAuthAuthorizationController
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function consentPage(
         AuthorizationRequest $authorization,
         string $action,
