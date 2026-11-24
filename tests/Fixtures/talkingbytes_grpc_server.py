@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Real HTTP/2 gRPC loopback fixture; only test data, no app transport logic."""
 import json
+import os
 import sys
 from concurrent import futures
 
@@ -29,8 +30,9 @@ port = service.add_insecure_port("127.0.0.1:0")
 if port <= 0:
     raise RuntimeError("Unable to bind native gRPC loopback listener.")
 service.start()
-with open(ready, "w", encoding="utf-8") as handle:
+with open(ready + ".tmp", "w", encoding="utf-8") as handle:
     json.dump({"port": port}, handle)
+os.replace(ready + ".tmp", ready)
 try:
     service.wait_for_termination()
 except KeyboardInterrupt:

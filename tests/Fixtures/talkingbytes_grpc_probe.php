@@ -23,48 +23,15 @@ if (!extension_loaded('grpc') || !class_exists('Grpc\\BaseStub')) {
     throw new RuntimeException('Native gRPC extension and generated-stub package are required.');
 }
 
-$root = sys_get_temp_dir() . '/foundation-grpc-network-' . bin2hex(random_bytes(5));
-if (!mkdir($root, 0700)) {
-    throw new RuntimeException('Unable to allocate the gRPC test state directory.');
+$port = filter_var(getenv('GRPC_TEST_PORT'), FILTER_VALIDATE_INT, [
+    'options' => ['min_range' => 1, 'max_range' => 65535],
+]);
+if (!is_int($port)) {
+    throw new RuntimeException('A valid dedicated loopback gRPC peer port is required.');
 }
-$ready = $root . '/ready.json';
-$python = getenv('GRPC_PYTHON_BINARY');
-if (!is_string($python) || $python === '') {
-    throw new RuntimeException('A dedicated Python grpcio binary must be configured.');
-}
-$process = proc_open(
-    [$python, __DIR__ . '/talkingbytes_grpc_server.py', $ready],
-    [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
-    $pipes,
-);
-if (!is_resource($process)) {
-    throw new RuntimeException('Unable to spawn the real gRPC server.');
-}
-fclose($pipes[0]);
-stream_set_blocking($pipes[2], false);
 $stub = null;
 
 try {
-    $until = hrtime(true) + 10_000_000_000;
-    $port = null;
-    do {
-        clearstatcache(true, $ready);
-        $decoded = is_file($ready) ? json_decode((string) file_get_contents($ready), true) : null;
-        $port = is_array($decoded) ? ($decoded['port'] ?? null) : null;
-        if (is_int($port) && $port > 0 && $port <= 65535) {
-            break;
-        }
-        if (!proc_get_status($process)['running']) {
-            break;
-        }
-        usleep(20_000);
-    } while (hrtime(true) < $until);
-    if (!is_int($port) || $port < 1 || $port > 65535) {
-        $diagnostics = trim((string) stream_get_contents($pipes[2]));
-        throw new RuntimeException('Real gRPC server did not become ready.'
-            . ($diagnostics === '' ? '' : ' Child stderr: ' . $diagnostics));
-    }
-
     $app = Foundation::worker([
         'app' => ['base_path' => dirname(__DIR__, 2), 'load_env' => false, 'capabilities' => ['communication']],
         '_config_cache' => false,
@@ -80,9 +47,6 @@ try {
     $invoker = new class ($stub) implements NativeGrpcInvoker {
         public function __construct(private FoundationGrpcFixtureStub $stub) {}
 
-        /**
-         * @throws \InvalidArgumentException
-         */
         /**
          * @throws \UnexpectedValueException
          * @throws \InvalidArgumentException
@@ -145,20 +109,8 @@ try {
     if ($rejected->successful || $rejected->statusCode === 0) {
         throw new RuntimeException('Native gRPC UNIMPLEMENTED status was incorrectly reported as success.');
     }
-
 } finally {
-    try {
-        $stub?->close();
-    } finally {
-        proc_terminate($process);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        proc_close($process);
-        if (is_file($ready)) {
-            unlink($ready);
-        }
-        rmdir($root);
-    }
+    $stub?->close();
 }
 
 fwrite(STDOUT, "Foundation-selected native TalkingBytes gRPC loopback, failure mapping and channel cleanup verified.\n");

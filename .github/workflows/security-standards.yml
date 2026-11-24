@@ -306,11 +306,62 @@ jobs:
           php --ri grpc
           composer update --no-interaction --no-progress --prefer-dist --prefer-stable
           composer require --dev "grpc/grpc:^1.76" --no-interaction --no-progress --prefer-dist --prefer-stable
-      - name: Start pinned Python gRPC test peer and verify real native unary transport
+      - name: Verify real native unary transport without spawning from the PHP extension process
+        shell: bash
         run: |
+          set -euo pipefail
           python3 -m venv "$RUNNER_TEMP/foundation-grpc-venv"
-          "$RUNNER_TEMP/foundation-grpc-venv/bin/python" -m pip install --disable-pip-version-check "grpcio==1.76.0"
-          GRPC_PYTHON_BINARY="$RUNNER_TEMP/foundation-grpc-venv/bin/python" php tests/Fixtures/talkingbytes_grpc_probe.php
+          python="$RUNNER_TEMP/foundation-grpc-venv/bin/python"
+          "$python" -m pip install --disable-pip-version-check "grpcio>=1.76,<2"
+          root="$(mktemp -d "$RUNNER_TEMP/foundation-grpc.XXXXXXXX")"
+          "$python" tests/Fixtures/talkingbytes_grpc_server.py "$root/ready.json" > "$root/server.log" 2>&1 &
+          peer=$!
+          cleanup() {
+            if kill -0 "$peer" 2>/dev/null; then
+              kill "$peer"
+            fi
+            # The peer intentionally receives SIGTERM; do not replace the client exit status.
+            wait "$peer" 2>/dev/null || :
+            rm -rf -- "$root"
+          }
+          trap cleanup EXIT
+          for ((attempt = 0; attempt < 100; ++attempt)); do
+            if [[ -f "$root/ready.json" ]]; then
+              break
+            fi
+            if ! kill -0 "$peer" 2>/dev/null; then
+              cat "$root/server.log" >&2
+              exit 1
+            fi
+            sleep 0.1
+          done
+          if [[ ! -f "$root/ready.json" ]]; then
+            cat "$root/server.log" >&2
+            echo "Native gRPC peer did not become ready." >&2
+            exit 1
+          fi
+          export GRPC_TEST_PORT
+          GRPC_TEST_PORT="$("$python" -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["port"])' "$root/ready.json")"
+          # First exercise the same real extension/stub outside the Foundation application.
+          # This retains strict failure status and distinguishes native shutdown failure.
+          php -r '
+            require "vendor/autoload.php";
+            $port = filter_var(getenv("GRPC_TEST_PORT"), FILTER_VALIDATE_INT, ["options" => ["min_range" => 1, "max_range" => 65535]]);
+            if (!is_int($port)) {
+                throw new RuntimeException("Invalid native peer port.");
+            }
+            $stub = new Infocyph\Foundation\Tests\Fixtures\FoundationGrpcFixtureStub($port);
+            try {
+                $result = $stub->call("Unary", new Infocyph\Foundation\Tests\Fixtures\FoundationGrpcFixtureMessage("standalone"), 3.0);
+                if ($result->statusCode !== 0 || !$result->message instanceof Infocyph\Foundation\Tests\Fixtures\FoundationGrpcFixtureMessage || $result->message->payload !== "echo:standalone") {
+                    throw new RuntimeException("Standalone native gRPC roundtrip failed.");
+                }
+            } finally {
+                $stub->close();
+            }
+            echo "Standalone native gRPC roundtrip and close verified.\n";
+          '
+          GRPC_TEST_PORT="$GRPC_TEST_PORT" php tests/Fixtures/talkingbytes_grpc_probe.php
 
   historical-dependency-provenance:
     name: Historical Foundation 3 dependency reconstruction (truthful provenance)
