@@ -93,7 +93,7 @@ it('rejects a trusted release when its dependency identity no longer matches', f
 
     try {
         $manifestPath = foundationReleaseInfrastructureGeneration($root, 'dependency-mismatch');
-        $manifest = \foundationReadPhpFixtureArray($manifestPath);
+        $manifest = \Infocyph\foundationReadPhpFixtureArray($manifestPath);
         $manifest['dependency_fingerprint'] = str_repeat('0', 32);
         FoundationReleaseManifest::write($manifestPath, $manifest);
         new ActiveGeneration()->activate($root, 'dependency-mismatch');

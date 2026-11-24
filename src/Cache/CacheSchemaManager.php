@@ -16,6 +16,10 @@ final readonly class CacheSchemaManager
 {
     public function __construct(private Application $application) {}
 
+    /**
+     * @throws \Infocyph\CacheLayer\Cluster\Exception\ClusterTransportException
+     * @throws \RuntimeException
+     */
     public function install(?string $connection = null): void
     {
         foreach ($this->activeResources($connection, true) as $resource) {

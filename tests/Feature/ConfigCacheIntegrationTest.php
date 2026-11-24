@@ -168,7 +168,7 @@ PHP,
         $cacheDirectory = $project . '/bootstrap/cache/config';
         $compiledFile = $cacheDirectory . '/config.php';
         $manifestFile = $cacheDirectory . '/__manifest.php';
-        $manifest = \foundationReadPhpFixtureArray($manifestFile);
+        $manifest = \Infocyph\foundationReadPhpFixtureArray($manifestFile);
         $native = new ArrayKitConfig();
 
         expect($native->loadCache($compiledFile))->toBeTrue()
@@ -399,11 +399,11 @@ it('keeps production requirements limited to the Foundation runtime core', funct
         'php' => '^8.4',
         'composer-runtime-api' => '^2.0',
         'infocyph/arraykit' => '^5.3.2',
-        'infocyph/cachelayer' => '^4.0.2',
+        'infocyph/cachelayer' => '^4.0.3',
         'infocyph/intermix' => '^11.2.1',
-        'infocyph/runwire' => '^3.0.1',
+        'infocyph/runwire' => '^3.1',
         'infocyph/uid' => '^6.0.1',
-        'infocyph/webrick' => '^6.0.4',
+        'infocyph/webrick' => '^6.1',
         'psr/log' => '^3.0.2',
     ]);
     if (!is_array($composer['require-dev'] ?? null) || !is_array($composer['suggest'] ?? null)) {

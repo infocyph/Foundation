@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Composer\InstalledVersions;
 use DateTimeImmutable;
 use Infocyph\Epicrypt\DataProtection\ProtectionAlgorithm;

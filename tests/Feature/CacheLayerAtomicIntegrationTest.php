@@ -9,6 +9,11 @@ use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerTtlStore;
 use Infocyph\Foundation\Auth\Support\ArrayTtlStore;
 use Infocyph\Foundation\Communication\CacheLayerWebhookReplayStore;
+use Infocyph\Foundation\Security\Risk\RiskAuthority;
+use Infocyph\Foundation\Security\Risk\RiskContext;
+use Infocyph\Foundation\Security\Risk\RiskHashBulkhead;
+use Infocyph\Foundation\Security\Risk\RiskProofStore;
+use Infocyph\Foundation\Security\Risk\RiskTelemetry;
 
 it('aligns nullable string pull defaults across memory and atomic TTL stores', function (): void {
     $stores = [
@@ -123,8 +128,8 @@ it('preserves replay consume CAS and auth lockout atomicity under process conten
         expect(array_count_values($pulls))->toMatchArray(['payload' => 1, '__miss__' => 7]);
 
         $atomic = $cache->atomic();
-        expect($atomic)->not->toBeNull()
-            ->and($atomic?->setIfAbsent('cas-contention', 0, 30))->toBeTrue();
+        \PHPUnit\Framework\Assert::assertNotNull($atomic);
+        expect($atomic->setIfAbsent('cas-contention', 0, 30))->toBeTrue();
         $cas = foundationCacheLayerAtomicWorkers('cas', $namespace, $dsn, 'cas-contention', 8);
         expect(array_count_values($cas))->toMatchArray(['1' => 1, '0' => 7])
             ->and($cache->get('cas-contention'))->toBe(1);
@@ -134,7 +139,90 @@ it('preserves replay consume CAS and auth lockout atomicity under process conten
         $increments = foundationCacheLayerAtomicWorkers('counter', $namespace, $dsn, 'login:shared-account', 8);
         expect($increments)->toBe(['1', '2', '3', '4', '5', '6', '7', '8']);
         $counter->reset('login:shared-account');
+
+        $telemetry = new RiskTelemetry($cache, str_repeat('k', 32), shared: true, concentrationAt: 8);
+        $context = RiskContext::fromTransport('concurrency', 'login', '192.0.2.1');
+        $updates = foundationCacheLayerAtomicWorkers('risk-failure', $namespace, $dsn, 'same-account', 8);
+        expect($updates)->toBe(array_fill(0, 8, '1'))
+            ->and($telemetry->observe($context, 120, 'same-account'))->toBe([
+                'familiar' => null, 'failedSignatureAttempts' => 8, 'concentrated' => true, 'reliable' => true,
+            ]);
+
+        $authority = new RiskAuthority(Cache::redis(
+            namespace: $namespace,
+            dsn: $dsn,
+            options: new CacheOptions(integrityKey: str_repeat('i', 32), failOpen: false),
+        ), str_repeat('k', 32), shared: true);
+        $proofs = new RiskProofStore($authority, 'provider');
+        $claims = foundationCacheLayerAtomicWorkers('risk-proof', $namespace, $dsn, 'shared-proof', 52);
+        expect(array_count_values($claims))->toMatchArray(['1' => 1, '0' => 51])
+            ->and($proofs->claimVerifiedProof('shared-proof'))->toBeFalse();
+
+        $clearance = $proofs->issueClearance($context, 'account', 'verified-proof', 120);
+        \PHPUnit\Framework\Assert::assertIsString($clearance);
+        expect($proofs->issueClearance($context, 'account', 'verified-proof', 120))->toBeNull();
+        $redeemed = foundationCacheLayerAtomicWorkers('risk-clearance', $namespace, $dsn, $clearance, 52);
+        expect(array_count_values($redeemed))->toMatchArray(['1' => 1, '0' => 51])
+            ->and($proofs->redeemClearance($context, 'account', $clearance, 120))->toBeFalse();
+
+        $otherToken = $proofs->issueClearance($context, 'account', 'another-proof', 120);
+        \PHPUnit\Framework\Assert::assertIsString($otherToken);
+        expect($proofs->redeemClearance(RiskContext::fromTransport('other', 'login', '192.0.2.1'), 'account', $otherToken, 120))->toBeFalse()
+            ->and($proofs->redeemClearance($context, 'account', $otherToken, 120))->toBeFalse();
+
+        $bulkhead = new RiskHashBulkhead($authority, 'password-workers', 2, nonEvictingIsolatedPool: true);
+        expect($bulkhead->acquire())->toBeNull()
+            ->and($bulkhead->provisionDrainedPool())->toBeTrue();
+        $leases = foundationCacheLayerAtomicWorkers('risk-hash-slot', $namespace, $dsn, 'password-workers', 52);
+        expect(array_count_values($leases))->toMatchArray(['1' => 2, '0' => 50])
+            ->and($bulkhead->acquire())->toBeNull()
+            ->and($bulkhead->provisionDrainedPool())->toBeFalse();
+
+        $expired = $proofs->issueClearance($context, 'account', 'expired-proof', 120);
+        \PHPUnit\Framework\Assert::assertIsString($expired);
+        expect($proofs->redeemClearance($context, 'account', $expired, 210))->toBeFalse();
     } finally {
+        $cache->clear();
+    }
+});
+
+it('keeps capacity closed when a real isolated owner process is killed', function (): void {
+    $dsn = foundationCacheLayerAtomicRedisDsn();
+    $namespace = 'foundation-risk-abort-' . bin2hex(random_bytes(8));
+    $cache = Cache::redis(
+        namespace: $namespace,
+        dsn: $dsn,
+        options: new CacheOptions(integrityKey: str_repeat('i', 32), failOpen: false),
+    );
+    $authority = new RiskAuthority($cache, str_repeat('k', 32), shared: true);
+    $bulkhead = new RiskHashBulkhead($authority, 'abort-pool', 1, nonEvictingIsolatedPool: true);
+
+    try {
+        expect($bulkhead->provisionDrainedPool())->toBeTrue();
+        $worker = foundationCacheLayerStartWorker([
+            PHP_BINARY, dirname(__DIR__) . '/Fixtures/cachelayer_atomic_worker.php',
+            'risk-hash-hold', $namespace, $dsn, 'abort-pool',
+        ]);
+        try {
+            foundationCacheLayerReleaseWorkers([$worker]);
+            $read = [$worker[2]];
+            $write = null;
+            $except = null;
+            expect(stream_select($read, $write, $except, 15))->toBe(1)
+                ->and(fgets($worker[2]))->toBe("held\n")
+                ->and($bulkhead->acquire())->toBeNull();
+            expect(proc_terminate($worker[0], 9))->toBeTrue();
+            foundationCacheLayerWaitWorker($worker[0], time() + 15);
+        } finally {
+            proc_terminate($worker[0], 9);
+            $status = foundationCacheLayerCloseWorker($worker);
+        }
+
+        expect($status)->not->toBe(0)
+            ->and($bulkhead->acquire())->toBeNull()
+            ->and($bulkhead->provisionDrainedPool())->toBeFalse();
+    } finally {
+        // This namespace belongs exclusively to this completed test.
         $cache->clear();
     }
 });
@@ -158,7 +246,9 @@ function foundationCacheLayerAtomicRedisDsn(): string
 
 /**
  * @return list<string>
+ * @throws \InvalidArgumentException
  * @throws \RuntimeException
+ * @throws \JsonException
  */
 function foundationCacheLayerAtomicWorkers(
     string $mode,
@@ -167,48 +257,118 @@ function foundationCacheLayerAtomicWorkers(
     string $argument,
     int $count,
 ): array {
-    $processes = [];
-    $worker = dirname(__DIR__) . '/Fixtures/cachelayer_atomic_worker.php';
-
-    for ($i = 0; $i < $count; ++$i) {
-        $pipes = [];
-        $process = proc_open(
-            [PHP_BINARY, $worker, $mode, $namespace, $dsn, $argument],
-            [
-                0 => ['pipe', 'r'],
-                1 => ['pipe', 'w'],
-                2 => ['pipe', 'w'],
-            ],
-            $pipes,
-        );
-        if (!is_resource($process)) {
-            throw new RuntimeException('Unable to start CacheLayer concurrency worker.');
-        }
-        fclose($pipes[0]);
-        $processes[] = [$process, $pipes[1], $pipes[2]];
+    if ($count < 1 || $count > 64) {
+        throw new InvalidArgumentException('Invalid concurrency worker count.');
     }
-
+    $processes = [];
+    $command = [PHP_BINARY, dirname(__DIR__) . '/Fixtures/cachelayer_atomic_worker.php', $mode, $namespace, $dsn, $argument];
     $results = [];
-    foreach ($processes as [$process, $stdout, $stderr]) {
-        $output = trim((string) stream_get_contents($stdout));
-        $error = trim((string) stream_get_contents($stderr));
-        fclose($stdout);
-        fclose($stderr);
-        $status = proc_close($process);
-        if ($status !== 0) {
-            throw new RuntimeException('CacheLayer concurrency worker failed: ' . $error);
+
+    try {
+        for ($i = 0; $i < $count; ++$i) {
+            $processes[] = foundationCacheLayerStartWorker($command);
         }
-        $decoded = json_decode($output, true, flags: JSON_THROW_ON_ERROR);
-        $results[] = match (true) {
-            $decoded === true => '1',
-            $decoded === false => '0',
-            is_int($decoded) => (string) $decoded,
-            is_string($decoded) => $decoded,
-            default => throw new RuntimeException('Unexpected CacheLayer concurrency worker result.'),
-        };
+        foundationCacheLayerReleaseWorkers($processes);
+
+        $deadline = time() + 30;
+        foreach ($processes as $index => $worker) {
+            foundationCacheLayerWaitWorker($worker[0], $deadline);
+            $output = trim((string) stream_get_contents($worker[2]));
+            $error = trim((string) stream_get_contents($worker[3]));
+            $status = foundationCacheLayerCloseWorker($worker);
+            unset($processes[$index]);
+            if ($status !== 0) {
+                throw new RuntimeException('CacheLayer concurrency worker failed: ' . $error);
+            }
+            $results[] = foundationCacheLayerWorkerResult(json_decode($output, true, flags: JSON_THROW_ON_ERROR));
+        }
+    } finally {
+        foreach ($processes as $worker) {
+            proc_terminate($worker[0], 9);
+            foundationCacheLayerCloseWorker($worker);
+        }
     }
 
     sort($results, SORT_STRING);
 
     return $results;
+}
+
+/**
+ * @param list<string> $command
+ * @return array{resource,resource,resource,resource}
+ * @throws \RuntimeException
+ */
+function foundationCacheLayerStartWorker(array $command): array
+{
+    $pipes = [];
+    $process = proc_open($command, [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ], $pipes);
+    if (!is_resource($process)) {
+        throw new RuntimeException('Unable to start CacheLayer concurrency worker.');
+    }
+
+    return [$process, $pipes[0], $pipes[1], $pipes[2]];
+}
+
+/**
+ * @param list<array{resource,resource,resource,resource}> $workers
+ * @throws \RuntimeException
+ */
+function foundationCacheLayerReleaseWorkers(array $workers): void
+{
+    $deadline = time() + 30;
+    foreach ($workers as [, , $stdout]) {
+        $read = [$stdout];
+        $write = null;
+        $except = null;
+        $remaining = max(0, $deadline - time());
+        if (stream_select($read, $write, $except, $remaining) !== 1 || fgets($stdout) !== "ready\n") {
+            throw new RuntimeException('CacheLayer concurrency worker readiness deadline exceeded.');
+        }
+    }
+    foreach ($workers as [, $stdin]) {
+        if (fwrite($stdin, "go\n") !== 3) {
+            throw new RuntimeException('Unable to release CacheLayer worker start barrier.');
+        }
+    }
+}
+
+/**
+ * @param resource $process
+ * @throws \RuntimeException
+ */
+function foundationCacheLayerWaitWorker($process, int $deadline): void
+{
+    while (proc_get_status($process)['running']) {
+        if (time() >= $deadline) {
+            throw new RuntimeException('CacheLayer concurrency worker deadline exceeded.');
+        }
+        usleep(1_000);
+    }
+}
+
+/** @param array{resource,resource,resource,resource} $worker */
+function foundationCacheLayerCloseWorker(array $worker): int
+{
+    [$process, $stdin, $stdout, $stderr] = $worker;
+    fclose($stdin);
+    fclose($stdout);
+    fclose($stderr);
+
+    return proc_close($process);
+}
+
+/** @throws \RuntimeException */
+function foundationCacheLayerWorkerResult(mixed $result): string
+{
+    return match (true) {
+        $result === true => '1',
+        $result === false => '0',
+        is_int($result), is_string($result) => (string) $result,
+        default => throw new RuntimeException('Unexpected CacheLayer concurrency worker result.'),
+    };
 }

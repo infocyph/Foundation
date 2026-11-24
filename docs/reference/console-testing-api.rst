@@ -5,9 +5,7 @@ Console, scheduling and testing API reference
 
 Infbyte's CLI and test helpers are built on Foundation 4 contracts,
 not on a Laravel Artisan interface. Registration and runtime selection
-remain explicit. This reference lists inspected public methods; the
-currently published Infbyte 3 starter has not yet been integrated
-against all Foundation 4 entrypoints.
+remain explicit. This reference describes Foundation 4 public methods.
 
 Command handlers
 ----------------
@@ -181,13 +179,13 @@ Source anchors
 --------------
 
 * `CommandHandlerInterface
-  <https://github.com/infocyph/Foundation/blob/feature/foundation-3/src/Command/CommandHandlerInterface.php>`_
+  <https://github.com/infocyph/Foundation/blob/main/src/Command/CommandHandlerInterface.php>`_
 * `Schedule
-  <https://github.com/infocyph/Foundation/blob/feature/foundation-3/src/Scheduling/Schedule.php>`_
+  <https://github.com/infocyph/Foundation/blob/main/src/Scheduling/Schedule.php>`_
 * `TestKit
-  <https://github.com/infocyph/Foundation/blob/feature/foundation-3/src/Testing/TestKit.php>`_
+  <https://github.com/infocyph/Foundation/blob/main/src/Testing/TestKit.php>`_
 * `TestResponse
-  <https://github.com/infocyph/Foundation/blob/feature/foundation-3/src/Testing/TestResponse.php>`_
+  <https://github.com/infocyph/Foundation/blob/main/src/Testing/TestResponse.php>`_
 
 See :doc:`../console/commands`, :doc:`../console/scheduling`,
 :doc:`../testing/http`, and :doc:`../tutorials/test-an-application`.

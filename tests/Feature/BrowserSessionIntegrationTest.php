@@ -829,6 +829,9 @@ function browserSessionWithinScope(Container $container, callable $callback): mi
     return $container->withinScope(RuntimeRequestContext::REQUEST_SCOPE, static fn(): mixed => $callback());
 }
 
+/**
+ * @throws \InvalidArgumentException
+ */
 function browserSessionCookieId(Response $response): string
 {
     preg_match('/(?:^|;\\s*)infbyte_session=([a-f0-9]{64})/', $response->getHeaderLine('Set-Cookie'), $matches);

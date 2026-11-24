@@ -17,6 +17,7 @@ final readonly class TestResponse
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function assertHeader(string $name, ?string $value = null): self
     {

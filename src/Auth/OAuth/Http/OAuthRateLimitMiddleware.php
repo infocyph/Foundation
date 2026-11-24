@@ -35,6 +35,8 @@ final readonly class OAuthRateLimitMiddleware
     /**
      * @param callable(Request): Response $next
      * @throws \Infocyph\Webrick\Exceptions\HttpException
+     * @throws \Psr\Cache\InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function __invoke(Request $request, callable $next): Response
     {

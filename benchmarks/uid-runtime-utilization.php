@@ -2,12 +2,15 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Composer\InstalledVersions;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Scheduling\SchedulerRuntime;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\UID\Id;
+use RuntimeException;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 

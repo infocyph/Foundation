@@ -215,6 +215,10 @@ final class FoundationColdNotificationChannel implements \Infocyph\Foundation\No
  */
 final class FoundationCompiledReleaseHandler
 {
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function __invoke(): Response
     {
         return Response::json(['compiled' => true]);
@@ -255,6 +259,10 @@ final class FoundationCompiledReleaseMiddleware
     }
 }
 
+/**
+ * @throws \InvalidArgumentException
+ * @throws \RuntimeException
+ */
 function foundationWebReleasePlainHandler(): Response
 {
     return Response::json(['plain' => true]);
@@ -504,7 +512,7 @@ it('compiles and boots a trusted route-first Webrick release without live router
         expect($metadata['fallback']['required'] ?? null)->toBeFalse()
             ->and($metadata['fallback']['identity_required'] ?? null)->toBeFalse();
 
-        $payload = \foundationReadPhpFixtureArray($router);
+        $payload = \Infocyph\foundationReadPhpFixtureArray($router);
 
         $artifact = CompiledRouterArtifact::fromPayload($payload);
         $plansByPath = [];
@@ -635,7 +643,7 @@ it('compiles maintenance as an opt-in Webrick gate with bounded runtime refresh'
         expect($trustedSha256)->toMatch('/^[a-f0-9]{64}$/D')
             ->and($release['intermix']['skipped'] ?? null)->toBe([]);
 
-        $payload = \foundationReadPhpFixtureArray($router);
+        $payload = \Infocyph\foundationReadPhpFixtureArray($router);
 
         $artifact = CompiledRouterArtifact::fromPayload($payload);
         $plainPlan = null;
@@ -832,6 +840,10 @@ it('accepts an exact host runtime through Core inputs without an optional runtim
  */
 final class FoundationRunwireReleaseContextHandler
 {
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public static function identity(\Infocyph\Runwire\RequestContext $runwireRequest): Response
     {
         return Response::json(['request' => $runwireRequest->requestId]);
@@ -842,6 +854,7 @@ final class FoundationRunwireReleaseContextHandler
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     public static function show(
         \Infocyph\Runwire\RuntimeContext $runtime,
@@ -989,6 +1002,10 @@ final class FoundationRunwireInterleavedHandler
     /** @var array<string,array{same_native_request:bool,database_cancelled:bool,bus_cancelled:bool}> */
     public static array $observed = [];
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public static function identity(
         \Infocyph\Runwire\RuntimeContext $runtime,
         \Infocyph\Runwire\RequestContext $runwireRequest,
@@ -1009,6 +1026,7 @@ final class FoundationRunwireInterleavedHandler
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     public static function show(
         \Infocyph\Runwire\RuntimeContext $runtime,

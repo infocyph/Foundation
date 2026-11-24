@@ -9,9 +9,7 @@ An Infbyte test suite should prove both business behavior and the
 over Webrick, CacheLayer, Omnibus, TalkingBytes and other selected
 integrations; it does not replace those packages' behavior.
 
-This guide targets the **Infbyte 4 development candidate**. The
-published Infbyte ``main`` starter still uses Foundation 3. The
-candidate's default health route is
+This guide uses an Infbyte 4 application. The starter's default health route is
 ``GET /api/health``, which is a useful minimal integration fixture.
 
 Choosing the right test
@@ -116,7 +114,7 @@ Create **``my-app/tests/Feature/HealthEndpointTest.php``**:
 
 This is a complete **Infbyte project fixture**, not a
 Foundation-package unit test. The route actually exists in the
-Infbyte 4 candidate's ``routes/api.php``.
+Infbyte 4 starter's ``routes/api.php``.
 
 The path calculation uses the **Infbyte application root** two
 directories above ``tests/Feature/``. It does not point to

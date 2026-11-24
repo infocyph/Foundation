@@ -8,7 +8,7 @@ operational events through **PSR-3**. Foundation provides application
 resource and logging contracts, but neither requires an ORM, a
 global facade or a custom response writer.
 
-The examples below target the **Infbyte 4 development candidate**.
+The examples below target the **Infbyte 4 application**.
 Application paths refer to **``my-app/``**, not Foundation's
 source repository.
 

@@ -128,8 +128,7 @@ solve it by globally enabling all features. Inspect the specific
 selection, installed package/version, published config and
 ``app:ready`` report.
 
-Read the complete `Foundation module contract
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/modules.md>`_.
+Read the complete :doc:`Foundation module contract </modules>`.
 
 For a use-case-first walkthrough of the install/enable/config/ready lifecycle,
 see :doc:`../tutorials/choose-capabilities`.

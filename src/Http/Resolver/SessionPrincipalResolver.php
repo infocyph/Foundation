@@ -76,6 +76,9 @@ final class SessionPrincipalResolver extends AbstractPrincipalResolver
         return $principal;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function sessionId(Request $request): ?string
     {
         $header = $request->header($this->header);

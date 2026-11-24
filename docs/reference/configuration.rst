@@ -8,12 +8,10 @@ Every ``config/filename.php`` below is relative to the
 **Infbyte project root** (for example ``my-app/config/app.php``).
 It is never a suggestion to edit the Foundation library's source.
 
-**Version:** the material is verified against Infbyte candidate
-``feature/infbyte-4`` and its current Foundation 4 development
-contracts. Public Infbyte ``main`` remains Foundation 3.
+**Version:** Foundation 4 with a compatible Infbyte application.
 Start with :doc:`../start/configuration` for the practical sequence.
 
-Six files shipped with the Infbyte 4 candidate
+Six files shipped with the Infbyte 4 starter
 -----------------------------------------------
 
 These files exist before you activate any optional package:
@@ -126,7 +124,7 @@ generation is stored.
 Selected features: config/modules.php
 -------------------------------------
 
-The initial Infbyte 4 candidate is explicitly Core-only:
+The initial Infbyte 4 starter is explicitly Core-only:
 
 .. code-block:: php
 
@@ -382,7 +380,7 @@ commands, route handling code or installation instructions.
 
 For template provenance only:
 
-https://github.com/infocyph/Foundation/tree/feature/foundation-3/resources/config
+https://github.com/infocyph/Foundation/tree/main/resources/config
 
 You can inspect those templates to understand the current
 source contract without suggesting that users edit vendor

@@ -30,6 +30,7 @@ final readonly class OAuthHttpHandler
 
     /**
      * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function authorization(Request $request): AuthorizationRequest|Response
     {
@@ -70,6 +71,7 @@ final readonly class OAuthHttpHandler
     /**
      * @throws \LogicException
      * @throws OAuthProtocolException
+     * @throws \RuntimeException
      */
     public function authorizationApproved(AuthorizationRequest $request, PrincipalInterface $principal): Response
     {
@@ -81,6 +83,7 @@ final readonly class OAuthHttpHandler
 
     /**
      * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function authorizationDenied(AuthorizationRequest $request, ?PrincipalInterface $principal = null): Response
     {
@@ -95,6 +98,7 @@ final readonly class OAuthHttpHandler
 
     /**
      * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function authorizationFailure(
         AuthorizationRequest $request,
@@ -109,6 +113,7 @@ final readonly class OAuthHttpHandler
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function introspection(Request $request): Response
     {
@@ -126,6 +131,10 @@ final readonly class OAuthHttpHandler
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     public function jwks(): Response
     {
         return $this->responses->jwks($this->oauth->jwks());
@@ -133,6 +142,7 @@ final readonly class OAuthHttpHandler
 
     /**
      * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function metadata(): Response
     {
@@ -153,6 +163,7 @@ final readonly class OAuthHttpHandler
     /**
      * @throws \LogicException
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \RuntimeException
      */
     public function openIdMetadata(): Response
     {
@@ -161,6 +172,7 @@ final readonly class OAuthHttpHandler
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function revocation(Request $request): Response
     {
@@ -181,6 +193,7 @@ final readonly class OAuthHttpHandler
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function token(Request $request): Response
     {
@@ -200,6 +213,7 @@ final readonly class OAuthHttpHandler
 
     /**
      * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function userInfo(Request $request): Response
     {
@@ -221,6 +235,7 @@ final readonly class OAuthHttpHandler
 
     /**
      * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     * @throws \InvalidArgumentException
      */
     private function dpopProof(Request $request): ?string
     {
@@ -313,6 +328,7 @@ final readonly class OAuthHttpHandler
 
     /**
      * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     * @throws \InvalidArgumentException
      */
     private function resourceToken(Request $request): string
     {

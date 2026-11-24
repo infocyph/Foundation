@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use LogicException;
+
 require_once __DIR__ . '/ProbeInput.php';
 $argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::fromServer($_SERVER);
 
@@ -51,19 +55,19 @@ if ($boot === 'development') {
 }
 
 $httpServices = [
-    Infocyph\Foundation\Http\HttpKernel::class,
-    Infocyph\Foundation\Routing\RouteFileLoader::class,
-    Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver::class,
-    Infocyph\Foundation\Session\Middleware\SessionMiddleware::class,
-    Infocyph\Foundation\Session\Middleware\CsrfMiddleware::class,
-    Infocyph\Foundation\Filesystem\FilesystemResponseFactory::class,
-    Infocyph\Foundation\Filesystem\FilesystemUploadRequestHandler::class,
-    Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpInput::class,
-    Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpResponseFactory::class,
-    Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpThrottleFactory::class,
-    Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpHandler::class,
-    Infocyph\Foundation\Auth\OAuth\Http\OAuthAuthorizationController::class,
-    Infocyph\Webrick\Middleware\Throttle\AtomicCounterInterface::class,
+    \Infocyph\Foundation\Http\HttpKernel::class,
+    \Infocyph\Foundation\Routing\RouteFileLoader::class,
+    \Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver::class,
+    \Infocyph\Foundation\Session\Middleware\SessionMiddleware::class,
+    \Infocyph\Foundation\Session\Middleware\CsrfMiddleware::class,
+    \Infocyph\Foundation\Filesystem\FilesystemResponseFactory::class,
+    \Infocyph\Foundation\Filesystem\FilesystemUploadRequestHandler::class,
+    \Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpInput::class,
+    \Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpResponseFactory::class,
+    \Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpThrottleFactory::class,
+    \Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpHandler::class,
+    \Infocyph\Foundation\Auth\OAuth\Http\OAuthAuthorizationController::class,
+    \Infocyph\Webrick\Middleware\Throttle\AtomicCounterInterface::class,
 ];
 foreach ($httpServices as $id) {
     if ($app->has($id)) {

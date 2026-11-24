@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\Foundation\Auth\Account\Account;
 use Infocyph\Foundation\Auth\Account\AccountStatus;
 use Infocyph\Foundation\Auth\Adapter\TalkingBytes\AuthNotificationMapper;
@@ -36,6 +38,9 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Notifications\NotificationTemplateRegistry;
 use Infocyph\Foundation\Tests\Fixtures\AuthAuditSensitiveKeyMatrix;
 use Infocyph\TalkingBytes\Email\Emailer;
+use JsonSerializable;
+use LogicException;
+use RuntimeException;
 
 it('delivers account password resets only to the authoritative stored address', function (): void {
     $accounts = new InMemoryAccountStore();

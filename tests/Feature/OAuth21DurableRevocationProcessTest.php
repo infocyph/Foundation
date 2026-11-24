@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAuthorizationStore;
@@ -12,6 +14,7 @@ use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
+use RuntimeException;
 
 it('persists access and authorization revocation across fresh processes without cache state', function (): void {
     DB::purge();

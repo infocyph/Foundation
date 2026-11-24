@@ -17,6 +17,10 @@ final class ServeProbe
         throw new \RuntimeException('serve-probe-private-error');
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public static function read(): Response
     {
         $shared = RunwireIntegration::current();

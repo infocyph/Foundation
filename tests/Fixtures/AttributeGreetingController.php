@@ -14,6 +14,10 @@ use Infocyph\Webrick\Router\Definition\Attribute\Route;
  */
 final readonly class AttributeGreetingController
 {
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     #[Route('GET', '/attribute-hello/{name}', name: 'attribute.hello')]
     public function show(string $name): Response
     {

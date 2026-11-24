@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\Foundation\Auth\OAuth\Configuration\OAuthConfigValidator;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpThrottleFactory;
 use Infocyph\Foundation\Config\AuthDefaults;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Tests\Fixtures\OAuthAuditCapture;
+use InvalidArgumentException;
 
 it('defines bounded OAuth endpoint rate-limit defaults', function (): void {
     $config = new ConfigRepository(AuthDefaults::all());

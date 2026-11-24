@@ -38,6 +38,7 @@ final readonly class OAuthAudienceMiddleware
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     public function __invoke(Request $request, callable $next): Response
     {
@@ -57,6 +58,10 @@ final readonly class OAuthAudienceMiddleware
         return $this->invalidToken('The bearer token is not valid for this resource audience.');
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
     private function invalidToken(string $description): Response
     {
         return Response::json(

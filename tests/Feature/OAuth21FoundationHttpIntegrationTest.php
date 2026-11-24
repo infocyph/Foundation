@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use Closure;
+use FilesystemIterator;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use Infocyph\DBLayer\DB;
 use Infocyph\Epicrypt\Certificate\KeyPairGenerator;
 use Infocyph\Epicrypt\Token\Opaque\OpaqueToken;
@@ -121,7 +127,7 @@ it('includes Foundation OAuth routes in compiled Webrick releases', function ():
         }
         expect($release['intermix']['skipped'] ?? null)->toBe([]);
 
-        $payload = \foundationReadPhpFixtureArray($router);
+        $payload = \Infocyph\foundationReadPhpFixtureArray($router);
         $artifact = CompiledRouterArtifact::fromPayload($payload);
         $oauthMetadata = null;
         foreach ($artifact->routes() as $route) {

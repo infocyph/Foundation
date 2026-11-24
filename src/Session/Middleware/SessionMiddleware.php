@@ -63,6 +63,9 @@ final readonly class SessionMiddleware
         }
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function cookie(string $id): Cookie
     {
         $cookie = Cookie::make($this->config->cookieName, $id)

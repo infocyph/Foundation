@@ -11,10 +11,8 @@ commands and trusted production releases. Native libraries do the specialized
 work. The goal is to build real web, CLI and background applications without
 paying to activate unused features.
 
-This is the **Infbyte 4 development manual**. The published Infbyte
-``main`` starter still requires Foundation 3. The compatible 4 candidate
-is on the Infbyte ``feature/infbyte-4`` branch (PR #11), with an unpublished
-Foundation 4 development dependency. Do not present it as stable.
+This manual covers Infbyte applications built on Foundation 4.
+See :doc:`installation` for compatible starter versions.
 
 What belongs to your project?
 =============================
@@ -104,8 +102,7 @@ user-specific state in a process-wide singleton.
 Where to begin
 ==============
 
-For a working candidate installation, start with :doc:`installation`
-and :doc:`foundation4-candidate`. Then complete
+Start with :doc:`installation`. Then complete
 :doc:`first-route` and :doc:`first-application`.
 
 After that, the central guides are :doc:`../http/routing`,

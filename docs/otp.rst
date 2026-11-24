@@ -1,12 +1,16 @@
-# OTP-backed MFA and passkeys
+OTP-backed MFA and passkeys
+===========================
 
-Foundation composes `infocyph/otp ^7.0.1` into application authentication without
+
+Foundation composes ``infocyph/otp ^7.0.1`` into application authentication without
 copying OTP algorithms, replay mechanics, or WebAuthn ceremony behavior into the
 framework.
 
-Core authentication selects OTP through `security.mfa` and `security.passkey`.
+Core authentication selects OTP through ``security.mfa`` and ``security.passkey``.
 
-## Ownership
+Ownership
+---------
+
 
 Foundation owns application concerns:
 
@@ -23,179 +27,205 @@ OTP 7.0.1 owns specialist behavior:
 - recovery-code generation, normalization, keyed hashing, and consumption;
 - Passkey/WebAuthn option creation, serializer/validator wiring, ceremony state,
   origin/RP-ID validation, replay detection, and authoritative WebAuthn
-  `CredentialRecord` updates.
+  ``CredentialRecord`` updates.
 
 Foundation does not maintain another WebAuthn validator/runtime above OTP.
-`web-auth/webauthn-lib` remains the optional specialist dependency used by OTP
+``web-auth/webauthn-lib`` remains the optional specialist dependency used by OTP
 when the WebAuthn passkey driver is selected.
 
-## Selecting OTP MFA
+Selecting OTP MFA
+-----------------
 
-```php
-'auth' => [
-    'drivers' => [
-        'mfa' => 'otp',
-    ],
-],
-```
+
+.. code-block:: php
+
+   'auth' => [
+       'drivers' => [
+           'mfa' => 'otp',
+       ],
+   ],
+
 
 Install the MFA implementation and its crypto prerequisite:
 
-```bash
-php infbyte module:install security.mfa
-php infbyte module:install security.crypto
-```
+.. code-block:: bash
+
+   php infbyte module:install security.mfa
+   php infbyte module:install security.crypto
+
 
 OTP MFA and WebAuthn passkeys are independently selectable. TOTP/HOTP/OCRA do
-not require `web-auth/webauthn-lib`; AOTP requires `ext-sodium`.
-Generating an optional **SVG QR code** requires `ext-xmlwriter`; text/URI QR
+not require ``web-auth/webauthn-lib``; AOTP requires ``ext-sodium``.
+Generating an optional **SVG QR code** requires ``ext-xmlwriter``; text/URI QR
 output and passkey ceremonies do not. Passkey/WebAuthn does **not** require
-`ext-sodium` unless a separately selected AOTP factor is also active.
+``ext-sodium`` unless a separately selected AOTP factor is also active.
 
-## Authentication-state storage
+Authentication-state storage
+----------------------------
+
 
 Stateful OTP modes and passkey ceremonies require a CacheLayer store implementing
-`AuthenticationStateCacheInterface`. Foundation resolves the configured store
+``AuthenticationStateCacheInterface``. Foundation resolves the configured store
 and fails closed when that capability is unavailable.
 
 For OTP replay/challenge state:
 
-```php
-'auth' => [
-    'otp' => [
-        'replay' => [
-            'store' => 'auth-state',
-        ],
-    ],
-],
-```
+.. code-block:: php
+
+   'auth' => [
+       'otp' => [
+           'replay' => [
+               'store' => 'auth-state',
+           ],
+       ],
+   ],
+
 
 For passkey ceremony state:
 
-```php
-'auth' => [
-    'passkey' => [
-        'state' => [
-            'store' => 'auth-state',
-        ],
-    ],
-],
-```
+.. code-block:: php
 
-A null store selection falls back to `cache.default`. Production storage must be
+   'auth' => [
+       'passkey' => [
+           'state' => [
+               'store' => 'auth-state',
+           ],
+       ],
+   ],
+
+
+A null store selection falls back to ``cache.default``. Production storage must be
 fail-closed, integrity protected, and coordinated for the deployment topology.
 
-## TOTP
+TOTP
+----
+
 
 TOTP remains Foundation's default OTP enrollment workflow. OTP generates and
 validates the secret/provisioning payload and atomically advances replay state in
 the selected authentication-state cache.
 
-```php
-$otp = $app->make(Infocyph\Foundation\Auth\Otp\OtpManager::class);
+.. code-block:: php
 
-$enrollment = $otp->beginEnrollment(
-    accountId: 'account-1',
-    label: 'user@example.com',
-    withQrSvg: true,
-);
-```
+   $otp = $app->make(Infocyph\Foundation\Auth\Otp\OtpManager::class);
 
-A disabled factor is created first. `completeEnrollment()` verifies the initial
+   $enrollment = $otp->beginEnrollment(
+       accountId: 'account-1',
+       label: 'user@example.com',
+       withQrSvg: true,
+   );
+
+
+A disabled factor is created first. ``completeEnrollment()`` verifies the initial
 OTP through OTP's native replay-safe verifier and atomically activates the
 persisted factor revision.
 
-## HOTP and OCRA
+HOTP and OCRA
+-------------
+
 
 HOTP's authoritative state is the persisted factor counter. OTP returns the
 matching/next counter; Foundation commits the transition through
-`MfaFactorCompareAndSwapStoreInterface`.
+``MfaFactorCompareAndSwapStoreInterface``.
 
 Counter-bearing OCRA uses the same durable CAS model. Counterless/time-based OCRA
 uses OTP's CacheLayer replay protection instead. Foundation does not maintain a
 second counter or replay implementation.
 
-## AOTP
+AOTP
+----
+
 
 AOTP is an Ed25519 challenge/response factor owned cryptographically by OTP.
 Foundation stores **only the public key**. The private key must be generated and
 held by the user's device/application and must never be submitted to Foundation.
 
-```php
-use Infocyph\OTP\AOTP;
+.. code-block:: php
 
-// Device-side provisioning code:
-$keyPair = AOTP::generateKeyPair();
+   use Infocyph\OTP\AOTP;
 
-// Send only $keyPair->publicKey to the Foundation application.
-$enrollment = $otp->enrollAotp(
-    accountId: 'account-1',
-    publicKey: $keyPair->publicKey,
-    audience: 'example.com',
-);
-```
+   // Device-side provisioning code:
+   $keyPair = AOTP::generateKeyPair();
+
+   // Send only $keyPair->publicKey to the Foundation application.
+   $enrollment = $otp->enrollAotp(
+       accountId: 'account-1',
+       publicKey: $keyPair->publicKey,
+       audience: 'example.com',
+   );
+
 
 Foundation can issue an enrollment challenge with
-`issueAotpEnrollmentChallenge()`. The device signs that native OTP challenge
-with `AOTP::respond()`, then Foundation verifies it through
-`completeAotpEnrollment()` before activation.
+``issueAotpEnrollmentChallenge()``. The device signs that native OTP challenge
+with ``AOTP::respond()``, then Foundation verifies it through
+``completeAotpEnrollment()`` before activation.
 
-For normal application MFA, `issueAotpChallenge()` embeds OTP's native
-`AotpChallenge` in Foundation's existing application challenge envelope. The
-response submitted to `MfaManager::verifyChallenge()` is the JSON representation
-of OTP's `AotpResponse`.
+For normal application MFA, ``issueAotpChallenge()`` embeds OTP's native
+``AotpChallenge`` in Foundation's existing application challenge envelope. The
+response submitted to ``MfaManager::verifyChallenge()`` is the JSON representation
+of OTP's ``AotpResponse``.
 
-## GridOTP
+GridOTP
+-------
+
 
 GridOTP is exposed deliberately rather than treated as another TOTP variant.
 Foundation generates the GridOTP secret through OTP, persists the authoritative
-factor state, and returns the secret only in `GridOtpEnrollmentResult` so the
+factor state, and returns the secret only in ``GridOtpEnrollmentResult`` so the
 caller can provision it once.
 
-```php
-$enrollment = $otp->enrollGridOtp('account-1');
-$secret = $enrollment->secret; // sensitive provisioning output
-```
+.. code-block:: php
+
+   $enrollment = $otp->enrollGridOtp('account-1');
+   $secret = $enrollment->secret; // sensitive provisioning output
+
 
 The generic enrollment/audit context redacts that secret. Activation uses
-`issueGridEnrollmentChallenge()` plus `completeGridEnrollment()`. Normal MFA uses
-`issueGridChallenge()` and Foundation's existing challenge verification path.
+``issueGridEnrollmentChallenge()`` plus ``completeGridEnrollment()``. Normal MFA uses
+``issueGridChallenge()`` and Foundation's existing challenge verification path.
 OTP owns the grid mapping, challenge positions, attempt budget, expiration, and
 replay state.
 
-## MobileOTP
+MobileOTP
+---------
+
 
 MobileOTP is exposed **only as legacy compatibility**. New deployments should
 prefer TOTP, AOTP, passkeys, or another current factor.
 
-```php
-$enrollment = $otp->importLegacyMobileOtp(
-    accountId: 'account-1',
-    secret: $legacySecret,
-    pin: $legacyPin,
-);
-```
+.. code-block:: php
 
-Imported factors are explicitly persisted with `legacy=true`. Their secret/PIN
+   $enrollment = $otp->importLegacyMobileOtp(
+       accountId: 'account-1',
+       secret: $legacySecret,
+       pin: $legacyPin,
+   );
+
+
+Imported factors are explicitly persisted with ``legacy=true``. Their secret/PIN
 are redacted from generic enrollment and audit context. OTP still owns the
 legacy algorithm and replay-window verification.
 
-## Recovery codes
+Recovery codes
+--------------
+
 
 Recovery-code cryptography stays in OTP. Foundation supplies
-`OtpRecoveryCodeStore`, backed by the Foundation MFA factor store.
+``OtpRecoveryCodeStore``, backed by the Foundation MFA factor store.
 
 Only digests are persisted. Plain recovery codes are returned once to the
 enrollment caller and must not be written into application persistence/logging.
 Regeneration and consumption use the same factor revision/CAS boundary.
 
-## Durable factor CAS
+Durable factor CAS
+------------------
 
-Every `MfaFactor` carries a non-negative scalar `revision`. Creation and
-activation now use the atomic `MfaFactorCompareAndSwapStoreInterface` contract:
+
+Every ``MfaFactor`` carries a non-negative scalar ``revision``. Creation and
+activation now use the atomic ``MfaFactorCompareAndSwapStoreInterface`` contract:
 
 - create only when the factor ID is absent and revision is zero;
-- update only when persisted `id + revision` match the expected factor;
+- update only when persisted ``id + revision`` match the expected factor;
 - replacement advances the revision exactly once.
 
 HOTP/counter-OCRA counter transitions use the same rule. A stale verifier cannot
@@ -204,26 +234,29 @@ overwrite newer factor state.
 Sensitive factor metadata is persisted only where required for verification; it
 is redacted from enrollment/audit context. Protection of durable symmetric MFA
 secrets at rest uses Epicrypt at the DBLayer persistence boundary. See
-[MFA secret protection](security/advanced-authentication.rst) for
+:doc:`MFA secret protection </security/advanced-authentication>` for
 the independent key domains and rotation policy.
 
-## Passkey / WebAuthn
+Passkey / WebAuthn
+------------------
+
 
 Select OTP-backed passkeys with:
 
-```php
-'auth' => [
-    'drivers' => [
-        'passkey' => 'webauthn',
-    ],
-    'webauthn' => [
-        'rp_id' => 'example.com',
-        'origin' => 'https://example.com',
-        'challenge_ttl' => 300,
-        'allow_subdomains' => false,
-    ],
-],
-```
+.. code-block:: php
+
+   'auth' => [
+       'drivers' => [
+           'passkey' => 'webauthn',
+       ],
+       'webauthn' => [
+           'rp_id' => 'example.com',
+           'origin' => 'https://example.com',
+           'challenge_ttl' => 300,
+           'allow_subdomains' => false,
+       ],
+   ],
+
 
 Foundation intentionally exposes only application/deployment inputs OTP needs:
 RP ID, trusted origin, ceremony TTL, and optional subdomain policy. User
@@ -234,8 +267,8 @@ Registration uses trusted Foundation account data and an opaque stable user
 handle. OTP stores the complete ceremony options server-side; the browser never
 supplies authoritative ceremony state back to Foundation.
 
-After registration OTP returns a serialized WebAuthn `CredentialRecord`.
-Foundation persists that value in the dedicated `credential_record` column.
+After registration OTP returns a serialized WebAuthn ``CredentialRecord``.
+Foundation persists that value in the dedicated ``credential_record`` column.
 After **every successful assertion**, OTP returns the updated authoritative
 record and Foundation replaces it atomically only when the stored passkey
 revision still equals the revision that was verified. A concurrent/stale
@@ -244,18 +277,22 @@ assertion therefore cannot overwrite newer authenticator state.
 Passkey private keys never enter Foundation or OTP server storage; they remain in
 the platform authenticator/security key.
 
-## Auth schema
+Auth schema
+-----------
 
-When durable auth storage is selected, use Core `AuthSchemaInstaller::install()`
-and `readiness()` inside a CLI execution; see [Core schema provisioning](data/database.rst).
+
+When durable auth storage is selected, use Core ``AuthSchemaInstaller::install()``
+and ``readiness()`` inside a CLI execution; see :doc:`Core schema provisioning </data/database>`.
 Optional module schema commands do not provision Core auth.
 
-The current Foundation 4 passkey schema contains `revision`, `credential_record`
-and a unique `credential_id_hash` index. The full opaque ID remains stored, with
+The current Foundation 4 passkey schema contains ``revision``, ``credential_record``
+and a unique ``credential_id_hash`` index. The full opaque ID remains stored, with
 exact case-sensitive lookup. Readiness rejects a schema missing required columns.
 Current 4.0 deployments must use this schema; old-major conversion is out of scope.
 
-## Persistent runtimes
+Persistent runtimes
+-------------------
+
 
 Foundation's OTP composition keeps execution-specific mutable state out of
 singletons:
@@ -268,35 +305,42 @@ singletons:
 This model applies across reusable Web, Worker, CLI, and Scheduler application
 instances.
 
-### Runwire-bound operation handling
+Runwire-bound operation handling
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Stateful OTP and passkey operations borrow the current CacheLayer `RunwireExecutionContext`
-at call time and forward it through OTP 7.0.1's `runwire:` arguments for challenge
+
+Stateful OTP and passkey operations borrow the current CacheLayer ``RunwireExecutionContext``
+at call time and forward it through OTP 7.0.1's ``runwire:`` arguments for challenge
 issue/verification, replay checks and passkey begin/finish ceremonies. Foundation
 never stores a request or coroutine scope in long-lived OTP/passkey instances.
 Without an active context, the same operations execute synchronously.
 
 Cancelled/completed hosts must not consume challenges or publish new MFA state.
-`OtpMfaVerifier` propagates cancellation instead of converting it to an invalid
+``OtpMfaVerifier`` propagates cancellation instead of converting it to an invalid
 code/configuration result. Foundation-owned counter CAS and recovery-state
 operations retain their own atomicity and ownership checks. Application-owned
 native OTP instances must pass borrowed context explicitly where supported.
 
-## Direct OTP use
+Direct OTP use
+--------------
+
 
 Applications needing OTP outside Foundation authentication should use OTP's
-native `TOTP`, `HOTP`, `OCRA`, `AOTP`, `GridOTP`, `MobileOTP`, `Passkey`,
+native ``TOTP``, ``HOTP``, ``OCRA``, ``AOTP``, ``GridOTP``, ``MobileOTP``, ``Passkey``,
 provisioning, and recovery-code APIs directly. Foundation does not add a generic
 OTP facade or duplicate those specialist algorithms.
 
-## Production checks
+Production checks
+-----------------
+
 
 Use:
 
-```bash
-php infbyte config:validate --production
-php infbyte app:ready
-```
+.. code-block:: bash
+
+   php infbyte config:validate --production
+   php infbyte app:ready
+
 
 These validate Foundation application/deployment policy around OTP and passkey
 state. OTP remains responsible for specialist input, algorithm, ceremony, and

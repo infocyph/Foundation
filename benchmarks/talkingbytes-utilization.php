@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Composer\InstalledVersions;
 use Infocyph\Foundation\Communication\CommunicationProfiles;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -17,6 +19,7 @@ use Infocyph\TalkingBytes\Grpc\Sender\GrpcRequest;
 use Infocyph\TalkingBytes\Grpc\Sender\GrpcResponse;
 use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Webhook\Webhook;
+use RuntimeException;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 $operations = max(100, (int) ((($__foundation154_22 = getenv('TALKINGBYTES_RUNTIME_OPERATIONS')) !== false && $__foundation154_22 !== '' && $__foundation154_22 !== '0' ? $__foundation154_22 : 2_000)));

@@ -10,9 +10,8 @@ graph is finalized. Foundation owns the application lifecycle and public
 ``ServiceProviderInterface``; InterMix owns registration, resolution,
 scope and compiled-container behavior.
 
-This guide starts with files inside **your Infbyte 4 application**
-on ``feature/infbyte-4``. That branch is an unpublished
-development candidate, not the public Foundation 3 starter.
+This guide starts with files inside **your Infbyte 4 application**.
+Use :doc:`../start/installation` to create a compatible project.
 
 Why an application provider is useful
 -------------------------------------
@@ -34,7 +33,7 @@ directory such as ``my-app/app/Providers/``; it is
 Start from the actual Infbyte bootstrap
 ---------------------------------------
 
-The Infbyte 4 candidate ships
+The Infbyte 4 starter ships
 **``my-app/bootstrap/providers.php``**:
 
 .. code-block:: php

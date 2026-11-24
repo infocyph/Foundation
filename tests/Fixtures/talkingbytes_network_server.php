@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use RuntimeException;
+
 /**
  * Isolated real TCP peer for Foundation/TalkingBytes integration tests.
  * No production code, external network or HTTP fixture substitution involved.

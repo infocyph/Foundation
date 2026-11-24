@@ -8,17 +8,14 @@ execution policy**. Foundation composes the runtime. Webrick, InterMix,
 CacheLayer, DBLayer, Epicrypt, ReqShield, Pathwise, TalkingBytes, Omnibus
 and Runwire retain their own native responsibilities.
 
-This checklist targets the **unpublished Infbyte 4 development
-candidate**. The Core-only starter is not a production security
+This checklist targets an Infbyte 4 application. The Core-only starter is not a production security
 certification and must not be represented as one.
 
 Step 1 — verify what your application actually installs
 -------------------------------------------------------
 
-Before selecting security controls, record the package graph and
-qualifying commit. The published Infbyte ``main`` branch is still
-Foundation 3; the development candidate on ``feature/infbyte-4``
-currently resolves a moving Foundation branch.
+Before selecting security controls, record the installed package graph and
+qualify the selected runtime and deployment topology.
 
 From **your Infbyte project root**:
 

@@ -20,6 +20,7 @@ final readonly class OAuthHttpResponseFactory
 
     /**
      * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function authorizationError(
         AuthorizationRedirectContext $redirect,
@@ -44,6 +45,7 @@ final readonly class OAuthHttpResponseFactory
 
     /**
      * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function authorizationSuccess(AuthorizationRequest $request, string $code, string $issuer): Response
     {
@@ -58,6 +60,10 @@ final readonly class OAuthHttpResponseFactory
         return Response::redirect($this->appendQuery($request->redirectUri, $parameters));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function error(OAuthProtocolException $exception): Response
     {
         $headers = self::NO_STORE_HEADERS;
@@ -71,39 +77,67 @@ final readonly class OAuthHttpResponseFactory
         ], $exception->status, $headers);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function introspection(OAuthIntrospectionResult $result): Response
     {
         return Response::json($result->toArray(), 200, self::NO_STORE_HEADERS);
     }
 
-    /** @param array{keys:list<array<string, mixed>>} $jwks */
+    /**
+     * @param array{keys:list<array<string, mixed>>} $jwks
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function jwks(array $jwks): Response
     {
         return Response::json($jwks, 200);
     }
 
-    /** @param array<string, mixed> $metadata */
+    /**
+     * @param array<string, mixed> $metadata
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function metadata(array $metadata): Response
     {
         return Response::json($metadata, 200);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function revocation(): Response
     {
         return Response::empty(200, self::NO_STORE_HEADERS);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function token(OAuthTokenResponse $token): Response
     {
         return Response::json($token->toArray(), 200, self::NO_STORE_HEADERS);
     }
 
-    /** @param array<string, mixed> $claims */
+    /**
+     * @param array<string, mixed> $claims
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function userInfo(array $claims): Response
     {
         return Response::json($claims, 200, self::NO_STORE_HEADERS);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function userInfoError(OAuthProtocolException $exception): Response
     {
         return Response::json([

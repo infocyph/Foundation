@@ -2,6 +2,17 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use ErrorException;
+use FilesystemIterator;
+use InvalidArgumentException;
+use LogicException;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RuntimeException;
+use SplFileInfo;
+
 /**
  * Runs inside an isolated Composer --no-dev production consumer. This probe
  * deliberately loads only that consumer's vendor/autoload.php, never the

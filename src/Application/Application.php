@@ -113,6 +113,8 @@ final class Application
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function boot(): self
     {
@@ -200,6 +202,7 @@ final class Application
      * @throws \LogicException
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \RuntimeException
      */
     public function handle(Request $request): Response
     {
@@ -215,6 +218,7 @@ final class Application
      * @throws \LogicException
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \RuntimeException
      */
     public function http(): HttpKernel
     {

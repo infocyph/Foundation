@@ -12,6 +12,10 @@ final readonly class HttpKernel
 {
     public function __construct(private RouterKernel $router) {}
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function handle(Request $request): Response
     {
         // Webrick owns the stable webrick.request scope around routing/dispatch.

@@ -38,6 +38,7 @@ final readonly class RoutePresetRegistrar
      * @param array{prefix?:mixed,domain?:mixed,middleware?:mixed,name?:mixed,'as'?:mixed}|string|null $prefix
      * @param array{prefix?:mixed,domain?:mixed,middleware?:mixed,name?:mixed,'as'?:mixed}|string|Closure|null $domain
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function group(
         Registrar $router,
@@ -56,7 +57,11 @@ final readonly class RoutePresetRegistrar
         );
     }
 
-    /** @param list<string>|null $requirements */
+    /**
+     * @param list<string>|null $requirements
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function register(?array $requirements = null): void
     {
         $this->middleware->register($requirements);

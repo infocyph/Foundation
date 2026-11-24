@@ -9,7 +9,7 @@ same as authentication sessions, which represent account login and token
 lifecycle. Infbyte Core composes browser sessions only when a selected
 Webrick route needs them.
 
-This guide targets the **Infbyte 4 development candidate**. The default
+This guide targets the **Infbyte 4 application**. The default
 Core-only Infbyte project has ``config/auth.php``, but it does **not**
 ship a separate ``config/session.php``. Foundation provides Core
 session defaults until an application customizes them.

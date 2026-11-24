@@ -213,6 +213,28 @@ When changing quality configuration:
 
 Draft pull requests are welcome for incomplete work or early design feedback, but validation claims and checklist items must remain accurate.
 
+## Documentation
+
+The Infbyte application manual lives in [docs/index.rst](docs/index.rst).
+Use reStructuredText, keep examples aligned with Foundation's public contracts,
+and distinguish Infbyte project paths from internal package templates.
+Do not add development plans or transient CI status pages to the published manual.
+
+From the repository root:
+
+```bash
+python -m pip install -r docs/requirements.txt
+python -m sphinx -b html -n -W --keep-going docs docs/_build/html
+python docs/tools/check_public_contracts.py
+python docs/tools/lint_php_blocks.py
+```
+
+A strict build checks documentation structure, declared APIs and syntax; it does
+not certify external link health, production performance or hosted publication.
+Before publishing documentation, verify the matching starter, actual Read the
+Docs build, version routing and representative application examples. Preserve
+prior major-version manuals and use version-specific documentation when available.
+
 ## Reporting Bugs and Requesting Features
 
 Use the relevant issue template for bugs, regressions, CI failures, documentation problems, questions and feature requests.

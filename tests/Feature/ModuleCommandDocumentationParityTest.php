@@ -6,12 +6,12 @@ use Infocyph\Foundation\Command\CommandCatalog;
 use Infocyph\Foundation\Module\ModuleFeatureCommandCatalog;
 
 it('keeps all documented Foundation 4 module commands in the executable command catalog', function (): void {
-    $document = file_get_contents(dirname(__DIR__, 2) . '/docs/modules.md');
+    $document = file_get_contents(dirname(__DIR__, 2) . '/docs/modules.rst');
     if ($document === false) {
         throw new \RuntimeException('Unable to load Foundation module command documentation.');
     }
 
-    preg_match_all('/^php infbyte (module:[a-z:]+)(?:\s|$)/m', $document, $matches);
+    preg_match_all('/^[ \t]*php infbyte (module:[a-z:]+)(?:\s|$)/m', $document, $matches);
     $examples = array_values(array_unique($matches[1]));
     sort($examples);
     expect($examples)->not->toBeEmpty();
@@ -38,7 +38,7 @@ it('keeps all documented Foundation 4 module commands in the executable command 
 });
 
 it('keeps documented feature inventory and v2 CLI catalog in sync', function (): void {
-    $document = file_get_contents(dirname(__DIR__, 2) . '/docs/modules.md');
+    $document = file_get_contents(dirname(__DIR__, 2) . '/docs/modules.rst');
     expect($document)->toBeString()
         ->and($document)->toContain('schema_version: 2');
 
@@ -48,7 +48,7 @@ it('keeps documented feature inventory and v2 CLI catalog in sync', function ():
     $features = array_merge(...array_column($inventory['modules'], 'features'));
     expect($features)->toHaveCount(8);
     foreach ($features as $feature) {
-        expect($document)->toContain(chr(96) . $feature . chr(96));
+        expect($document)->toContain('``' . $feature . '``');
     }
 
     expect($document)->toContain('never force-overwrites')
@@ -57,7 +57,7 @@ it('keeps documented feature inventory and v2 CLI catalog in sync', function ():
 });
 
 it('keeps the Foundation 4 migration commands compatible with the final v2 catalog', function (): void {
-    $guide = file_get_contents(dirname(__DIR__, 2) . '/docs/foundation-4-migration.md');
+    $guide = file_get_contents(dirname(__DIR__, 2) . '/docs/foundation-4-migration.rst');
     if ($guide === false) {
         throw new \RuntimeException('Unable to read Foundation migration documentation.');
     }
@@ -66,25 +66,25 @@ it('keeps the Foundation 4 migration commands compatible with the final v2 catal
         ->and($guide)->toContain('security.mfa')
         ->and($guide)->toContain('execution.messaging');
 
-    preg_match_all('/^php infbyte (module:[a-z:]+)(?:\s|$)/m', $guide, $matches);
+    preg_match_all('/^[ \t]*php infbyte (module:[a-z:]+)(?:\s|$)/m', $guide, $matches);
     $catalog = new CommandCatalog();
     foreach (array_unique($matches[1]) as $name) {
         expect($catalog->find($name))->not->toBeNull();
     }
 
     // Old names may appear in historical prose, but never as runnable v2 examples.
-    expect($guide)->not->toMatch('/^php infbyte module:(?:show|doctor|plan|install) (?:database|messaging|auth)(?:\s|$)/m');
+    expect($guide)->not->toMatch('/^[ \t]*php infbyte module:(?:show|doctor|plan|install) (?:database|messaging|auth)(?:\s|$)/m');
 });
 
 it('keeps release notes explicit about v2 features and discontinued throughput qualification', function (): void {
-    $notes = file_get_contents(dirname(__DIR__, 2) . '/docs/foundation-4.0-release-notes.md');
+    $notes = file_get_contents(dirname(__DIR__, 2) . '/docs/foundation-4.0-release-notes.rst');
     $inventory = new ModuleFeatureCommandCatalog()->inventory();
     if ($notes === false) {
         throw new \RuntimeException('Unable to read Foundation release notes.');
     }
 
     expect($notes)->toContain('schema_version: 2')
-        ->and($notes)->toContain('Unpublished release candidate')
+        ->and($notes)->toContain('Release qualification')
         ->and($notes)->toContain('2% median successful-RPM')
         ->and($notes)->toContain('**both comparison jobs failed**')
         ->and($notes)->toContain('**explicit release-scope decision, not a repaired or passing');
@@ -107,11 +107,11 @@ it('keeps Composer publication metadata and optional package roles consistent wi
         'php' => '^8.4',
         'composer-runtime-api' => '^2.0',
         'infocyph/arraykit' => '^5.3.2',
-        'infocyph/cachelayer' => '^4.0.2',
+        'infocyph/cachelayer' => '^4.0.3',
         'infocyph/intermix' => '^11.2.1',
-        'infocyph/runwire' => '^3.0.1',
+        'infocyph/runwire' => '^3.1',
         'infocyph/uid' => '^6.0.1',
-        'infocyph/webrick' => '^6.0.4',
+        'infocyph/webrick' => '^6.1',
         'psr/log' => '^3.0.2',
     ];
 
@@ -146,8 +146,8 @@ it('keeps Composer publication metadata and optional package roles consistent wi
 });
 
 it('retains explicit publication blockers in the release notes and module API documentation', function (): void {
-    $notes = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/foundation-4.0-release-notes.md');
-    $modules = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/modules.md');
+    $notes = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/foundation-4.0-release-notes.rst');
+    $modules = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/modules.rst');
 
     expect($notes)->toContain('Package metadata')
         ->and($notes)->toContain('psr/log')
@@ -156,7 +156,7 @@ it('retains explicit publication blockers in the release notes and module API do
         ->and($notes)->toContain('final published source SHA')
         ->and($notes)->toContain('2.5% coefficient-of-variation')
         ->and($notes)->toContain('2% median successful-RPM')
-        ->and($notes)->toContain('Unpublished release candidate')
+        ->and($notes)->toContain('Release qualification')
         ->and($notes)->toContain('**did not pass**')
         ->and($modules)->toContain('release QA workflow')
         ->and($modules)->toContain('Sustained performance certification was discontinued without a passing verdict');

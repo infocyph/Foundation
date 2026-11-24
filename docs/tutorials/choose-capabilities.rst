@@ -268,5 +268,4 @@ Further reading
 See :doc:`../advanced/modules`,
 :doc:`../start/configuration`,
 :doc:`../architecture/application-lifecycle`, and the
-`Foundation module feature contract
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/modules.md>`_.
+:doc:`Foundation module feature contract </modules>`.

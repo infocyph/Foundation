@@ -17,6 +17,9 @@ final class FoundationMaintenanceBenchmarkAdapter implements RuntimeAdapterInter
 
     public int $requestMaterializations = 0;
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct()
     {
         $this->runtimeCapabilities = new RuntimeCapabilities(
@@ -34,6 +37,9 @@ final class FoundationMaintenanceBenchmarkAdapter implements RuntimeAdapterInter
         return $this->runtimeCapabilities;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function context(
         mixed $nativeRequest = null,

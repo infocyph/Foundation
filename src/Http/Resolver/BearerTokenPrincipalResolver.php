@@ -60,6 +60,9 @@ final class BearerTokenPrincipalResolver extends AbstractPrincipalResolver
         ]);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function bearerToken(Request $request): ?string
     {
         $header = $request->header($this->header);

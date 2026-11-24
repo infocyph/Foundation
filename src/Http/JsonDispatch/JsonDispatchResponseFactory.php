@@ -39,6 +39,7 @@ final readonly class JsonDispatchResponseFactory
     /**
      * @param list<Issue> $issues
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function error(
         array $issues,
@@ -51,6 +52,7 @@ final readonly class JsonDispatchResponseFactory
     /**
      * @param list<Issue> $issues
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function fail(
         array $issues,
@@ -62,6 +64,7 @@ final readonly class JsonDispatchResponseFactory
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function failureFromValidation(
         ValidationResult $validation,
@@ -89,6 +92,8 @@ final readonly class JsonDispatchResponseFactory
 
     /**
      * @param callable(mixed): mixed|null $transform
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function paginated(
         PaginatorInterface $paginator,
@@ -131,6 +136,7 @@ final readonly class JsonDispatchResponseFactory
      *
      * @param array<array-key, mixed>|string|int|float|bool|object|null $data
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function success(
         array|string|int|float|bool|object|null $data = null,
@@ -220,6 +226,7 @@ final readonly class JsonDispatchResponseFactory
     /**
      * @param list<Issue> $issues
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     private function problem(string $type, array $issues, int $status, ?string $message): Response
     {
@@ -241,6 +248,8 @@ final readonly class JsonDispatchResponseFactory
 
     /**
      * @param array<string, mixed> $envelope
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function respond(array $envelope, int $semanticStatus, bool $problem = false): Response
     {

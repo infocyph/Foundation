@@ -8,9 +8,7 @@ versioned schema changes and reproducible seed data. It separates
 **Foundation's application registration** from **DBLayer's database
 engine** and distinguishes optional feature schema from Core state.
 
-These are **Foundation 4 development contracts**. The public Infbyte
-application skeleton still depends on Foundation 3; run the commands
-below only in a compatible Foundation 4 application.
+Run these commands in an Infbyte application using Foundation 4.
 
 Decide what you need
 --------------------

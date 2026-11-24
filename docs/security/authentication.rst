@@ -10,13 +10,11 @@ tokens, sessions, notification policy and principal
 resolution; selected native packages own storage,
 cryptography and additional security factors.
 
-A fresh Infbyte 4 candidate already has
+A fresh Infbyte 4 starter already has
 **``my-app/config/auth.php``** as Core configuration.
 It is not an optional installable ``auth`` module.
 
-This guide describes the **unreleased Infbyte 4
-development candidate**. A published stable
-Foundation 4 consumer is not yet available.
+This guide describes authentication in an Infbyte application using Foundation 4.
 
 When authentication belongs in the route
 ----------------------------------------
@@ -292,3 +290,7 @@ Read :doc:`authorization`,
 :doc:`../tutorials/secure-browser-session` and
 the :doc:`advanced-authentication` and
 :doc:`../reference/http-security-api` guides.
+
+For explicitly selected credential-stuffing protection, see
+:doc:`risk-admission`. It is optional and does not replace ordinary
+login, lockout, MFA or CSRF.

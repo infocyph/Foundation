@@ -57,6 +57,12 @@ worker/application lifetimes. Runwire's AUTO selector recognizes
 certain already-active hosts. Swoole-family selection requires an
 explicit driver even if its extension is installed.
 
+Native CI covers both Swoole-family extensions on PHP 8.4 and 8.5.
+On PHP 8.6, use the OpenSwoole lane for qualified native serving:
+Swoole 6.2.6 fails to compile against PHP 8.6 and is not qualified.
+This is an extension-specific limitation, not a change to Foundation's
+PHP compatibility floor.
+
 Do not start a native listener inside a host-managed service.
 Use Webrick's selected native adapter and the existing
 ``FoundationReleaseBootstrap`` to load the trusted application
@@ -112,7 +118,6 @@ benefit has been demonstrated. Use a long-lived host only when
 its memory isolation, cancellation, restart and backend lifetime
 behavior has been tested.
 
-Read `Foundation runtime hosting
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/runtime-hosting.md>`_,
+Read :doc:`Foundation runtime hosting </runtime-hosting>`,
 :doc:`../advanced/runtime-modes` and
 :doc:`troubleshooting`.

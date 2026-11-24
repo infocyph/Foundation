@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Auth\AuthPruner;
 use Infocyph\Foundation\Config\ConfigRepository;

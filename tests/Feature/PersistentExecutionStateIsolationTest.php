@@ -253,6 +253,8 @@ it('isolates execution state while preserving bounded process-local memoizers', 
 /**
  * @throws \ReflectionException
  * @throws \UnexpectedValueException
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
  */
 function foundationPersistentMemoized(FoundationPersistentMemoCalls $calls): int
 {
@@ -265,6 +267,7 @@ function foundationPersistentMemoized(FoundationPersistentMemoCalls $calls): int
 
 /**
  * @throws \UnexpectedValueException
+ * @throws \LogicException
  */
 function foundationPersistentOnce(FoundationPersistentMemoCalls $calls): int
 {

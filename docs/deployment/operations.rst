@@ -110,5 +110,4 @@ After a change, confirm:
 * logging redaction and acceptable load/error rates.
 
 For source-specific command flags and detailed operational status,
-consult `Foundation operations
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/operations.md>`_.
+consult :doc:`Foundation operations </operations>`.

@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use ErrorException;
 use Infocyph\CacheLayer\Cache\Lock\LockHandle;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\Foundation\Command\CommandDefinition;
@@ -12,6 +15,9 @@ use Infocyph\Foundation\Command\ExitCode;
 use Infocyph\Foundation\Command\OverlapMode;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Tests\Fixtures\NoopCommandIO;
+use LogicException;
+use ReflectionProperty;
+use RuntimeException;
 
 it('keeps primary command error ahead of lock release and reports otherwise unmasked cleanup errors', function (): void {
     $root = sys_get_temp_dir() . '/foundation-command-lock-' . bin2hex(random_bytes(8));

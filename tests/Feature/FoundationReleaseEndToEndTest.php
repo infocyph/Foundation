@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use FilesystemIterator;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
@@ -32,6 +35,11 @@ use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Matching\FusedMatcher;
 use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
 use Infocyph\Webrick\Router\Matching\ShardedMatcher;
+use LogicException;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use ReflectionProperty;
+use RuntimeException;
 
 require_once dirname(__DIR__) . '/Fixtures/EnvironmentSecretStageObserver.php';
 require_once dirname(__DIR__) . '/Fixtures/environment_secret_stage_hooks.php';
@@ -289,6 +297,10 @@ final class FoundationPhase8ReleaseProvider extends ServiceProvider
  */
 final class FoundationPhase8ReleaseWebHandler
 {
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function __invoke(): Response
     {
         return Response::json(['generation' => 'phase8-e2e']);
@@ -352,7 +364,7 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         );
 
         $generation = $releaseRoot . '/generations/phase8-e2e';
-        $foundationManifest = \foundationReadPhpFixtureArray($generation . '/foundation.php');
+        $foundationManifest = \Infocyph\foundationReadPhpFixtureArray($generation . '/foundation.php');
         \PHPUnit\Framework\Assert::assertIsArray(($foundationManifest['worker'] ?? null));
         expect($release['generation'])->toBe('phase8-e2e')
             ->and(new ActiveGeneration()->current($releaseRoot)['generation'])->toBe('phase8-e2e')
@@ -367,11 +379,11 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         foreach (['web', 'cli', 'worker', 'scheduler'] as $runtime) {
             $pointer = $generation . '/' . $runtime . '/container.php';
             $target = realpath($pointer);
+            \PHPUnit\Framework\Assert::assertIsString($target);
             expect(is_link($pointer))->toBeTrue()
                 ->and(is_file($pointer))->toBeTrue()
                 ->and(readlink($pointer))->toStartWith('container.php.builds/')
-                ->and($target)->toBeString()
-                ->and(is_file(dirname((string) $target) . '/manifest.json'))->toBeTrue();
+                ->and(is_file(dirname($target) . '/manifest.json'))->toBeTrue();
 
             if ($runtime !== 'web') {
                 expect(is_file($pointer . '.foundation.json'))->toBeTrue();
@@ -696,7 +708,7 @@ it('publishes and boots every production matcher from its native Webrick cache',
             );
 
             $generation = $releaseRoot . '/generations/phase8-' . $name;
-            $manifest = \foundationReadPhpFixtureArray($generation . '/foundation.php');
+            $manifest = \Infocyph\foundationReadPhpFixtureArray($generation . '/foundation.php');
             \PHPUnit\Framework\Assert::assertIsArray(($manifest['web'] ?? null));
             $cachePath = $manifest['web']['matcher_cache_path'] ?? null;
             $absoluteCachePath = $generation . DIRECTORY_SEPARATOR
@@ -979,11 +991,11 @@ function foundationPhase8ReleaseProject(): string
 
     file_put_contents(
         $project . '/bootstrap/providers.php',
-        "<?php\n\ndeclare(strict_types=1);\n\nreturn ['common' => [FoundationPhase8ReleaseProvider::class]];\n",
+        "<?php\n\ndeclare(strict_types=1);\n\nreturn ['common' => [\\Infocyph\\FoundationPhase8ReleaseProvider::class]];\n",
     );
     file_put_contents(
         $project . '/routes/workers.php',
-        "<?php\n\ndeclare(strict_types=1);\n\nreturn ['phase8-provider' => FoundationPhase8ReleaseWorkerProvider::class];\n",
+        "<?php\n\ndeclare(strict_types=1);\n\nreturn ['phase8-provider' => \\Infocyph\\FoundationPhase8ReleaseWorkerProvider::class];\n",
     );
     file_put_contents(
         $project . '/routes/web.php',
@@ -994,7 +1006,7 @@ declare(strict_types=1);
 
 use Infocyph\Webrick\Router\Facade\Router;
 
-Router::get('/phase8', FoundationPhase8ReleaseWebHandler::class, ['name' => 'phase8.show']);
+Router::get('/phase8', \Infocyph\FoundationPhase8ReleaseWebHandler::class, ['name' => 'phase8.show']);
 PHP,
     );
 

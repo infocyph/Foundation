@@ -7,8 +7,7 @@ Use this walkthrough when a route accepts **untrusted input** and you want
 one predictable validation boundary before any database, message, filesystem,
 or authentication side effect.
 
-This guide targets the **Foundation 4 development branch**, not the currently
-published Infbyte 3 starter. It shows the source-verified
+This guide targets Foundation 4 and shows the
 ``Infocyph\Foundation\Validation\FormRequest`` contract and native
 ReqShield rule language; a complete HTTP integration test still requires
 the compatible Infbyte 4 skeleton.
@@ -57,8 +56,7 @@ starting class in a compatible application, use:
    php infbyte create:request StoreUser
    php infbyte create:rule ValidVatNumber
 
-Do not run Foundation 4 feature commands unmodified against the public
-Foundation 3-based Infbyte application.
+Use a compatible Foundation 4 application for these feature commands.
 
 Step 1 — create the request-validation class
 --------------------------------------------

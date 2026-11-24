@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
+use RuntimeException;
 
 it('delegates authorization request singleton and audience validation to Epicrypt', function (): void {
     $fixture = new OAuth21FlowFixture();

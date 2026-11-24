@@ -2,9 +2,15 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use FilesystemIterator;
 use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Tests\Fixtures\AuthContentionFixture;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RuntimeException;
 
 it('rejects a real Composer downgrade after a captured feature snapshot and permits a fresh retry', function (): void {
     $directory = sys_get_temp_dir() . '/foundation-composer-publication-' . bin2hex(random_bytes(6));
@@ -72,7 +78,7 @@ it('rejects a real Composer downgrade after a captured feature snapshot and perm
         $app = \Infocyph\Foundation\Foundation::cli(['base_path' => $directory, '_config_cache' => false]);
         $context = new \Infocyph\Foundation\Module\ModuleFeatureCommandSnapshot($app)->capture();
         new \Infocyph\Foundation\Module\ModuleActivationManager($app)->applyFeatures('enable', ['data.database'], $context);
-        $config = \foundationReadPhpFixtureArray($directory . '/config/modules.php');
+        $config = \Infocyph\foundationReadPhpFixtureArray($directory . '/config/modules.php');
         expect($config['features'])->toBe(['data.database' => true])
             ->and($config['application_policy'])->toBe(str_repeat('x', 16 * 1024 * 1024));
         // A removal plan read in another process must not survive a later enable.
@@ -106,7 +112,7 @@ it('rejects a real Composer downgrade after a captured feature snapshot and perm
         expect($exit)->toBe(0)->and($error)->toBe('')
             ->and($result['rejected'] ?? '')->toContain('Feature configuration changed')
             ->and(file_get_contents($directory . '/composer.json'))->toBe($composerBefore)
-            ->and((\foundationReadPhpFixtureArray($directory . '/config/modules.php'))['features'])->toBe(['data.database' => true]);
+            ->and((\Infocyph\foundationReadPhpFixtureArray($directory . '/config/modules.php'))['features'])->toBe(['data.database' => true]);
     } finally {
         foundationClosePublicationProcess($process, $pipes);
         $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);

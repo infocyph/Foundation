@@ -354,6 +354,6 @@ Read :doc:`authentication`,
 For deeper implementation contracts, see the
 Foundation source technical references:
 
-https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/otp.md
+:doc:`/otp`
 
-https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/oauth-2.1.md
+:doc:`/oauth-2.1`

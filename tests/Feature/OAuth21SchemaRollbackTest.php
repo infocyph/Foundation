@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Exceptions\MigrationException;
 use Infocyph\DBLayer\Migration\Migration;
@@ -19,6 +21,7 @@ use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
+use RuntimeException;
 
 it('rolls back only the additive OAuth revision and preserves the released auth schema', function (): void {
     DB::purge();

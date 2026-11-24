@@ -8,7 +8,7 @@ Foundation's ``TestKit`` runs real Webrick routes through
 the configured in-process web application. It is not a
 separate fake router or a replacement for external host tests.
 
-This chapter follows the Infbyte 4 **development candidate**.
+This chapter uses an Infbyte 4 application.
 It uses the existing ``/api/health`` endpoint that is actually
 registered by ``my-app/routes/api.php``.
 

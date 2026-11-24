@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpInput;
@@ -12,6 +14,11 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Tests\Fixtures\OAuthAuditCapture;
 use Infocyph\Webrick\Request\Core\Stream;
 use Infocyph\Webrick\Request\Request;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RuntimeException;
+use SplFileInfo;
+use Throwable;
 
 it('keeps protocol credentials and authorization headers out of HTTP error output', function (): void {
     $secret = 'client-secret-output-sentinel';

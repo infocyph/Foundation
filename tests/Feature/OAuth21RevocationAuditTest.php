@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;

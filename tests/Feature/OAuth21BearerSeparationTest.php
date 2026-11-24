@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptAccessTokenService;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptTokenFactory;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;

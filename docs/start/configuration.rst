@@ -8,15 +8,12 @@ Infbyte is an **application**. Its configuration belongs in the root
 Foundation package source. Foundation composes these files into the
 runtime graph; owning libraries implement the selected behavior.
 
-This guide uses the actual **Infbyte 4 candidate** on
-``feature/infbyte-4``. The candidate is not a published
-Foundation 4 release. For installation and compatibility rules,
-see :doc:`foundation4-candidate`.
+Use the Foundation 4-compatible starter described in :doc:`installation`.
 
 Where you edit configuration
 ----------------------------
 
-With a candidate application checkout, run:
+With an Infbyte application checkout, run:
 
 .. code-block:: bash
 

@@ -11,6 +11,8 @@ final readonly class FoundationGrpcFixtureStub
 {
     private object $inner;
 
+    private bool $ownsDefaultRoots;
+
     /**
      * @throws \RuntimeException
      */
@@ -18,10 +20,12 @@ final readonly class FoundationGrpcFixtureStub
     {
         // The selected extension lane supplies these optional classes. Reflection
         // keeps the ordinary test graph independent of ext-grpc declarations.
-        $credentials = (new ReflectionMethod(self::nativeClass('Grpc\\ChannelCredentials'), 'createInsecure'))->invoke(null);
+        $credentialClass = self::nativeClass('Grpc\\ChannelCredentials');
+        $this->ownsDefaultRoots = (new ReflectionMethod($credentialClass, 'isDefaultRootsPemSet'))->invoke(null) === false;
+        // createInsecure() is documented by ext-grpc to return null.
         $this->inner = (new \ReflectionClass(self::nativeClass('Grpc\\BaseStub')))->newInstance(
             '127.0.0.1:' . $port,
-            ['credentials' => $credentials],
+            ['credentials' => null, 'force_new' => true],
         );
     }
 
@@ -59,6 +63,18 @@ final readonly class FoundationGrpcFixtureStub
             message: $result[0],
             metadata: ['fixture_status_details' => $details],
         );
+    }
+
+    /** @throws \RuntimeException */
+    public function close(): void
+    {
+        try {
+            new ReflectionMethod($this->inner, 'close')->invoke($this->inner);
+        } finally {
+            if ($this->ownsDefaultRoots) {
+                new ReflectionMethod(self::nativeClass('Grpc\\ChannelCredentials'), 'invalidateDefaultRootsPem')->invoke(null);
+            }
+        }
     }
 
     /**

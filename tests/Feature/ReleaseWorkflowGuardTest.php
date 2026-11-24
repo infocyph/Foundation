@@ -15,6 +15,8 @@ it('requires tagged releases to pass the complete security, consumer, migration 
         'runtime-hosts',
         'talkingbytes-mailpit',
         'talkingbytes-grpc',
+        'risk-provider-wire',
+        'risk-host-qualification',
         'historical-dependency-provenance',
         'cross-major-auth-rehearsal',
         'redis-cluster',
@@ -27,12 +29,30 @@ it('requires tagged releases to pass the complete security, consumer, migration 
         expect($jobs)->toHaveKey($job);
     }
     expect($jobs['phpforge']['uses'] ?? null)
-        ->toBe('infocyph/phpforge/.github/workflows/security-standards.yml@a6232b6aefcc32b84b2fb94b8db8f5ac3b276d5d')
+        ->toBe('infocyph/phpforge/.github/workflows/security-standards.yml@main')
+        ->and($jobs['phpforge']['with'] ?? [])->not->toHaveKey('php_versions')
         ->and($jobs['release']['uses'] ?? null)
-        ->toBe('infocyph/phpforge/.github/workflows/release.yml@7214b16487277181c177343d4e4163a9b5843f24');
+        ->toBe('infocyph/phpforge/.github/workflows/release.yml@main');
 });
 
-it('checks real native Runwire serving on both supported PHP versions and Swoole drivers', function (): void {
+it('uses named historical source branches instead of hardcoded revisions', function (): void {
+    $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    foreach (['historical-dependency-provenance', 'cross-major-auth-rehearsal'] as $name) {
+        $steps = $workflow['jobs'][$name]['steps'] ?? null;
+        \PHPUnit\Framework\Assert::assertIsArray($steps);
+        $references = [];
+        foreach (array_keys($steps) as $index) {
+            $step = foundationStringMap($steps[$index]);
+            $with = foundationStringMap($step['with'] ?? []);
+            if (($with['path'] ?? null) === 'historical') {
+                $references[] = foundationFixtureString($with['ref'] ?? null);
+            }
+        }
+        expect($references)->toBe(['archive/foundation-3']);
+    }
+});
+
+it('checks real native Runwire serving on the supported PHP versions and Swoole drivers', function (): void {
     $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
     $host = $workflow['jobs']['runtime-hosts'] ?? null;
     $strategy = is_array($host) ? ($host['strategy'] ?? null) : null;
@@ -42,17 +62,16 @@ it('checks real native Runwire serving on both supported PHP versions and Swoole
         throw new UnexpectedValueException('Native runtime job must declare a PHP/driver matrix and test steps.');
     }
 
-    expect($matrix['php'] ?? null)->toBe(['8.4', '8.5'])
+    expect($matrix['php'] ?? null)->toBe(['8.4', '8.5', '8.6'])
         ->and($matrix['extension'] ?? null)->toBe(['swoole', 'openswoole'])
+        ->and($matrix['exclude'] ?? null)->toBe([['php' => '8.6', 'extension' => 'swoole']])
         ->and($strategy['fail-fast'] ?? null)->toBeFalse()
         ->and($host['runs-on'] ?? null)->toBe('ubuntu-latest')
         ->and($host)->not->toHaveKey('continue-on-error');
 
     $scripts = [];
-    foreach ($steps as $step) {
-        if (!is_array($step)) {
-            throw new UnexpectedValueException('Native runtime steps must be YAML mappings.');
-        }
+    foreach (array_keys($steps) as $index) {
+        $step = foundationStringMap($steps[$index]);
         if (isset($step['run'])) {
             if (!is_string($step['run'])) {
                 throw new UnexpectedValueException('Native runtime step must use a literal shell script.');
@@ -62,6 +81,7 @@ it('checks real native Runwire serving on both supported PHP versions and Swoole
     }
     $commands = implode("\n", $scripts);
     expect($commands)->toContain(
+        'extension_loaded($extension)',
         'RuntimeEnvironmentProbe',
         'RuntimeDriver::SWOOLE',
         'tests/Feature/ServeCommandIntegrationTest.php',
@@ -71,6 +91,59 @@ it('checks real native Runwire serving on both supported PHP versions and Swoole
         ->not->toContain('|| true', 'continue-on-error');
 });
 
+it('requires real native gRPC on the qualified PHP versions without ignoring failures', function (): void {
+    $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $job = foundationStringMap($workflow['jobs']['talkingbytes-grpc'] ?? null);
+    $strategy = foundationStringMap($job['strategy'] ?? null);
+    $matrix = foundationStringMap($strategy['matrix'] ?? null);
+    expect($matrix['php'] ?? null)->toBe(['8.4', '8.5', '8.6'])
+        ->and($strategy['fail-fast'] ?? null)->toBeFalse()
+        ->and($job)->not->toHaveKey('continue-on-error');
+    expect($job['steps'] ?? null)->toBeArray();
+    $encodedSteps = json_encode($job['steps'], JSON_THROW_ON_ERROR);
+    expect($encodedSteps)->toContain(
+        'none, grpc, curl, mbstring, intl, sodium, pdo, pdo_sqlite, dom, simplexml, xml, xmlreader, xmlwriter, tokenizer, ctype, fileinfo, iconv, phar, openssl, session, sockets, pcntl, posix, zip',
+        'Construct a private PHP configuration for native gRPC',
+        'PHP_INI_SCAN_DIR',
+        'php_ini_loaded_file()',
+        'php_ini_scanned_files()',
+        'Private PHP INI was not inherited',
+        'Unexpected shared OPcache extension',
+        'opcache.enable_cli=0',
+        'opcache.jit_buffer_size=0',
+        'Unexpected unrelated PHP extension',
+        'composer check-platform-reqs',
+        'Extension-only native gRPC roundtrip',
+        'run_native_probe -r',
+        'Standalone native gRPC roundtrip',
+        'talkingbytes_grpc_probe.php',
+    )->not->toContain('continue-on-error', 'ignore-platform-req');
+});
+
+it('requires the actual risk provider wire qualification on every supported PHP version', function (): void {
+    $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $job = foundationStringMap($workflow['jobs']['risk-provider-wire'] ?? null);
+    $strategy = foundationStringMap($job['strategy'] ?? null);
+    $matrix = foundationStringMap($strategy['matrix'] ?? null);
+    expect($matrix['php'] ?? null)->toBe(['8.4', '8.5', '8.6'])
+        ->and($strategy['fail-fast'] ?? null)->toBeFalse()
+        ->and($job)->not->toHaveKey('continue-on-error');
+    expect(json_encode($job['steps'], JSON_THROW_ON_ERROR))
+        ->toContain('sudo unshare --net', 'risk_provider_qualification.sh')
+        ->not->toContain('ignore-platform-req', 'continue-on-error');
+});
+
+it('requires the isolated authentication host and sustained acceptance gate', function (): void {
+    $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $job = foundationStringMap($workflow['jobs']['risk-host-qualification'] ?? null);
+    expect($job['runs-on'] ?? null)->toBe('ubuntu-latest')
+        ->and($job['timeout-minutes'] ?? null)->toBe(55)
+        ->and($job)->not->toHaveKey('continue-on-error');
+    expect(json_encode($job['steps'], JSON_THROW_ON_ERROR))
+        ->toContain('nginx caddy redis-server', 'risk_host_qualification.sh', 'foundation-risk-host-qualification')
+        ->not->toContain('ignore-platform-req', 'continue-on-error');
+});
+
 it('keeps the retired full throughput certification out of the release workflow without faking a pass', function (): void {
     $root = dirname(__DIR__, 2);
     $workflow = foundationReleaseWorkflow($root . '/.github/workflows/security-standards.yml');
@@ -78,7 +151,7 @@ it('keeps the retired full throughput certification out of the release workflow 
     expect($workflow['jobs'])->not->toHaveKey('source-certification');
     expect(is_file($root . '/.github/workflows/foundation4-host-certification.yml'))->toBeFalse();
 
-    $notes = file_get_contents($root . '/docs/foundation-4.0-release-notes.md');
+    $notes = file_get_contents($root . '/docs/foundation-4.0-release-notes.rst');
     if (!is_string($notes)) {
         throw new UnexpectedValueException('Release notes are required.');
     }
@@ -87,6 +160,25 @@ it('keeps the retired full throughput certification out of the release workflow 
         '**both comparison jobs failed**',
         '**explicit release-scope decision, not a repaired or passing',
     );
+});
+
+it('qualifies the active Infbyte application against the Foundation handoff PR head', function (): void {
+    $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $job = foundationStringMap($workflow['jobs']['infbyte-candidate'] ?? null);
+    $strategy = foundationStringMap($job['strategy'] ?? null);
+    $matrix = foundationStringMap($strategy['matrix'] ?? null);
+
+    expect($job['if'] ?? null)->toBe("github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'plan/foundation-risk-engine-handoff'")
+        ->and($matrix['php'] ?? null)->toBe(['8.4', '8.5', '8.6']);
+
+    $steps = $job['steps'] ?? null;
+    \PHPUnit\Framework\Assert::assertIsArray($steps);
+    $named = array_column($steps, null, 'name');
+    $checkout = foundationStringMap($named['Check out existing Infbyte 4 application candidate'] ?? null);
+    $with = foundationStringMap($checkout['with'] ?? null);
+    $verify = foundationStringMap($named['Require the exact Foundation PR head'] ?? null);
+    expect($with['ref'] ?? null)->toBe('feature/infbyte-4')
+        ->and(foundationFixtureString($verify['run'] ?? null))->toContain('dev-plan/foundation-risk-engine-handoff', 'EXPECTED_FOUNDATION_SHA');
 });
 
 /**

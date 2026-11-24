@@ -20,6 +20,10 @@ final class ValidationExceptionMapper
         return self::supportsDefault($exception);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function toResponse(Request $request, \Throwable $exception): ?Response
     {
         if (!$exception instanceof ValidationException) {

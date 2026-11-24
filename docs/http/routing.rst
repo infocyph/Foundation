@@ -10,7 +10,7 @@ and compiles selected routes for the web runtime.
 Where route files live
 ----------------------
 
-The actual Infbyte 4 candidate includes:
+The actual Infbyte 4 starter includes:
 
 .. code-block:: text
 

@@ -2,11 +2,15 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeyResolver;
 use Infocyph\Foundation\Config\AuthDefaults;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Tests\Fixtures\OAuthAuditCapture;
+use RuntimeException;
+use Throwable;
 
 it('audits active signing key selection failure without exposing key paths', function (): void {
     $directory = sys_get_temp_dir() . '/foundation-oauth-key-selection-' . bin2hex(random_bytes(6));

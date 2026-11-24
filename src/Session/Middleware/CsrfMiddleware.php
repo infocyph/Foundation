@@ -51,6 +51,10 @@ final readonly class CsrfMiddleware
         return $next($request);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function rejected(): Response
     {
         return Response::json(
@@ -60,6 +64,9 @@ final readonly class CsrfMiddleware
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function validOrigin(Request $request): bool
     {
         if (!$this->config->csrfCheckOrigin) {

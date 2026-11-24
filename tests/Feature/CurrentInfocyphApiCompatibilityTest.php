@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Composer\InstalledVersions;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\Monitoring\DatabaseMonitor;
@@ -12,6 +13,11 @@ use Infocyph\Omnibus\Consumer\WorkerOptions;
 use Infocyph\Omnibus\Consumer\WorkerPool;
 use Infocyph\Omnibus\Failure\FailureManager;
 use Infocyph\Omnibus\Failure\FailureRetryClaim;
+use Infocyph\Runwire\Http\Client\ClientDestinationPolicy;
+use Infocyph\Webrick\Middleware\RiskAdmissionMiddleware;
+use Infocyph\Webrick\Middleware\RiskDecision;
+use Infocyph\Webrick\Request\Request;
+use Infocyph\Webrick\Response\Response;
 
 it('accepts DBLayer 6 SQL Server connection configuration', function (): void {
     expect(class_exists(ConnectionConfig::class))->toBeTrue();
@@ -93,4 +99,46 @@ it('targets the Omnibus 3 pool backend and lifecycle surface', function (): void
     expect($parameters)->toContain('backend')
         ->and($parameters)->toContain('lifecycle')
         ->and($parameters)->toContain('lifecycleIntervalSeconds');
+});
+
+it('requires released Webrick 6.1 and Runwire 3.1 from the installed Composer graph', function (): void {
+    $webrick = InstalledVersions::getVersion('infocyph/webrick');
+    $runwire = InstalledVersions::getVersion('infocyph/runwire');
+
+    expect(is_string($webrick))->toBeTrue()
+        ->and(is_string($runwire))->toBeTrue();
+
+    if (!is_string($webrick) || !is_string($runwire)) {
+        throw new RuntimeException('Released runtime dependencies were not installed.');
+    }
+
+    expect(version_compare($webrick, '6.1', '>='))->toBeTrue()
+        ->and(version_compare($webrick, '7.0', '<'))->toBeTrue()
+        ->and(version_compare($runwire, '3.1', '>='))->toBeTrue()
+        ->and(version_compare($runwire, '4.0', '<'))->toBeTrue();
+});
+
+it('keeps published risk admission opt-in and outbound challenge destinations exact', function (): void {
+    $evaluations = 0;
+    $middleware = new RiskAdmissionMiddleware(
+        static function (Request $request) use (&$evaluations): RiskDecision {
+            ++$evaluations;
+
+            return $request->getMethod() === 'GET' ? RiskDecision::allow() : RiskDecision::deny();
+        },
+    );
+    $response = $middleware(
+        Request::fake(),
+        static fn(Request $request): Response => Response::plaintext($request->getMethod(), 200),
+    );
+
+    expect($response->getStatusCode())->toBe(200)
+        ->and($evaluations)->toBe(1);
+
+    $uri = 'https://challenge.example.test/verify?tenant=alpha';
+    $destinations = new ClientDestinationPolicy([$uri]);
+
+    expect($destinations->authorize($uri))->toBe($uri);
+    expect(static fn(): string => $destinations->authorize('https://challenge.example.test/verify?tenant=beta'))
+        ->toThrow(InvalidArgumentException::class);
 });

@@ -4,19 +4,17 @@ Understanding the Infbyte application layout
 ============================================
 
 An Infbyte application is the **project you work inside**. This
-chapter describes the actual ``feature/infbyte-4`` candidate
+chapter describes the Infbyte 4 application
 layout, not the internal layout of ``infocyph/foundation``.
 The Foundation source lives separately under Composer's
 ``vendor/infocyph/foundation/`` in a resolved project.
 
-The public Infbyte ``main`` branch is still Foundation 3.
-The Foundation 4 skeleton is a development candidate until
-released; see :doc:`foundation4-candidate`.
+See :doc:`installation` for compatible starter versions.
 
 Project tree
 ------------
 
-An Infbyte 4 candidate starts with this **application-owned**
+An Infbyte 4 starter starts with this **application-owned**
 structure (simplified; generated caches and dependency files
 are not listed exhaustively):
 

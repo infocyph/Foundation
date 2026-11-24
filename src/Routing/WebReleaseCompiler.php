@@ -132,6 +132,7 @@ final readonly class WebReleaseCompiler
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function compileMatcherCache(WebReleaseConfiguration $settings, string $routerPath): ?string
     {

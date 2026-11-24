@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\Foundation\Database\AuthSchema\AuthPersonalAccessTokenSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Tests\Fixtures\PatConcurrentWorker;
+use RuntimeException;
 
 it('serializes PAT issue against concurrent revoke-all for the same subject', function (): void {
     $root = sys_get_temp_dir() . '/foundation-pat-race-' . bin2hex(random_bytes(6));

@@ -37,13 +37,14 @@ final readonly class Authenticator implements AuthenticatorInterface
         private ClockInterface $clock = new SystemClock(),
     ) {}
 
+    /** @param null|\Closure(bool):void $feedback Best-effort protected-route outcome observer, after authoritative auth state and audit. */
     #[\Override]
-    public function login(LoginRequest $request): LoginResult
+    public function login(LoginRequest $request, ?\Closure $feedback = null): LoginResult
     {
         $account = $this->accounts->findByIdentifier($request->identifier);
 
         if ($account === null) {
-            return $this->failure(LoginStatus::INVALID_CREDENTIALS, null, 'invalid_credentials', $request->context);
+            return $this->failure(LoginStatus::INVALID_CREDENTIALS, null, 'invalid_credentials', $request->context, $feedback);
         }
 
         if ($this->lockouts->isLocked($account->id()) || $account->status() === AccountStatus::LOCKED) {
@@ -59,7 +60,7 @@ final readonly class Authenticator implements AuthenticatorInterface
         $hash = $account->passwordHash();
 
         if ($hash === null) {
-            return $this->failure(LoginStatus::INVALID_CREDENTIALS, $account, 'password_not_configured', $request->context);
+            return $this->failure(LoginStatus::INVALID_CREDENTIALS, $account, 'password_not_configured', $request->context, $feedback);
         }
 
         $verification = $this->passwords->verify($request->password, $hash);
@@ -72,6 +73,7 @@ final readonly class Authenticator implements AuthenticatorInterface
                 $account,
                 $lockout->code ?? 'invalid_credentials',
                 $request->context,
+                $feedback,
             );
         }
 
@@ -95,6 +97,10 @@ final readonly class Authenticator implements AuthenticatorInterface
             deviceId: $session->deviceId,
             sessionId: $session->id,
         );
+
+        if ($feedback !== null) {
+            self::notifyFeedback($feedback, true);
+        }
 
         return new LoginResult(LoginStatus::AUTHENTICATED, $principal, $session, 'authenticated', $verification->needsRehash, $request->context);
     }
@@ -120,10 +126,21 @@ final readonly class Authenticator implements AuthenticatorInterface
         );
     }
 
+    /** @param \Closure(bool):void $feedback */
+    private static function notifyFeedback(\Closure $feedback, bool $success): void
+    {
+        try {
+            $feedback($success);
+        } catch (\Throwable) {
+            // Observational telemetry must never undo authoritative authentication or lockout.
+        }
+    }
+
     /**
      * @param array<string, mixed> $context
+     * @param null|\Closure(bool):void $feedback
      */
-    private function failure(LoginStatus $status, ?AccountInterface $account, string $code, array $context): LoginResult
+    private function failure(LoginStatus $status, ?AccountInterface $account, string $code, array $context, ?\Closure $feedback = null): LoginResult
     {
         AuthEventRecorder::record(
             $this->audit,
@@ -134,6 +151,10 @@ final readonly class Authenticator implements AuthenticatorInterface
             metadata: ['code' => $code] + $context,
             severity: AuthEventSeverity::WARNING,
         );
+
+        if ($feedback !== null) {
+            self::notifyFeedback($feedback, false);
+        }
 
         return new LoginResult($status, code: $code, context: $context);
     }

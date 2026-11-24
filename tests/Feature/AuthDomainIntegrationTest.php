@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Account\Account;
 use Infocyph\Foundation\Auth\Account\AccountStatus;
@@ -35,6 +37,7 @@ use Infocyph\Foundation\Auth\Support\InMemoryAuditEventStore;
 use Infocyph\Foundation\Auth\Support\InMemoryGrantStore;
 use Infocyph\Foundation\Auth\Support\InMemoryPermissionStore;
 use Infocyph\Foundation\Foundation;
+use LogicException;
 
 /**
  * @throws \Exception
@@ -90,9 +93,7 @@ it('composes the complete credential and token lifecycle without eager sibling s
 
         expect($login->authenticated())->toBeTrue()
             ->and($session)->not->toBeNull();
-        if (!$session instanceof AuthSession) {
-            throw new LogicException('Expected an authentication session.');
-        }
+        \PHPUnit\Framework\Assert::assertInstanceOf(AuthSession::class, $session);
 
         $sessionStore = $app->make(SessionStoreInterface::class);
         $rotated = $services->sessions()->rotate($session->id);

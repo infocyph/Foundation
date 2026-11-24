@@ -304,8 +304,8 @@ it('retains host deadline and terminal cancellation after live HTTP and gRPC pro
         CacheRunwire::share($request, null, static function () use ($config, $profiles, $runtime, $request, $caller): void {
             $binding = new RunwireBinding($runtime, $request);
             $deadline = $binding->deadline();
-            expect($deadline)->not->toBeNull()
-                ->and($deadline?->remainingSeconds())->toBeGreaterThan(0.0)
+            \PHPUnit\Framework\Assert::assertNotNull($deadline);
+            expect($deadline->remainingSeconds())->toBeGreaterThan(0.0)
                 ->toBeLessThan(30.0)
                 ->and($profiles->httpConfig()->timeoutSeconds)->toBe(20)
                 ->and($profiles->http())->not->toBe($profiles->http())

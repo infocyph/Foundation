@@ -54,6 +54,7 @@ final readonly class WebrickMiddlewareFactory
 
     /**
      * @param list<string>|null $requirements
+     * @throws \LogicException
      */
     public function registerAliases(?array $requirements = null): void
     {
@@ -153,6 +154,7 @@ final readonly class WebrickMiddlewareFactory
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      * @throws \UnexpectedValueException
+     * @throws \InvalidArgumentException
      */
     private function cookieEncryption(array $definition): ?CookieEncryptionMiddleware
     {
@@ -184,6 +186,7 @@ final readonly class WebrickMiddlewareFactory
 
     /**
      * @param array<string, mixed> $definition
+     * @throws \InvalidArgumentException
      */
     private function cors(array $definition): CorsAndPoliciesMiddleware
     {
@@ -231,6 +234,7 @@ final readonly class WebrickMiddlewareFactory
 
     /**
      * @param array<string, mixed> $definition
+     * @throws \InvalidArgumentException
      */
     private function gatewayHardening(array $definition): GatewayHardeningMiddleware
     {
@@ -286,6 +290,7 @@ final readonly class WebrickMiddlewareFactory
 
     /**
      * @param array<string, mixed> $definition
+     * @throws \InvalidArgumentException
      */
     private function maintenanceMode(array $definition): MaintenanceModeMiddleware
     {
@@ -501,6 +506,7 @@ final readonly class WebrickMiddlewareFactory
     }
 
     /**
+     * @throws \InvalidArgumentException
      */
     private function signedUrlConfig(mixed $optionConfig): SignedUrlConfig|string|null
     {
@@ -555,6 +561,7 @@ final readonly class WebrickMiddlewareFactory
 
     /**
      * @param array<string, mixed> $definition
+     * @throws \InvalidArgumentException
      */
     private function verifySignedUrl(array $definition): ?VerifySignedUrlMiddleware
     {

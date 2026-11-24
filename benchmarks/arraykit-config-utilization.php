@@ -2,11 +2,16 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use Closure;
 use Composer\InstalledVersions;
 use Infocyph\ArrayKit\Config\Config as ArrayKitConfig;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\EnvironmentLoader;
+use RuntimeException;
+use Throwable;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 

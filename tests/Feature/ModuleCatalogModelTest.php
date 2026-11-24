@@ -28,13 +28,13 @@ it('models managed feature and optional package roles without broadening install
 });
 
 it('documents the canonical three-module feature IDs and package version floors', function (): void {
-    $content = file_get_contents(dirname(__DIR__, 2) . '/docs/modules.md');
+    $content = file_get_contents(dirname(__DIR__, 2) . '/docs/modules.rst');
     \PHPUnit\Framework\Assert::assertIsString($content);
 
     $catalog = new \Infocyph\Foundation\Module\ModuleArchitectureCatalog();
     foreach ($catalog->all() as $group => $definition) {
         foreach ($definition['features'] as $feature => $metadata) {
-            expect($content)->toContain('`' . $group . '.' . $feature . '`');
+            expect($content)->toContain('``' . $group . '.' . $feature . '``');
             foreach ($metadata['packages'] as $constraint) {
                 expect($content)->toContain($constraint);
             }
@@ -57,11 +57,11 @@ it('keeps Composer core and specialist module floors on one supported generation
     }
     $core = [
         'infocyph/arraykit' => '^5.3.2',
-        'infocyph/cachelayer' => '^4.0.2',
+        'infocyph/cachelayer' => '^4.0.3',
         'infocyph/intermix' => '^11.2.1',
-        'infocyph/runwire' => '^3.0.1',
+        'infocyph/runwire' => '^3.1',
         'infocyph/uid' => '^6.0.1',
-        'infocyph/webrick' => '^6.0.4',
+        'infocyph/webrick' => '^6.1',
     ];
     foreach ($core as $package => $constraint) {
         expect($manifest['require'][$package] ?? null)->toBe($constraint);

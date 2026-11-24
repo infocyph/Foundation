@@ -9,6 +9,10 @@ use Infocyph\Foundation\Release\FoundationReleaseRuntime;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
+/**
+ * @throws \InvalidArgumentException
+ * @throws \RuntimeException
+ */
 function foundationPhase10ReleaseHandler(): Response
 {
     return Response::json(['source' => 'compiled']);
@@ -49,7 +53,7 @@ it('boots immutable releases without rediscovering application source files', fu
             generation: 'phase10-source-isolation',
         );
         $generation = $releaseRoot . '/generations/phase10-source-isolation';
-        $manifest = \foundationReadPhpFixtureArray($generation . '/foundation.php');
+        $manifest = \Infocyph\foundationReadPhpFixtureArray($generation . '/foundation.php');
 
         if (!is_string($manifest['config_sha256'] ?? null)) {
             throw new \UnexpectedValueException('Release manifest must contain a configuration digest.');

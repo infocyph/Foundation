@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use InvalidArgumentException;
+use RuntimeException;
+
 require_once __DIR__ . '/../tests/Fixtures/ProbeInput.php';
 $argv = \Infocyph\Foundation\Tests\Fixtures\ProbeInput::fromServer($_SERVER);
 
@@ -19,6 +24,7 @@ require dirname(__DIR__) . '/vendor/autoload.php';
  * @throws \Psr\Cache\InvalidArgumentException
  * @throws \RuntimeException
  * @throws \UnexpectedValueException
+ * @throws \Throwable
  */
 function foundationMaintenanceBenchmarkMode(string $mode): array
 {

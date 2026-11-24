@@ -1,159 +1,187 @@
-# Operations
+Operations
+==========
+
 
 Foundation owns application/runtime orchestration. External supervisors, web
 servers, database engines, cache engines, and queue transports remain separate
 systems rather than being reimplemented by Foundation.
 
-## Serve through Runwire
+Serve through Runwire
+---------------------
 
-```bash
-php infbyte serve
-php infbyte serve --host=localhost --port=8080
-php infbyte serve --runtime=native --workers=4 --protocol-policy=latency
-php infbyte serve --runtime=swoole --workers=4
-php infbyte serve --dry-run
-php infbyte serve --help
-```
 
-`serve` delegates serving to Runwire. With no runtime option, Runwire's native
-AUTO selector detects the environment; `--help` lists the installed
-`RuntimeDriver` enum values. Explicit unavailable runtimes fail. The command
+.. code-block:: bash
+
+   php infbyte serve
+   php infbyte serve --host=localhost --port=8080
+   php infbyte serve --runtime=native --workers=4 --protocol-policy=latency
+   php infbyte serve --runtime=swoole --workers=4
+   php infbyte serve --dry-run
+   php infbyte serve --help
+
+
+``serve`` delegates serving to Runwire. With no runtime option, Runwire's native
+AUTO selector detects the environment; ``--help`` lists the installed
+``RuntimeDriver`` enum values. Explicit unavailable runtimes fail. The command
 prepares a trusted Foundation generation and passes its bootstrap factory to
 Runwire; native workers load their own application after startup selection.
 
-Runtime AUTO is separate from `--protocol-policy=auto`. The native HTTP engine
-defaults to `fixed`; `latency`, `throughput` and `auto` preserve Runwire's
+Runtime AUTO is separate from ``--protocol-policy=auto``. The native HTTP engine
+defaults to ``fixed``; ``latency``, ``throughput`` and ``auto`` preserve Runwire's
 protocol-specific tuning and limits. A host that owns its protocol engine
-rejects this option. Native workers default to one; `--workers=0` requests
+rejects this option. Native workers default to one; ``--workers=0`` requests
 Runwire's automatic sizing. Without prefork capabilities, native serving uses
 one process and rejects counts above one. Swoole/OpenSwoole must be selected
 explicitly; an omitted worker count uses that host's native default.
 
-`--dry-run --json` reports selection without publishing a generation or starting
+``--dry-run --json`` reports selection without publishing a generation or starting
 a listener. Runwire owns sockets, workers and event loops. Configure advanced
 transport/TLS policies through its native APIs and the same trusted bootstrap
-factory; see [runtime hosting](runtime-hosting.md).
+factory; see :doc:`runtime hosting </runtime-hosting>`.
 
 Normal hosting remains available without the command: point PHP-FPM or an
-ordinary PHP server at Infbyte's `public/index.php`. External persistent hosts
+ordinary PHP server at Infbyte's ``public/index.php``. External persistent hosts
 use Webrick's corresponding native adapter. These paths load the same trusted
 generation and keep the host's request/response lifecycle. Web servers or
-application routes handle public assets; `serve` does not reproduce PHP's
+application routes handle public assets; ``serve`` does not reproduce PHP's
 built-in static-file server.
 
-## Runtime and configuration inspection
+Runtime and configuration inspection
+------------------------------------
 
-```bash
-php infbyte about
-php infbyte env:show
-php infbyte config:show router.matcher
-php infbyte config:validate
-php infbyte config:validate --production
-php infbyte route:list
-```
 
-`config:validate --production` applies production requirements even when the
+.. code-block:: bash
+
+   php infbyte about
+   php infbyte env:show
+   php infbyte config:show router.matcher
+   php infbyte config:validate
+   php infbyte config:validate --production
+   php infbyte route:list
+
+
+``config:validate --production`` applies production requirements even when the
 current application environment is not production. When OTP MFA is active, the
 same production assumption is passed through OTP replay/state-topology checks.
 
-Machine-readable output is available through the global `--json` option.
+Machine-readable output is available through the global ``--json`` option.
 
-## Application installation and secret generation
+Application installation and secret generation
+----------------------------------------------
+
 
 Initialize a newly created application:
 
-```bash
-php infbyte app:install
-```
+.. code-block:: bash
+
+   php infbyte app:install
+
 
 Generate/replace application secret material explicitly:
 
-```bash
-php infbyte secret:generate
-php infbyte secret:generate --force
-```
+.. code-block:: bash
+
+   php infbyte secret:generate
+   php infbyte secret:generate --force
+
 
 Foundation does not print generated secret material.
 
-## Environment-file protection
+Environment-file protection
+---------------------------
 
-Epicrypt-backed environment protection is available when the `security` module
+
+Epicrypt-backed environment protection is available when the ``security`` module
 is installed:
 
-```bash
-php infbyte module:install security.crypto
-php infbyte env:encrypt --key-file=/secure/env.key
-php infbyte env:decrypt --key-file=/secure/env.key
-```
+.. code-block:: bash
+
+   php infbyte module:install security.crypto
+   php infbyte env:encrypt --key-file=/secure/env.key
+   php infbyte env:decrypt --key-file=/secure/env.key
+
 
 An external environment variable may supply the key instead:
 
-```bash
-ENV_ENCRYPTION_KEY='...' php infbyte env:encrypt
-```
+.. code-block:: bash
 
-Use `--key-env=<name>` to select another environment variable. Foundation does
-not provide a literal `--key=<secret>` option, avoiding command history/process
-list leakage. Input/output writes are staged; `--force` replacement preserves
+   ENV_ENCRYPTION_KEY='...' php infbyte env:encrypt
+
+
+Use ``--key-env=<name>`` to select another environment variable. Foundation does
+not provide a literal ``--key=<secret>`` option, avoiding command history/process
+list leakage. Input/output writes are staged; ``--force`` replacement preserves
 rollback safety. Symbolic-link destinations are refused.
 
-The protection key must not be stored inside the `.env` file it protects.
+The protection key must not be stored inside the ``.env`` file it protects.
 
-## Cache operations
+Cache operations
+----------------
 
-```bash
-php infbyte cache:clear
-php infbyte cache:clear --store=redis
-php infbyte cache:forget application:key
-php infbyte cache:forget application:key --store=redis
-```
+
+.. code-block:: bash
+
+   php infbyte cache:clear
+   php infbyte cache:clear --store=redis
+   php infbyte cache:forget application:key
+   php infbyte cache:forget application:key --store=redis
+
 
 CacheLayer is activated only when the cache capability is actually selected.
 
-## Execution history
+Execution history
+-----------------
+
 
 Execution history is disabled by default because every transition adds
-operational I/O. Configure `operations.history.enabled=true` when required.
+operational I/O. Configure ``operations.history.enabled=true`` when required.
 
-```bash
-php infbyte execution:list
-php infbyte execution:list --kind=schedule --limit=50
-php infbyte execution:show <execution-id>
-php infbyte execution:clear
-php infbyte execution:clear --force
-```
+.. code-block:: bash
+
+   php infbyte execution:list
+   php infbyte execution:list --kind=schedule --limit=50
+   php infbyte execution:show <execution-id>
+   php infbyte execution:clear
+   php infbyte execution:clear --force
+
 
 Command and scheduler records use one execution ID across their lifecycle.
-Scheduled executions also carry a stable `schedule_identity`, so two schedules
+Scheduled executions also carry a stable ``schedule_identity``, so two schedules
 that invoke the same command do not share last-run status accidentally.
 
-## Maintenance mode
+Maintenance mode
+----------------
 
-```bash
-php infbyte maintenance:enable
-php infbyte maintenance:enable --retry=60 --message='Maintenance in progress'
-php infbyte maintenance:status
-php infbyte maintenance:disable
-```
+
+.. code-block:: bash
+
+   php infbyte maintenance:enable
+   php infbyte maintenance:enable --retry=60 --message='Maintenance in progress'
+   php infbyte maintenance:status
+   php infbyte maintenance:disable
+
 
 The default backend is a dependency-free file state. Set
-`operations.maintenance.driver=cache` to share maintenance state across a
+``operations.maintenance.driver=cache`` to share maintenance state across a
 multi-node deployment. Cache-backed state is validated against the configured
 deployment topology.
 
 In the Web runtime, enabled maintenance state produces HTTP 503 and includes
-`Retry-After` when configured.
+``Retry-After`` when configured.
 
-## Persistent-runtime generation control
+Persistent-runtime generation control
+-------------------------------------
+
 
 Foundation uses persistent generation tokens for graceful cooperative shutdown:
 
-```bash
-php infbyte runtime:reload
-php infbyte worker:restart
-php infbyte worker:restart reports
-php infbyte schedule:interrupt
-```
+.. code-block:: bash
+
+   php infbyte runtime:reload
+   php infbyte worker:restart
+   php infbyte worker:restart reports
+   php infbyte schedule:interrupt
+
 
 Foundation does not respawn processes. Supervisor, systemd, Docker, Kubernetes,
 or another process manager remains responsible for replacement processes.
@@ -166,138 +194,160 @@ from overwriting one another.
 For distributed deployments, cache-backed runtime control must use a store and
 coordination mechanism with deployment-wide visibility.
 
-## Worker visibility
+Worker visibility
+-----------------
 
-```bash
-php infbyte worker:list
-php infbyte worker:status
-php infbyte worker:status reports
-```
 
-`worker:list` reports configured worker definitions. `worker:status` also shows
+.. code-block:: bash
+
+   php infbyte worker:list
+   php infbyte worker:status
+   php infbyte worker:status reports
+
+
+``worker:list`` reports configured worker definitions. ``worker:status`` also shows
 heartbeat-visible runtime process records.
 
 The registry is observational metadata, not process-supervision authority:
 
-```php
-'operations' => [
-    'runtime_registry' => [
-        'path' => 'storage/framework/runtime',
-        'visibility' => 'host', // host|shared
-        'stale_seconds' => 15,
-    ],
-],
-```
+.. code-block:: php
 
-- `host` reports records written by the current host only.
-- `shared` intentionally aggregates records in a shared registry directory.
+   'operations' => [
+       'runtime_registry' => [
+           'path' => 'storage/framework/runtime',
+           'visibility' => 'host', // host|shared
+           'stale_seconds' => 15,
+       ],
+   ],
+
+
+- ``host`` reports records written by the current host only.
+- ``shared`` intentionally aggregates records in a shared registry directory.
 - stale heartbeats are reported as not running; Foundation does not use PID
   probing as cross-platform supervision truth.
 
-Omnibus 3.0.3 single messaging workers use native `WorkerLifecycle` callbacks for
+Omnibus 3.0.3 single messaging workers use native ``WorkerLifecycle`` callbacks for
 heartbeat and graceful generation checks, so Foundation does not require
-`pcntl` simply to observe restart requests. Omnibus `WorkerPool` remains a
+``pcntl`` simply to observe restart requests. Omnibus ``WorkerPool`` remains a
 Unix/pcntl process-pool feature and retains the corresponding Unix watchdog.
 
-## Scheduler operations
+Scheduler operations
+--------------------
 
-```bash
-php infbyte schedule:list
-php infbyte schedule:run
-php infbyte schedule:test reports:daily
-php infbyte schedule:work --sleep=60
-php infbyte schedule:interrupt
-```
+
+.. code-block:: bash
+
+   php infbyte schedule:list
+   php infbyte schedule:run
+   php infbyte schedule:test reports:daily
+   php infbyte schedule:work --sleep=60
+   php infbyte schedule:interrupt
+
 
 Commands that prevent overlap or run on one server use CacheLayer ownership.
 During a long child execution Foundation refreshes the lease through
-`ProcessRunner` heartbeat callbacks. If ownership refresh fails, the child is
+``ProcessRunner`` heartbeat callbacks. If ownership refresh fails, the child is
 terminated and the schedule run fails instead of silently continuing without
 ownership.
 
-`schedule:test` returns a failing process exit when the scheduled child fails or
+``schedule:test`` returns a failing process exit when the scheduled child fails or
 when the required ownership lock cannot be obtained.
 
-## File logging
+File logging
+------------
 
-When `logging.driver=file`:
 
-```bash
-php infbyte log:tail
-php infbyte log:tail --lines=250
-php infbyte log:tail --follow
-```
+When ``logging.driver=file``:
+
+.. code-block:: bash
+
+   php infbyte log:tail
+   php infbyte log:tail --lines=250
+   php infbyte log:tail --follow
+
 
 Follow mode detects truncation and file replacement/rotation and reopens the
 active file rather than remaining attached permanently to an old inode.
 
-## Public storage links
+Public storage links
+--------------------
+
 
 Install the filesystem module when required:
 
-```bash
-php infbyte module:install data.filesystem
-php infbyte storage:status
-php infbyte storage:link
-php infbyte storage:unlink
-```
+.. code-block:: bash
+
+   php infbyte module:install data.filesystem
+   php infbyte storage:status
+   php infbyte storage:link
+   php infbyte storage:unlink
+
 
 Foundation applies application path/symlink policy while Pathwise/Flysystem own
 generic storage behavior. Unlink refuses normal files/directories and refuses a
 link whose target does not match the configured target.
 
-## Deployment optimization
+Deployment optimization
+-----------------------
 
-```bash
-php infbyte optimize
-php infbyte optimize:report
-php infbyte app:ready
-```
+
+.. code-block:: bash
+
+   php infbyte optimize
+   php infbyte optimize:report
+   php infbyte app:ready
+
 
 Clear generated deployment artifacts with:
 
-```bash
-php infbyte optimize:clear
-```
+.. code-block:: bash
+
+   php infbyte optimize:clear
+
 
 Individual cache builders remain available for configuration, commands and
-schedules (`config:cache`, `command:cache`, `schedule:cache`). Route metadata is
-compiled as part of the coordinated Foundation/Webrick release via `optimize`;
-there is no standalone `route:cache` command. Generated artifacts belong to
+schedules (``config:cache``, ``command:cache``, ``schedule:cache``). Route metadata is
+compiled as part of the coordinated Foundation/Webrick release via ``optimize``;
+there is no standalone ``route:cache`` command. Generated artifacts belong to
 deployment and must not be committed to the application repository.
 
-`app:ready` checks production configuration policy, active optional package
+``app:ready`` checks production configuration policy, active optional package
 requirements, applicable module-owned schemas, storage readiness, and runtime
 basics. Package presence alone is not treated as capability activation. Its
-machine-readable payload is versioned with `schema_version: 1`.
+machine-readable payload is versioned with ``schema_version: 1``.
 
-`app:ready` is a deployment/dependency readiness check, not an HTTP liveness or
+``app:ready`` is a deployment/dependency readiness check, not an HTTP liveness or
 traffic-health probe. It performs only the bounded checks required by selected
 capabilities (including applicable schema/key readiness); disabled optional
 capabilities are not contacted, and secret/key material is never emitted.
 
-## CLI process controls
+CLI process controls
+--------------------
+
 
 Global process/output options include:
 
-```text
--q | --quiet
---silent
--v | -vv | -vvv
---profile
---json
---env=<environment>
--n | --no-interaction
-```
+.. code-block:: text
 
-`--profile` writes diagnostics to STDERR and never contaminates normal or JSON
+   -q | --quiet
+   --silent
+   -v | -vv | -vvv
+   --profile
+   --json
+   --env=<environment>
+   -n | --no-interaction
+
+
+``--profile`` writes diagnostics to STDERR and never contaminates normal or JSON
 stdout. A supervised isolated child suppresses its own profile output so the
-parent reports one command-level profile only. `--silent` disables profiling
+parent reports one command-level profile only. ``--silent`` disables profiling
 output entirely.
 
-## Immutable release activation and rollback
+Immutable release activation and rollback
+-----------------------------------------
 
-`php infbyte optimize` builds one immutable Foundation generation containing
+
+``php infbyte optimize`` builds one immutable Foundation generation containing
 web, CLI, worker and scheduler artifacts. Foundation serializes build/clear/prune
 operations with a release-root file lock, verifies the staged generation, renames
 it into the immutable generation directory, then atomically switches the active
@@ -309,14 +359,14 @@ loading rejects a generation when the current vendor graph no longer matches the
 graph it was built against.
 
 The deployment system—not application source—must pass the trusted SHA-256 of
-the generation's `foundation.php` manifest to each prevalidated web, worker,
+the generation's ``foundation.php`` manifest to each prevalidated web, worker,
 scheduler and CLI process through the documented release bootstrap environment /
 process configuration. Do not discover or trust that digest from the same
 mutable release directory at runtime.
 
 Keep at least one previous generation while old processes drain. Each loaded
 Foundation generation holds a shared OS lease on its immutable runtime marker;
-`optimize` pruning requires an exclusive non-blocking lease and therefore skips
+``optimize`` pruning requires an exclusive non-blocking lease and therefore skips
 a generation that a running process still uses. Process termination releases the
 lease automatically. Rollback is a code/runtime pointer operation: atomically
 reactivate the retained generation and restart/reload processes against its
@@ -336,7 +386,9 @@ The application source image may be read-only at runtime. Build/deploy needs
 write permission only for the configured release-generation root, and runtime
 capabilities need their documented writable storage/cache/database locations.
 
-## Release verification status
+Release verification status
+---------------------------
+
 
 Foundation's Composer/PHPForge/static-analysis/PHPUnit/integration/runtime
 quality gates are independent of source/config documentation. The former
@@ -346,14 +398,17 @@ qualification from green functional checks.
 
 The repository's explicit representative benchmark entry point is:
 
-```bash
-composer benchmark:representative
-```
+.. code-block:: bash
+
+   composer benchmark:representative
+
 
 Additional release gates should be invoked only when their corresponding
 Composer/PHPForge scripts are actually present in the release candidate.
 
-### Coordinating feature lifecycle and dependency changes
+Coordinating feature lifecycle and dependency changes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 The v2 feature CLI snapshots the current configuration and Composer root, lock and
 installed metadata, then verifies that snapshot under the project Composer lock.
@@ -362,13 +417,14 @@ previous configuration if dependency drift is detected. A stale removal plan is
 rejected when another command changes feature selection or application policy.
 Re-plan after such a rejection; do not reuse the previous plan.
 
-Foundation commands share `.foundation-module-composer.lock`. External dependency
+Foundation commands share ``.foundation-module-composer.lock``. External dependency
 maintenance must use that same project lock, or run while feature lifecycle
 commands are quiesced. For example, from the application root:
 
-```sh
-flock -x .foundation-module-composer.lock composer update
-```
+.. code-block:: bash
+
+   flock -x .foundation-module-composer.lock composer update
+
 
 Uncoordinated external edits are detected at publication checkpoints; they cannot
 be serialized by a lock that the external writer does not acquire. Keep deployment

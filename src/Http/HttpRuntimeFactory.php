@@ -22,6 +22,9 @@ use Throwable;
  */
 final class HttpRuntimeFactory
 {
+    /**
+     * @throws \InvalidArgumentException
+     */
     public static function errorHandler(ContainerInterface $container, bool $debug): ErrorHandler
     {
         return new ErrorHandler(
@@ -34,7 +37,12 @@ final class HttpRuntimeFactory
         );
     }
 
-    /** @throws \Infocyph\Foundation\Exception\ConfigurationException */
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     public static function routerKernel(WebrickRouterFactory $factory, ErrorHandler $errorHandler): RouterKernel
     {
         return $factory->kernel($errorHandler);

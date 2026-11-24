@@ -57,6 +57,7 @@ final readonly class OAuthAuthorizationController
 
     /**
      * @throws \LogicException
+     * @throws \RuntimeException
      */
     private function approveWithProtocolError(
         AuthorizationRequest $request,
@@ -74,6 +75,7 @@ final readonly class OAuthAuthorizationController
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     private function authorizationApprove(AuthorizationRequest $request): Response
     {
@@ -190,6 +192,10 @@ final readonly class OAuthAuthorizationController
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     private function consentPage(
         AuthorizationRequest $authorization,
         string $action,

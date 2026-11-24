@@ -9,7 +9,7 @@ Foundation CLI graph. Foundation supplies command parsing, metadata,
 IO, execution scope and lifecycle. There is no Laravel Artisan
 kernel or automatic scan of ``app/Command/`` classes.
 
-The Infbyte 4 candidate starts with an empty command map. This page
+The Infbyte 4 starter starts with an empty command map. This page
 uses a real syntax-checked example and shows **how to make it active**.
 
 Step 1 — find your application command registry

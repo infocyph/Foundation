@@ -226,7 +226,7 @@ PHP);
         $manifestPath = $optimizePayload['manifest'] ?? null;
         \PHPUnit\Framework\Assert::assertIsString($manifestPath);
         expect($manifestPath)->toBeFile();
-        $manifest = \foundationReadPhpFixtureArray($manifestPath);
+        $manifest = \Infocyph\foundationReadPhpFixtureArray($manifestPath);
 
         foreach (['web', 'cli', 'worker', 'scheduler'] as $runtime) {
             \PHPUnit\Framework\Assert::assertIsArray(($manifest[$runtime] ?? null));

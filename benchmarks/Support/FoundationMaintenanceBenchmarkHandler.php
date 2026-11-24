@@ -13,6 +13,10 @@ use Infocyph\Webrick\Response\Response;
  */
 final class FoundationMaintenanceBenchmarkHandler
 {
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function __invoke(): Response
     {
         return Response::create('ok');

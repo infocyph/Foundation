@@ -28,6 +28,9 @@ final class FoundationPersistentEmissionAdapter implements RuntimeAdapterInterfa
 
     public int $writes = 0;
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     public function __construct()
     {
         $this->runtimeCapabilities = new RuntimeCapabilities(
@@ -45,6 +48,9 @@ final class FoundationPersistentEmissionAdapter implements RuntimeAdapterInterfa
         return $this->runtimeCapabilities;
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     #[\Override]
     public function context(
         mixed $nativeRequest = null,
@@ -68,6 +74,11 @@ final class FoundationPersistentEmissionAdapter implements RuntimeAdapterInterfa
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     */
     #[\Override]
     public function write(Response $response, RuntimeRequestContext $context): void
     {
@@ -91,11 +102,19 @@ final class FoundationRuntimeEmissionFixture
     public static string $file = '';
 }
 
+/**
+ * @throws \InvalidArgumentException
+ * @throws \RuntimeException
+ */
 function foundationRuntimeEmissionFile(): Response
 {
     return Response::download(FoundationRuntimeEmissionFixture::$file);
 }
 
+/**
+ * @throws \InvalidArgumentException
+ * @throws \RuntimeException
+ */
 function foundationRuntimeEmissionStream(): Response
 {
     return Response::stream(static fn(): iterable => ['persistent-', 'stream']);

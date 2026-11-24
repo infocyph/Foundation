@@ -152,11 +152,12 @@ it('registers the bounded OAuth administration command surface on the system han
     }
 
     $create = $catalog->find('auth:oauth:client:create');
+    \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\Foundation\Command\CommandDefinition::class, $create);
     expect($create)->not->toBeNull()
-        ->and($create?->options()['grant']['multiple'])->toBeTrue()
-        ->and($create?->options()['redirect-uri']['multiple'])->toBeTrue()
-        ->and($create?->options()['scope']['multiple'])->toBeTrue()
-        ->and($create?->options()['audience']['multiple'])->toBeTrue()
+        ->and($create->options()['grant']['multiple'])->toBeTrue()
+        ->and($create->options()['redirect-uri']['multiple'])->toBeTrue()
+        ->and($create->options()['scope']['multiple'])->toBeTrue()
+        ->and($create->options()['audience']['multiple'])->toBeTrue()
         ->and($catalog->find('auth:oauth:client:list')?->options())->toHaveKey('limit')
         ->and($catalog->find('auth:oauth:authorization:list')?->options())->toHaveKeys(['limit', 'client'])
         ->and($catalog->find('auth:oauth:authorization:revoke')?->options())->toHaveKey('force');

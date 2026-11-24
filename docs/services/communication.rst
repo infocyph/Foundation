@@ -11,7 +11,7 @@ profiles and provides the integration policy.
 **Where to configure it:** ``my-app/config/communication.php``,
 published into your Infbyte application after selecting
 the optional feature. It is not shipped with a new
-Core-only Infbyte 4 candidate.
+Core-only Infbyte 4 starter.
 
 Choose the communication feature
 --------------------------------
@@ -262,3 +262,53 @@ See :doc:`../reference/configuration`,
 TalkingBytes' native documentation:
 
 https://github.com/infocyph/TalkingBytes
+
+Native gRPC compatibility
+-------------------------
+
+Native gRPC uses an explicitly owned non-persistent channel in its wire
+qualification fixture. The previous default persistent channel completed
+a standalone RPC but crashed at process shutdown on PHP 8.5 and 8.6 with
+ext-grpc 1.85.4. The explicit ownership correction is being qualified on
+PHP 8.4, 8.5 and 8.6; do not claim the latter two combinations are
+supported for native gRPC until the standalone and full transport probes
+both exit cleanly. No native gRPC failure is ignored.
+
+The native qualification also includes an extension-only unary control
+with no Composer autoload or other configured PHP extensions. It is a
+strict additional diagnostic gate, not an alternative to the package and
+Foundation integration probes.
+
+The loopback fixture also explicitly disposes the process-global default
+root state only when its own stub initialized it. This is fixture-owned
+cleanup, not a recommendation to reset shared TLS state in production.
+
+The hosted diagnostic gate reports the loaded PHP extensions and INI
+configuration and captures a native debugger backtrace if either full
+probe exits with SIGSEGV. A diagnostic replay never converts a failing
+original process into a successful gate.
+
+Hosted native gRPC qualification uses an explicit extension profile instead
+of inheriting the runner's optional shared extensions. The profile retains
+the actual Foundation/TalkingBytes dependency and development-tool platform
+requirements; Composer validates those requirements before any probe runs.
+The previous failure is reproducible without Composer under the runner's
+broad extension configuration, while the isolated native-only control
+passes. This demonstrates an environment-dependent native failure, not a
+proven conflict with a specific extension. The minimal profile must still
+pass real native-only, Composer and Foundation probes, including clean
+process shutdown, on all three PHP versions. Other application QA jobs
+retain their existing extension configuration. Production deployments must
+qualify their own extension combination.
+
+The hosted job constructs its own php.ini and an empty extension scan
+directory after extension installation. Both Composer and the wire probes
+inherit that configuration. The job checks the selected INI and required
+modules before running; unrelated modules, including Redis and APCu, are
+not loaded in this transport-specific process. Shared-cache integration
+continues in its separate required jobs. Built-in PHP modules remain
+available without being loaded a second time.
+
+PHP 8.5 and newer can include OPcache in the PHP executable itself.
+The private profile allows the built-in module but disables OPcache
+execution and JIT, and rejects an unexpectedly loaded shared OPcache.

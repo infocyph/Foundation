@@ -51,7 +51,7 @@ Know your cache-related locations
      - Lazy named CacheLayer stores and lock providers
      - Laravel facade or global process-static cache
 
-The initial Infbyte 4 candidate ships ``config/cache.php``
+The initial Infbyte 4 starter ships ``config/cache.php``
 even when all optional features are disabled. It defaults
 to a named ``local`` store, not a distributed Redis cache.
 
