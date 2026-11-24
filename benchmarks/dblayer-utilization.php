@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Infocyph;
 
-use RuntimeException;
 use Composer\InstalledVersions;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\Connection\Pool;
 use Infocyph\DBLayer\Connection\PoolManager;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
+use RuntimeException;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 

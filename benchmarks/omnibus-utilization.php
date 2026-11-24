@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph;
 
-use RuntimeException;
 use Composer\InstalledVersions;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
@@ -34,6 +33,7 @@ use Infocyph\Omnibus\Serialization\MessageCodecRegistry;
 use Infocyph\Omnibus\Serialization\StampCodecRegistry;
 use Infocyph\Omnibus\Transport\InMemoryTransport;
 use Infocyph\Omnibus\Transport\TransportRegistry;
+use RuntimeException;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 /**

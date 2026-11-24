@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph;
 
-use InvalidArgumentException;
-use RuntimeException;
-
 use Composer\InstalledVersions;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
@@ -17,7 +14,9 @@ use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Kernel\CompiledRouterKernel;
 use Infocyph\Webrick\Router\Matching\FusedMatcher;
+use InvalidArgumentException;
 use Psr\Log\NullLogger;
+use RuntimeException;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 

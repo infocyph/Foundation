@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph;
 
-use RuntimeException;
 use Composer\InstalledVersions;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Benchmarks\Support\Phase9DiNode;
@@ -13,6 +12,7 @@ use Infocyph\Foundation\Benchmarks\Support\Phase9DiScopedProbe;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\InterMix\DI\ContainerBuilder;
+use RuntimeException;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 /**
