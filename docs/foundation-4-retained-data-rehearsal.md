@@ -50,7 +50,7 @@ The Redis check qualifies this selected cache namespace and serialization path. 
 
 ## Original-source retained-state cutover evidence
 
-The `cross-major-auth-rehearsal` CI job checks out immutable Foundation 3 source `fc9b3258646ac744e61fd02e18d9b98e5afff2e8` independently from the release candidate. It resolves the original source with selected published DBLayer 5 and the new source with DBLayer 6. Both locks, their package identities and the old manifest are retained as CI artifacts. **The resolved legacy lock is a reconstructed 2026 graph, not an authentic originally tracked lock**, which is unavailable.
+The `cross-major-auth-rehearsal` CI job checks out the named `archive/foundation-3` branch independently from the release candidate. The branch preserves the original Foundation 3 source used for earlier rehearsals; CI validates the legacy dependency graph and records the actual resolved source SHA as evidence without hardcoding a checkout revision. It resolves the original source with selected published DBLayer 5 and the new source with DBLayer 6. Both locks, their package identities and the old manifest are retained as CI artifacts. **The resolved legacy lock is a reconstructed 2026 graph, not an authentic originally tracked lock**, which is unavailable.
 
 Independent PHP processes with each version's own Composer autoloader create native historical SQLite account, session, refresh-token, MFA and raw passkey records; take a quiesced database snapshot; run the current credential-hash migration; re-open retained records with the original source and dependency set; restore the original snapshot; and execute the forward migration again. Immutable retained-record digests and native SHA3-256 passkey lookup storage are checked.
 

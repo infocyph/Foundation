@@ -27,10 +27,25 @@ it('requires tagged releases to pass the complete security, consumer, migration 
         expect($jobs)->toHaveKey($job);
     }
     expect($jobs['phpforge']['uses'] ?? null)
-        ->toBe('infocyph/phpforge/.github/workflows/security-standards.yml@473741c72e34f6d45ee33753f76f00cc95597be2')
+        ->toBe('infocyph/phpforge/.github/workflows/security-standards.yml@main')
         ->and($jobs['phpforge']['with'] ?? [])->not->toHaveKey('php_versions')
         ->and($jobs['release']['uses'] ?? null)
-        ->toBe('infocyph/phpforge/.github/workflows/release.yml@7214b16487277181c177343d4e4163a9b5843f24');
+        ->toBe('infocyph/phpforge/.github/workflows/release.yml@main');
+});
+
+it('uses named historical source branches instead of hardcoded revisions', function (): void {
+    $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    foreach (['historical-dependency-provenance', 'cross-major-auth-rehearsal'] as $name) {
+        $steps = $workflow['jobs'][$name]['steps'] ?? null;
+        \PHPUnit\Framework\Assert::assertIsArray($steps);
+        $references = [];
+        foreach ($steps as $step) {
+            if (is_array($step) && is_array($step['with'] ?? null) && ($step['with']['path'] ?? null) === 'historical') {
+                $references[] = $step['with']['ref'] ?? null;
+            }
+        }
+        expect($references)->toBe(['archive/foundation-3']);
+    }
 });
 
 it('checks real native Runwire serving on the supported PHP versions and Swoole drivers', function (): void {

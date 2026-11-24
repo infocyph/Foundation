@@ -189,7 +189,7 @@ jobs:
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     needs: [phpforge, production-consumer, release-evidence, runtime-hosts, talkingbytes-mailpit, talkingbytes-grpc, historical-dependency-provenance, cross-major-auth-rehearsal, redis-cluster, documentation]
-    uses: infocyph/phpforge/.github/workflows/release.yml@7214b16487277181c177343d4e4163a9b5843f24
+    uses: infocyph/phpforge/.github/workflows/release.yml@main
     permissions:
       contents: write
     secrets:
@@ -247,7 +247,7 @@ jobs:
             tests/Feature/WebReleaseRuntimeTest.php
 
   phpforge:
-    uses: infocyph/phpforge/.github/workflows/security-standards.yml@473741c72e34f6d45ee33753f76f00cc95597be2
+    uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
     permissions:
       security-events: write
       actions: read
@@ -322,7 +322,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/checkout@v7
         with:
-          ref: fc9b3258646ac744e61fd02e18d9b98e5afff2e8
+          ref: archive/foundation-3
           path: historical
       - uses: shivammathur/setup-php@v2
         with:
@@ -336,7 +336,7 @@ jobs:
           set -euo pipefail
           output="$GITHUB_WORKSPACE/build/historical-dependency-provenance"
           mkdir -p "$output"
-          test "$(git -C historical rev-parse HEAD)" = fc9b3258646ac744e61fd02e18d9b98e5afff2e8
+          php -r '$manifest = json_decode(file_get_contents("historical/composer.json"), true, 512, JSON_THROW_ON_ERROR); if (($manifest["require"]["infocyph/cachelayer"] ?? null) !== "^3.4" || ($manifest["require"]["infocyph/webrick"] ?? null) !== "^5.4") { throw new RuntimeException("Historical branch must contain the Foundation 3 dependency graph."); }'
           git -C historical rev-parse HEAD > "$output/source.sha"
           cp historical/composer.json "$output/original-composer.json"
           composer --version > "$output/composer-version.txt"
@@ -347,7 +347,7 @@ jobs:
             printf 'tracked_original=present\n' > "$output/provenance.env"
           else
             printf 'tracked_original=absent\n' > "$output/provenance.env"
-            printf 'Original Foundation 3 composer.lock was not tracked at this immutable source SHA.\n' > "$output/original-lock-unavailable.txt"
+            printf 'Original Foundation 3 composer.lock was not tracked at the checked-out historical source.\n' > "$output/original-lock-unavailable.txt"
           fi
 
           # A 2026 re-resolution is a reconstructed graph, NEVER the historical lock.
@@ -418,7 +418,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/checkout@v7
         with:
-          ref: fc9b3258646ac744e61fd02e18d9b98e5afff2e8
+          ref: archive/foundation-3
           path: historical
       - uses: shivammathur/setup-php@v2
         with:
@@ -432,7 +432,7 @@ jobs:
           set -euo pipefail
           output="$GITHUB_WORKSPACE/build/cross-major-rehearsal"
           mkdir -p "$output"
-          test "$(git -C historical rev-parse HEAD)" = fc9b3258646ac744e61fd02e18d9b98e5afff2e8
+          php -r '$manifest = json_decode(file_get_contents("historical/composer.json"), true, 512, JSON_THROW_ON_ERROR); if (($manifest["require"]["infocyph/cachelayer"] ?? null) !== "^3.4" || ($manifest["require"]["infocyph/webrick"] ?? null) !== "^5.4") { throw new RuntimeException("Historical branch must contain the Foundation 3 dependency graph."); }'
           git -C historical rev-parse HEAD > "$output/historical-source.sha"
           git rev-parse HEAD > "$output/candidate-source.sha"
           cp historical/composer.json "$output/original-historical-composer.json"
@@ -805,7 +805,7 @@ jobs:
             printf "source_sha=%s\n" "$SOURCE_SHA"
             printf "ci_sha=%s\n" "$GITHUB_SHA"
             printf "php=%s\n" "$(php -r 'echo PHP_VERSION;')"
-            printf "phpforge_workflow=%s\n" "473741c72e34f6d45ee33753f76f00cc95597be2"
+            printf "phpforge_workflow=%s\n" "infocyph/phpforge/.github/workflows/security-standards.yml@main"
             printf "generated_at=%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } > "$directory/manifest.env"
           php -m | sort > "$directory/php-extensions.txt"
