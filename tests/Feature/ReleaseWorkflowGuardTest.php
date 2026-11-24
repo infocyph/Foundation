@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Symfony\Component\Yaml\Yaml;
 
-it('requires tagged releases to pass the complete security, consumer, migration and native-host gates', function (): void {
+it('requires tagged releases to pass the complete security, consumer and native-host gates', function (): void {
     $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
     $jobs = $workflow['jobs'];
 
@@ -17,8 +17,7 @@ it('requires tagged releases to pass the complete security, consumer, migration 
         'talkingbytes-grpc',
         'risk-provider-wire',
         'risk-host-qualification',
-        'historical-dependency-provenance',
-        'cross-major-auth-rehearsal',
+        'infbyte-module-lifecycle',
         'redis-cluster',
         'documentation',
     )
@@ -35,21 +34,11 @@ it('requires tagged releases to pass the complete security, consumer, migration 
         ->toBe('infocyph/phpforge/.github/workflows/release.yml@main');
 });
 
-it('uses named historical source branches instead of hardcoded revisions', function (): void {
+it('retires one-time major upgrade gates while preserving the patch release qualification', function (): void {
     $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
-    foreach (['historical-dependency-provenance', 'cross-major-auth-rehearsal'] as $name) {
-        $steps = $workflow['jobs'][$name]['steps'] ?? null;
-        \PHPUnit\Framework\Assert::assertIsArray($steps);
-        $references = [];
-        foreach (array_keys($steps) as $index) {
-            $step = foundationStringMap($steps[$index]);
-            $with = foundationStringMap($step['with'] ?? []);
-            if (($with['path'] ?? null) === 'historical') {
-                $references[] = foundationFixtureString($with['ref'] ?? null);
-            }
-        }
-        expect($references)->toBe(['archive/foundation-3']);
-    }
+    expect($workflow['jobs'])->not->toHaveKey('historical-dependency-provenance')
+        ->not->toHaveKey('cross-major-auth-rehearsal')
+        ->not->toHaveKey('infbyte-candidate');
 });
 
 it('checks real native Runwire serving on the supported PHP versions and Swoole drivers', function (): void {
@@ -162,23 +151,28 @@ it('keeps the retired full throughput certification out of the release workflow 
     );
 });
 
-it('qualifies the active Infbyte application against the Foundation handoff PR head', function (): void {
+it('qualifies the published Infbyte skeleton with current Foundation source and preserves both Composer modes', function (): void {
     $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
-    $job = foundationStringMap($workflow['jobs']['infbyte-candidate'] ?? null);
+    $job = foundationStringMap($workflow['jobs']['infbyte-module-lifecycle'] ?? null);
     $strategy = foundationStringMap($job['strategy'] ?? null);
     $matrix = foundationStringMap($strategy['matrix'] ?? null);
-
-    expect($job['if'] ?? null)->toBe("github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'plan/foundation-risk-engine-handoff'")
-        ->and($matrix['php'] ?? null)->toBe(['8.4', '8.5', '8.6']);
-
-    $steps = $job['steps'] ?? null;
-    \PHPUnit\Framework\Assert::assertIsArray($steps);
-    $named = array_column($steps, null, 'name');
-    $checkout = foundationStringMap($named['Check out existing Infbyte 4 application candidate'] ?? null);
-    $with = foundationStringMap($checkout['with'] ?? null);
-    $verify = foundationStringMap($named['Require the exact Foundation PR head'] ?? null);
-    expect($with['ref'] ?? null)->toBe('feature/infbyte-4')
-        ->and(foundationFixtureString($verify['run'] ?? null))->toContain('dev-plan/foundation-risk-engine-handoff', 'EXPECTED_FOUNDATION_SHA');
+    expect($matrix['php'] ?? null)->toBe(['8.4', '8.5', '8.6'])
+        ->and($matrix['mode'] ?? null)->toBe(['default', 'no-dev'])
+        ->and($strategy['fail-fast'] ?? null)->toBeFalse()
+        ->and($job)->not->toHaveKey('if')
+        ->not->toHaveKey('continue-on-error');
+    $steps = json_encode($job['steps'], JSON_THROW_ON_ERROR);
+    expect($steps)->toContain(
+        'composer create-project --no-install --no-scripts',
+        'repositories.foundation-candidate',
+        'ModuleFeatureComposerExecutor.php',
+        'unset COMPOSER_NO_DEV',
+        'module:repair data.database',
+        'module:install',
+        'module:remove',
+        'check_mode',
+        'php infbyte app:ready',
+    )->not->toContain('ignore-platform-req');
 });
 
 /**

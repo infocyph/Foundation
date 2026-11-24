@@ -268,10 +268,11 @@ it('preserves the recorded Composer installation mode during module package chan
 
         expect($executor->applyPackages('install', ['security.crypto'], $context, true)->successful())->toBeTrue()
             ->and($executor->applyPackages('install', ['security.crypto'], $context)->successful())->toBeTrue()
+            ->and($executor->applyPackages('repair', ['security.crypto'], $context)->successful())->toBeTrue()
             ->and($executor->applyPackages('remove', ['data.filesystem'], $context)->successful())->toBeTrue();
 
         $commands = f4ComposerCommands($root);
-        expect($commands)->toHaveCount(3);
+        expect($commands)->toHaveCount(4);
         foreach ($commands as $command) {
             expect(in_array('--update-no-dev', $command, true))->toBe(!$dev);
         }
@@ -280,3 +281,42 @@ it('preserves the recorded Composer installation mode during module package chan
         f4ComposerRemoveFixture($root);
     }
 })->with(['development' => [true], 'production' => [false]]);
+
+it('rejects malformed Composer installation metadata before spawning a package change', function (string $metadata): void {
+    $root = f4ComposerFixture();
+    $restore = f4ComposerStub($root);
+
+    try {
+        mkdir($root . '/vendor/composer', 0775, true);
+        file_put_contents($root . '/vendor/composer/installed.json', $metadata);
+        $application = Foundation::cli(['base_path' => $root, '_config_cache' => false]);
+        $executor = new ModuleFeatureComposerExecutor($application);
+
+        expect(fn() => $executor->applyPackages('install', ['data.filesystem'], f4ComposerContext()))
+            ->toThrow(RuntimeException::class)
+            ->and(f4ComposerCommands($root))->toBe([]);
+    } finally {
+        $restore();
+        f4ComposerRemoveFixture($root);
+    }
+})->with(['invalid JSON' => ['{'], 'scalar' => ['false'], 'invalid mode' => ['{"dev":"false"}']]);
+
+it('keeps legacy Composer metadata without an installation mode compatible', function (): void {
+    $root = f4ComposerFixture();
+    $restore = f4ComposerStub($root);
+
+    try {
+        mkdir($root . '/vendor/composer', 0775, true);
+        file_put_contents($root . '/vendor/composer/installed.json', '{"packages":[]}');
+        $application = Foundation::cli(['base_path' => $root, '_config_cache' => false]);
+        $executor = new ModuleFeatureComposerExecutor($application);
+
+        expect($executor->applyPackages('install', ['data.filesystem'], f4ComposerContext())->successful())->toBeTrue()
+            ->and(f4ComposerCommands($root))->toBe([[
+                'require', 'infocyph/pathwise:^4.2.1', '--with-all-dependencies', '--no-interaction',
+            ]]);
+    } finally {
+        $restore();
+        f4ComposerRemoveFixture($root);
+    }
+});

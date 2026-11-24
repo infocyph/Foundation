@@ -8,9 +8,12 @@
 
 - [x] CORE-01 / CONFIG-02: preserve installed Composer mode for package-changing operations, including dry run; use the same application-root installed.json metadata already used by the snapshot, not a PHPForge-specific heuristic.
 - [x] FLOW-02: add focused development/no-dev command regression coverage; document the supported production contract.
-- [ ] Review malformed, absent and legacy metadata behavior, repair coverage, installed-mode consistency and package ownership. Validate failure behavior and maintain no-dev isolation across real Composer operations.
+- [x] Review malformed, absent and legacy metadata behavior and add repair/edge-case coverage. Reject malformed mode metadata; retain legacy fallback and explicit environment override. Real Composer verification pending.
 - [ ] EXEC-03: hosted QA and analyzers across PHP 8.4–8.6; no suppressed checks.
-- [ ] Run actual public Infbyte consumer with candidate Foundation source in isolated acceptance scope (no production dependency pins); verify install/repair/remove without COMPOSER_NO_DEV override, then requalify released patch through normal Packagist.
+- [x] Replace stale branch-bound consumer gate with six hosted public Infbyte/candidate Foundation lifecycle jobs, no environment override; candidate is an isolated path package, not published. Remove both obsolete 3→4 gates and revise guard tests and historical docs; retain native 4.x state/host gates and original history.
+- [ ] Verify all six real consumer jobs; requalify released patch via experiment repo after maintainer publication.
 - [ ] Close review findings, record exact-head evidence, retire plan, maintainer approval.
 
 No application/request hot-path changes, dependency upgrades, merge, tag or publication. Current initial fix is unverified until hosted tests finish.
+
+Batch 2: historical jobs failed at unavailable branch checkout in run 45439500616. Existing native regression gates retained; new candidate lifecycle job required for release. Psalm MixedAssignment boundary explicitly typed without suppressing diagnostics. Hosted results pending.

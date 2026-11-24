@@ -150,12 +150,20 @@ final readonly class ModuleFeatureComposerExecutor
             throw new \RuntimeException('Unable to read Composer installed metadata.');
         }
         try {
+            /** @var mixed $metadata */
             $metadata = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
         } catch (\JsonException $failure) {
             throw new \RuntimeException('Composer installed metadata is malformed.', previous: $failure);
         }
 
-        return is_array($metadata) && ($metadata['dev'] ?? null) === false;
+        if (!is_array($metadata)) {
+            throw new \RuntimeException('Composer installed metadata must be an array.');
+        }
+        if (array_key_exists('dev', $metadata) && !is_bool($metadata['dev'])) {
+            throw new \RuntimeException('Composer installed development mode must be boolean.');
+        }
+
+        return ($metadata['dev'] ?? null) === false;
     }
 
     /**
