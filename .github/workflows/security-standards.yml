@@ -358,7 +358,7 @@ jobs:
           # Use the same real peer, deadline, unary wire data and strict exit status.
           grpc_module="$(php -r 'echo ini_get("extension_dir");')/grpc.so"
           test -f "$grpc_module"
-          php -n -d "extension=$grpc_module" -r '
+          native_php='
             $port = filter_var(getenv("GRPC_TEST_PORT"), FILTER_VALIDATE_INT, ["options" => ["min_range" => 1, "max_range" => 65535]]);
             if (!is_int($port)) {
                 throw new RuntimeException("Invalid native control port.");
@@ -390,6 +390,7 @@ jobs:
             }
             echo "Extension-only native gRPC roundtrip and close verified.\n";
           '
+          php -n -d "extension=$grpc_module" -r "$native_php"
           # BaseStub initializes process-global default roots even for this insecure loopback.
           # The fixture closes its own channel and invalidates only roots that it initialized.
           # Keep normal PHP configuration and strict exit status; collect a backtrace if it crashes.
@@ -411,17 +412,42 @@ jobs:
             unset($result, $stub);
             echo "Standalone native gRPC roundtrip and close verified.\n";
           '
+          # Enable process-local core dumps; never alter host-wide kernel settings.
+          ulimit -c unlimited
+          printf 'Core pattern: '
+          cat /proc/sys/kernel/core_pattern
           run_native_probe() {
-            local status
-            if php "$@"; then
+            local status pid core
+            php "$@" &
+            pid=$!
+            if wait "$pid"; then
               return 0
             else
               status=$?
             fi
             if [[ "$status" -eq 139 ]]; then
               echo "::group::Native gRPC shutdown backtrace"
-              # A fresh reproduction under gdb may not reproduce an intermittent crash.
-              # Regardless of that diagnostic result, retain the original failed exit.
+              # Inspect the original crash before attempting a timing-sensitive replay.
+              for core in "core.$pid" core; do
+                if [[ -f "$core" ]]; then
+                  timeout 90s gdb --batch -ex "set pagination off" \
+                    -ex "thread apply all bt" "$(command -v php)" "$core" || :
+                  rm -f -- "$core"
+                  echo "::endgroup::"
+                  return "$status"
+                fi
+              done
+              if command -v coredumpctl >/dev/null; then
+                if coredumpctl --no-pager dump "$pid" --output="$root/native.core"; then
+                  timeout 90s gdb --batch -ex "set pagination off" \
+                    -ex "thread apply all bt" "$(command -v php)" "$root/native.core" || :
+                  rm -f -- "$root/native.core"
+                  echo "::endgroup::"
+                  return "$status"
+                fi
+              fi
+              # The runner may route cores to an inaccessible crash service.
+              # A diagnostic replay never replaces the original failed exit.
               timeout 90s gdb --batch --return-child-result \
                 -ex "set pagination off" \
                 -ex "set disable-randomization off" \
@@ -431,6 +457,8 @@ jobs:
             fi
             return "$status"
           }
+          # Same extension calls under the normal INI, without Composer.
+          run_native_probe -r "$native_php"
           run_native_probe -r "$standalone_php"
           run_native_probe tests/Fixtures/talkingbytes_grpc_probe.php
 
