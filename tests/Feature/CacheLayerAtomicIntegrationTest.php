@@ -186,6 +186,48 @@ it('preserves replay consume CAS and auth lockout atomicity under process conten
     }
 });
 
+it('keeps capacity closed when a real isolated owner process is killed', function (): void {
+    $dsn = foundationCacheLayerAtomicRedisDsn();
+    $namespace = 'foundation-risk-abort-' . bin2hex(random_bytes(8));
+    $cache = Cache::redis(
+        namespace: $namespace,
+        dsn: $dsn,
+        options: new CacheOptions(integrityKey: str_repeat('i', 32), failOpen: false),
+    );
+    $authority = new RiskAuthority($cache, str_repeat('k', 32), shared: true);
+    $bulkhead = new RiskHashBulkhead($authority, 'abort-pool', 1, nonEvictingIsolatedPool: true);
+    $worker = null;
+
+    try {
+        expect($bulkhead->provisionDrainedPool())->toBeTrue();
+        $worker = foundationCacheLayerStartWorker([
+            PHP_BINARY, dirname(__DIR__) . '/Fixtures/cachelayer_atomic_worker.php',
+            'risk-hash-hold', $namespace, $dsn, 'abort-pool',
+        ]);
+        foundationCacheLayerReleaseWorkers([$worker]);
+        $read = [$worker[2]];
+        $write = null;
+        $except = null;
+        expect(stream_select($read, $write, $except, 15))->toBe(1)
+            ->and(fgets($worker[2]))->toBe("held\n")
+            ->and($bulkhead->acquire())->toBeNull();
+        expect(proc_terminate($worker[0], 9))->toBeTrue();
+        foundationCacheLayerWaitWorker($worker[0], time() + 15);
+        $status = foundationCacheLayerCloseWorker($worker);
+        $worker = null;
+        expect($status)->not->toBe(0)
+            ->and($bulkhead->acquire())->toBeNull()
+            ->and($bulkhead->provisionDrainedPool())->toBeFalse();
+    } finally {
+        if ($worker !== null) {
+            proc_terminate($worker[0], 9);
+            foundationCacheLayerCloseWorker($worker);
+        }
+        // This namespace belongs exclusively to this completed test.
+        $cache->clear();
+    }
+});
+
 function foundationCacheLayerAtomicRedisDsn(): string
 {
     $explicit = getenv('FOUNDATION_TEST_REDIS_DSN');

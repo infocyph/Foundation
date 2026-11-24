@@ -32,7 +32,7 @@ $cache = Cache::redis(
     namespace: $namespace,
     dsn: $dsn,
     options: new CacheOptions(
-        integrityKey: in_array($mode, ['risk-proof', 'risk-clearance', 'risk-hash-slot'], true) ? str_repeat('i', 32) : null,
+        integrityKey: in_array($mode, ['risk-proof', 'risk-clearance', 'risk-hash-slot', 'risk-hash-hold'], true) ? str_repeat('i', 32) : null,
         failOpen: false,
     ),
 );
@@ -40,6 +40,22 @@ $cache = Cache::redis(
 fwrite(STDOUT, "ready\n");
 if (fgets(STDIN) !== "go\n") {
     throw new InvalidArgumentException('CacheLayer worker did not receive its start signal.');
+}
+
+if ($mode === 'risk-hash-hold') {
+    $bulkhead = new RiskHashBulkhead(new RiskAuthority($cache, str_repeat('k', 32), shared: true), $arg1, 1, nonEvictingIsolatedPool: true);
+    $lease = $bulkhead->acquire();
+    if ($lease === null) {
+        throw new \RuntimeException('Isolated fixture could not acquire capacity.');
+    }
+    try {
+        fwrite(STDOUT, "held\n");
+        fgets(STDIN);
+    } finally {
+        $bulkhead->release($lease);
+    }
+
+    exit(0);
 }
 
 $result = match ($mode) {
