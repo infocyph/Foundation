@@ -131,6 +131,34 @@ final readonly class ModuleFeatureComposerExecutor
     }
 
     /**
+     * Composer's installed metadata records the last installation mode, unlike
+     * the root require-dev declaration or the presence of a particular tool.
+     * @throws \RuntimeException
+     */
+    private function installedWithoutDev(): bool
+    {
+        $path = $this->application->basePath('vendor/composer/installed.json');
+        if (is_link($path)) {
+            throw new \RuntimeException('Composer installed metadata must not be symlinked.');
+        }
+        if (!is_file($path)) {
+            return false;
+        }
+
+        $contents = file_get_contents($path);
+        if ($contents === false) {
+            throw new \RuntimeException('Unable to read Composer installed metadata.');
+        }
+        try {
+            $metadata = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException $failure) {
+            throw new \RuntimeException('Composer installed metadata is malformed.', previous: $failure);
+        }
+
+        return is_array($metadata) && ($metadata['dev'] ?? null) === false;
+    }
+
+    /**
      * @param list<string> $packages
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \InvalidArgumentException
@@ -146,6 +174,9 @@ final readonly class ModuleFeatureComposerExecutor
             '--with-all-dependencies',
             '--no-interaction',
         ];
+        if ($this->installedWithoutDev()) {
+            $command[] = '--update-no-dev';
+        }
         if ($dryRun) {
             $command[] = '--dry-run';
         }

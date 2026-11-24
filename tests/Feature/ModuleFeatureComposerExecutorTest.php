@@ -249,3 +249,34 @@ it('blocks symbolic-linked Composer lock files without changing their targets', 
         f4ComposerRemoveFixture($root);
     }
 });
+
+it('preserves the recorded Composer installation mode during module package changes', function (bool $dev): void {
+    $requirements = ['infocyph/pathwise' => '^4.2.1'];
+    $root = f4ComposerFixture($requirements);
+    $restore = f4ComposerStub($root);
+
+    try {
+        mkdir($root . '/vendor/composer', 0775, true);
+        file_put_contents($root . '/vendor/composer/installed.json', json_encode([
+            'packages' => [],
+            'dev' => $dev,
+        ], JSON_THROW_ON_ERROR));
+        $application = Foundation::cli(['base_path' => $root, '_config_cache' => false]);
+        $executor = new ModuleFeatureComposerExecutor($application);
+        $context = f4ComposerContext($requirements);
+        $context['installed'] = ['infocyph/pathwise' => '4.2.1'];
+
+        expect($executor->applyPackages('install', ['security.crypto'], $context, true)->successful())->toBeTrue()
+            ->and($executor->applyPackages('install', ['security.crypto'], $context)->successful())->toBeTrue()
+            ->and($executor->applyPackages('remove', ['data.filesystem'], $context)->successful())->toBeTrue();
+
+        $commands = f4ComposerCommands($root);
+        expect($commands)->toHaveCount(3);
+        foreach ($commands as $command) {
+            expect(in_array('--update-no-dev', $command, true))->toBe(!$dev);
+        }
+    } finally {
+        $restore();
+        f4ComposerRemoveFixture($root);
+    }
+})->with(['development' => [true], 'production' => [false]]);
