@@ -17,6 +17,7 @@ use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerTtlStore;
 use Infocyph\Foundation\Communication\CacheLayerWebhookReplayStore;
 use Infocyph\Foundation\Security\Risk\RiskAuthority;
 use Infocyph\Foundation\Security\Risk\RiskContext;
+use Infocyph\Foundation\Security\Risk\RiskHashBulkhead;
 use Infocyph\Foundation\Security\Risk\RiskProofStore;
 use Infocyph\Foundation\Security\Risk\RiskTelemetry;
 
@@ -31,7 +32,7 @@ $cache = Cache::redis(
     namespace: $namespace,
     dsn: $dsn,
     options: new CacheOptions(
-        integrityKey: in_array($mode, ['risk-proof', 'risk-clearance'], true) ? str_repeat('i', 32) : null,
+        integrityKey: in_array($mode, ['risk-proof', 'risk-clearance', 'risk-hash-slot'], true) ? str_repeat('i', 32) : null,
         failOpen: false,
     ),
 );
@@ -53,6 +54,7 @@ $result = match ($mode) {
         $arg1,
         120,
     ),
+    'risk-hash-slot' => new RiskHashBulkhead(new RiskAuthority($cache, str_repeat('k', 32), shared: true), $arg1, 2, nonEvictingIsolatedPool: true)->acquire() !== null,
     default => throw new InvalidArgumentException('Unsupported CacheLayer atomic worker mode.'),
 };
 

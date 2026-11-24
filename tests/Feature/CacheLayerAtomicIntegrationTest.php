@@ -11,6 +11,7 @@ use Infocyph\Foundation\Auth\Support\ArrayTtlStore;
 use Infocyph\Foundation\Communication\CacheLayerWebhookReplayStore;
 use Infocyph\Foundation\Security\Risk\RiskAuthority;
 use Infocyph\Foundation\Security\Risk\RiskContext;
+use Infocyph\Foundation\Security\Risk\RiskHashBulkhead;
 use Infocyph\Foundation\Security\Risk\RiskProofStore;
 use Infocyph\Foundation\Security\Risk\RiskTelemetry;
 
@@ -168,6 +169,14 @@ it('preserves replay consume CAS and auth lockout atomicity under process conten
         \PHPUnit\Framework\Assert::assertIsString($otherToken);
         expect($proofs->redeemClearance(RiskContext::fromTransport('other', 'login', '192.0.2.1'), 'account', $otherToken, 120))->toBeFalse()
             ->and($proofs->redeemClearance($context, 'account', $otherToken, 120))->toBeFalse();
+
+        $bulkhead = new RiskHashBulkhead($authority, 'password-workers', 2, nonEvictingIsolatedPool: true);
+        expect($bulkhead->acquire())->toBeNull()
+            ->and($bulkhead->provisionDrainedPool())->toBeTrue();
+        $leases = foundationCacheLayerAtomicWorkers('risk-hash-slot', $namespace, $dsn, 'password-workers', 8);
+        expect(array_count_values($leases))->toMatchArray(['1' => 2, '0' => 6])
+            ->and($bulkhead->acquire())->toBeNull()
+            ->and($bulkhead->provisionDrainedPool())->toBeFalse();
 
         $expired = $proofs->issueClearance($context, 'account', 'expired-proof', 120);
         \PHPUnit\Framework\Assert::assertIsString($expired);

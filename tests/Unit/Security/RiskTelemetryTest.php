@@ -15,22 +15,22 @@ it('records bounded local failure windows without claiming distributed reliabili
     $cache = Cache::memory(namespace: 'risk-local-' . bin2hex(random_bytes(8)), options: new CacheOptions(failOpen: false));
     $telemetry = new RiskTelemetry($cache, str_repeat('k', 32), concentrationAt: 2);
     $context = RiskContext::fromTransport('tenant-a', 'login', '10.0.0.1', [IpCidr::from('10.0.0.0/8')], ['192.0.2.1'], ['t13d1516h2_8daaf6152771_02713d6af862'], ['64512']);
-    expect($telemetry->observe($context, 120, 'person@example.test'))->toBe([
+    expect($telemetry->observe($context, 120, 'person.example.test'))->toBe([
         'familiar' => null, 'failedSignatureAttempts' => 0, 'concentrated' => false, 'reliable' => false,
     ]);
-    expect($telemetry->recordFailure($context, 120, 'person@example.test'))->toBeTrue()
-        ->and($telemetry->recordFailure($context, 120, 'person@example.test'))->toBeTrue()
+    expect($telemetry->recordFailure($context, 120, 'person.example.test'))->toBeTrue()
+        ->and($telemetry->recordFailure($context, 120, 'person.example.test'))->toBeTrue()
         ->and($telemetry->recordSuccess($context))->toBeTrue();
-    expect($telemetry->observe($context, 120, 'person@example.test'))->toBe([
+    expect($telemetry->observe($context, 120, 'person.example.test'))->toBe([
         'familiar' => true, 'failedSignatureAttempts' => 2, 'concentrated' => true, 'reliable' => false,
-    ])->and($telemetry->observe($context, 180, 'person@example.test'))->toBe([
+    ])->and($telemetry->observe($context, 180, 'person.example.test'))->toBe([
         'familiar' => true, 'failedSignatureAttempts' => 0, 'concentrated' => false, 'reliable' => false,
     ]);
     $other = RiskContext::fromTransport('tenant-b', 'login', '10.0.0.1', [IpCidr::from('10.0.0.0/8')], ['192.0.2.1'], ['t13d1516h2_8daaf6152771_02713d6af862'], ['64512']);
-    expect($telemetry->observe($other, 120, 'person@example.test')['failedSignatureAttempts'])->toBe(0)
-        ->and($cache->get('person@example.test'))->toBeNull();
+    expect($telemetry->observe($other, 120, 'person.example.test')['failedSignatureAttempts'])->toBe(0)
+        ->and($cache->get('person.example.test'))->toBeNull();
     $rotated = new RiskTelemetry($cache, str_repeat('n', 32));
-    expect($rotated->observe($context, 120, 'person@example.test')['failedSignatureAttempts'])->toBe(0);
+    expect($rotated->observe($context, 120, 'person.example.test')['failedSignatureAttempts'])->toBe(0);
 });
 
 it('reports uncertainty without atomic capability and does not emulate atomic increments', function (): void {

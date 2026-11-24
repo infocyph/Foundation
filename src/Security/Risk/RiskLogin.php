@@ -27,6 +27,7 @@ final readonly class RiskLogin
         private RiskTelemetry $telemetry,
         private ?RiskProofStore $proofs = null,
         private ?RiskDeviceTrust $devices = null,
+        private ?RiskHashBulkhead $bulkhead = null,
     ) {}
 
     /**
@@ -38,6 +39,7 @@ final readonly class RiskLogin
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
      * @throws \UnexpectedValueException
+     * @throws \Random\RandomException
      */
     public function handle(
         Request $request,
@@ -92,7 +94,23 @@ final readonly class RiskLogin
                 }
             };
 
-            return $render($this->authenticator->login($login, $feedback))->withHeader('Cache-Control', 'no-store');
+            $lease = null;
+            if (!$assessment->shadow && $this->bulkhead !== null) {
+                $lease = $this->bulkhead->acquire();
+                if ($lease === null) {
+                    return Response::json(['error' => 'temporarily_unavailable'], 503, ['Cache-Control' => 'no-store']);
+                }
+            }
+
+            try {
+                $result = $this->authenticator->login($login, $feedback);
+            } finally {
+                if ($lease !== null) {
+                    $this->bulkhead?->release($lease);
+                }
+            }
+
+            return $render($result)->withHeader('Cache-Control', 'no-store');
         });
     }
 }
