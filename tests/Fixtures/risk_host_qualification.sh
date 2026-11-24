@@ -2,6 +2,13 @@
 set -euo pipefail
 
 root="$(mktemp -d "$RUNNER_TEMP/risk-host.XXXXXXXX")"
+evidence="$GITHUB_WORKSPACE/build/risk-host-qualification"
+mkdir -p "$evidence"
+php -v > "$evidence/php.txt"
+php --ini >> "$evidence/php.txt"
+php -m >> "$evidence/php.txt"
+uname -a > "$evidence/host.txt"
+lscpu >> "$evidence/host.txt"
 redis_pid=''
 fpm_pid=''
 runwire_pid=''
@@ -21,6 +28,11 @@ cleanup() {
         if [[ -n "$pid" ]]; then
             kill -TERM "$pid" 2>/dev/null || :
             wait "$pid" 2>/dev/null || :
+        fi
+    done
+    for log in "$root"/*.log; do
+        if [[ -f "$log" ]]; then
+            tail -n 300 "$log" > "$evidence/$(basename "$log")"
         fi
     done
     if [[ "$status" -ne 0 ]]; then
@@ -48,6 +60,8 @@ redis-cli -p 16379 ping | grep -qx PONG
 # A dedicated FPM pool has three workers and one authoritative hash slot.
 version="$(php -r 'echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;')"
 fpm="$(command -v "php-fpm$version")"
+"$fpm" -v | tee "$evidence/fpm.txt"
+grep -Fq "PHP $version." "$evidence/fpm.txt"
 php_ini="$(php -r 'echo php_ini_loaded_file();')"
 scan_dir="/etc/php/$version/cli/conf.d"
 test -d "$scan_dir"
@@ -67,6 +81,9 @@ pm.max_requests = 0
 clear_env = no
 catch_workers_output = yes
 request_terminate_timeout = 30s
+php_admin_flag[opcache.enable] = on
+php_admin_value[opcache.jit_buffer_size] = 0
+php_admin_value[memory_limit] = 256M
 CONF
 start_fpm() {
     PHP_INI_SCAN_DIR="$scan_dir" "$fpm" -c "$php_ini" -y "$root/fpm.conf" -F > "$root/fpm-stdout.log" 2>&1 &
@@ -100,6 +117,11 @@ error_log $root/nginx.log;
 events { worker_connections 128; }
 http {
     access_log off;
+    client_body_temp_path $root/client-body;
+    proxy_temp_path $root/proxy;
+    fastcgi_temp_path $root/fastcgi;
+    uwsgi_temp_path $root/uwsgi;
+    scgi_temp_path $root/scgi;
     server {
         listen 127.0.0.1:19103;
         location = /ordinary {
@@ -193,3 +215,11 @@ wait_ready
 status_is login 200
 status_is deny 403
 echo "Dedicated FPM and ordinary Runwire isolation, deadline, killed-owner fail-closed and drained recovery verified."
+
+cp "$root/fpm.conf" "$evidence/fpm.conf"
+cp "$root/nginx.conf" "$evidence/nginx.conf"
+python3 tests/Fixtures/risk_host_load.py "$evidence/results.json" "$fpm_pid"
+status_is login 200
+status_is deny 403
+curl -fsS --max-time 3 http://127.0.0.1:19103/ordinary > /dev/null
+echo "Scoped load and 30-minute mixed-route soak verified."

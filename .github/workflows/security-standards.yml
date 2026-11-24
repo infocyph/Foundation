@@ -569,9 +569,9 @@ jobs:
 
 
   risk-host-qualification:
-    name: Isolated risk login host / PHP 8.6
+    name: Isolated risk login host and sustained soak / PHP 8.6
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 55
     permissions:
       contents: read
     steps:
@@ -585,10 +585,22 @@ jobs:
       - name: Install real authentication and ordinary hosts
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends nginx php8.6-fpm redis-server redis-tools
+          sudo apt-get install -y -qq --no-install-recommends nginx redis-server redis-tools
+          version="$(php -r 'echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;')"
+          if ! command -v "php-fpm$version" >/dev/null; then
+            sudo apt-get install -y -qq --no-install-recommends "php$version-fpm"
+          fi
+          "$(command -v "php-fpm$version")" -v
+          php -v
           composer update --no-interaction --no-progress --prefer-dist --prefer-stable
-      - name: Qualify isolated authentication worker lifecycle
+      - name: Qualify isolated authentication worker lifecycle and sustained traffic
         run: bash tests/Fixtures/risk_host_qualification.sh
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation-risk-host-qualification
+          path: build/risk-host-qualification/
+          if-no-files-found: warn
 
 
   historical-dependency-provenance:

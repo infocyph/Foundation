@@ -29,14 +29,30 @@ use RuntimeException;
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
-$cache = Cache::redis(
-    namespace: 'foundation-risk-host-fixture',
-    dsn: 'redis://127.0.0.1:16379',
-    options: new CacheOptions(integrityKey: str_repeat('i', 32), failOpen: false),
-);
-$bulkhead = new RiskHashBulkhead(new RiskAuthority($cache, str_repeat('k', 32), shared: true), 'fpm', 1, nonEvictingIsolatedPool: true);
+/**
+ * @throws \Exception
+ */
+function foundationRiskHostCache(): CacheInterface
+{
+    return Cache::redis(
+        namespace: 'foundation-risk-host-fixture',
+        dsn: 'redis://127.0.0.1:16379',
+        options: new CacheOptions(integrityKey: str_repeat('i', 32), failOpen: false),
+    );
+}
+
+/**
+ * @throws \InvalidArgumentException
+ * @throws \LogicException
+ */
+function foundationRiskHostBulkhead(CacheInterface $cache): RiskHashBulkhead
+{
+    return new RiskHashBulkhead(new RiskAuthority($cache, str_repeat('k', 32), shared: true), 'fpm', 1, nonEvictingIsolatedPool: true);
+}
 
 if (PHP_SAPI === 'cli') {
+    $cache = foundationRiskHostCache();
+    $bulkhead = foundationRiskHostBulkhead($cache);
     $result = match ($argv[1] ?? '') {
         'provision' => $bulkhead->provisionDrainedPool(),
         'held' => $cache->get('held-owner', 0),
@@ -69,12 +85,27 @@ $services->accounts()->create('fixture@example.test', $hash);
 $authenticator = $app->make(Authenticator::class);
 $login = new LoginRequest('fixture@example.test', 'fixture-password');
 $render = static fn(LoginResult $result): Response => Response::json(['ok' => $result->authenticated()], $result->authenticated() ? 200 : 401);
+if ($path === 'baseline') {
+    $response = $render($authenticator->login($login));
+    http_response_code($response->getStatusCode());
+    header('Content-Type: application/json');
+    echo json_encode(['status' => $response->getStatusCode(), 'pid' => getmypid(), 'sapi' => PHP_SAPI], JSON_THROW_ON_ERROR);
+
+    exit(0);
+}
+
+$cache = foundationRiskHostCache();
+$bulkhead = foundationRiskHostBulkhead($cache);
 if ($path === 'hold') {
     // The marker is reached inside the password-verifier boundary, after slot acquisition.
     ignore_user_abort(true);
     $verifier = new class ($services->passwordVerifier(), $cache) implements PasswordVerifierInterface {
         public function __construct(private readonly PasswordVerifierInterface $inner, private readonly CacheInterface $cache) {}
 
+        /**
+         * @throws \Psr\SimpleCache\InvalidArgumentException
+         * @throws \RuntimeException
+         */
         #[\Override]
         public function verify(string $plainPassword, string $storedHash): PasswordVerificationResult
         {
@@ -96,26 +127,20 @@ if ($path === 'hold') {
         $services->lockouts(),
     );
 }
-if ($path === 'baseline') {
-    $response = $render($authenticator->login($login));
-} else {
-    $guard = new RiskLogin($authenticator, new RiskPolicy(), new RiskTelemetry($cache, str_repeat('t', 32), shared: true), bulkhead: $bulkhead);
-    $response = $guard->handle(
-        Request::fromGlobals(),
-        $login,
-        RiskContext::fromTransport('fixture', 'login', '127.0.0.1'),
-        time(),
-        $render,
-        hardDeny: $path === 'deny',
-    );
-}
+$guard = new RiskLogin($authenticator, new RiskPolicy(), new RiskTelemetry($cache, str_repeat('t', 32), shared: true), bulkhead: $bulkhead);
+$response = $guard->handle(
+    Request::fromGlobals(),
+    $login,
+    RiskContext::fromTransport('fixture', 'login', '127.0.0.1'),
+    time(),
+    $render,
+    hardDeny: $path === 'deny',
+);
 
 http_response_code($response->getStatusCode());
 header('Content-Type: application/json');
-if ($path !== 'baseline') {
-    if ($response->getHeaderLine('Cache-Control') !== 'no-store') {
-        throw new RuntimeException('Protected response must not be cacheable.');
-    }
-    header('Cache-Control: no-store');
+if ($response->getHeaderLine('Cache-Control') !== 'no-store') {
+    throw new RuntimeException('Protected response must not be cacheable.');
 }
+header('Cache-Control: no-store');
 echo json_encode(['status' => $response->getStatusCode(), 'pid' => getmypid(), 'sapi' => PHP_SAPI], JSON_THROW_ON_ERROR);
