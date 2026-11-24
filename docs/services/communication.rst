@@ -287,3 +287,16 @@ The hosted diagnostic gate reports the loaded PHP extensions and INI
 configuration and captures a native debugger backtrace if either full
 probe exits with SIGSEGV. A diagnostic replay never converts a failing
 original process into a successful gate.
+
+Hosted native gRPC qualification uses an explicit extension profile instead
+of inheriting the runner's optional shared extensions. The profile retains
+the actual Foundation/TalkingBytes dependency and development-tool platform
+requirements; Composer validates those requirements before any probe runs.
+The previous failure is reproducible without Composer under the runner's
+broad extension configuration, while the isolated native-only control
+passes. This demonstrates an environment-dependent native failure, not a
+proven conflict with a specific extension. The minimal profile must still
+pass real native-only, Composer and Foundation probes, including clean
+process shutdown, on all three PHP versions. Other application QA jobs
+retain their existing extension configuration. Production deployments must
+qualify their own extension combination.

@@ -303,11 +303,23 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           tools: composer:v2
-          extensions: "grpc, curl, mbstring, intl, sodium, pdo, pdo_sqlite, redis"
+          # Disable runner-preinstalled shared extensions before enabling the test/dependency profile.
+          extensions: "none, grpc, curl, mbstring, intl, sodium, pdo, pdo_sqlite, redis, dom, simplexml, xml, xmlreader, xmlwriter, tokenizer, ctype, fileinfo, iconv, phar, openssl, session, sockets, pcntl, posix, zip"
           coverage: none
       - name: Install native gRPC and selected package dependencies
         run: |
-          php -r 'if (!extension_loaded("grpc")) { throw new RuntimeException("Native gRPC PHP extension unavailable."); }'
+          php -r '
+            foreach (["grpc", "curl", "fileinfo", "openssl", "sodium", "mbstring", "pdo", "dom", "xml", "xmlwriter", "tokenizer"] as $extension) {
+                if (!extension_loaded($extension)) {
+                    throw new RuntimeException("Required PHP extension unavailable: " . $extension);
+                }
+            }
+            foreach (["amqp", "apcu", "ast", "ds", "enchant", "imagick", "imap", "ldap", "memcache", "memcached", "mongodb", "msgpack", "mysqli", "odbc", "pgsql", "sqlsrv", "swoole", "openswoole", "xdebug", "zmq"] as $extension) {
+                if (extension_loaded($extension)) {
+                    throw new RuntimeException("Unexpected unrelated PHP extension: " . $extension);
+                }
+            }
+          '
           php --ri grpc
           php --ini
           php -m
@@ -318,6 +330,7 @@ jobs:
           gdb --version
           composer update --no-interaction --no-progress --prefer-dist --prefer-stable
           composer require --dev "grpc/grpc:^1.76" --no-interaction --no-progress --prefer-dist --prefer-stable
+          composer check-platform-reqs
       - name: Verify real native unary transport without spawning from the PHP extension process
         shell: bash
         run: |
@@ -457,7 +470,7 @@ jobs:
             fi
             return "$status"
           }
-          # Same extension calls under the normal INI, without Composer.
+          # Same extension calls under the configured minimal INI, without Composer.
           run_native_probe -r "$native_php"
           run_native_probe -r "$standalone_php"
           run_native_probe tests/Fixtures/talkingbytes_grpc_probe.php
