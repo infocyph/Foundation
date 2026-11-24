@@ -9,6 +9,8 @@ use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerTtlStore;
 use Infocyph\Foundation\Auth\Support\ArrayTtlStore;
 use Infocyph\Foundation\Communication\CacheLayerWebhookReplayStore;
+use Infocyph\Foundation\Security\Risk\RiskContext;
+use Infocyph\Foundation\Security\Risk\RiskTelemetry;
 
 it('aligns nullable string pull defaults across memory and atomic TTL stores', function (): void {
     $stores = [
@@ -134,6 +136,14 @@ it('preserves replay consume CAS and auth lockout atomicity under process conten
         $increments = foundationCacheLayerAtomicWorkers('counter', $namespace, $dsn, 'login:shared-account', 8);
         expect($increments)->toBe(['1', '2', '3', '4', '5', '6', '7', '8']);
         $counter->reset('login:shared-account');
+
+        $telemetry = new RiskTelemetry($cache, str_repeat('k', 32), shared: true, concentrationAt: 8);
+        $context = RiskContext::fromTransport('concurrency', 'login', '192.0.2.1');
+        $updates = foundationCacheLayerAtomicWorkers('risk-failure', $namespace, $dsn, 'same-account', 8);
+        expect($updates)->toBe(array_fill(0, 8, '1'))
+            ->and($telemetry->observe($context, 120, 'same-account'))->toBe([
+                'familiar' => null, 'failedSignatureAttempts' => 8, 'concentrated' => true, 'reliable' => true,
+            ]);
     } finally {
         $cache->clear();
     }

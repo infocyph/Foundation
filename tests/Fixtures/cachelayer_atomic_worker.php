@@ -15,6 +15,8 @@ use Infocyph\CacheLayer\Counter\AtomicCounters;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerTtlStore;
 use Infocyph\Foundation\Communication\CacheLayerWebhookReplayStore;
+use Infocyph\Foundation\Security\Risk\RiskContext;
+use Infocyph\Foundation\Security\Risk\RiskTelemetry;
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
@@ -34,6 +36,11 @@ $result = match ($mode) {
     'pull' => (new CacheLayerTtlStore($cache))->pull($arg1, '__miss__'),
     'cas' => $cache->atomic()?->compareAndSet($arg1, 0, 1, 30) ?? false,
     'counter' => (new AtomicCounterStore(AtomicCounters::redis($namespace, $dsn)))->increment($arg1, ttlSeconds: 30),
+    'risk-failure' => new RiskTelemetry($cache, str_repeat('k', 32), shared: true)->recordFailure(
+        RiskContext::fromTransport('concurrency', 'login', '192.0.2.1'),
+        120,
+        $arg1,
+    ),
     default => throw new InvalidArgumentException('Unsupported CacheLayer atomic worker mode.'),
 };
 
