@@ -240,7 +240,11 @@ final readonly class ExecutionScope
         return $scope;
     }
 
-    /** @param callable():mixed $callback */
+    /**
+     * @param callable():mixed $callback
+     * @throws \LogicException
+     * @throws \Infocyph\Runwire\Exception\CancelledException
+     */
     private function withinRunwireContext(?RunwireExecutionContext $context, callable $callback): mixed
     {
         if ($context === null) {

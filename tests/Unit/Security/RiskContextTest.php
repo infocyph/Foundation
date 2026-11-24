@@ -55,13 +55,13 @@ it('rejects missing ambiguous and malformed attested claims', function (): void 
 it('keeps risk scopes isolated across interleaved fibers', function (): void {
     $fiber = new Fiber(static function (): RiskContext {
         $context = RiskContext::fromTransport('tenant-a', 'login', '192.0.2.1');
-        Fiber::suspend();
+        expect(Fiber::suspend())->toBe('resume');
 
         return $context;
     });
     $fiber->start();
     $other = RiskContext::fromTransport('tenant-b', 'oauth', '2001:db8::1');
-    $fiber->resume();
+    $fiber->resume('resume');
     $first = $fiber->getReturn();
     \PHPUnit\Framework\Assert::assertInstanceOf(RiskContext::class, $first);
     expect($first->tenant)->toBe('tenant-a')

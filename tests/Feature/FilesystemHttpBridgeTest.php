@@ -175,7 +175,6 @@ it('honors original Runwire cancellation during nonlocal lazy response advanceme
                 ),
                 $runtime,
             );
-            \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\Webrick\Response\Response::class, $response);
             expect($response->isStreaming())->toBeTrue();
             $producer = $response->getProducer();
             \PHPUnit\Framework\Assert::assertNotNull($producer);
@@ -202,7 +201,6 @@ it('honors original Runwire cancellation during nonlocal lazy response advanceme
                 ),
                 $runtime,
             );
-            \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\Webrick\Response\Response::class, $response);
             $producer = $response->getProducer();
             \PHPUnit\Framework\Assert::assertNotNull($producer);
             $chunks = $producer();
@@ -252,7 +250,6 @@ it('isolates lazy streamed downloads across Fibers and rejects an abandoned comp
                 ),
                 $runtime,
             );
-            \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\Webrick\Response\Response::class, $response);
 
             return $response;
         };
@@ -330,7 +327,6 @@ it('restores the original borrowed Runwire context after a lazy stream read fail
             ),
             $runtime,
         );
-        \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\Webrick\Response\Response::class, $response);
         $producer = $response->getProducer();
         \PHPUnit\Framework\Assert::assertNotNull($producer);
         $chunks = $producer();

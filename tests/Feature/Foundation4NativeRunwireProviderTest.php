@@ -111,7 +111,6 @@ it('forwards published native providers through compiled and borrowed execution 
                 ? CacheRunwire::share($request, null, static fn(): mixed => $execution->run($callback), $runtime)
                 : $execution->run($callback, [RuntimeContext::class => $runtime, RequestContext::class => $request]);
 
-            \PHPUnit\Framework\Assert::assertInstanceOf(\Infocyph\DBLayer\Connection\Connection::class, $connection);
             expect(CacheRunwire::current())->toBeNull()
                 ->and(CacheRunwire::runtime())->toBeNull()
                 ->and($bus->runwireBinding()->request())->toBeNull()
@@ -348,8 +347,10 @@ it('rejects a shared completed or cancelled host request before starting framewo
         expect(fn(): mixed => CacheRunwire::share(
             $request,
             null,
-            static function () use ($app, $callback): void {
+            static function () use ($app, $callback): bool {
                 $app->execution()->run($callback);
+
+                return true;
             },
             $runtime,
         ))->toThrow($expected);

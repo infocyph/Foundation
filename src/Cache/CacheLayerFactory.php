@@ -53,6 +53,12 @@ final readonly class CacheLayerFactory
 
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Infocyph\CacheLayer\Cluster\Exception\ClusterConfigurationException
+     * @throws \Infocyph\CacheLayer\Node\Exception\NodeCacheConfigurationException
+     * @throws \RuntimeException
+     * @throws \Infocyph\CacheLayer\Exceptions\CacheInvalidArgumentException
+     * @throws \LogicException
+     * @throws \Infocyph\CacheLayer\Cluster\Exception\ClusterCacheException
      */
     public function cluster(string $name): ClusterRuntime
     {
@@ -109,6 +115,8 @@ final readonly class CacheLayerFactory
 
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function lock(
         ?string $storeName = null,
@@ -153,6 +161,11 @@ final readonly class CacheLayerFactory
 
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \RuntimeException
+     * @throws \Infocyph\CacheLayer\Exceptions\CacheInvalidArgumentException
+     * @throws \LogicException
+     * @throws \Infocyph\CacheLayer\Node\Exception\NodeCacheConfigurationException
+     * @throws \Infocyph\CacheLayer\Cache\Lock\UnsupportedPdoLockDriver
      */
     public function make(?string $name = null): CacheInterface
     {
@@ -169,6 +182,9 @@ final readonly class CacheLayerFactory
 
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Infocyph\CacheLayer\Node\Exception\NodeCacheConfigurationException
+     * @throws \Infocyph\CacheLayer\Exceptions\CacheInvalidArgumentException
+     * @throws \Infocyph\CacheLayer\Node\Exception\NodeCacheStorageException
      */
     public function nodeMaintenance(string $name): NodeCacheMaintenance
     {
@@ -182,6 +198,7 @@ final readonly class CacheLayerFactory
 
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Infocyph\CacheLayer\Cluster\Exception\ClusterTransportException
      */
     public function pruneCluster(string $name, int $retentionSeconds, int $limit = 5_000): int
     {
@@ -210,6 +227,8 @@ final readonly class CacheLayerFactory
     /**
      * @param array<string,mixed> $store
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function applyLock(CacheInterface $cache, array $store, CacheDriver $driver): CacheInterface
     {
@@ -246,7 +265,10 @@ final readonly class CacheLayerFactory
         return $this->stringConfig('app.base_path', getcwd() ?: '.');
     }
 
-    /** @param array<string,mixed> $store */
+    /**
+     * @param array<string,mixed> $store
+     * @throws \Infocyph\CacheLayer\Exceptions\CacheInvalidArgumentException
+     */
     private function cacheOptions(array $store): CacheOptions
     {
         $compression = array_replace(
@@ -276,7 +298,14 @@ final readonly class CacheLayerFactory
         );
     }
 
-    /** @param array<string,mixed> $store */
+    /**
+     * @param array<string,mixed> $store
+     * @throws \RuntimeException
+     * @throws \Infocyph\CacheLayer\Exceptions\CacheInvalidArgumentException
+     * @throws \LogicException
+     * @throws \Infocyph\CacheLayer\Node\Exception\NodeCacheConfigurationException
+     * @throws \Infocyph\CacheLayer\Cache\Lock\UnsupportedPdoLockDriver
+     */
     private function createCache(string $name, array $store, CacheDriver $driver): CacheInterface
     {
         $namespace = $this->namespace($name, $store);
@@ -381,7 +410,12 @@ final readonly class CacheLayerFactory
         return is_int($value) || is_float($value) ? (float) $value : $default;
     }
 
-    /** @param array<string,mixed> $store */
+    /**
+     * @param array<string,mixed> $store
+     * @throws \RuntimeException
+     * @throws \Infocyph\CacheLayer\Exceptions\CacheInvalidArgumentException
+     * @throws \LogicException
+     */
     private function localCache(string $namespace, array $store, CacheOptions $options): CacheInterface
     {
         if (extension_loaded('apcu') && function_exists('apcu_enabled') && apcu_enabled()) {
@@ -394,6 +428,8 @@ final readonly class CacheLayerFactory
     /**
      * @param array<string,mixed> $store
      * @param array<string,mixed> $lock
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function lockProvider(array $store, array $lock, CacheDriver $storeDriver): LockProviderInterface
     {
@@ -450,6 +486,8 @@ final readonly class CacheLayerFactory
     /**
      * @param array<string,mixed> $store
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Infocyph\CacheLayer\Node\Exception\NodeCacheConfigurationException
+     * @throws \Infocyph\CacheLayer\Exceptions\CacheInvalidArgumentException
      */
     private function nodeConfig(string $name, array $store): NodeCacheConfig
     {
@@ -474,6 +512,8 @@ final readonly class CacheLayerFactory
     /**
      * @param array<string,mixed> $store
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function nodeLockProvider(array $store): ?LockProviderInterface
     {
@@ -494,7 +534,13 @@ final readonly class CacheLayerFactory
         return is_object($value) ? $value : null;
     }
 
-    /** @param array<string,mixed> $store */
+    /**
+     * @param array<string,mixed> $store
+     * @throws \RuntimeException
+     * @throws \Infocyph\CacheLayer\Exceptions\CacheInvalidArgumentException
+     * @throws \LogicException
+     * @throws \Infocyph\CacheLayer\Cache\Lock\UnsupportedPdoLockDriver
+     */
     private function pdoCache(string $namespace, array $store, CacheOptions $options): CacheInterface
     {
         $runtime = $this->pdoRuntime($store);
@@ -577,6 +623,8 @@ final readonly class CacheLayerFactory
     /**
      * @param array<string,mixed> $definition
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function redisClient(array $definition, string $driver): \Redis
     {

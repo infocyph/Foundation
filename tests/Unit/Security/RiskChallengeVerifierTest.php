@@ -73,7 +73,10 @@ it('blocks a private DNS answer before opening an outbound socket using Runwire'
             return true;
         }
 
-        /** @param callable(list<string>,?\Throwable):void $completion */
+        /**
+         * @param callable(list<string>,?\Throwable):void $completion
+         * @throws \OverflowException
+         */
         #[\Override]
         public function resolve(string $hostname, callable $completion, ?CancellationToken $token = null, ?RequestDeadline $deadline = null): int
         {

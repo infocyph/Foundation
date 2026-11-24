@@ -168,6 +168,7 @@ function sessionMemcachedLockProviders(): ?array
 
 /**
  * @return array{LockProviderInterface, LockProviderInterface}|null
+ * @throws \Infocyph\CacheLayer\Cache\Lock\UnsupportedPdoLockDriver
  */
 function sessionPdoLockProviders(string $dsnKey, string $userKey, string $passwordKey): ?array
 {
