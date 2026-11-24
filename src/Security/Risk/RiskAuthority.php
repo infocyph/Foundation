@@ -43,7 +43,7 @@ final readonly class RiskAuthority
     }
 
     /** Domain-separated, unambiguous PSR-safe HMAC key for security state. */
-    public function key(string $domain, string ...$parts): string
+    public function key(string $domain, #[\SensitiveParameter] string ...$parts): string
     {
         $material = "foundation-risk-authority-v1\0" . pack('N', strlen($domain)) . $domain;
         foreach ($parts as $part) {

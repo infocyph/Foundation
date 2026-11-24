@@ -21,6 +21,15 @@ final readonly class DeviceManager
         private ClockInterface $clock = new SystemClock(),
     ) {}
 
+    /** A fresh ownership/revocation check; no account-wide enumeration. */
+    public function isTrustedForAccount(string $accountId, string $deviceId): bool
+    {
+        $device = $this->devices->find($deviceId);
+
+        return $device !== null && $device->accountId === $accountId
+            && $device->trusted && !$device->isRevoked();
+    }
+
     /**
      * @return list<DeviceRecord>
      */
