@@ -37,12 +37,15 @@ final readonly class Authenticator implements AuthenticatorInterface
         private ClockInterface $clock = new SystemClock(),
     ) {}
 
+    /** @param null|\Closure(bool):void $feedback Protected-route outcome observer. */
     #[\Override]
-    public function login(LoginRequest $request): LoginResult
+    public function login(LoginRequest $request, ?\Closure $feedback = null): LoginResult
     {
         $account = $this->accounts->findByIdentifier($request->identifier);
 
         if ($account === null) {
+            $feedback?->__invoke(false);
+
             return $this->failure(LoginStatus::INVALID_CREDENTIALS, null, 'invalid_credentials', $request->context);
         }
 
@@ -59,12 +62,15 @@ final readonly class Authenticator implements AuthenticatorInterface
         $hash = $account->passwordHash();
 
         if ($hash === null) {
+            $feedback?->__invoke(false);
+
             return $this->failure(LoginStatus::INVALID_CREDENTIALS, $account, 'password_not_configured', $request->context);
         }
 
         $verification = $this->passwords->verify($request->password, $hash);
 
         if (!$verification->verified) {
+            $feedback?->__invoke(false);
             $lockout = $this->lockouts->recordLoginFailure($account->id(), $request->context);
 
             return $this->failure(
@@ -95,6 +101,8 @@ final readonly class Authenticator implements AuthenticatorInterface
             deviceId: $session->deviceId,
             sessionId: $session->id,
         );
+
+        $feedback?->__invoke(true);
 
         return new LoginResult(LoginStatus::AUTHENTICATED, $principal, $session, 'authenticated', $verification->needsRehash, $request->context);
     }
