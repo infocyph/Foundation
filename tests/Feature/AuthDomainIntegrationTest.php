@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Account\Account;
 use Infocyph\Foundation\Auth\Account\AccountStatus;
@@ -35,6 +37,7 @@ use Infocyph\Foundation\Auth\Support\InMemoryAuditEventStore;
 use Infocyph\Foundation\Auth\Support\InMemoryGrantStore;
 use Infocyph\Foundation\Auth\Support\InMemoryPermissionStore;
 use Infocyph\Foundation\Foundation;
+use LogicException;
 
 /**
  * @throws \Exception

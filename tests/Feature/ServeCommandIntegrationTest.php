@@ -2,11 +2,15 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
 use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 use Infocyph\Foundation\Tests\Fixtures\ServeProbe;
 use Infocyph\Runwire\Runtime\Enum\RuntimeDriver;
 use Infocyph\Runwire\Runtime\RuntimeEnvironmentProbe;
+use RuntimeException;
+use UnexpectedValueException;
 
 it('serves real requests with isolated contexts and recovers after a failed request', function (bool $direct, bool $portable, int $workers, RuntimeDriver $runtime = RuntimeDriver::AUTO): void {
     $project = sys_get_temp_dir() . '/foundation-serve-' . bin2hex(random_bytes(6));

@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use FilesystemIterator;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
@@ -32,6 +35,11 @@ use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Matching\FusedMatcher;
 use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
 use Infocyph\Webrick\Router\Matching\ShardedMatcher;
+use LogicException;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use ReflectionProperty;
+use RuntimeException;
 
 require_once dirname(__DIR__) . '/Fixtures/EnvironmentSecretStageObserver.php';
 require_once dirname(__DIR__) . '/Fixtures/environment_secret_stage_hooks.php';
@@ -983,11 +991,11 @@ function foundationPhase8ReleaseProject(): string
 
     file_put_contents(
         $project . '/bootstrap/providers.php',
-        "<?php\n\ndeclare(strict_types=1);\n\nreturn ['common' => [FoundationPhase8ReleaseProvider::class]];\n",
+        "<?php\n\ndeclare(strict_types=1);\n\nreturn ['common' => [\\Infocyph\\FoundationPhase8ReleaseProvider::class]];\n",
     );
     file_put_contents(
         $project . '/routes/workers.php',
-        "<?php\n\ndeclare(strict_types=1);\n\nreturn ['phase8-provider' => FoundationPhase8ReleaseWorkerProvider::class];\n",
+        "<?php\n\ndeclare(strict_types=1);\n\nreturn ['phase8-provider' => \\Infocyph\\FoundationPhase8ReleaseWorkerProvider::class];\n",
     );
     file_put_contents(
         $project . '/routes/web.php',
@@ -998,7 +1006,7 @@ declare(strict_types=1);
 
 use Infocyph\Webrick\Router\Facade\Router;
 
-Router::get('/phase8', FoundationPhase8ReleaseWebHandler::class, ['name' => 'phase8.show']);
+Router::get('/phase8', \Infocyph\FoundationPhase8ReleaseWebHandler::class, ['name' => 'phase8.show']);
 PHP,
     );
 
