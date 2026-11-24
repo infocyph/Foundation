@@ -37,6 +37,7 @@ $cache = Cache::redis(
     ),
 );
 
+fwrite(STDOUT, "ready\n");
 if (fgets(STDIN) !== "go\n") {
     throw new InvalidArgumentException('CacheLayer worker did not receive its start signal.');
 }

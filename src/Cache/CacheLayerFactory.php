@@ -185,6 +185,8 @@ final readonly class CacheLayerFactory
      * @throws \Infocyph\CacheLayer\Node\Exception\NodeCacheConfigurationException
      * @throws \Infocyph\CacheLayer\Exceptions\CacheInvalidArgumentException
      * @throws \Infocyph\CacheLayer\Node\Exception\NodeCacheStorageException
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function nodeMaintenance(string $name): NodeCacheMaintenance
     {

@@ -71,6 +71,7 @@ final readonly class RiskTelemetry
         $reliable = $this->qualified;
 
         try {
+            /** @var mixed $value Cache payload is validated before use. */
             foreach ($this->cache->getMultiple(array_values($keys)) as $key => $value) {
                 // Cache values are untrusted until the observation reducer validates them.
                 $values[$key] = self::observationValue($value);
@@ -124,6 +125,15 @@ final readonly class RiskTelemetry
         }
     }
 
+    private static function observationValue(mixed $value): int|false|null
+    {
+        return match (true) {
+            $value === null => null,
+            is_int($value) && $value >= 1 && $value <= self::MAX_COUNT => $value,
+            default => false,
+        };
+    }
+
     /**
      * @return array<string,string>
      * @throws \InvalidArgumentException
@@ -147,15 +157,6 @@ final readonly class RiskTelemetry
         }
 
         return $keys;
-    }
-
-    private static function observationValue(mixed $value): int|false|null
-    {
-        return match (true) {
-            $value === null => null,
-            is_int($value) && $value >= 1 && $value <= self::MAX_COUNT => $value,
-            default => false,
-        };
     }
 
     /**

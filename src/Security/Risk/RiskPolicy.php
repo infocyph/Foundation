@@ -111,6 +111,16 @@ final readonly class RiskPolicy
         return new RiskAssessment($action, $score, $reasons, $this->shadow);
     }
 
+    /** @throws \InvalidArgumentException */
+    private static function normalizeMarker(mixed $marker): string
+    {
+        if (!is_string($marker) || $marker === '' || strlen($marker) > 64 || preg_match('/[\x00-\x1f\x7f]/', $marker) !== 0) {
+            throw new \InvalidArgumentException('Invalid curated agent marker.');
+        }
+
+        return strtolower($marker);
+    }
+
     /**
      * @param array<array-key,mixed> $agentMarkers
      * @return array<string,list<string>>
@@ -129,16 +139,6 @@ final readonly class RiskPolicy
         }
 
         return $normalized;
-    }
-
-    /** @throws \InvalidArgumentException */
-    private static function normalizeMarker(mixed $marker): string
-    {
-        if (!is_string($marker) || $marker === '' || strlen($marker) > 64 || preg_match('/[\x00-\x1f\x7f]/', $marker) !== 0) {
-            throw new \InvalidArgumentException('Invalid curated agent marker.');
-        }
-
-        return strtolower($marker);
     }
 
     private function mismatchedAgent(RiskContext $context): bool

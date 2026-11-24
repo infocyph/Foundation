@@ -41,8 +41,8 @@ it('uses named historical source branches instead of hardcoded revisions', funct
         $references = [];
         foreach (array_keys($steps) as $index) {
             $step = foundationStringMap($steps[$index]);
-            $with = $step['with'] ?? [];
-            if (is_array($with) && ($with['path'] ?? null) === 'historical') {
+            $with = foundationStringMap($step['with'] ?? []);
+            if (($with['path'] ?? null) === 'historical') {
                 $references[] = foundationFixtureString($with['ref'] ?? null);
             }
         }

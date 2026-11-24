@@ -205,7 +205,9 @@ function foundationCacheLayerAtomicRedisDsn(): string
 
 /**
  * @return list<string>
+ * @throws \InvalidArgumentException
  * @throws \RuntimeException
+ * @throws \JsonException
  */
 function foundationCacheLayerAtomicWorkers(
     string $mode,
@@ -218,80 +220,114 @@ function foundationCacheLayerAtomicWorkers(
         throw new InvalidArgumentException('Invalid concurrency worker count.');
     }
     $processes = [];
-    $worker = dirname(__DIR__) . '/Fixtures/cachelayer_atomic_worker.php';
+    $command = [PHP_BINARY, dirname(__DIR__) . '/Fixtures/cachelayer_atomic_worker.php', $mode, $namespace, $dsn, $argument];
     $results = [];
 
     try {
         for ($i = 0; $i < $count; ++$i) {
-            $pipes = [];
-            $process = proc_open(
-                [PHP_BINARY, $worker, $mode, $namespace, $dsn, $argument],
-                [
-                    0 => ['pipe', 'r'],
-                    1 => ['pipe', 'w'],
-                    2 => ['pipe', 'w'],
-                ],
-                $pipes,
-            );
-            if (!is_resource($process)) {
-                throw new RuntimeException('Unable to start CacheLayer concurrency worker.');
-            }
-            $processes[] = [$process, $pipes[0], $pipes[1], $pipes[2]];
+            $processes[] = foundationCacheLayerStartWorker($command);
         }
+        foundationCacheLayerReleaseWorkers($processes);
 
-        // Each worker waits for permission after initializing its own cache client.
-        // Start only after every child has been created.
-        foreach ($processes as [, $stdin]) {
-            if (fwrite($stdin, "go\n") !== 3) {
-                throw new RuntimeException('Unable to release CacheLayer worker start barrier.');
-            }
-            fclose($stdin);
-        }
-
-        $deadline = hrtime(true) + 30_000_000_000;
-        foreach ($processes as $index => [$process, , $stdout, $stderr]) {
-            do {
-                $state = proc_get_status($process);
-                if (!$state['running']) {
-                    break;
-                }
-                if (hrtime(true) >= $deadline) {
-                    throw new RuntimeException('CacheLayer concurrency worker deadline exceeded.');
-                }
-                usleep(1_000);
-            } while (true);
-
-            $output = trim((string) stream_get_contents($stdout));
-            $error = trim((string) stream_get_contents($stderr));
-            fclose($stdout);
-            fclose($stderr);
-            $status = proc_close($process);
+        $deadline = time() + 30;
+        foreach ($processes as $index => $worker) {
+            foundationCacheLayerWaitWorker($worker[0], $deadline);
+            $output = trim((string) stream_get_contents($worker[2]));
+            $error = trim((string) stream_get_contents($worker[3]));
+            $status = foundationCacheLayerCloseWorker($worker);
             unset($processes[$index]);
-            if ($status !== 0 || $state['exitcode'] !== 0) {
+            if ($status !== 0) {
                 throw new RuntimeException('CacheLayer concurrency worker failed: ' . $error);
             }
-            $decoded = json_decode($output, true, flags: JSON_THROW_ON_ERROR);
-            $results[] = match (true) {
-                $decoded === true => '1',
-                $decoded === false => '0',
-                is_int($decoded) => (string) $decoded,
-                is_string($decoded) => $decoded,
-                default => throw new RuntimeException('Unexpected CacheLayer concurrency worker result.'),
-            };
+            $results[] = foundationCacheLayerWorkerResult(json_decode($output, true, flags: JSON_THROW_ON_ERROR));
         }
     } finally {
-        foreach ($processes as [$process, $stdin, $stdout, $stderr]) {
-            proc_terminate($process, 9);
-            foreach ([$stdin, $stdout, $stderr] as $pipe) {
-                if (is_resource($pipe)) {
-                    fclose($pipe);
-                }
-            }
-            proc_close($process);
+        foreach ($processes as $worker) {
+            proc_terminate($worker[0], 9);
+            foundationCacheLayerCloseWorker($worker);
         }
     }
 
     sort($results, SORT_STRING);
 
     return $results;
+}
+
+/**
+ * @param list<string> $command
+ * @return array{resource,resource,resource,resource}
+ * @throws \RuntimeException
+ */
+function foundationCacheLayerStartWorker(array $command): array
+{
+    $pipes = [];
+    $process = proc_open($command, [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ], $pipes);
+    if (!is_resource($process)) {
+        throw new RuntimeException('Unable to start CacheLayer concurrency worker.');
+    }
+
+    return [$process, $pipes[0], $pipes[1], $pipes[2]];
+}
+
+/**
+ * @param list<array{resource,resource,resource,resource}> $workers
+ * @throws \RuntimeException
+ */
+function foundationCacheLayerReleaseWorkers(array $workers): void
+{
+    $deadline = time() + 30;
+    foreach ($workers as [, , $stdout]) {
+        $read = [$stdout];
+        $write = null;
+        $except = null;
+        $remaining = max(0, $deadline - time());
+        if (stream_select($read, $write, $except, $remaining) !== 1 || fgets($stdout) !== "ready\n") {
+            throw new RuntimeException('CacheLayer concurrency worker readiness deadline exceeded.');
+        }
+    }
+    foreach ($workers as [, $stdin]) {
+        if (fwrite($stdin, "go\n") !== 3) {
+            throw new RuntimeException('Unable to release CacheLayer worker start barrier.');
+        }
+    }
+}
+
+/**
+ * @param resource $process
+ * @throws \RuntimeException
+ */
+function foundationCacheLayerWaitWorker($process, int $deadline): void
+{
+    while (proc_get_status($process)['running']) {
+        if (time() >= $deadline) {
+            throw new RuntimeException('CacheLayer concurrency worker deadline exceeded.');
+        }
+        usleep(1_000);
+    }
+}
+
+/** @param array{resource,resource,resource,resource} $worker */
+function foundationCacheLayerCloseWorker(array $worker): int
+{
+    [$process, $stdin, $stdout, $stderr] = $worker;
+    fclose($stdin);
+    fclose($stdout);
+    fclose($stderr);
+
+    return proc_close($process);
+}
+
+/** @throws \RuntimeException */
+function foundationCacheLayerWorkerResult(mixed $result): string
+{
+    return match (true) {
+        $result === true => '1',
+        $result === false => '0',
+        is_int($result), is_string($result) => (string) $result,
+        default => throw new RuntimeException('Unexpected CacheLayer concurrency worker result.'),
+    };
 }
