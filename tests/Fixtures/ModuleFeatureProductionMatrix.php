@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph;
 
 use ErrorException;
+use FilesystemIterator;
 use InvalidArgumentException;
 use LogicException;
 use RecursiveDirectoryIterator;
