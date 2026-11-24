@@ -13,6 +13,7 @@ redis_pid=''
 fpm_pid=''
 runwire_pid=''
 nginx_pid=''
+caddy_pid=''
 client_pid=''
 stop_fpm() {
     if [[ -n "$fpm_pid" ]]; then
@@ -24,7 +25,7 @@ stop_fpm() {
 cleanup() {
     status=$?
     trap - EXIT
-    for pid in "$client_pid" "$nginx_pid" "$runwire_pid" "$fpm_pid" "$redis_pid"; do
+    for pid in "$client_pid" "$caddy_pid" "$nginx_pid" "$runwire_pid" "$fpm_pid" "$redis_pid"; do
         if [[ -n "$pid" ]]; then
             kill -TERM "$pid" 2>/dev/null || :
             wait "$pid" 2>/dev/null || :
@@ -216,6 +217,45 @@ status_is login 200
 status_is deny 403
 echo "Dedicated FPM and ordinary Runwire isolation, deadline, killed-owner fail-closed and drained recovery verified."
 
+# TLS terminates at a real loopback edge; the two upstream hosts remain isolated.
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=Foundation fixture CA' \
+    -addext 'basicConstraints=critical,CA:TRUE' \
+    -addext 'keyUsage=critical,keyCertSign,cRLSign' \
+    -keyout "$root/edge-ca.key" -out "$root/edge-ca.pem" >/dev/null 2>&1
+openssl req -newkey rsa:2048 -nodes -subj '/CN=localhost' \
+    -keyout "$root/edge.key" -out "$root/edge.csr" >/dev/null 2>&1
+printf 'basicConstraints=critical,CA:FALSE\nsubjectAltName=DNS:localhost,IP:127.0.0.1\nextendedKeyUsage=serverAuth\n' > "$root/edge.ext"
+openssl x509 -req -days 1 -in "$root/edge.csr" -CA "$root/edge-ca.pem" -CAkey "$root/edge-ca.key" \
+    -CAcreateserial -extfile "$root/edge.ext" -out "$root/edge.pem"
+cat > "$root/Caddyfile" <<CONF
+{
+    admin off
+    auto_https disable_redirects
+    servers {
+        protocols h1 h2 h3
+    }
+}
+https://localhost:19104 {
+    bind 127.0.0.1
+    tls $root/edge.pem $root/edge.key
+    reverse_proxy 127.0.0.1:19103
+}
+CONF
+caddy version > "$evidence/caddy.txt"
+XDG_DATA_HOME="$root/caddy-data" XDG_CONFIG_HOME="$root/caddy-config" \
+    caddy run --config "$root/Caddyfile" --adapter caddyfile > "$root/caddy.log" 2>&1 &
+caddy_pid=$!
+for ((i = 0; i < 100; ++i)); do
+    kill -0 "$caddy_pid"
+    if curl --noproxy '*' --resolve localhost:19104:127.0.0.1 --cacert "$root/edge-ca.pem" \
+        -fsS --max-time 3 https://localhost:19104/ordinary > /dev/null; then break; fi
+    sleep 0.1
+done
+python3 -m venv "$root/edge-venv"
+"$root/edge-venv/bin/python" -m pip install --disable-pip-version-check \
+    'httpx[http2]>=0.28,<1' 'aioquic>=1.2,<2'
+"$root/edge-venv/bin/python" tests/Fixtures/risk_host_protocols.py "$root/edge-ca.pem" "$evidence/protocols.json"
+cp "$root/Caddyfile" "$evidence/Caddyfile"
 cp "$root/fpm.conf" "$evidence/fpm.conf"
 cp "$root/nginx.conf" "$evidence/nginx.conf"
 python3 tests/Fixtures/risk_host_load.py "$evidence/results.json" "$fpm_pid"

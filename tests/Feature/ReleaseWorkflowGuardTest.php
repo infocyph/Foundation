@@ -133,6 +133,17 @@ it('requires the actual risk provider wire qualification on every supported PHP 
         ->not->toContain('ignore-platform-req', 'continue-on-error');
 });
 
+it('requires the isolated authentication host and sustained acceptance gate', function (): void {
+    $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $job = foundationStringMap($workflow['jobs']['risk-host-qualification'] ?? null);
+    expect($job['runs-on'] ?? null)->toBe('ubuntu-latest')
+        ->and($job['timeout-minutes'] ?? null)->toBe(55)
+        ->and($job)->not->toHaveKey('continue-on-error');
+    expect(json_encode($job['steps'], JSON_THROW_ON_ERROR))
+        ->toContain('nginx caddy redis-server', 'risk_host_qualification.sh', 'foundation-risk-host-qualification')
+        ->not->toContain('ignore-platform-req', 'continue-on-error');
+});
+
 it('keeps the retired full throughput certification out of the release workflow without faking a pass', function (): void {
     $root = dirname(__DIR__, 2);
     $workflow = foundationReleaseWorkflow($root . '/.github/workflows/security-standards.yml');

@@ -585,7 +585,7 @@ jobs:
       - name: Install real authentication and ordinary hosts
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends nginx redis-server redis-tools
+          sudo apt-get install -y -qq --no-install-recommends nginx caddy redis-server redis-tools python3-venv
           version="$(php -r 'echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;')"
           if ! command -v "php-fpm$version" >/dev/null; then
             sudo apt-get install -y -qq --no-install-recommends "php$version-fpm"

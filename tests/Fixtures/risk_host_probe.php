@@ -24,6 +24,7 @@ use Infocyph\Foundation\Security\Risk\RiskLogin;
 use Infocyph\Foundation\Security\Risk\RiskPolicy;
 use Infocyph\Foundation\Security\Risk\RiskTelemetry;
 use Infocyph\Webrick\Request\Request;
+use Infocyph\Webrick\Request\Support\IpCidr;
 use Infocyph\Webrick\Response\Response;
 use RuntimeException;
 
@@ -72,6 +73,7 @@ $path = match ($_SERVER['REQUEST_URI'] ?? null) {
     '/baseline' => 'baseline',
     '/login' => 'login',
     '/deny' => 'deny',
+    '/challenge' => 'challenge',
     '/hold' => 'hold',
     default => throw new RuntimeException('Unknown host fixture route.'),
 };
@@ -127,11 +129,19 @@ if ($path === 'hold') {
         $services->lockouts(),
     );
 }
-$guard = new RiskLogin($authenticator, new RiskPolicy(), new RiskTelemetry($cache, str_repeat('t', 32), shared: true), bulkhead: $bulkhead);
+$fingerprint = 't13d1516h2_8daaf6152771_02713d6af862';
+// Deterministic server-owned test signals, not a claim to measure the client JA4.
+$policy = $path === 'challenge'
+    ? new RiskPolicy(agentMarkers: [$fingerprint => ['ExpectedBrowser/']], unfamiliarWeight: 0)
+    : new RiskPolicy();
+$context = $path === 'challenge'
+    ? RiskContext::fromTransport('fixture-challenge', 'login', '127.0.0.1', [IpCidr::from('127.0.0.1/32')], ['192.0.2.1'], [$fingerprint], [], ['FixtureBrowser/1'])
+    : RiskContext::fromTransport('fixture', 'login', '127.0.0.1');
+$guard = new RiskLogin($authenticator, $policy, new RiskTelemetry($cache, str_repeat('t', 32), shared: true), bulkhead: $bulkhead);
 $response = $guard->handle(
     Request::fromGlobals(),
     $login,
-    RiskContext::fromTransport('fixture', 'login', '127.0.0.1'),
+    $context,
     time(),
     $render,
     hardDeny: $path === 'deny',

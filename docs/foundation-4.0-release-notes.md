@@ -38,6 +38,10 @@ published tag or release date.
   services and selected libraries, including intermediary callers. Capability
   checks retain normal synchronous paths where the host lacks a capability.
 
+## Optional risk admission
+
+Foundation owns optional risk assessment, telemetry, challenge verification and device trust; Webrick owns HTTP admission and response semantics. The feature remains disabled unless the application explicitly composes the protected login route. Shared CacheLayer authority and a dedicated authentication pool are required for authoritative distributed hash admission. Trust signals must come from a verified host boundary; a device identifier alone is not possession proof. Provider verification uses HTTPS over HTTP/1.1 with strict URI and peer checks. The release gate additionally requires the isolated real provider, worker lifecycle, edge HTTP/1.1–3 parity and scoped 30-minute mixed-route soak. This scoped acceptance is distinct from the retired Foundation-wide sustained comparison; it is not a production-wide capacity or equivalence claim. See the risk-admission documentation for deployment requirements.
+
 ## Foundation 4 module CLI and breaking selection contract
 
 The Foundation 4 public module catalog contains **three groups and eight independently selectable features**:
