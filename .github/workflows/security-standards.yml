@@ -383,9 +383,10 @@ jobs:
             }
             echo "Extension-only native gRPC roundtrip and close verified.\n";
           '
-          # First exercise the same real extension/stub outside the Foundation application.
-          # This retains strict failure status and distinguishes native shutdown failure.
-          php -r '
+          # BaseStub initializes process-global default roots even for this insecure loopback.
+          # The fixture closes its own channel and invalidates only roots that it initialized.
+          # Keep normal PHP configuration and strict exit status; collect a backtrace if it crashes.
+          standalone_php='
             require "vendor/autoload.php";
             $port = filter_var(getenv("GRPC_TEST_PORT"), FILTER_VALIDATE_INT, ["options" => ["min_range" => 1, "max_range" => 65535]]);
             if (!is_int($port)) {
@@ -400,8 +401,18 @@ jobs:
             } finally {
                 $stub->close();
             }
+            unset($result, $stub);
             echo "Standalone native gRPC roundtrip and close verified.\n";
           '
+          if php -r "$standalone_php"; then
+            :
+          else
+            status=$?
+            if [[ "$status" -eq 139 ]] && command -v gdb >/dev/null; then
+              gdb --batch -ex run -ex "thread apply all bt" --args "$(command -v php)" -r "$standalone_php" || :
+            fi
+            exit "$status"
+          fi
           GRPC_TEST_PORT="$GRPC_TEST_PORT" php tests/Fixtures/talkingbytes_grpc_probe.php
 
   historical-dependency-provenance:

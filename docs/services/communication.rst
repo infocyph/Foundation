@@ -278,3 +278,7 @@ The native qualification also includes an extension-only unary control
 with no Composer autoload or other configured PHP extensions. It is a
 strict additional diagnostic gate, not an alternative to the package and
 Foundation integration probes.
+
+The loopback fixture also explicitly disposes the process-global default
+root state only when its own stub initialized it. This is fixture-owned
+cleanup, not a recommendation to reset shared TLS state in production.
