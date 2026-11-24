@@ -15,6 +15,7 @@ it('requires tagged releases to pass the complete security, consumer, migration 
         'runtime-hosts',
         'talkingbytes-mailpit',
         'talkingbytes-grpc',
+        'risk-provider-wire',
         'historical-dependency-provenance',
         'cross-major-auth-rehearsal',
         'redis-cluster',
@@ -116,6 +117,19 @@ it('requires real native gRPC on the qualified PHP versions without ignoring fai
         'Standalone native gRPC roundtrip',
         'talkingbytes_grpc_probe.php',
     )->not->toContain('continue-on-error', 'ignore-platform-req');
+});
+
+it('requires the actual risk provider wire qualification on every supported PHP version', function (): void {
+    $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $job = foundationStringMap($workflow['jobs']['risk-provider-wire'] ?? null);
+    $strategy = foundationStringMap($job['strategy'] ?? null);
+    $matrix = foundationStringMap($strategy['matrix'] ?? null);
+    expect($matrix['php'] ?? null)->toBe(['8.4', '8.5', '8.6'])
+        ->and($strategy['fail-fast'] ?? null)->toBeFalse()
+        ->and($job)->not->toHaveKey('continue-on-error');
+    expect(json_encode($job['steps'], JSON_THROW_ON_ERROR))
+        ->toContain('sudo unshare --net', 'risk_provider_qualification.sh')
+        ->not->toContain('ignore-platform-req', 'continue-on-error');
 });
 
 it('keeps the retired full throughput certification out of the release workflow without faking a pass', function (): void {
