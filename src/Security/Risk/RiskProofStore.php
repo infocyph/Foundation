@@ -111,8 +111,8 @@ final readonly class RiskProofStore
         if ($stored === null) {
             return false;
         }
-        if (!is_array($stored) || !is_string($stored['binding'] ?? null)
-            || !is_int($stored['expires'] ?? null)
+        if (!is_array($stored) || !isset($stored['binding'], $stored['expires'])
+            || !is_string($stored['binding']) || !is_int($stored['expires'])
         ) {
             return null;
         }

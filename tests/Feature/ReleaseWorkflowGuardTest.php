@@ -39,9 +39,11 @@ it('uses named historical source branches instead of hardcoded revisions', funct
         $steps = $workflow['jobs'][$name]['steps'] ?? null;
         \PHPUnit\Framework\Assert::assertIsArray($steps);
         $references = [];
-        foreach ($steps as $step) {
-            if (is_array($step) && is_array($step['with'] ?? null) && ($step['with']['path'] ?? null) === 'historical') {
-                $references[] = $step['with']['ref'] ?? null;
+        foreach (array_keys($steps) as $index) {
+            $step = foundationStringMap($steps[$index]);
+            $with = $step['with'] ?? [];
+            if (is_array($with) && ($with['path'] ?? null) === 'historical') {
+                $references[] = foundationFixtureString($with['ref'] ?? null);
             }
         }
         expect($references)->toBe(['archive/foundation-3']);
@@ -66,10 +68,8 @@ it('checks real native Runwire serving on the supported PHP versions and Swoole 
         ->and($host)->not->toHaveKey('continue-on-error');
 
     $scripts = [];
-    foreach ($steps as $step) {
-        if (!is_array($step)) {
-            throw new UnexpectedValueException('Native runtime steps must be YAML mappings.');
-        }
+    foreach (array_keys($steps) as $index) {
+        $step = foundationStringMap($steps[$index]);
         if (isset($step['run'])) {
             if (!is_string($step['run'])) {
                 throw new UnexpectedValueException('Native runtime step must use a literal shell script.');

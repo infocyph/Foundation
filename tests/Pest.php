@@ -73,15 +73,14 @@ namespace {
         if (!is_array($value)) {
             throw new UnexpectedValueException('Expected a fixture map.');
         }
-        $map = [];
-        foreach ($value as $key => $item) {
+        foreach (array_keys($value) as $key) {
             if (!is_string($key)) {
                 throw new UnexpectedValueException('Fixture maps require string keys.');
             }
-            $map[$key] = $item;
         }
 
-        return $map;
+        /** @var array<string,mixed> $value All keys were validated above. */
+        return $value;
     }
 
     /** @throws UnexpectedValueException */

@@ -116,7 +116,7 @@ final readonly class RiskChallengeVerifier
             'response' => $proof,
             'remoteip' => $context->ip,
         ], '', '&', PHP_QUERY_RFC3986);
-        $body = new class ($payload) implements ClientBodySourceInterface {
+        $body = new class($payload) implements ClientBodySourceInterface {
             private int $offset = 0;
 
             public function __construct(#[\SensitiveParameter] private readonly string $payload) {}
@@ -229,7 +229,7 @@ final readonly class RiskChallengeVerifier
     ): ?bool {
         $deferred = $scope->deferred();
         $future = $deferred->future();
-        $response = new class {
+        $response = new class() {
             public bool $invalid = false;
 
             public string $payload = '';
@@ -268,9 +268,11 @@ final readonly class RiskChallengeVerifier
         );
 
         try {
-            $result = $future->await();
-
-            return is_bool($result) ? $result : null;
+            return match ($future->await()) {
+                true => true,
+                false => false,
+                default => null,
+            };
         } finally {
             $handle->cancel();
         }

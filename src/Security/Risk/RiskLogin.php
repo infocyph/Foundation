@@ -47,8 +47,10 @@ final readonly class RiskLogin
         RiskContext $context,
         int $now,
         callable $render,
-        #[\SensitiveParameter] ?string $clearance = null,
-        #[\SensitiveParameter] ?string $deviceCookie = null,
+        #[\SensitiveParameter]
+        ?string $clearance = null,
+        #[\SensitiveParameter]
+        ?string $deviceCookie = null,
         ?string $canonicalAccount = null,
         bool $hardDeny = false,
     ): Response {
@@ -115,8 +117,14 @@ final readonly class RiskLogin
      * @throws \InvalidArgumentException
      * @throws \UnexpectedValueException
      */
-    private function decision(RiskAssessment $assessment, RiskContext $context, string $account, int $now, #[\SensitiveParameter] ?string $clearance): RiskDecision
-    {
+    private function decision(
+        RiskAssessment $assessment,
+        RiskContext $context,
+        string $account,
+        int $now,
+        #[\SensitiveParameter]
+        ?string $clearance,
+    ): RiskDecision {
         $decision = match ($assessment->action) {
             'allow' => RiskDecision::allow($assessment->score, $assessment->reasons),
             'deny' => RiskDecision::deny($assessment->score, $assessment->reasons),

@@ -55,6 +55,7 @@ final readonly class RiskHashBulkhead
     public function acquire(): ?array
     {
         $owner = bin2hex(random_bytes(32));
+
         try {
             foreach ($this->slots as $slot => $key) {
                 if ($this->authority->atomic->compareAndSet($key, self::FREE, $owner)) {

@@ -125,15 +125,20 @@ final readonly class RiskPolicy
             ) {
                 throw new \InvalidArgumentException('Invalid curated fingerprint mapping.');
             }
-            foreach ($markers as $marker) {
-                if (!is_string($marker) || $marker === '' || strlen($marker) > 64 || preg_match('/[\x00-\x1f\x7f]/', $marker) !== 0) {
-                    throw new \InvalidArgumentException('Invalid curated agent marker.');
-                }
-                $normalized[$fingerprint][] = strtolower($marker);
-            }
+            $normalized[$fingerprint] = array_map(self::normalizeMarker(...), $markers);
         }
 
         return $normalized;
+    }
+
+    /** @throws \InvalidArgumentException */
+    private static function normalizeMarker(mixed $marker): string
+    {
+        if (!is_string($marker) || $marker === '' || strlen($marker) > 64 || preg_match('/[\x00-\x1f\x7f]/', $marker) !== 0) {
+            throw new \InvalidArgumentException('Invalid curated agent marker.');
+        }
+
+        return strtolower($marker);
     }
 
     private function mismatchedAgent(RiskContext $context): bool

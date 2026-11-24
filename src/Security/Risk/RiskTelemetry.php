@@ -72,7 +72,8 @@ final readonly class RiskTelemetry
 
         try {
             foreach ($this->cache->getMultiple(array_values($keys)) as $key => $value) {
-                $values[$key] = $value;
+                // Cache values are untrusted until the observation reducer validates them.
+                $values[$key] = self::observationValue($value);
             }
         } catch (CacheException|PoolException) {
             $reliable = false;
@@ -148,6 +149,33 @@ final readonly class RiskTelemetry
         return $keys;
     }
 
+    private static function observationValue(mixed $value): int|false|null
+    {
+        return match (true) {
+            $value === null => null,
+            is_int($value) && $value >= 1 && $value <= self::MAX_COUNT => $value,
+            default => false,
+        };
+    }
+
+    /**
+     * @param array<string,string> $keys
+     * @param array<array-key,int|false|null> $values
+     * @return array{?bool,bool}
+     */
+    private function familiarity(array $keys, array $values, bool $reliable): array
+    {
+        if (!isset($keys['familiar'])) {
+            return [null, $reliable];
+        }
+
+        return match (true) {
+            ($values[$keys['familiar']] ?? null) === 1 => [true, $reliable],
+            ($values[$keys['familiar']] ?? null) !== null => [null, false],
+            default => [$reliable ? false : null, $reliable],
+        };
+    }
+
     /** @throws CacheException */
     private function increment(AtomicCacheInterface $atomic, string $key, int $ttl): bool
     {
@@ -182,31 +210,21 @@ final readonly class RiskTelemetry
 
     /**
      * @param array<string,string> $keys
-     * @param array<array-key,mixed> $values
+     * @param array<array-key,int|false|null> $values
      * @return array{familiar:?bool,failedSignatureAttempts:int,concentrated:bool,reliable:bool}
      */
     private function summarize(array $keys, array $values, bool $reliable): array
     {
-        $familiar = null;
+        [$familiar, $reliable] = $this->familiarity($keys, $values, $reliable);
+        unset($keys['familiar']);
         $signature = 0;
         $concentrated = false;
-        if (isset($keys['familiar'])) {
-            $value = $values[$keys['familiar']] ?? null;
-            if ($value === 1) {
-                $familiar = true;
-            } elseif ($value !== null) {
-                $reliable = false;
-            } elseif ($reliable) {
-                $familiar = false;
-            }
-            unset($keys['familiar']);
-        }
         foreach ($keys as $dimension => $key) {
             $value = $values[$key] ?? null;
             if ($value === null) {
                 continue;
             }
-            if (!is_int($value) || $value < 1 || $value > self::MAX_COUNT) {
+            if ($value === false) {
                 $reliable = false;
 
                 continue;
