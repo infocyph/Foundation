@@ -308,3 +308,7 @@ modules before running; unrelated modules, including Redis and APCu, are
 not loaded in this transport-specific process. Shared-cache integration
 continues in its separate required jobs. Built-in PHP modules remain
 available without being loaded a second time.
+
+PHP 8.5 and newer can include OPcache in the PHP executable itself.
+The private profile allows the built-in module but disables OPcache
+execution and JIT, and rejects an unexpectedly loaded shared OPcache.
