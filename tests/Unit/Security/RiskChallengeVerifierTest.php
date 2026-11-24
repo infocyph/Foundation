@@ -58,12 +58,12 @@ it('fails closed for redirects malformed responses and incorrect challenge scope
     }
 });
 
-it('blocks a private DNS answer before opening an outbound socket using Runwire', function (): void {
+it('blocks private DNS answers and times out stalled resolution before opening a socket', function (bool $stall): void {
     $loop = new SelectLoop();
-    $resolver = new class ($loop) implements DnsResolverInterface {
+    $resolver = new class ($loop, $stall) implements DnsResolverInterface {
         public int $calls = 0;
 
-        public function __construct(private readonly SelectLoop $loop) {}
+        public function __construct(private readonly SelectLoop $loop, private readonly bool $stall) {}
 
         #[\Override]
         public function cancel(int $id): bool
@@ -76,25 +76,28 @@ it('blocks a private DNS answer before opening an outbound socket using Runwire'
         /**
          * @param callable(list<string>,?\Throwable):void $completion
          * @throws \OverflowException
+         * @throws \InvalidArgumentException
          */
         #[\Override]
         public function resolve(string $hostname, callable $completion, ?CancellationToken $token = null, ?RequestDeadline $deadline = null): int
         {
             ++$this->calls;
 
-            return $this->loop->defer(static function () use ($completion, $hostname, $token, $deadline): void {
+            $complete = static function () use ($completion, $hostname, $token, $deadline): void {
                 if ($hostname === 'verify.example.test' && !($token?->isCancelled() ?? false) && !($deadline?->expired() ?? false)) {
                     $completion(['127.0.0.1'], null);
                 } else {
                     $completion([], new \RuntimeException('Unexpected DNS request.'));
                 }
-            });
+            };
+
+            return $this->stall ? $this->loop->delay(1.0, $complete) : $this->loop->defer($complete);
         }
     };
     $numeric = new Dialer($loop);
     $dialer = new HappyEyeballsDialer($loop, $numeric, $resolver);
     $dispatcher = new HttpOutboundDispatcher($loop, $dialer);
-    $provider = new RiskChallengeVerifier('https://verify.example.test/siteverify', 'secret', 'app.example.test', 'tenant', 'login');
+    $provider = new RiskChallengeVerifier('https://verify.example.test/siteverify', 'secret', 'app.example.test', 'tenant', 'login', timeoutSeconds: $stall ? 0.05 : 3.0);
     try {
         $result = new CoroutineRuntime($loop)->run(static fn(CoroutineScope $scope): ?bool => $provider->verify(
             $scope,
@@ -110,4 +113,4 @@ it('blocks a private DNS answer before opening an outbound socket using Runwire'
         $dialer->close();
         $numeric->close();
     }
-});
+})->with([false, true]);
