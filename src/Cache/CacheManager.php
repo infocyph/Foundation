@@ -60,6 +60,12 @@ final class CacheManager
      *
      * @param callable(Connection, ClusterOutbox):mixed $callback
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \Infocyph\CacheLayer\Cluster\Exception\ClusterConfigurationException
+     * @throws \Infocyph\CacheLayer\Node\Exception\NodeCacheConfigurationException
+     * @throws \RuntimeException
+     * @throws \Infocyph\CacheLayer\Exceptions\CacheInvalidArgumentException
+     * @throws \LogicException
+     * @throws \Infocyph\CacheLayer\Cluster\Exception\ClusterCacheException
      */
     public function transactionalInvalidation(
         string $cluster,

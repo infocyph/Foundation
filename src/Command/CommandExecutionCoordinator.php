@@ -205,6 +205,8 @@ final class CommandExecutionCoordinator
     /**
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function lockProvider(): LockProviderInterface
     {

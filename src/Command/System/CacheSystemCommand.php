@@ -13,6 +13,10 @@ final class CacheSystemCommand extends SystemCommand
 {
     public function __construct(private readonly Application $application) {}
 
+    /**
+     * @throws \Infocyph\CacheLayer\Cluster\Exception\ClusterTransportException
+     * @throws \RuntimeException
+     */
     #[\Override]
     protected function handle(): int
     {
@@ -48,6 +52,10 @@ final class CacheSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @throws \Infocyph\CacheLayer\Cluster\Exception\ClusterTransportException
+     * @throws \RuntimeException
+     */
     private function schemaInstall(): int
     {
         $schemas = new CacheSchemaManager($this->application);

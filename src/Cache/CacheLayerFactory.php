@@ -488,6 +488,8 @@ final readonly class CacheLayerFactory
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
      * @throws \Infocyph\CacheLayer\Node\Exception\NodeCacheConfigurationException
      * @throws \Infocyph\CacheLayer\Exceptions\CacheInvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function nodeConfig(string $name, array $store): NodeCacheConfig
     {
