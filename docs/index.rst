@@ -75,6 +75,7 @@ the application lifecycle and providers.
    security/authorization
    security/sessions-csrf
    security/advanced-authentication
+   security/risk-admission
    security/production
 
 .. toctree::

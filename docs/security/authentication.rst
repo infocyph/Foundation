@@ -292,3 +292,7 @@ Read :doc:`authorization`,
 :doc:`../tutorials/secure-browser-session` and
 the :doc:`advanced-authentication` and
 :doc:`../reference/http-security-api` guides.
+
+For explicitly selected credential-stuffing protection, see
+:doc:`risk-admission`. It is optional and does not replace ordinary
+login, lockout, MFA or CSRF.
