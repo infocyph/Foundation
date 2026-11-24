@@ -77,6 +77,7 @@ final readonly class RiskChallengeVerifier
         if ($status !== 200 || strlen($payload) > self::MAX_RESPONSE_BYTES) {
             return null;
         }
+
         try {
             $response = json_decode($payload, true, 8, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
@@ -117,14 +118,12 @@ final readonly class RiskChallengeVerifier
             'remoteip' => $context->ip,
         ], '', '&', PHP_QUERY_RFC3986);
         $body = new class ($payload) implements ClientBodySourceInterface {
-            private readonly string $payload;
-
             private int $offset = 0;
 
-            public function __construct(#[\SensitiveParameter] string $payload)
-            {
-                $this->payload = $payload;
-            }
+            public function __construct(
+                #[\SensitiveParameter]
+                private readonly string $payload,
+            ) {}
 
             #[\Override]
             public function eof(): bool
@@ -182,6 +181,7 @@ final readonly class RiskChallengeVerifier
     ): ?bool {
         $scope->cancellation()->throwIfCancelled();
         $source = null;
+
         try {
             $start = hrtime(true);
             if (!is_int($start)) {
