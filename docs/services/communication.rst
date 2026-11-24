@@ -273,3 +273,8 @@ ext-grpc 1.85.4. The explicit ownership correction is being qualified on
 PHP 8.4, 8.5 and 8.6; do not claim the latter two combinations are
 supported for native gRPC until the standalone and full transport probes
 both exit cleanly. No native gRPC failure is ignored.
+
+The native qualification also includes an extension-only unary control
+with no Composer autoload or other configured PHP extensions. It is a
+strict additional diagnostic gate, not an alternative to the package and
+Foundation integration probes.

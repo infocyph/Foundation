@@ -347,6 +347,42 @@ jobs:
           fi
           export GRPC_TEST_PORT
           GRPC_TEST_PORT="$("$python" -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["port"])' "$root/ready.json")"
+          # Isolate the native extension from all Composer packages and other extensions.
+          # Use the same real peer, deadline, unary wire data and strict exit status.
+          grpc_module="$(php -r 'echo ini_get("extension_dir");')/grpc.so"
+          test -f "$grpc_module"
+          php -n -d "extension=$grpc_module" -r '
+            $port = filter_var(getenv("GRPC_TEST_PORT"), FILTER_VALIDATE_INT, ["options" => ["min_range" => 1, "max_range" => 65535]]);
+            if (!is_int($port)) {
+                throw new RuntimeException("Invalid native control port.");
+            }
+            $channel = new Grpc\Channel("127.0.0.1:" . $port, [
+                "credentials" => Grpc\ChannelCredentials::createInsecure(),
+                "force_new" => true,
+            ]);
+            try {
+                $deadline = Grpc\Timeval::now()->add(new Grpc\Timeval(3000000));
+                $call = new Grpc\Call($channel, "/foundation.Integration/Unary", $deadline);
+                $call->startBatch([
+                    Grpc\OP_SEND_INITIAL_METADATA => [],
+                    Grpc\OP_SEND_MESSAGE => ["message" => "extension-only"],
+                    Grpc\OP_SEND_CLOSE_FROM_CLIENT => true,
+                ]);
+                $event = $call->startBatch([
+                    Grpc\OP_RECV_INITIAL_METADATA => true,
+                    Grpc\OP_RECV_MESSAGE => true,
+                    Grpc\OP_RECV_STATUS_ON_CLIENT => true,
+                ]);
+                if ($event->status->code !== 0 || $event->message !== "echo:extension-only") {
+                    throw new RuntimeException("Extension-only native roundtrip failed.");
+                }
+                unset($event, $call, $deadline);
+            } finally {
+                $channel->close();
+                unset($channel);
+            }
+            echo "Extension-only native gRPC roundtrip and close verified.\n";
+          '
           # First exercise the same real extension/stub outside the Foundation application.
           # This retains strict failure status and distinguishes native shutdown failure.
           php -r '

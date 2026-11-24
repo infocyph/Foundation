@@ -97,6 +97,9 @@ it('requires real native gRPC on the qualified PHP versions without ignoring fai
     expect($matrix['php'] ?? null)->toBe(['8.4', '8.5', '8.6'])
         ->and($strategy['fail-fast'] ?? null)->toBeFalse()
         ->and($job)->not->toHaveKey('continue-on-error');
+    expect($job['steps'] ?? null)->toBeArray();
+    $encodedSteps = json_encode($job['steps'], JSON_THROW_ON_ERROR);
+    expect($encodedSteps)->toContain('Extension-only native gRPC roundtrip', 'Standalone native gRPC roundtrip', 'talkingbytes_grpc_probe.php');
 });
 
 it('keeps the retired full throughput certification out of the release workflow without faking a pass', function (): void {
