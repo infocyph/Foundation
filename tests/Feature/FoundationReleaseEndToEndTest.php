@@ -371,10 +371,10 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         foreach (['web', 'cli', 'worker', 'scheduler'] as $runtime) {
             $pointer = $generation . '/' . $runtime . '/container.php';
             $target = realpath($pointer);
+            \PHPUnit\Framework\Assert::assertIsString($target);
             expect(is_link($pointer))->toBeTrue()
                 ->and(is_file($pointer))->toBeTrue()
                 ->and(readlink($pointer))->toStartWith('container.php.builds/')
-                ->and($target)->toBeString()
                 ->and(is_file(dirname($target) . '/manifest.json'))->toBeTrue();
 
             if ($runtime !== 'web') {
