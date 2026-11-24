@@ -23,6 +23,10 @@ final readonly class FoundationGrpcFixtureStub
         $credentialClass = self::nativeClass('Grpc\\ChannelCredentials');
         $this->ownsDefaultRoots = (new ReflectionMethod($credentialClass, 'isDefaultRootsPemSet'))->invoke(null) === false;
         $credentials = (new ReflectionMethod($credentialClass, 'createInsecure'))->invoke(null);
+        if (!is_object($credentials)) {
+            throw new \RuntimeException('Native gRPC did not return credentials.');
+        }
+
         $this->inner = (new \ReflectionClass(self::nativeClass('Grpc\\BaseStub')))->newInstance(
             '127.0.0.1:' . $port,
             ['credentials' => $credentials, 'force_new' => true],

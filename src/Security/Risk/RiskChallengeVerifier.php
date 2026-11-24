@@ -117,9 +117,14 @@ final readonly class RiskChallengeVerifier
             'remoteip' => $context->ip,
         ], '', '&', PHP_QUERY_RFC3986);
         $body = new class ($payload) implements ClientBodySourceInterface {
+            private readonly string $payload;
+
             private int $offset = 0;
 
-            public function __construct(#[\SensitiveParameter] private readonly string $payload) {}
+            public function __construct(#[\SensitiveParameter] string $payload)
+            {
+                $this->payload = $payload;
+            }
 
             #[\Override]
             public function eof(): bool
