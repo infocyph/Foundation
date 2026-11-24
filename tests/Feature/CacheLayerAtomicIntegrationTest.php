@@ -196,7 +196,6 @@ it('keeps capacity closed when a real isolated owner process is killed', functio
     );
     $authority = new RiskAuthority($cache, str_repeat('k', 32), shared: true);
     $bulkhead = new RiskHashBulkhead($authority, 'abort-pool', 1, nonEvictingIsolatedPool: true);
-    $worker = null;
 
     try {
         expect($bulkhead->provisionDrainedPool())->toBeTrue();
@@ -204,25 +203,25 @@ it('keeps capacity closed when a real isolated owner process is killed', functio
             PHP_BINARY, dirname(__DIR__) . '/Fixtures/cachelayer_atomic_worker.php',
             'risk-hash-hold', $namespace, $dsn, 'abort-pool',
         ]);
-        foundationCacheLayerReleaseWorkers([$worker]);
-        $read = [$worker[2]];
-        $write = null;
-        $except = null;
-        expect(stream_select($read, $write, $except, 15))->toBe(1)
-            ->and(fgets($worker[2]))->toBe("held\n")
-            ->and($bulkhead->acquire())->toBeNull();
-        expect(proc_terminate($worker[0], 9))->toBeTrue();
-        foundationCacheLayerWaitWorker($worker[0], time() + 15);
-        $status = foundationCacheLayerCloseWorker($worker);
-        $worker = null;
+        try {
+            foundationCacheLayerReleaseWorkers([$worker]);
+            $read = [$worker[2]];
+            $write = null;
+            $except = null;
+            expect(stream_select($read, $write, $except, 15))->toBe(1)
+                ->and(fgets($worker[2]))->toBe("held\n")
+                ->and($bulkhead->acquire())->toBeNull();
+            expect(proc_terminate($worker[0], 9))->toBeTrue();
+            foundationCacheLayerWaitWorker($worker[0], time() + 15);
+        } finally {
+            proc_terminate($worker[0], 9);
+            $status = foundationCacheLayerCloseWorker($worker);
+        }
+
         expect($status)->not->toBe(0)
             ->and($bulkhead->acquire())->toBeNull()
             ->and($bulkhead->provisionDrainedPool())->toBeFalse();
     } finally {
-        if ($worker !== null) {
-            proc_terminate($worker[0], 9);
-            foundationCacheLayerCloseWorker($worker);
-        }
         // This namespace belongs exclusively to this completed test.
         $cache->clear();
     }
