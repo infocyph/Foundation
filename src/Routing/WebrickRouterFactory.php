@@ -89,6 +89,7 @@ final class WebrickRouterFactory
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function router(): Registrar
     {
@@ -121,6 +122,7 @@ final class WebrickRouterFactory
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function routes(): Collection
     {
@@ -153,7 +155,12 @@ final class WebrickRouterFactory
         return $aliases;
     }
 
-    /** @throws \Infocyph\Foundation\Exception\ConfigurationException */
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
+     */
     private function bindUrlServices(): void
     {
         $callback = $this->bindUrlServicesCallback();

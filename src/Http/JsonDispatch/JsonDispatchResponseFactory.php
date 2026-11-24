@@ -64,6 +64,7 @@ final readonly class JsonDispatchResponseFactory
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function failureFromValidation(
         ValidationResult $validation,
@@ -92,6 +93,7 @@ final readonly class JsonDispatchResponseFactory
     /**
      * @param callable(mixed): mixed|null $transform
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function paginated(
         PaginatorInterface $paginator,

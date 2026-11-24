@@ -179,6 +179,7 @@ final class AuthBench
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \LogicException
+     * @throws \RuntimeException
      */
     #[Bench\BeforeMethods('setUpAuthenticatedRequest')]
     public function benchWarmAuthenticatedRequest(): void

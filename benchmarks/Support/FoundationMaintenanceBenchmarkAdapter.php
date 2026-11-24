@@ -37,10 +37,10 @@ final class FoundationMaintenanceBenchmarkAdapter implements RuntimeAdapterInter
         return $this->runtimeCapabilities;
     }
 
-    #[\Override]
     /**
      * @throws \InvalidArgumentException
      */
+    #[\Override]
     public function context(
         mixed $nativeRequest = null,
         mixed $nativeResponse = null,

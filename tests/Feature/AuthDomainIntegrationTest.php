@@ -90,9 +90,7 @@ it('composes the complete credential and token lifecycle without eager sibling s
 
         expect($login->authenticated())->toBeTrue()
             ->and($session)->not->toBeNull();
-        if (!$session instanceof AuthSession) {
-            throw new LogicException('Expected an authentication session.');
-        }
+        \PHPUnit\Framework\Assert::assertInstanceOf(AuthSession::class, $session);
 
         $sessionStore = $app->make(SessionStoreInterface::class);
         $rotated = $services->sessions()->rotate($session->id);

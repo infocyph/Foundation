@@ -19,6 +19,7 @@ final class ServeProbe
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public static function read(): Response
     {

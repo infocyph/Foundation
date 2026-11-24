@@ -27,6 +27,8 @@ final readonly class RouteFileLoader
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function load(Registrar $router): void
     {
@@ -44,6 +46,7 @@ final readonly class RouteFileLoader
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
      * @throws \InvalidArgumentException
      * @throws \LogicException
+     * @throws \RuntimeException
      */
     public function loadForRelease(Registrar $router): void
     {

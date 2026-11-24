@@ -289,6 +289,10 @@ final class FoundationPhase8ReleaseProvider extends ServiceProvider
  */
 final class FoundationPhase8ReleaseWebHandler
 {
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function __invoke(): Response
     {
         return Response::json(['generation' => 'phase8-e2e']);
@@ -371,7 +375,7 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
                 ->and(is_file($pointer))->toBeTrue()
                 ->and(readlink($pointer))->toStartWith('container.php.builds/')
                 ->and($target)->toBeString()
-                ->and(is_file(dirname((string) $target) . '/manifest.json'))->toBeTrue();
+                ->and(is_file(dirname($target) . '/manifest.json'))->toBeTrue();
 
             if ($runtime !== 'web') {
                 expect(is_file($pointer . '.foundation.json'))->toBeTrue();
