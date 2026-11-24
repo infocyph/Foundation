@@ -45,6 +45,7 @@ it('checks real native Runwire serving on the supported PHP versions and Swoole 
 
     expect($matrix['php'] ?? null)->toBe(['8.4', '8.5', '8.6'])
         ->and($matrix['extension'] ?? null)->toBe(['swoole', 'openswoole'])
+        ->and($matrix['exclude'] ?? null)->toBe([['php' => '8.6', 'extension' => 'swoole']])
         ->and($strategy['fail-fast'] ?? null)->toBeFalse()
         ->and($host['runs-on'] ?? null)->toBe('ubuntu-latest')
         ->and($host)->not->toHaveKey('continue-on-error');
@@ -63,6 +64,7 @@ it('checks real native Runwire serving on the supported PHP versions and Swoole 
     }
     $commands = implode("\n", $scripts);
     expect($commands)->toContain(
+        'extension_loaded($extension)',
         'RuntimeEnvironmentProbe',
         'RuntimeDriver::SWOOLE',
         'tests/Feature/ServeCommandIntegrationTest.php',

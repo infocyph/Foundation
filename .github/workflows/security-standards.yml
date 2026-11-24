@@ -205,6 +205,11 @@ jobs:
       matrix:
         php: ["8.4", "8.5", "8.6"]
         extension: [swoole, openswoole]
+        exclude:
+          # Swoole 6.2.6 cannot compile against PHP 8.6 Zend APIs.
+          # PHP 8.6 native serving remains covered by OpenSwoole.
+          - php: "8.6"
+            extension: swoole
     steps:
       - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
@@ -217,10 +222,16 @@ jobs:
         run: composer update --no-interaction --no-progress --prefer-dist --prefer-stable
       - name: Require the selected real native host runtime
         shell: bash
+        env:
+          EXPECTED_NATIVE_EXTENSION: ${{ matrix.extension }}
         run: |
           set -euo pipefail
           php -r '
             require "vendor/autoload.php";
+            $extension = getenv("EXPECTED_NATIVE_EXTENSION");
+            if (!is_string($extension) || !extension_loaded($extension)) {
+              throw new RuntimeException("The selected native extension must be loaded.");
+            }
             if (!(new Infocyph\Runwire\Runtime\RuntimeEnvironmentProbe())->probe()->isAvailable(Infocyph\Runwire\Runtime\Enum\RuntimeDriver::SWOOLE)) {
               throw new RuntimeException("Swoole/OpenSwoole is required for native serving acceptance.");
             }

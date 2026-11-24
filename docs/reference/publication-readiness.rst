@@ -28,7 +28,7 @@ What has been verified
 The Foundation development branch contains an Infbyte-branded Sphinx
 manual, navigation and Read the Docs configuration. The documentation
 CI builds HTML with warnings treated as errors, validates complete
-PHP example code blocks with PHP 8.4 syntax checks, and runs a
+PHP example code blocks with PHP 8.6 syntax checks, and runs a
 lightweight public API/feature drift check.
 
 The Infbyte manual's planned authoring work was completed through D15-B.
@@ -102,7 +102,7 @@ dependencies and run the strict build:
    python docs/tools/lint_php_blocks.py
 
 ``lint_php_blocks.py`` requires a PHP CLI executable. The GitHub
-documentation workflow selects PHP 8.4. Complete example assets with
+documentation workflow selects PHP 8.6. Complete example assets with
 ``.php.txt`` extensions are syntax-checked explicitly by the same
 workflow.
 

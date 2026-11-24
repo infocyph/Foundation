@@ -122,7 +122,12 @@ The installed Webrick bridge remains the runtime integration boundary. Compiled
 host identity, generation leases, cancellation, deferred response drain and scoped
 native integration are verified by the
 [Security & Standards native-host checks](../.github/workflows/security-standards.yml).
-Rehearse the actual chosen FPM/RoadRunner/Swoole host and transport before deployment.
+The native matrix covers Swoole and OpenSwoole on PHP 8.4 and 8.5,
+and OpenSwoole on PHP 8.6. Swoole 6.2.6 failed to compile against PHP 8.6
+in hosted CI; that combination is not qualified. Restore the Swoole 8.6
+lane when a compatible upstream release is available. PHP 8.6 application,
+analysis and consumer checks remain required. Rehearse the actual chosen
+FPM/RoadRunner/Swoole host and transport before deployment.
 
 ## Compiled web loading
 
@@ -193,7 +198,7 @@ instance, not a newly generated substitute. An execution without an active passe
 
 ## Core dependency and separate worker support
 
-Foundation requires `infocyph/runwire:^3.0`, including ordinary PHP/FPM
+Foundation requires `infocyph/runwire:^3.1`, including ordinary PHP/FPM
 installations. Runwire supports FPM, FrankenPHP, RoadRunner, explicit
 Swoole/OpenSwoole hosting and portable native CLI without PCNTL/POSIX.
 The package's presence does not start listeners, workers or an event loop.
