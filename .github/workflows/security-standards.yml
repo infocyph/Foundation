@@ -295,9 +295,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # ext-grpc 1.85.4 independently crashes at shutdown on PHP 8.6.
-        # Restore 8.6 after the standalone native control exits cleanly.
-        php: ["8.4", "8.5"]
+        # Qualify explicit, non-persistent native channel ownership on every PHP lane.
+        php: ["8.4", "8.5", "8.6"]
     steps:
       - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2

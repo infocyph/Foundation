@@ -94,7 +94,7 @@ it('requires real native gRPC on the qualified PHP versions without ignoring fai
     $job = foundationStringMap($workflow['jobs']['talkingbytes-grpc'] ?? null);
     $strategy = foundationStringMap($job['strategy'] ?? null);
     $matrix = foundationStringMap($strategy['matrix'] ?? null);
-    expect($matrix['php'] ?? null)->toBe(['8.4', '8.5'])
+    expect($matrix['php'] ?? null)->toBe(['8.4', '8.5', '8.6'])
         ->and($strategy['fail-fast'] ?? null)->toBeFalse()
         ->and($job)->not->toHaveKey('continue-on-error');
 });

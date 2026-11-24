@@ -21,7 +21,7 @@ final readonly class FoundationGrpcFixtureStub
         $credentials = (new ReflectionMethod(self::nativeClass('Grpc\\ChannelCredentials'), 'createInsecure'))->invoke(null);
         $this->inner = (new \ReflectionClass(self::nativeClass('Grpc\\BaseStub')))->newInstance(
             '127.0.0.1:' . $port,
-            ['credentials' => $credentials],
+            ['credentials' => $credentials, 'force_new' => true],
         );
     }
 
