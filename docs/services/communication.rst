@@ -300,3 +300,11 @@ pass real native-only, Composer and Foundation probes, including clean
 process shutdown, on all three PHP versions. Other application QA jobs
 retain their existing extension configuration. Production deployments must
 qualify their own extension combination.
+
+The hosted job constructs its own php.ini and an empty extension scan
+directory after extension installation. Both Composer and the wire probes
+inherit that configuration. The job checks the selected INI and required
+modules before running; unrelated modules, including Redis and APCu, are
+not loaded in this transport-specific process. Shared-cache integration
+continues in its separate required jobs. Built-in PHP modules remain
+available without being loaded a second time.

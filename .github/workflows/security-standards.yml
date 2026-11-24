@@ -304,17 +304,56 @@ jobs:
           php-version: ${{ matrix.php }}
           tools: composer:v2
           # Disable runner-preinstalled shared extensions before enabling the test/dependency profile.
-          extensions: "none, grpc, curl, mbstring, intl, sodium, pdo, pdo_sqlite, redis, dom, simplexml, xml, xmlreader, xmlwriter, tokenizer, ctype, fileinfo, iconv, phar, openssl, session, sockets, pcntl, posix, zip"
+          extensions: "none, grpc, curl, mbstring, intl, sodium, pdo, pdo_sqlite, dom, simplexml, xml, xmlreader, xmlwriter, tokenizer, ctype, fileinfo, iconv, phar, openssl, session, sockets, pcntl, posix, zip"
           coverage: none
+      - name: Construct a private PHP configuration for native gRPC
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(mktemp -d "$RUNNER_TEMP/grpc-php.XXXXXXXX")"
+          mkdir "$root/scan"
+          module_dir="$(php -r 'echo ini_get("extension_dir");')"
+          test -d "$module_dir"
+          printf 'extension_dir="%s"\n' "$module_dir" > "$root/php.ini"
+          printf 'date.timezone=UTC\nmemory_limit=512M\n' >> "$root/php.ini"
+          # Load in dependency order, and never load a shared copy of a built-in module.
+          for extension in libxml ctype fileinfo iconv openssl phar tokenizer \
+            pdo pdo_sqlite dom simplexml xml xmlreader xmlwriter \
+            curl mbstring intl sodium session sockets pcntl posix zip grpc; do
+            if php -n -r 'exit(extension_loaded($argv[1]) ? 0 : 1);' -- "$extension"; then
+              continue
+            fi
+            test -f "$module_dir/$extension.so"
+            printf 'extension=%s.so\n' "$extension" >> "$root/php.ini"
+          done
+          # An existing empty scan directory prevents fallback to the system conf.d.
+          export PHPRC="$root/php.ini"
+          export PHP_INI_SCAN_DIR="$root/scan"
+          php --ini
+          php -m
+          php -r '
+            if (php_ini_loaded_file() !== getenv("PHPRC") || php_ini_scanned_files() !== false) {
+                throw new RuntimeException("Native gRPC must use only its private PHP INI.");
+            }
+            foreach (["grpc", "curl", "fileinfo", "openssl", "sodium", "mbstring", "pdo", "pdo_sqlite", "dom", "simplexml", "xml", "xmlreader", "xmlwriter", "tokenizer", "phar"] as $extension) {
+                if (!extension_loaded($extension)) {
+                    throw new RuntimeException("Required private PHP extension unavailable: " . $extension);
+                }
+            }
+          '
+          printf 'PHPRC=%s\nPHP_INI_SCAN_DIR=%s\n' "$PHPRC" "$PHP_INI_SCAN_DIR" >> "$GITHUB_ENV"
       - name: Install native gRPC and selected package dependencies
         run: |
           php -r '
+            if (php_ini_loaded_file() !== getenv("PHPRC") || php_ini_scanned_files() !== false) {
+                throw new RuntimeException("Private PHP INI was not inherited.");
+            }
             foreach (["grpc", "curl", "fileinfo", "openssl", "sodium", "mbstring", "pdo", "dom", "xml", "xmlwriter", "tokenizer"] as $extension) {
                 if (!extension_loaded($extension)) {
                     throw new RuntimeException("Required PHP extension unavailable: " . $extension);
                 }
             }
-            foreach (["amqp", "apcu", "ast", "ds", "enchant", "imagick", "imap", "ldap", "memcache", "memcached", "mongodb", "msgpack", "mysqli", "odbc", "pgsql", "sqlsrv", "swoole", "openswoole", "xdebug", "zmq"] as $extension) {
+            foreach (["amqp", "apcu", "ast", "ds", "enchant", "imagick", "imap", "ldap", "memcache", "memcached", "mongodb", "msgpack", "mysqli", "odbc", "pgsql", "redis", "sqlsrv", "swoole", "openswoole", "xdebug", "Zend OPcache", "zmq"] as $extension) {
                 if (extension_loaded($extension)) {
                     throw new RuntimeException("Unexpected unrelated PHP extension: " . $extension);
                 }
@@ -335,6 +374,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          php -r 'if (php_ini_loaded_file() !== getenv("PHPRC") || php_ini_scanned_files() !== false) { throw new RuntimeException("Private PHP INI was not inherited by the wire probe."); }'
           python3 -m venv "$RUNNER_TEMP/foundation-grpc-venv"
           python="$RUNNER_TEMP/foundation-grpc-venv/bin/python"
           "$python" -m pip install --disable-pip-version-check "grpcio>=1.76,<2"

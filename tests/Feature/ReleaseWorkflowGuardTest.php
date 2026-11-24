@@ -100,7 +100,12 @@ it('requires real native gRPC on the qualified PHP versions without ignoring fai
     expect($job['steps'] ?? null)->toBeArray();
     $encodedSteps = json_encode($job['steps'], JSON_THROW_ON_ERROR);
     expect($encodedSteps)->toContain(
-        'none, grpc, curl, mbstring, intl, sodium, pdo, pdo_sqlite, redis, dom, simplexml, xml, xmlreader, xmlwriter, tokenizer, ctype, fileinfo, iconv, phar, openssl, session, sockets, pcntl, posix, zip',
+        'none, grpc, curl, mbstring, intl, sodium, pdo, pdo_sqlite, dom, simplexml, xml, xmlreader, xmlwriter, tokenizer, ctype, fileinfo, iconv, phar, openssl, session, sockets, pcntl, posix, zip',
+        'Construct a private PHP configuration for native gRPC',
+        'PHP_INI_SCAN_DIR',
+        'php_ini_loaded_file()',
+        'php_ini_scanned_files()',
+        'Private PHP INI was not inherited',
         'Unexpected unrelated PHP extension',
         'composer check-platform-reqs',
         'Extension-only native gRPC roundtrip',
