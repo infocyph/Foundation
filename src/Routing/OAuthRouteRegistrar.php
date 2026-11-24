@@ -20,6 +20,7 @@ final readonly class OAuthRouteRegistrar
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
      */
     public function register(Registrar $router): void
     {

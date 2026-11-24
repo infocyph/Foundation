@@ -16,6 +16,7 @@ use Infocyph\Foundation\Command\OverlapMode;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Tests\Fixtures\NoopCommandIO;
 use LogicException;
+use ReflectionProperty;
 use RuntimeException;
 
 it('keeps primary command error ahead of lock release and reports otherwise unmasked cleanup errors', function (): void {

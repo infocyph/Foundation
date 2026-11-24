@@ -89,6 +89,7 @@ final readonly class JsonDispatchResponseFactory
 
     /**
      * @param callable(mixed): mixed|null $transform
+     * @throws \RuntimeException
      */
     public function paginated(
         PaginatorInterface $paginator,
@@ -131,6 +132,7 @@ final readonly class JsonDispatchResponseFactory
      *
      * @param array<array-key, mixed>|string|int|float|bool|object|null $data
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function success(
         array|string|int|float|bool|object|null $data = null,
@@ -220,6 +222,7 @@ final readonly class JsonDispatchResponseFactory
     /**
      * @param list<Issue> $issues
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     private function problem(string $type, array $issues, int $status, ?string $message): Response
     {

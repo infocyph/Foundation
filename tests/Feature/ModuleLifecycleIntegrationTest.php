@@ -2,10 +2,19 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use Closure;
+use FilesystemIterator;
 use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Command\CommandDispatcher;
 use Infocyph\Foundation\Command\CommandIO;
 use Infocyph\Foundation\Command\ExitCode;
+use LogicException;
+use PDO;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RuntimeException;
 
 final class FoundationModuleLifecycleIO implements CommandIO
 {

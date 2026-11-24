@@ -20,6 +20,10 @@ final readonly class ExceptionRenderer
             || ValidationExceptionMapper::supportsDefault($exception);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function render(
         Request $request,
         \Throwable $exception,

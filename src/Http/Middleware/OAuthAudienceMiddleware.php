@@ -38,6 +38,7 @@ final readonly class OAuthAudienceMiddleware
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     public function __invoke(Request $request, callable $next): Response
     {
@@ -59,6 +60,7 @@ final readonly class OAuthAudienceMiddleware
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function invalidToken(string $description): Response
     {

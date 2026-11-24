@@ -251,6 +251,7 @@ final class WebrickRouterFactory
 
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
      */
     private function signedUrlConfig(): ?SignedUrlConfig
     {

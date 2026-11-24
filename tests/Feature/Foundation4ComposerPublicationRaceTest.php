@@ -2,9 +2,15 @@
 
 declare(strict_types=1);
 
+namespace Infocyph;
+
+use FilesystemIterator;
 use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Tests\Fixtures\AuthContentionFixture;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RuntimeException;
 
 it('rejects a real Composer downgrade after a captured feature snapshot and permits a fresh retry', function (): void {
     $directory = sys_get_temp_dir() . '/foundation-composer-publication-' . bin2hex(random_bytes(6));

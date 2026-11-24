@@ -38,6 +38,7 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Notifications\NotificationTemplateRegistry;
 use Infocyph\Foundation\Tests\Fixtures\AuthAuditSensitiveKeyMatrix;
 use Infocyph\TalkingBytes\Email\Emailer;
+use JsonSerializable;
 use LogicException;
 use RuntimeException;
 

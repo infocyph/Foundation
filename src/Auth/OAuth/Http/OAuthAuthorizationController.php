@@ -74,6 +74,7 @@ final readonly class OAuthAuthorizationController
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     private function authorizationApprove(AuthorizationRequest $request): Response
     {

@@ -9,26 +9,46 @@ use Infocyph\Webrick\Response\Response;
 
 final class AuthResponseFactory
 {
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function forbidden(Request $request, string $message = 'Forbidden.'): Response
     {
         return $this->respond($request, 403, $message);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function locked(Request $request, string $message = 'Access is locked.'): Response
     {
         return $this->respond($request, 423, $message);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function serverError(Request $request, string $message = 'Server error.'): Response
     {
         return $this->respond($request, 500, $message);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function tooManyRequests(Request $request, string $message = 'Too many requests.'): Response
     {
         return $this->respond($request, 429, $message);
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public function unauthorized(Request $request, string $message = 'Unauthorized.'): Response
     {
         return $this->respond($request, 401, $message);
