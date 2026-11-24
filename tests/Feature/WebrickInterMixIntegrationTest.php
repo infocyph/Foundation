@@ -606,6 +606,10 @@ function foundationIntegrationProject(array $files): string
     return $root;
 }
 
+/**
+ * @throws \InvalidArgumentException
+ * @throws \RuntimeException
+ */
 function foundationCachedRouteHandler(string $name): Response
 {
     return Response::json(['name' => $name]);
@@ -619,7 +623,10 @@ function foundationJsonResponse(Response $response): array
     return is_array($decoded) ? foundationStringMap($decoded) : [];
 }
 
-/** @param array<string,mixed> $query */
+/**
+ * @param array<string,mixed> $query
+ * @throws \InvalidArgumentException
+ */
 function foundationRequest(string $path, array $query = []): Request
 {
     return Request::fake(

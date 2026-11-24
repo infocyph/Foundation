@@ -9,6 +9,10 @@ use Infocyph\Foundation\Release\FoundationReleaseRuntime;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
+/**
+ * @throws \InvalidArgumentException
+ * @throws \RuntimeException
+ */
 function foundationPhase10ReleaseHandler(): Response
 {
     return Response::json(['source' => 'compiled']);

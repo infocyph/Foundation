@@ -26,6 +26,7 @@ use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
 use Psr\Container\ContainerInterface;
 use RuntimeException;
+use UnexpectedValueException;
 
 function foundationEpicrypt3MfaRing(string $activeId, string $activeKey, ?string $fallbackId = null, ?string $fallbackKey = null): KeyRing
 {

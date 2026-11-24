@@ -19,9 +19,9 @@ it('attempts every cleanup while preserving an existing primary failure', functi
         },
     );
 
+    \PHPUnit\Framework\Assert::assertInstanceOf(LogicException::class, $suppressed);
     expect($calls)->toBe(['first', 'second'])
-        ->and($suppressed)->toBeInstanceOf(LogicException::class)
-        ->and($suppressed?->getMessage())->toBe('cleanup');
+        ->and($suppressed->getMessage())->toBe('cleanup');
 });
 
 it('throws the first cleanup failure only when no primary failure exists', function (): void {

@@ -200,6 +200,7 @@ final class Application
      * @throws \LogicException
      * @throws \Infocyph\Foundation\Exception\ServiceResolutionException
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \RuntimeException
      */
     public function handle(Request $request): Response
     {

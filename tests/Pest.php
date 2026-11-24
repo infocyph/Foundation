@@ -19,7 +19,10 @@ foreach ($foundationTestEnvironment as $name => $value) {
 }
 unset($foundationTestMfaKeyEnvironment, $foundationTestEnvironment, $name, $value);
 
-/** Restore Webrick's process registries after an in-process production-runtime test. */
+/**
+ * Restore Webrick's process registries after an in-process production-runtime test.
+ * @throws \LogicException
+ */
 function foundationResetWebrickProductionRegistries(): void
 {
     foreach ([

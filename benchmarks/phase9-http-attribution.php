@@ -21,11 +21,19 @@ use Psr\Log\NullLogger;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
+/**
+ * @throws \InvalidArgumentException
+ * @throws \RuntimeException
+ */
 function phase9StandaloneHttpHandler(): Response
 {
     return Response::json(['ok' => true]);
 }
 
+/**
+ * @throws \InvalidArgumentException
+ * @throws \RuntimeException
+ */
 function phase9FoundationHttpHandler(): Response
 {
     return Response::json(['ok' => true]);

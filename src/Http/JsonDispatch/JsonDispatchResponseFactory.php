@@ -39,6 +39,7 @@ final readonly class JsonDispatchResponseFactory
     /**
      * @param list<Issue> $issues
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function error(
         array $issues,
@@ -51,6 +52,7 @@ final readonly class JsonDispatchResponseFactory
     /**
      * @param list<Issue> $issues
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     public function fail(
         array $issues,
@@ -245,6 +247,7 @@ final readonly class JsonDispatchResponseFactory
     /**
      * @param array<string, mixed> $envelope
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function respond(array $envelope, int $semanticStatus, bool $problem = false): Response
     {

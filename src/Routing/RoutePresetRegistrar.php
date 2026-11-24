@@ -57,7 +57,11 @@ final readonly class RoutePresetRegistrar
         );
     }
 
-    /** @param list<string>|null $requirements */
+    /**
+     * @param list<string>|null $requirements
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function register(?array $requirements = null): void
     {
         $this->middleware->register($requirements);

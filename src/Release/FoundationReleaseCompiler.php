@@ -595,6 +595,7 @@ final readonly class FoundationReleaseCompiler
     /**
      * @param array<string,mixed> $manifest
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     private function verifyStage(string $stage, array $manifest): void
     {

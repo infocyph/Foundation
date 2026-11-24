@@ -160,6 +160,7 @@ final readonly class WebReleaseConfiguration
 
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
      */
     public function signedUrlConfig(): ?SignedUrlConfig
     {

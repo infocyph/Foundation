@@ -117,7 +117,11 @@ final class WebrickRouterFactory
         return $registrar;
     }
 
-    /** @throws \Infocyph\Foundation\Exception\ConfigurationException */
+    /**
+     * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
+     * @throws \LogicException
+     */
     public function routes(): Collection
     {
         $this->router();
@@ -162,6 +166,7 @@ final class WebrickRouterFactory
 
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
+     * @throws \InvalidArgumentException
      */
     private function bindUrlServicesCallback(): ?\Closure
     {

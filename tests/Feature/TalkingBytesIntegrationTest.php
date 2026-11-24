@@ -137,9 +137,9 @@ MAIL;
             ['source' => 'feature-bounce'],
         );
         $bounce = $app->make(BounceParser::class)->parse($bounceEmail);
-        expect($bounce)->not->toBeNull()
-            ->and($bounce?->type)->toBe(BounceType::UserUnknown)
-            ->and($bounce?->recipient)->toBe('user@example.test');
+        \PHPUnit\Framework\Assert::assertNotNull($bounce);
+        expect($bounce->type)->toBe(BounceType::UserUnknown)
+            ->and($bounce->recipient)->toBe('user@example.test');
 
         $receiver = $profiles->spoolReceiver();
         $peeked = $receiver->peek();

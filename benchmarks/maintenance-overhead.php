@@ -24,6 +24,7 @@ require dirname(__DIR__) . '/vendor/autoload.php';
  * @throws \Psr\Cache\InvalidArgumentException
  * @throws \RuntimeException
  * @throws \UnexpectedValueException
+ * @throws \Throwable
  */
 function foundationMaintenanceBenchmarkMode(string $mode): array
 {

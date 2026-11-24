@@ -85,6 +85,7 @@ final readonly class OAuthHttpInput
     /**
      * @return array<string, string>
      * @throws \Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException
+     * @throws \InvalidArgumentException
      */
     public function form(Request $request): array
     {

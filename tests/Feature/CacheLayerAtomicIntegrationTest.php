@@ -123,8 +123,8 @@ it('preserves replay consume CAS and auth lockout atomicity under process conten
         expect(array_count_values($pulls))->toMatchArray(['payload' => 1, '__miss__' => 7]);
 
         $atomic = $cache->atomic();
-        expect($atomic)->not->toBeNull()
-            ->and($atomic?->setIfAbsent('cas-contention', 0, 30))->toBeTrue();
+        \PHPUnit\Framework\Assert::assertNotNull($atomic);
+        expect($atomic->setIfAbsent('cas-contention', 0, 30))->toBeTrue();
         $cas = foundationCacheLayerAtomicWorkers('cas', $namespace, $dsn, 'cas-contention', 8);
         expect(array_count_values($cas))->toMatchArray(['1' => 1, '0' => 7])
             ->and($cache->get('cas-contention'))->toBe(1);

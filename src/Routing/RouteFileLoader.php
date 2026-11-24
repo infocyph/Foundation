@@ -125,6 +125,8 @@ final readonly class RouteFileLoader
     /**
      * @throws \Infocyph\Foundation\Exception\ConfigurationException
      * @throws \InvalidArgumentException
+     * @throws \LogicException
+     * @throws \RuntimeException
      */
     private function loadRoutes(Registrar $router, RoutePresetRegistrar $presets): void
     {

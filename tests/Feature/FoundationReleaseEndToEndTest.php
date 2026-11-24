@@ -2,9 +2,6 @@
 
 declare(strict_types=1);
 
-namespace Infocyph;
-
-use FilesystemIterator;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
@@ -35,11 +32,6 @@ use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Matching\FusedMatcher;
 use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
 use Infocyph\Webrick\Router\Matching\ShardedMatcher;
-use LogicException;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use ReflectionProperty;
-use RuntimeException;
 
 require_once dirname(__DIR__) . '/Fixtures/EnvironmentSecretStageObserver.php';
 require_once dirname(__DIR__) . '/Fixtures/environment_secret_stage_hooks.php';

@@ -19,6 +19,7 @@ final readonly class GuestMiddleware
     /**
      * @param callable(Request): Response $next
      * @throws \LogicException
+     * @throws \RuntimeException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      */

@@ -149,10 +149,10 @@ it('scopes module lifecycle commands without forcing the database capability', f
     ] as $name) {
         $definition = $catalog->find($name);
 
-        expect($definition)->not->toBeNull()
-            ->and($definition?->options())->toHaveKey('connection')
-            ->and($definition?->capabilities())->not->toContain('db')
-            ->and($definition?->requiresExecutionScope())->toBeTrue();
+        \PHPUnit\Framework\Assert::assertInstanceOf(CommandDefinition::class, $definition);
+        expect($definition->options())->toHaveKey('connection')
+            ->and($definition->capabilities())->not->toContain('db')
+            ->and($definition->requiresExecutionScope())->toBeTrue();
     }
 });
 

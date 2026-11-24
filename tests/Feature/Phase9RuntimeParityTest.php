@@ -86,6 +86,10 @@ final class Phase9ParityProvider extends ServiceProvider
  */
 final readonly class Phase9WebParityHandler
 {
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     */
     public static function show(string $name): Response
     {
         return Response::json(['name' => $name, 'runtime' => 'web']);

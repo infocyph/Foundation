@@ -77,6 +77,9 @@ PHP);
     return $project;
 }
 
+/**
+ * @throws \InvalidArgumentException
+ */
 function webMaintenanceRequest(): Request
 {
     return Request::fake(

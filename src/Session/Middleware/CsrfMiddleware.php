@@ -53,6 +53,7 @@ final readonly class CsrfMiddleware
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \RuntimeException
      */
     private function rejected(): Response
     {

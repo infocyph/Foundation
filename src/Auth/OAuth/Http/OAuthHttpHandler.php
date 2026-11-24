@@ -133,6 +133,7 @@ final readonly class OAuthHttpHandler
 
     /**
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function jwks(): Response
     {

@@ -24,6 +24,7 @@ final readonly class VerifiedMiddleware
      * @throws \LogicException
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
+     * @throws \RuntimeException
      */
     public function __invoke(Request $request, callable $next): Response
     {
