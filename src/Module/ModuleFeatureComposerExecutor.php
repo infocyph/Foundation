@@ -151,7 +151,7 @@ final readonly class ModuleFeatureComposerExecutor
         }
 
         try {
-            /** @var mixed $metadata */
+            /** @var array<array-key, mixed>|bool|float|int|string|null $metadata */
             $metadata = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
         } catch (\JsonException $failure) {
             throw new \RuntimeException('Composer installed metadata is malformed.', previous: $failure);
