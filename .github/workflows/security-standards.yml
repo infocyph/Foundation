@@ -15,7 +15,7 @@ concurrency:
 jobs:
   infbyte-candidate:
     name: "Infbyte 4 current Foundation source / PHP ${{ matrix.php }}"
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/foundation-3'
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'plan/foundation-risk-engine-handoff'
     permissions:
       contents: read
     env:
@@ -96,7 +96,7 @@ jobs:
           set -euo pipefail
           php -r '
             $manifest = json_decode(file_get_contents("composer.json"), true, flags: JSON_THROW_ON_ERROR);
-            if (($manifest["require"]["infocyph/foundation"] ?? null) !== "dev-feature/foundation-3") {
+            if (($manifest["require"]["infocyph/foundation"] ?? null) !== "dev-plan/foundation-risk-engine-handoff") {
                 fwrite(STDERR, "Expected the unreleased Infbyte 4 candidate, not a stable cutover." . PHP_EOL);
                 exit(1);
             }

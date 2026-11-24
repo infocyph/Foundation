@@ -51,17 +51,29 @@ function foundationRiskHostBulkhead(CacheInterface $cache): RiskHashBulkhead
     return new RiskHashBulkhead(new RiskAuthority($cache, str_repeat('k', 32), shared: true), 'fpm', 1, nonEvictingIsolatedPool: true);
 }
 
+/**
+ * @throws \RuntimeException
+ */
+function foundationRiskHostOwner(mixed $owner): int
+{
+    if (!is_int($owner) || $owner < 0) {
+        throw new RuntimeException('Invalid isolated fixture owner.');
+    }
+
+    return $owner;
+}
+
 if (PHP_SAPI === 'cli') {
     $cache = foundationRiskHostCache();
     $bulkhead = foundationRiskHostBulkhead($cache);
     $result = match ($argv[1] ?? '') {
         'provision' => $bulkhead->provisionDrainedPool(),
-        'held' => $cache->get('held-owner', 0),
+        'held' => foundationRiskHostOwner($cache->get('held-owner', 0)),
         'occupied' => $bulkhead->acquire() === null && !$bulkhead->provisionDrainedPool(),
         'clear' => $cache->clear(),
         default => throw new RuntimeException('Invalid host fixture command.'),
     };
-    echo json_encode($result, JSON_THROW_ON_ERROR), PHP_EOL;
+    fwrite(STDOUT, json_encode($result, JSON_THROW_ON_ERROR) . PHP_EOL);
 
     exit(0);
 }
@@ -91,7 +103,7 @@ if ($path === 'baseline') {
     $response = $render($authenticator->login($login));
     http_response_code($response->getStatusCode());
     header('Content-Type: application/json');
-    echo json_encode(['status' => $response->getStatusCode(), 'pid' => getmypid(), 'sapi' => PHP_SAPI], JSON_THROW_ON_ERROR);
+    file_put_contents('php://output', json_encode(['status' => $response->getStatusCode(), 'pid' => getmypid(), 'sapi' => PHP_SAPI], JSON_THROW_ON_ERROR));
 
     exit(0);
 }
@@ -114,7 +126,10 @@ if ($path === 'hold') {
             if (!$this->cache->set('held-owner', getmypid(), 60)) {
                 throw new RuntimeException('Unable to publish isolated fixture ownership.');
             }
-            sleep(20);
+            // Hold the dedicated fixture worker, not the ordinary Runwire event loop.
+            if (time_nanosleep(20, 0) !== true) {
+                throw new RuntimeException('Isolated fixture hold interrupted.');
+            }
 
             return $this->inner->verify($plainPassword, $storedHash);
         }
@@ -153,4 +168,4 @@ if ($response->getHeaderLine('Cache-Control') !== 'no-store') {
     throw new RuntimeException('Protected response must not be cacheable.');
 }
 header('Cache-Control: no-store');
-echo json_encode(['status' => $response->getStatusCode(), 'pid' => getmypid(), 'sapi' => PHP_SAPI], JSON_THROW_ON_ERROR);
+file_put_contents('php://output', json_encode(['status' => $response->getStatusCode(), 'pid' => getmypid(), 'sapi' => PHP_SAPI], JSON_THROW_ON_ERROR));

@@ -186,3 +186,15 @@ function foundationReleaseWorkflow(string $path): array
 
     return ['on' => foundationStringMap($document['on']), 'jobs' => $jobs];
 }
+
+
+it('qualifies the active Infbyte application against the Foundation handoff PR head', function (): void {
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $job = $workflow['jobs']['infbyte-candidate'];
+
+    expect($job['if'])->toBe("github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'plan/foundation-risk-engine-handoff'")
+        ->and($job['strategy']['matrix']['php'])->toBe(['8.4', '8.5', '8.6']);
+    $steps = array_column($job['steps'], null, 'name');
+    expect($steps['Check out existing Infbyte 4 application candidate']['with']['ref'])->toBe('feature/infbyte-4')
+        ->and($steps['Require the exact Foundation PR head']['run'])->toContain('dev-plan/foundation-risk-engine-handoff', 'EXPECTED_FOUNDATION_SHA');
+});
