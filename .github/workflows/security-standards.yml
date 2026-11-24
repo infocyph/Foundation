@@ -287,16 +287,22 @@ jobs:
         run: php tests/Fixtures/talkingbytes_mailpit_probe.php
 
   talkingbytes-grpc:
-    name: Native gRPC wire - Foundation / TalkingBytes
+    name: Native gRPC wire - Foundation / TalkingBytes / PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # ext-grpc 1.85.4 independently crashes at shutdown on PHP 8.6.
+        # Restore 8.6 after the standalone native control exits cleanly.
+        php: ["8.4", "8.5"]
     steps:
       - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.6"
+          php-version: ${{ matrix.php }}
           tools: composer:v2
           extensions: "grpc, curl, mbstring, intl, sodium, pdo, pdo_sqlite, redis"
           coverage: none

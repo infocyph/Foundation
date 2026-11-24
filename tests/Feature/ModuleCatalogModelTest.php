@@ -57,7 +57,7 @@ it('keeps Composer core and specialist module floors on one supported generation
     }
     $core = [
         'infocyph/arraykit' => '^5.3.2',
-        'infocyph/cachelayer' => '^4.0.2',
+        'infocyph/cachelayer' => '^4.0.3',
         'infocyph/intermix' => '^11.2.1',
         'infocyph/runwire' => '^3.1',
         'infocyph/uid' => '^6.0.1',

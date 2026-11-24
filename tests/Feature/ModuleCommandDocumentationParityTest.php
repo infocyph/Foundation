@@ -107,7 +107,7 @@ it('keeps Composer publication metadata and optional package roles consistent wi
         'php' => '^8.4',
         'composer-runtime-api' => '^2.0',
         'infocyph/arraykit' => '^5.3.2',
-        'infocyph/cachelayer' => '^4.0.2',
+        'infocyph/cachelayer' => '^4.0.3',
         'infocyph/intermix' => '^11.2.1',
         'infocyph/runwire' => '^3.1',
         'infocyph/uid' => '^6.0.1',

@@ -70,8 +70,8 @@ Runwire ownership.
 ## Version and package requirements
 
 Foundation 4 requires 64-bit PHP 8.4+ and Composer 2. The candidate's direct production
-dependencies are ArrayKit `^5.3.2`, CacheLayer `^4.0.2`, InterMix `^11.2.1`,
-Runwire `^3.0.1`, UID `^6.0.1`, Webrick `^6.0.4`, and PSR Log `^3.0.2`.
+dependencies are ArrayKit `^5.3.2`, CacheLayer `^4.0.3`, InterMix `^11.2.1`,
+Runwire `^3.1`, UID `^6.0.1`, Webrick `^6.1`, and PSR Log `^3.0.2`.
 
 Select only the optional **feature IDs** needed by this application, grouped into the three public modules `data`, `security`, and `execution`. The following packages are installed only for selected features:
 

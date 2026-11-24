@@ -262,3 +262,13 @@ See :doc:`../reference/configuration`,
 TalkingBytes' native documentation:
 
 https://github.com/infocyph/TalkingBytes
+
+Native gRPC compatibility
+-------------------------
+
+The real native gRPC transport is tested on PHP 8.4 and 8.5. PHP 8.6
+remains supported by Foundation Core, but ext-grpc 1.85.4 is not qualified
+on that version: a standalone native roundtrip completes and then crashes
+at process shutdown. Use a qualified PHP/extension combination for native
+gRPC until an upstream fix passes the standalone control and full transport
+probe. No native gRPC failure is ignored on the required lanes.

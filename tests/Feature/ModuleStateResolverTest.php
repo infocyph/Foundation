@@ -498,7 +498,7 @@ it('keeps specialist catalog package floors aligned with the tested dependency s
     }
 
     \PHPUnit\Framework\Assert::assertIsArray(($composer['require'] ?? null));
-    expect($composer['require']['infocyph/cachelayer'] ?? null)->toBe('^4.0.2');
+    expect($composer['require']['infocyph/cachelayer'] ?? null)->toBe('^4.0.3');
 });
 
 /** @phpstan-import-type ModuleState from ModuleStateResolver */

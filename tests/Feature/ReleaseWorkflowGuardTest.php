@@ -89,6 +89,16 @@ it('checks real native Runwire serving on the supported PHP versions and Swoole 
         ->not->toContain('|| true', 'continue-on-error');
 });
 
+it('requires real native gRPC on the qualified PHP versions without ignoring failures', function (): void {
+    $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $job = foundationStringMap($workflow['jobs']['talkingbytes-grpc'] ?? null);
+    $strategy = foundationStringMap($job['strategy'] ?? null);
+    $matrix = foundationStringMap($strategy['matrix'] ?? null);
+    expect($matrix['php'] ?? null)->toBe(['8.4', '8.5'])
+        ->and($strategy['fail-fast'] ?? null)->toBeFalse()
+        ->and($job)->not->toHaveKey('continue-on-error');
+});
+
 it('keeps the retired full throughput certification out of the release workflow without faking a pass', function (): void {
     $root = dirname(__DIR__, 2);
     $workflow = foundationReleaseWorkflow($root . '/.github/workflows/security-standards.yml');
