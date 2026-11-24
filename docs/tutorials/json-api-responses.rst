@@ -8,9 +8,7 @@ representation, HTTP status, and error format. Infbyte relies on
 **Webrick** for HTTP semantics and provides optional **Foundation
 JsonDispatch** integration for application-specific envelopes.
 
-This guide targets **Foundation 4 development contracts**.
-The published Infbyte starter on ``main`` still uses Foundation 3,
-so its example routes do not validate a Foundation 4 deployment.
+This guide targets the Foundation 4 API in an Infbyte application.
 
 What should the endpoint return?
 --------------------------------

@@ -10,7 +10,7 @@ the optional ``execution.messaging`` feature and
 **``my-app/config/messaging.php``**. Both run in Foundation's
 explicit worker mode, even when launched by the PHP CLI executable.
 
-A fresh Core-only Infbyte 4 candidate ships
+A fresh Core-only Infbyte 4 starter ships
 ``routes/workers.php`` but registers no custom worker.
 It also has no ``config/messaging.php`` until you
 select the optional feature.

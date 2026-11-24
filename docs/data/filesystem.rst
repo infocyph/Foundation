@@ -12,7 +12,7 @@ is required.
 
 **Where you configure it:** ``my-app/config/filesystem.php``
 **after** the filesystem feature is selected/published.
-A fresh Core-only Infbyte 4 candidate does **not**
+A fresh Core-only Infbyte 4 starter does **not**
 ship that file.
 
 When to use filesystem storage

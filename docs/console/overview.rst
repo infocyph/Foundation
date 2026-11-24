@@ -6,8 +6,7 @@ Using the Infbyte command line
 The ``infbyte`` executable is the application's entry point for
 development, maintenance, commands, scheduling, workers, and deployment.
 It delegates to Foundation's ``CommandDispatcher``; there is no parallel
-Artisan-like kernel. This chapter targets the **Foundation 4 development
-contract**, not the current published Infbyte 3 command catalog.
+Artisan-like kernel. This chapter covers the Foundation 4 command catalog.
 
 Discover commands before using them
 -----------------------------------

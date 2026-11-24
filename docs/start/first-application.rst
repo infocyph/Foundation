@@ -3,35 +3,18 @@
 Build your first Infbyte API application
 ========================================
 
-This walkthrough uses the **actual Infbyte 4 candidate** as the
-starting point. It develops a small JSON endpoint, explains
-where each file belongs, tests it through the real Foundation
-HTTP integration and describes what changes for production.
-
-**Current status:** Foundation 4 and Infbyte 4 are development
-candidates, not published stable releases. The public Infbyte
-``main`` starter uses Foundation 3. Use
-:doc:`foundation4-candidate` for compatibility notes.
+This walkthrough develops a JSON endpoint in an Infbyte application,
+tests it through Foundation's HTTP integration and prepares it for deployment.
 
 Before you begin
 ----------------
 
-You need PHP 8.4+ on a 64-bit platform, Composer 2, and a
-checkout of the candidate application:
+Install a compatible starter using :doc:`installation`. From the project root:
 
 .. code-block:: bash
 
-   git clone --branch feature/infbyte-4 --single-branch https://github.com/infocyph/Infbyte.git my-app
-   cd my-app
-   composer update --no-interaction --prefer-dist
    php infbyte app:install
    php infbyte module:list
-
-Why the Git checkout? The current published
-``composer create-project infocyph/infbyte`` command still
-installs the Foundation 3 application. The development
-branch currently follows a moving Foundation branch;
-record the installed commit before diagnosing a regression.
 
 Infbyte initially selects no optional DBLayer, validation
 or queue feature. A small health endpoint remains possible
@@ -40,7 +23,7 @@ without any of them.
 Step 1 — inspect the existing route
 ------------------------------------
 
-Open **``my-app/routes/api.php``**. The candidate
+Open **``my-app/routes/api.php``**. The starter
 already registers a Webrick route:
 
 .. code-block:: php

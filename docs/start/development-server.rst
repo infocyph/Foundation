@@ -3,11 +3,7 @@
 Run an Infbyte development server
 =================================
 
-This guide describes the **Infbyte 4 development candidate**,
-not a published stable 4.x release. The public Infbyte
-``main`` branch still targets Foundation 3. If you have
-not cloned the candidate, start with
-:doc:`foundation4-candidate`.
+Create a compatible Infbyte application using :doc:`installation` first.
 
 What runs when you serve an Infbyte application?
 ------------------------------------------------
@@ -30,17 +26,10 @@ package checkout:
 
 .. code-block:: bash
 
-   git clone --branch feature/infbyte-4 --single-branch https://github.com/infocyph/Infbyte.git my-app
    cd my-app
-   composer update --no-interaction --prefer-dist
    php infbyte app:install
    php infbyte config:validate
    php infbyte module:list
-
-The development Composer manifest currently requires
-the moving Foundation ``dev-feature/foundation-3``
-branch. Record the resolved source SHA in bug reports
-because an older CI result may target a different API.
 
 The initial application is Core-only. It includes
 ``config/app.php``, ``config/router.php`` and

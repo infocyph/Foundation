@@ -3,31 +3,21 @@
 Installation and first application check
 ========================================
 
-Use **PHP 8.4 or newer**, **Composer 2**, Git and the extensions needed by
-your selected application capabilities. This guide separates the published
-**Infbyte/Foundation 3** starter from the **unreleased Infbyte/Foundation 4**
-candidate. The two are not interchangeable.
+Use **PHP 8.4 or newer**, **Composer 2** and the extensions required by your
+selected capabilities. This manual covers Infbyte applications using Foundation 4.
 
-Choose the version you are actually installing
-----------------------------------------------
+Create an application
+---------------------
 
-The public Infbyte ``main`` manifest still requires
-``infocyph/foundation:^3.0.1``. For that released line:
+After the matching Infbyte 4 starter is published, create a project with:
 
 .. code-block:: bash
 
-   composer create-project infocyph/infbyte my-app
+   composer create-project infocyph/infbyte my-app '^4.0'
    cd my-app
    php infbyte --version
 
-Those commands do **not** install the Foundation 4 development candidate.
-The rest of this manual documents the candidate until a stable release
-and matching application skeleton are actually published.
-
-Clone the Infbyte 4 development candidate
------------------------------------------
-
-From a development workstation with PHP/Composer installed:
+Before that publication, use the compatible development starter instead:
 
 .. code-block:: bash
 
@@ -35,19 +25,13 @@ From a development workstation with PHP/Composer installed:
    cd my-app
    composer update --no-interaction --prefer-dist
    php infbyte --version
-   php infbyte module:list
-   php infbyte config:validate
 
-This uses the *Infbyte* application repository. Its current ``composer.json``
-points to the unpublished ``dev-feature/foundation-3`` dependency, resolved
-via a GitHub VCS repository. Record the exact vendor/source revisions when
-reporting bugs: a moving branch is not reproducible from the dependency
-constraint alone.
+The development branch is not a stable release. Record its resolved Foundation
+source identity when reporting issues. Do not deploy an unresolved candidate as
+if it were a published stable package.
 
-``composer require infocyph/foundation`` in a different directory installs
-the Foundation **library**, not the Infbyte directory structure, CLI,
-routes or application bootstrap. Do not use it as a substitute for the
-Infbyte starter.
+The Foundation library is separately available as ``infocyph/foundation``;
+requiring it alone does not create the Infbyte application directory structure.
 
 Initialize application state safely
 -----------------------------------
@@ -70,7 +54,7 @@ production trust or host-performance certification.
 Check the real files
 --------------------
 
-The Core-only candidate includes:
+The Core-only starter includes:
 
 .. list-table::
    :header-rows: 1
@@ -96,7 +80,7 @@ The Core-only candidate includes:
 Optional configuration such as ``config/database.php``,
 ``config/filesystem.php``, ``config/messaging.php`` or
 ``config/communication.php`` is **not shipped** in this Core-only
-candidate. Selecting the relevant module can publish it into **your
+starter. Selecting the relevant module can publish it into **your
 Infbyte project**.
 
 Run a low-cost route/host check
@@ -150,7 +134,7 @@ If something fails
      - Driver/extension unavailable
      - ``serve --dry-run --json=1``
    * - Runtime/library methods differ
-     - Moving development dependency resolved
+     - Installed version differs from the guide
      - Record Composer installed ref and matching SHA
    * - PHP/FPM rejects production bootstrap
      - No independently trusted generated release

@@ -9,7 +9,7 @@ the application notification contracts and policy;
 **TalkingBytes** owns actual email transport mechanics
 for the selected sender.
 
-An Infbyte 4 candidate already ships
+An Infbyte 4 starter already ships
 **``my-app/config/notifications.php``**.
 You do **not** need to install a fictitious
 ``notifications`` module to edit this file.

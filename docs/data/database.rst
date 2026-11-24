@@ -10,7 +10,7 @@ operations, read replicas and migration execution.
 
 **Where you configure it:** ``my-app/config/database.php``
 after selecting ``data.database``. A fresh Core-only
-Infbyte 4 candidate does **not** ship this file.
+Infbyte 4 starter does **not** ship this file.
 
 When a database is appropriate
 ------------------------------

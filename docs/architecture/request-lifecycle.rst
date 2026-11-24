@@ -15,7 +15,7 @@ is introduced.
 Step 1 — configure the route sources
 ------------------------------------
 
-In the Infbyte 4 candidate, ``my-app/config/router.php``
+In the Infbyte 4 starter, ``my-app/config/router.php``
 explicitly selects ``api.php``. The file
 ``my-app/routes/api.php`` registers the real
 Core health endpoint using the Webrick Registrar:

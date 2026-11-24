@@ -9,7 +9,7 @@ middleware. Foundation manages which integrations
 the application selects and how work enters
 and leaves a runtime execution scope.
 
-A fresh Core-only Infbyte 4 candidate has no
+A fresh Core-only Infbyte 4 starter has no
 ``config/messaging.php``. This file is published
 **inside the application** only when selecting
 ``execution.messaging``.

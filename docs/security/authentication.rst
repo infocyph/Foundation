@@ -10,13 +10,11 @@ tokens, sessions, notification policy and principal
 resolution; selected native packages own storage,
 cryptography and additional security factors.
 
-A fresh Infbyte 4 candidate already has
+A fresh Infbyte 4 starter already has
 **``my-app/config/auth.php``** as Core configuration.
 It is not an optional installable ``auth`` module.
 
-This guide describes the **unreleased Infbyte 4
-development candidate**. A published stable
-Foundation 4 consumer is not yet available.
+This guide describes authentication in an Infbyte application using Foundation 4.
 
 When authentication belongs in the route
 ----------------------------------------

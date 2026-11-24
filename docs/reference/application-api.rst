@@ -3,9 +3,9 @@
 Application and provider API reference
 ======================================
 
-The **Foundation 4 development** public API creates explicit application
+The **Foundation 4** public API creates explicit application
 graphs for Infbyte. This reference summarizes the signatures checked in
-the Foundation source; it is *not* an Infbyte 4 consumer integration test.
+the Foundation source; host and application integration require separate verification.
 
 Use this when writing an application bootstrap, a service provider, or an
 application service needing a runtime-bound dependency. Do not invent
@@ -165,11 +165,11 @@ Source anchors
 --------------
 
 * `Foundation runtime factory
-  <https://github.com/infocyph/Foundation/blob/feature/foundation-3/src/Foundation.php>`_
+  <https://github.com/infocyph/Foundation/blob/main/src/Foundation.php>`_
 * `Application public methods
-  <https://github.com/infocyph/Foundation/blob/feature/foundation-3/src/Application/Application.php>`_
+  <https://github.com/infocyph/Foundation/blob/main/src/Application/Application.php>`_
 * `Provider interface
-  <https://github.com/infocyph/Foundation/blob/feature/foundation-3/src/Application/ServiceProviderInterface.php>`_
+  <https://github.com/infocyph/Foundation/blob/main/src/Application/ServiceProviderInterface.php>`_
 
 See :doc:`../architecture/service-providers` and
 :doc:`../architecture/application-lifecycle`.

@@ -10,7 +10,7 @@ a base Controller class, Laravel facade, ORM, or automatic discovery.
 Where to create a controller
 ----------------------------
 
-In an Infbyte 4 candidate project:
+In an Infbyte 4 starter project:
 
 .. code-block:: text
 

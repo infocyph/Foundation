@@ -8,9 +8,7 @@ native HTTP parsing, routing, response emission and middleware execution
 remain Webrick responsibilities. Native validation rules belong to ReqShield;
 cryptography belongs to Epicrypt.
 
-The signatures below are checked against the current Foundation 4
-development source. They are not claims of end-to-end compatibility with
-the currently published Infbyte 3 application skeleton.
+These signatures describe Foundation 4. Use a compatible Infbyte application.
 
 Validation: FormRequest
 -----------------------
@@ -139,11 +137,11 @@ Source and practical guides
 ---------------------------
 
 * `FormRequest source
-  <https://github.com/infocyph/Foundation/blob/feature/foundation-3/src/Validation/FormRequest.php>`_
+  <https://github.com/infocyph/Foundation/blob/main/src/Validation/FormRequest.php>`_
 * `JsonDispatch factory source
-  <https://github.com/infocyph/Foundation/blob/feature/foundation-3/src/Http/JsonDispatch/JsonDispatchResponseFactory.php>`_
+  <https://github.com/infocyph/Foundation/blob/main/src/Http/JsonDispatch/JsonDispatchResponseFactory.php>`_
 * `AuthServices source
-  <https://github.com/infocyph/Foundation/blob/feature/foundation-3/src/Auth/AuthServices.php>`_
+  <https://github.com/infocyph/Foundation/blob/main/src/Auth/AuthServices.php>`_
 * `Webrick HTTP docs <https://github.com/infocyph/Webrick/tree/main/docs>`_
 
 See :doc:`../tutorials/validate-an-api-request`,

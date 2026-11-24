@@ -1,7 +1,9 @@
-# OAuth 2.1, OIDC and PAT protocol integration
+OAuth 2.1, OIDC and PAT protocol integration
+============================================
+
 
 Foundation 4 provides an opt-in OAuth authorization-server and resource-token
-capability. It is disabled by default. When `auth.oauth.enabled=false`, OAuth
+capability. It is disabled by default. When ``auth.oauth.enabled=false``, OAuth
 stores, protocol services, signing-key loading, OAuth bearer resolution and the
 OAuth schema revision remain inactive. Ordinary authentication retains its
 configured resolver order and behavior.
@@ -14,179 +16,185 @@ scope/audience policy, rate limits, audit/telemetry, configuration and key
 locator/rotation policy. Infbyte does not need duplicate OAuth/OIDC protocol
 routes, controllers or state machines.
 
-## Configuration
+Configuration
+-------------
 
-OAuth configuration lives under `auth.oauth`.
 
-```php
-'auth' => [
-    'oauth' => [
-        'enabled' => true,
-        'issuer' => 'https://identity.example.com',
+OAuth configuration lives under ``auth.oauth``.
 
-        // Seconds.
-        'access_token_ttl' => 300,
-        'authorization_code_ttl' => 60,
-        'refresh_token_ttl' => 1209600,
+.. code-block:: php
 
-        'grants' => [
-            'authorization_code',
-            'client_credentials',
-            'refresh_token',
-        ],
-        'pkce_methods' => ['S256'],
+   'auth' => [
+       'oauth' => [
+           'enabled' => true,
+           'issuer' => 'https://identity.example.com',
 
-        // Null uses cache.default. Production stores must be shared by every
-        // process on one host and by every host in a distributed deployment.
-        'rate_limit_store' => null,
+           // Seconds.
+           'access_token_ttl' => 300,
+           'authorization_code_ttl' => 60,
+           'refresh_token_ttl' => 1209600,
 
-        'resource_audiences' => [
-            'https://api.example.com',
-        ],
-        'scope_permissions' => [
-            'profile.read' => 'profile.read',
-            'orders.read' => 'orders.read',
-        ],
+           'grants' => [
+               'authorization_code',
+               'client_credentials',
+               'refresh_token',
+           ],
+           'pkce_methods' => ['S256'],
 
-        'signing' => [
-            'algorithm' => 'RS256',
-            'active_key_id' => 'oauth-2026-08',
-            'private_key' => 'storage/keys/oauth-2026-08-private.pem',
-            'public_keys' => [
-                [
-                    'id' => 'oauth-2026-08',
-                    'path' => 'storage/keys/oauth-2026-08-public.pem',
-                    'status' => 'active',
-                ],
-                [
-                    'id' => 'oauth-2026-07',
-                    'path' => 'storage/keys/oauth-2026-07-public.pem',
-                    'status' => 'fallback',
-                ],
-            ],
-        ],
+           // Null uses cache.default. Production stores must be shared by every
+           // process on one host and by every host in a distributed deployment.
+           'rate_limit_store' => null,
 
-        'routes' => [
-            'authorization' => '/oauth/authorize',
-            'token' => '/oauth/token',
-            'revocation' => '/oauth/revoke',
-            'introspection' => '/oauth/introspect',
-            'jwks' => '/.well-known/jwks.json',
-        ],
+           'resource_audiences' => [
+               'https://api.example.com',
+           ],
+           'scope_permissions' => [
+               'profile.read' => 'profile.read',
+               'orders.read' => 'orders.read',
+           ],
 
-        'rate_limits' => [
-            'authorization' => ['max' => 60, 'window' => 60],
-            'token' => ['max' => 30, 'window' => 60],
-            'revocation' => ['max' => 60, 'window' => 60],
-            'introspection' => ['max' => 120, 'window' => 60],
-            'userinfo' => ['max' => 120, 'window' => 60],
-        ],
+           'signing' => [
+               'algorithm' => 'RS256',
+               'active_key_id' => 'oauth-2026-08',
+               'private_key' => 'storage/keys/oauth-2026-08-private.pem',
+               'public_keys' => [
+                   [
+                       'id' => 'oauth-2026-08',
+                       'path' => 'storage/keys/oauth-2026-08-public.pem',
+                       'status' => 'active',
+                   ],
+                   [
+                       'id' => 'oauth-2026-07',
+                       'path' => 'storage/keys/oauth-2026-07-public.pem',
+                       'status' => 'fallback',
+                   ],
+               ],
+           ],
 
-        // Optional OpenID Connect provider profile.
-        'oidc' => [
-            'enabled' => true,
-            'id_token_lifetime_seconds' => 300,
-            'userinfo_route' => '/oidc/userinfo',
-            'userinfo_audience' => 'https://identity.example.com/oidc/userinfo',
-            'subject_types' => ['public'],
-            'scopes_supported' => ['openid', 'profile', 'email'],
-            'claims_supported' => [
-                'sub',
-                'name',
-                'given_name',
-                'family_name',
-                'preferred_username',
-                'email',
-                'email_verified',
-            ],
-            'signing' => [
-                'algorithm' => 'ES256',
-                'active_key_id' => 'oidc-2026-09',
-                'private_key' => '/run/secrets/oidc-2026-09-private.pem',
-                'public_keys' => [
-                    [
-                        'id' => 'oidc-2026-09',
-                        'path' => '/run/secrets/oidc-2026-09-public.pem',
-                        'status' => 'active',
-                    ],
-                ],
-            ],
-        ],
-    ],
-],
-```
+           'routes' => [
+               'authorization' => '/oauth/authorize',
+               'token' => '/oauth/token',
+               'revocation' => '/oauth/revoke',
+               'introspection' => '/oauth/introspect',
+               'jwks' => '/.well-known/jwks.json',
+           ],
 
-`issuer` must be a valid URL and must use HTTPS in production. Query and
+           'rate_limits' => [
+               'authorization' => ['max' => 60, 'window' => 60],
+               'token' => ['max' => 30, 'window' => 60],
+               'revocation' => ['max' => 60, 'window' => 60],
+               'introspection' => ['max' => 120, 'window' => 60],
+               'userinfo' => ['max' => 120, 'window' => 60],
+           ],
+
+           // Optional OpenID Connect provider profile.
+           'oidc' => [
+               'enabled' => true,
+               'id_token_lifetime_seconds' => 300,
+               'userinfo_route' => '/oidc/userinfo',
+               'userinfo_audience' => 'https://identity.example.com/oidc/userinfo',
+               'subject_types' => ['public'],
+               'scopes_supported' => ['openid', 'profile', 'email'],
+               'claims_supported' => [
+                   'sub',
+                   'name',
+                   'given_name',
+                   'family_name',
+                   'preferred_username',
+                   'email',
+                   'email_verified',
+               ],
+               'signing' => [
+                   'algorithm' => 'ES256',
+                   'active_key_id' => 'oidc-2026-09',
+                   'private_key' => '/run/secrets/oidc-2026-09-private.pem',
+                   'public_keys' => [
+                       [
+                           'id' => 'oidc-2026-09',
+                           'path' => '/run/secrets/oidc-2026-09-public.pem',
+                           'status' => 'active',
+                       ],
+                   ],
+               ],
+           ],
+       ],
+   ],
+
+
+``issuer`` must be a valid URL and must use HTTPS in production. Query and
 fragment components are not permitted. OAuth also requires a configured default
 DBLayer connection because protocol state is authoritative in the database.
 
 The three token/code TTL settings are expressed in **seconds**.
-`authorization_code_ttl` may not exceed 60 seconds. The default access-token TTL
+``authorization_code_ttl`` may not exceed 60 seconds. The default access-token TTL
 is 300 seconds, authorization-code TTL is 60 seconds, and refresh-token TTL is
 1,209,600 seconds.
 
-`resource_audiences` is the allow-list of resource-server audience identifiers.
+``resource_audiences`` is the allow-list of resource-server audience identifiers.
 A client may only receive audiences allowed by its registration and by this
 server policy. Keep audience identifiers stable and specific to the resource
 that validates the token.
 
-`scope_permissions` maps OAuth scope names to the existing Foundation permission
+``scope_permissions`` maps OAuth scope names to the existing Foundation permission
 names used by the authorization layer. A scope does not create an alternate
 permission system: account principals produced from OAuth still pass through the
 normal Foundation authorizer and middleware semantics.
 
-`routes` are local absolute paths only. They must be unique and must not contain
+``routes`` are local absolute paths only. They must be unique and must not contain
 a scheme, host, query or fragment. When OAuth is enabled, Foundation registers
 these routes in both dynamic and cached routing modes. Applications must not
 mount duplicate route adapters.
 
-The configured rate-limit `window` values are seconds. Rate limiting is a
+The configured rate-limit ``window`` values are seconds. Rate limiting is a
 protective policy; correctness, code one-time use, refresh rotation and
-revocation do not depend on cache availability. `rate_limit_store` selects the
-CacheLayer store used by the endpoint throttles; `null` uses `cache.default`.
+revocation do not depend on cache availability. ``rate_limit_store`` selects the
+CacheLayer store used by the endpoint throttles; ``null`` uses ``cache.default``.
 Production validation rejects process-memory state. The selected store must be
 visible to all workers on a host, and to all hosts in a distributed deployment.
 
 The default configuration can be enabled without an application-owned
-`config/auth.php` OAuth block by setting:
+``config/auth.php`` OAuth block by setting:
 
-```dotenv
-AUTH_OAUTH_ENABLED=true
-AUTH_OAUTH_ISSUER=https://identity.example.com
-AUTH_OAUTH_ACTIVE_KEY_ID=oauth-2026-08
-AUTH_OAUTH_PRIVATE_KEY=/run/secrets/oauth-2026-08-private.pem
-AUTH_OAUTH_PUBLIC_KEYS=[{"id":"oauth-2026-08","path":"/run/secrets/oauth-2026-08-public.pem","status":"active"}]
-AUTH_OIDC_ENABLED=true
-AUTH_OIDC_USERINFO_AUDIENCE=https://identity.example.com/oidc/userinfo
-AUTH_OIDC_ACTIVE_KEY_ID=oidc-2026-09
-AUTH_OIDC_PRIVATE_KEY=/run/secrets/oidc-2026-09-private.pem
-AUTH_OIDC_PUBLIC_KEYS=[{"id":"oidc-2026-09","path":"/run/secrets/oidc-2026-09-public.pem","status":"active"}]
-```
+.. code-block:: text
 
-`AUTH_OAUTH_PUBLIC_KEYS` is a JSON list. Keep deployment-specific audiences,
+   AUTH_OAUTH_ENABLED=true
+   AUTH_OAUTH_ISSUER=https://identity.example.com
+   AUTH_OAUTH_ACTIVE_KEY_ID=oauth-2026-08
+   AUTH_OAUTH_PRIVATE_KEY=/run/secrets/oauth-2026-08-private.pem
+   AUTH_OAUTH_PUBLIC_KEYS=[{"id":"oauth-2026-08","path":"/run/secrets/oauth-2026-08-public.pem","status":"active"}]
+   AUTH_OIDC_ENABLED=true
+   AUTH_OIDC_USERINFO_AUDIENCE=https://identity.example.com/oidc/userinfo
+   AUTH_OIDC_ACTIVE_KEY_ID=oidc-2026-09
+   AUTH_OIDC_PRIVATE_KEY=/run/secrets/oidc-2026-09-private.pem
+   AUTH_OIDC_PUBLIC_KEYS=[{"id":"oidc-2026-09","path":"/run/secrets/oidc-2026-09-public.pem","status":"active"}]
+
+
+``AUTH_OAUTH_PUBLIC_KEYS`` is a JSON list. Keep deployment-specific audiences,
 scope mappings, route overrides and rate-limit policy in application
 configuration only when the defaults are not suitable.
 
-## Signing keys
+Signing keys
+------------
+
 
 OAuth access tokens use a signing-key set that is separate from Foundation
 application access-token security.
 
-`auth.oauth.signing.private_key` is a deployment-owned **file locator**, not PEM
-content. Relative paths are resolved from `app.base_path`; absolute paths are
+``auth.oauth.signing.private_key`` is a deployment-owned **file locator**, not PEM
+content. Relative paths are resolved from ``app.base_path``; absolute paths are
 also accepted. The active private key is never exposed through JWKS.
 
-`auth.oauth.signing.public_keys` is a non-empty ordered list of maps. Each entry
+``auth.oauth.signing.public_keys`` is a non-empty ordered list of maps. Each entry
 contains:
 
-- `id`: a unique Base64URL-safe key id, 1-128 characters;
-- `path`: a deployment-owned public-key file locator;
-- `status`: `active` or `fallback`;
-- optional `not_before` and `not_after`: positive Unix timestamps limiting when
+- ``id``: a unique Base64URL-safe key id, 1-128 characters;
+- ``path``: a deployment-owned public-key file locator;
+- ``status``: ``active`` or ``fallback``;
+- optional ``not_before`` and ``not_after``: positive Unix timestamps limiting when
   the key may be selected for verification.
 
-Exactly one public key must be `active`, and its `id` must equal
-`active_key_id`. Fallback public keys remain available for verification and JWKS
+Exactly one public key must be ``active``, and its ``id`` must equal
+``active_key_id``. Fallback public keys remain available for verification and JWKS
 publication while tokens signed by the previous key can still be valid.
 
 At readiness resolution Foundation verifies that the configured active private
@@ -194,13 +202,15 @@ key and active public key form a working signing pair and that the public key se
 can be exported as JWKS. Key locator paths and private material are treated as
 sensitive diagnostics.
 
-### Rotation procedure
+Rotation procedure
+~~~~~~~~~~~~~~~~~~
+
 
 Use an overlap window rather than replacing the only verification key:
 
 1. Provision a new private/public key pair outside the repository.
-2. Add the new public key as `active`, change the previous active public key to
-   `fallback`, and point `active_key_id` and `private_key` at the new pair.
+2. Add the new public key as ``active``, change the previous active public key to
+   ``fallback``, and point ``active_key_id`` and ``private_key`` at the new pair.
 3. Deploy the configuration/key files together and run normal configuration and
    application readiness checks before receiving traffic.
 4. Confirm JWKS exposes both the new active public key and the fallback key.
@@ -211,22 +221,25 @@ Use an overlap window rather than replacing the only verification key:
 Do not delete the previous public key in the same deployment that starts signing
 with the replacement key.
 
-## OAuth clients and secrets
+OAuth clients and secrets
+-------------------------
+
 
 Foundation owns client registration, enable/disable state and secret rotation.
 The bounded administration commands are:
 
-```text
-auth:oauth:client:create
-auth:oauth:client:list
-auth:oauth:client:show
-auth:oauth:client:rotate-secret
-auth:oauth:client:enable
-auth:oauth:client:disable
-auth:oauth:authorization:list
-auth:oauth:authorization:revoke
-auth:oauth:key:check
-```
+.. code-block:: text
+
+   auth:oauth:client:create
+   auth:oauth:client:list
+   auth:oauth:client:show
+   auth:oauth:client:rotate-secret
+   auth:oauth:client:enable
+   auth:oauth:client:disable
+   auth:oauth:authorization:list
+   auth:oauth:authorization:revoke
+   auth:oauth:key:check
+
 
 A generated or rotated confidential-client secret is intentionally returned only
 at the administration operation that creates it. Capture that value immediately
@@ -235,19 +248,21 @@ appropriate secret channel. List/show, audits, logs and error output must not be
 used to recover a raw secret later.
 
 Public clients do not have a client secret. Confidential clients may use
-`client_secret_basic`, `client_secret_post`, or `private_key_jwt`.
-`private_key_jwt` trusts only the public JWKS registered with that client;
+``client_secret_basic``, ``client_secret_post``, or ``private_key_jwt``.
+``private_key_jwt`` trusts only the public JWKS registered with that client;
 request-supplied or unregistered key locators are never trust sources.
-Authorization Code clients must use PKCE S256; `plain`, password grant,
+Authorization Code clients must use PKCE S256; ``plain``, password grant,
 implicit grant and credential transport in query parameters are not accepted.
 
-## Ownership
+Ownership
+---------
+
 
 Epicrypt owns protocol validation and cryptographic/state-machine mechanics,
 including authorization-request validation, PKCE/redirect rules,
 authorization-code artifacts, grant processing, refresh rotation/reuse,
 access-token issue/inspection/resource validation, client authentication,
-registered-key `private_key_jwt`, replay detection, revocation/introspection,
+registered-key ``private_key_jwt``, replay detection, revocation/introspection,
 DPoP validation/binding, OAuth metadata, OIDC request/interaction/ID-token
 mechanics, subject/UserInfo projection, provider metadata, and PAT semantics.
 
@@ -268,10 +283,12 @@ Infbyte remains an OAuth-neutral application skeleton. Enabling OAuth/OIDC
 through Foundation adds protocol capability to the existing authentication
 system; it does not create a second application authentication system.
 
-## OAuth bearer versus application bearer
+OAuth bearer versus application bearer
+--------------------------------------
+
 
 OAuth access tokens and existing Foundation application access tokens are
-separate security domains even though both are carried using the HTTP `Bearer`
+separate security domains even though both are carried using the HTTP ``Bearer``
 scheme.
 
 Foundation application access tokens use the existing application token service
@@ -285,14 +302,18 @@ application bearer token satisfy OAuth scope/audience policy. When OAuth is
 enabled, its bearer resolver is additive to the existing resolver chain rather
 than a replacement for Foundation authentication.
 
-## Deployment and operations
+Deployment and operations
+-------------------------
 
-OAuth persistence is a revision of Foundation 4's Core `auth` schema. Provision
+
+OAuth persistence is a revision of Foundation 4's Core ``auth`` schema. Provision
 the current schema and preserve its account, session, MFA and application-token
 state when enabling OAuth. Previous-major schema conversion is outside the
-Foundation 4 contract; see the [setup guide](foundation-4-migration.md).
+Foundation 4 contract; see the :doc:`setup guide </foundation-4-migration>`.
 
-### Enablement sequence
+Enablement sequence
+~~~~~~~~~~~~~~~~~~~
+
 
 A production rollout should use this order:
 
@@ -301,23 +322,25 @@ A production rollout should use this order:
    without loading OAuth key material.
 2. Provision the DBLayer connection, signing-key files and final OAuth
    configuration on the target deployment.
-3. In a controlled enablement/canary environment, set `auth.oauth.enabled=true`
+3. In a controlled enablement/canary environment, set ``auth.oauth.enabled=true``
    and validate the resolved configuration:
 
-   ```bash
-   php infbyte config:validate --production
-   ```
+   .. code-block:: bash
+
+      php infbyte config:validate --production
+
 
 4. Provision and inspect the Core auth/OAuth schema through
-   `AuthSchemaInstaller::install()` and `readiness()` inside a CLI execution,
-   with `auth.oauth.enabled=true`; see [Core schema provisioning](data/database.rst).
-   Optional `module:schema:sync` does not provision Core auth tables.
+   ``AuthSchemaInstaller::install()`` and ``readiness()`` inside a CLI execution,
+   with ``auth.oauth.enabled=true``; see :doc:`Core schema provisioning </data/database>`.
+   Optional ``module:schema:sync`` does not provision Core auth tables.
 5. Check the active signing key and full application readiness before traffic:
 
-   ```bash
-   php infbyte auth:oauth:key:check
-   php infbyte app:ready
-   ```
+   .. code-block:: bash
+
+      php infbyte auth:oauth:key:check
+      php infbyte app:ready
+
 
 6. Rebuild configuration and route caches after enabling OAuth. Foundation then
    exposes its OAuth routes automatically. Verify metadata/JWKS, one public
@@ -329,14 +352,17 @@ A production rollout should use this order:
 Readiness is authoritative. Do not turn a missing schema or signing-key failure
 into a warning merely to continue deployment.
 
-### Pruning
+Pruning
+~~~~~~~
+
 
 Use Foundation's existing authentication pruning command as part of normal
 maintenance:
 
-```bash
-php infbyte auth:prune
-```
+.. code-block:: bash
+
+   php infbyte auth:prune
+
 
 OAuth pruning removes expired authorization codes, expired refresh-token rows,
 expired access-revocation evidence and sufficiently old revoked consent or
@@ -348,12 +374,14 @@ Run pruning as routine retention maintenance, not as a revocation mechanism.
 Client, authorization, refresh-family and access-token revocation are explicit
 durable protocol operations.
 
-### Canary and rollback
+Canary and rollback
+~~~~~~~~~~~~~~~~~~~
+
 
 The preferred operational rollback is **disablement, not destructive schema
 rollback**:
 
-1. Set `auth.oauth.enabled=false` (or `AUTH_OAUTH_ENABLED=false`) in the rollback
+1. Set ``auth.oauth.enabled=false`` (or ``AUTH_OAUTH_ENABLED=false``) in the rollback
    deployment and rebuild configuration and route caches.
 2. Re-run configuration/readiness for the restored application surface.
 3. Leave the additive OAuth tables and durable state in place while the incident
@@ -373,14 +401,16 @@ For a signing-key incident, preserve any still-trusted fallback public key neede
 to validate already-issued tokens. Disabling OAuth immediately is safer than
 removing verification keys while bearer tokens may still be in circulation.
 
-## Protocol scope and standards
+Protocol scope and standards
+----------------------------
+
 
 The release name “OAuth 2.1 extension” describes Foundation's implementation
 track; it is not a blanket conformance claim for every OAuth specification or
 profile.
 
 At this documentation baseline in August 2026, the IETF OAuth 2.1 authorization
-framework is still published as `draft-ietf-oauth-v2-1-15`, not as a final RFC.
+framework is still published as ``draft-ietf-oauth-v2-1-15``, not as a final RFC.
 Foundation therefore documents the protocol pieces it actually implements and
 uses the OAuth 2.1 draft/security guidance as a design input rather than claiming
 conformance to a final OAuth 2.1 RFC.
@@ -395,14 +425,14 @@ Implemented protocol pieces include:
 - token introspection behavior based on RFC 7662;
 - authorization-server metadata fields based on RFC 8414;
 - asymmetric JWT access tokens using the RFC 9068 access-token profile;
-- the authorization-response `iss` parameter from RFC 9207;
+- the authorization-response ``iss`` parameter from RFC 9207;
 - security choices informed by the OAuth 2.0 Security Best Current Practice,
   RFC 9700, including removal of legacy/insecure grant behavior from this
   surface.
 
 The implementation may intentionally be stricter than a base RFC. Examples are
 S256-only PKCE, exact registered redirect matching, bounded inputs,
-registered-key-only `private_key_jwt`, durable one-time authorization-code
+registered-key-only ``private_key_jwt``, durable one-time authorization-code
 consumption, refresh rotation/reuse handling and explicit OAuth/application
 token separation.
 
@@ -410,22 +440,24 @@ Available interoperability and conformance coverage is recorded in the release
 tracker. Passing the project protocol suite is not a claim that an external
 conformance suite has passed.
 
-## OpenID Connect and DPoP
+OpenID Connect and DPoP
+-----------------------
 
-OIDC is opt-in through `auth.oauth.oidc.enabled`. The current provider profile
+
+OIDC is opt-in through ``auth.oauth.oidc.enabled``. The current provider profile
 uses Epicrypt for OpenID request validation and interaction policy, nonce and
-`max_age` handling, `auth_time`/`acr`/`amr`, Authorization Code ID-token
+``max_age`` handling, ``auth_time``/``acr``/``amr``, Authorization Code ID-token
 issuance, UserInfo projection, provider discovery metadata and OIDC signing-key
-validation. Foundation currently exposes the `public` subject type only.
+validation. Foundation currently exposes the ``public`` subject type only.
 Applications still own their login/account-selection UX; enabling OIDC does not
 create a generic social-login/provider abstraction.
 
-`max_age=0` requires authentication for the current authorization interaction.
+``max_age=0`` requires authentication for the current authorization interaction.
 The built-in consent controller cannot satisfy that requirement with a reusable
 session timestamp, even when it equals the current clock second or consent was
 previously granted. Foundation supplies unauthenticated interaction evidence to
-Epicrypt so its native policy requires reauthentication (or `login_required` for
-a silent request). The controller returns `login_required` when it cannot
+Epicrypt so its native policy requires reauthentication (or ``login_required`` for
+a silent request). The controller returns ``login_required`` when it cannot
 perform that interaction. The direct code-issuance API accepts reusable
 principal metadata rather than interaction-specific authentication proof, so it
 also rejects zero-age requests. Applications own the interactive authentication
@@ -439,7 +471,9 @@ validation checks the method/URI/access-token hash, key binding and authoritativ
 replay state. The server metadata advertises the supported DPoP signing
 algorithm.
 
-## Unsupported and deferred features
+Unsupported and deferred features
+---------------------------------
+
 
 Foundation intentionally does **not** provide:
 

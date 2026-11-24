@@ -134,9 +134,7 @@ restore or migrate a coherent code/dependency/data snapshot.
 Do not attempt to repair through a forced older binary without
 proving compatibility.
 
-Read the maintained `Foundation release operation contract
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/operations.md>`_
-and `retained state rehearsal
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/foundation-4-retained-data-rehearsal.md>`_.
+Read the maintained :doc:`Foundation release operation contract </operations>`
+and :doc:`retained state rehearsal </foundation-4-retained-data-rehearsal>`.
 
 See :doc:`overview` and :doc:`troubleshooting`.

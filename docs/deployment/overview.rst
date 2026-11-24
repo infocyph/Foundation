@@ -9,10 +9,8 @@ containing its web, CLI, worker and scheduler graphs. The application
 and its external services must agree on configuration, dependencies,
 secrets, data formats and the active generation identity.
 
-This chapter describes the **unpublished Foundation 4 candidate**.
-The current Infbyte application skeleton on ``main`` targets
-Foundation 3, so do not treat this as an already released Infbyte 4
-installation procedure.
+This chapter describes deployment of a compatible Infbyte application
+using Foundation 4.
 
 Before deployment
 -----------------
@@ -133,9 +131,8 @@ Check:
    slow-request cancellation.
 6. Rollback to a retained generation without losing data integrity.
 
-Do not declare release certification solely because this checklist
-passes. Foundation PR #20 has separate sustained host-performance,
-security and lifecycle gates.
+Validate application security, lifecycle behavior and performance against
+your actual deployment topology before promoting a release.
 
 Next: :doc:`hosting`, :doc:`releases` and
 :doc:`operations`.

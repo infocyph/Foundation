@@ -11,7 +11,7 @@ profiles and provides the integration policy.
 **Where to configure it:** ``my-app/config/communication.php``,
 published into your Infbyte application after selecting
 the optional feature. It is not shipped with a new
-Core-only Infbyte 4 candidate.
+Core-only Infbyte 4 starter.
 
 Choose the communication feature
 --------------------------------

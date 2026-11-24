@@ -9,8 +9,7 @@ This walkthrough explains how to enable only the required middleware,
 select shared state, protect writes with CSRF and rotate the session
 when authority changes.
 
-The guide describes **Foundation 4 development behavior**. The public
-Infbyte application on ``main`` still targets Foundation 3.
+This guide describes Foundation 4 session behavior in an Infbyte application.
 
 Know the two session systems
 ----------------------------
@@ -202,8 +201,7 @@ page load:
 8. Logout/revocation prevents use of invalidated authority.
 
 These checks require a compatible application route and actual
-configured store; the docs do not claim to have run them against
-an unpublished Infbyte 4 starter.
+configured store; validate them against your installed dependencies and runtime.
 
 Related guides
 --------------

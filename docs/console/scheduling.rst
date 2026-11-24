@@ -11,12 +11,12 @@ cron/systemd/container service decides when to invoke it.
 
 A schedule is not a durable queue or a substitute
 for a process supervisor. This guide describes the
-Infbyte 4 **development candidate**.
+Infbyte 4 application.
 
 Start with the actual application schedule
 ------------------------------------------
 
-The Infbyte 4 candidate has
+The Infbyte 4 starter has
 ``routes/schedule.php`` with an empty
 ``Schedule`` callback:
 

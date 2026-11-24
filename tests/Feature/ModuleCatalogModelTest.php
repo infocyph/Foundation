@@ -28,13 +28,13 @@ it('models managed feature and optional package roles without broadening install
 });
 
 it('documents the canonical three-module feature IDs and package version floors', function (): void {
-    $content = file_get_contents(dirname(__DIR__, 2) . '/docs/modules.md');
+    $content = file_get_contents(dirname(__DIR__, 2) . '/docs/modules.rst');
     \PHPUnit\Framework\Assert::assertIsString($content);
 
     $catalog = new \Infocyph\Foundation\Module\ModuleArchitectureCatalog();
     foreach ($catalog->all() as $group => $definition) {
         foreach ($definition['features'] as $feature => $metadata) {
-            expect($content)->toContain('`' . $group . '.' . $feature . '`');
+            expect($content)->toContain('``' . $group . '.' . $feature . '``');
             foreach ($metadata['packages'] as $constraint) {
                 expect($content)->toContain($constraint);
             }

@@ -118,8 +118,7 @@ The exact option set is available through
 ``php infbyte help <command>``. For an authoritative,
 feature-specific list refer to the
 :doc:`../console/overview` and :doc:`../console/commands`
-and `operations guide
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/operations.md>`_.
+and :doc:`operations guide </operations>`.
 
 Global CLI controls
 -------------------

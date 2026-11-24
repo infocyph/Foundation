@@ -4,14 +4,14 @@ Your first Infbyte HTTP route
 =============================
 
 This short tutorial introduces route registration in the
-**Infbyte 4 development candidate**. For a complete
+**Infbyte 4 application**. For a complete
 controller/test/deployment walkthrough, see
 :doc:`first-application`.
 
 Step 1 — find the application route file
 ----------------------------------------
 
-Open ``my-app/routes/api.php``. The existing candidate
+Open ``my-app/routes/api.php``. The existing starter
 registers the built-in health endpoint:
 
 .. code-block:: php
@@ -48,7 +48,7 @@ route. The callable returns a JSON-mappable array.
 Step 3 — check route selection
 ------------------------------
 
-The candidate's ``config/router.php`` includes
+The starter's ``config/router.php`` includes
 ``'files' => ['api.php']``. If you instead create
 ``routes/web.php``, you must explicitly select it
 in that configuration or Webrick will not discover it.
@@ -95,10 +95,6 @@ Webrick also supports constrained parameters, route
 names, grouping, domain scoping and signed URLs. They
 are documented in :doc:`../http/routing` and
 the native Webrick routing manual.
-
-The Infbyte 4 candidate remains unpublished; do not
-claim these development snippets prove a stable
-``composer create-project`` consumer.
 
 Next: :doc:`first-application`,
 :doc:`../http/controllers` and

@@ -118,7 +118,6 @@ benefit has been demonstrated. Use a long-lived host only when
 its memory isolation, cancellation, restart and backend lifetime
 behavior has been tested.
 
-Read `Foundation runtime hosting
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/runtime-hosting.md>`_,
+Read :doc:`Foundation runtime hosting </runtime-hosting>`,
 :doc:`../advanced/runtime-modes` and
 :doc:`troubleshooting`.

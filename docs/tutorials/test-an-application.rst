@@ -8,7 +8,7 @@ It must verify business logic, the selected runtime, middleware and
 HTTP integration, native service behavior, persistent-process cleanup,
 and production release activation where relevant.
 
-This guide documents the **Foundation 4 development API**.
+This guide documents the **Foundation 4 API**.
 Full executable consumer fixtures require a compatible Infbyte 4
 skeleton. Examples with application-defined routes are explicitly
 illustrative.
@@ -81,9 +81,8 @@ For a route your application explicitly registers as
        ->assertStatus(200)
        ->assertJson(['status' => 'ok']);
 
-The published Infbyte 3 skeleton includes this route.
-For Foundation 4 the route requires a compatible application fixture;
-the call is a TestKit API illustration rather than proof that the
+The Infbyte 4 starter includes this route. The call illustrates the
+TestKit API rather than proving that the
 published starter has been migrated.
 
 The Foundation HTTP client constructs native Webrick requests and
@@ -238,9 +237,7 @@ PHP version, dependency revisions, host mode, feature topology,
 test name and reproducible assertion. Redact credentials,
 authorization headers, customer identities and account tokens.
 
-Do not turn an illustrative PHP snippet into a claim that
-an unpublished Foundation 4/Infbyte 4 combination has already
-passed consumer integration tests.
+Run integration tests against the actual application and dependency graph.
 
 What to test next
 -----------------

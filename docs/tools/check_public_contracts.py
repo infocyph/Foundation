@@ -122,15 +122,16 @@ def load(path: Path, failures: list[str]) -> str:
 MARKDOWN_FILE_LINK = re.compile(r"\]\(([^)\s]+)(?:\s+[^)]*)?\)")
 FOUNDATION_SOURCE_LINK = re.compile(
     r"https://github\.com/infocyph/Foundation/blob/"
-    r"(?:feature/foundation-3|main)/"
-    r"((?:docs|\.github)/[A-Za-z0-9_./-]+)"
+    r"main/"
+    r"((?:docs|src|resources|\.github)/[A-Za-z0-9_./-]+)"
 )
 
 
 def check_document_links(failures: list[str]) -> int:
     checked = 0
     markdown_pages = [ROOT / "README.md", ROOT / "CONTRIBUTING.md"]
-    markdown_pages.extend(sorted(DOCS.rglob("*.md")))
+    for page in sorted(DOCS.rglob("*.md")):
+        failures.append(f"{page.relative_to(ROOT)}: use reStructuredText for manual pages")
 
     for page in markdown_pages:
         if not page.is_file():
@@ -151,7 +152,10 @@ def check_document_links(failures: list[str]) -> int:
                 )
 
     for page in sorted(DOCS.rglob("*.rst")):
-        for match in FOUNDATION_SOURCE_LINK.finditer(page.read_text(encoding="utf-8")):
+        content = page.read_text(encoding="utf-8")
+        if "github.com/infocyph/Foundation/blob/feature/foundation-3/" in content or "github.com/infocyph/Foundation/tree/feature/foundation-3/" in content:
+            failures.append(f"{page.relative_to(ROOT)}: obsolete Foundation source branch")
+        for match in FOUNDATION_SOURCE_LINK.finditer(content):
             reference = match.group(1).rstrip(".,")
             checked += 1
             if not (ROOT / reference).is_file():

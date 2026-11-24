@@ -151,7 +151,7 @@ it('keeps the retired full throughput certification out of the release workflow 
     expect($workflow['jobs'])->not->toHaveKey('source-certification');
     expect(is_file($root . '/.github/workflows/foundation4-host-certification.yml'))->toBeFalse();
 
-    $notes = file_get_contents($root . '/docs/foundation-4.0-release-notes.md');
+    $notes = file_get_contents($root . '/docs/foundation-4.0-release-notes.rst');
     if (!is_string($notes)) {
         throw new UnexpectedValueException('Release notes are required.');
     }

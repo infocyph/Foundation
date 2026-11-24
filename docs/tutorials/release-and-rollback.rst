@@ -13,10 +13,8 @@ normalized config and the installed dependency fingerprint must
 match the selected release; runtime workers must load an
 **externally trusted manifest digest**.
 
-This runbook describes an **unpublished Foundation 4 candidate**.
-The public Infbyte starter still requires Foundation 3. Do not
-treat these steps as a ready-to-run production Infbyte 4 install
-until the compatible skeleton and external host have been tested.
+Use this runbook with a compatible Foundation 4 application and validate the
+selected host and dependency graph before production deployment.
 
 When to use this runbook
 ------------------------
@@ -40,7 +38,7 @@ From the **build environment**, preserve:
 
 * exact Foundation and application source commit IDs;
 * Composer-installed dependency identities and application lockfile;
-* PHP 8.4/8.5 target version and required selected extensions;
+* PHP 8.4–8.6 target version and required selected extensions;
 * application configuration and feature topology without secret values;
 * host adapter and worker topology (FPM, native Runwire or an external
   supported driver);
@@ -312,7 +310,5 @@ See :doc:`../deployment/overview`,
 :doc:`../deployment/hosting`,
 :doc:`../deployment/troubleshooting`,
 :doc:`../testing/persistent-runtimes`,
-`Foundation retained-state rehearsals
-<https://github.com/infocyph/Foundation/blob/feature/foundation-3/docs/foundation-4-retained-data-rehearsal.md>`_
-and the
-:doc:`../reference/publication-readiness`.
+:doc:`Foundation retained-state rehearsals </foundation-4-retained-data-rehearsal>`
+and :doc:`../foundation-4-migration`.

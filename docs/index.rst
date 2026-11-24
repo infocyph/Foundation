@@ -7,16 +7,6 @@ Infbyte — PHP Application Framework
 Build PHP applications on Foundation's explicit lifecycle, native libraries,
 and lightweight application skeleton.
 
-.. warning::
-
-   **Foundation 4 development documentation.** This manual describes the
-   in-progress Foundation 4 contracts in the
-   `feature/foundation-3` branch. The Infbyte starter application's
-   published `main` branch still requires Foundation 3. Do not assume the
-   current `composer create-project` command creates a Foundation 4 application.
-   A Foundation 4 **development candidate** is available on Infbyte PR #11;
-   it is not a stable published starter.
-
 This manual is written for **Infbyte application developers**. Unless a page
 explicitly says **Foundation internal source**, paths such as ``config/app.php``,
 ``routes/api.php`` and ``app/Http/Controllers/`` refer to files in **your
@@ -37,7 +27,6 @@ the application lifecycle and providers.
 
    start/overview
    start/installation
-   start/foundation4-candidate
    start/directory-structure
    start/configuration
    start/development-server
@@ -142,7 +131,6 @@ the application lifecycle and providers.
    reference/http-security-api
    reference/console-testing-api
    reference/configuration
-   reference/publication-readiness
 
 .. toctree::
    :caption: Framework & internals
@@ -153,4 +141,3 @@ the application lifecycle and providers.
    architecture/service-providers
    internals/native-boundaries
    reference/technical-guides
-   reference/maintenance
