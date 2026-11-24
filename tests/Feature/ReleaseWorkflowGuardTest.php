@@ -162,6 +162,25 @@ it('keeps the retired full throughput certification out of the release workflow 
     );
 });
 
+it('qualifies the active Infbyte application against the Foundation handoff PR head', function (): void {
+    $workflow = foundationReleaseWorkflow(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $job = foundationStringMap($workflow['jobs']['infbyte-candidate'] ?? null);
+    $strategy = foundationStringMap($job['strategy'] ?? null);
+    $matrix = foundationStringMap($strategy['matrix'] ?? null);
+
+    expect($job['if'] ?? null)->toBe("github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'plan/foundation-risk-engine-handoff'")
+        ->and($matrix['php'] ?? null)->toBe(['8.4', '8.5', '8.6']);
+
+    $steps = $job['steps'] ?? null;
+    \PHPUnit\Framework\Assert::assertIsArray($steps);
+    $named = array_column($steps, null, 'name');
+    $checkout = foundationStringMap($named['Check out existing Infbyte 4 application candidate'] ?? null);
+    $with = foundationStringMap($checkout['with'] ?? null);
+    $verify = foundationStringMap($named['Require the exact Foundation PR head'] ?? null);
+    expect($with['ref'] ?? null)->toBe('feature/infbyte-4')
+        ->and(foundationFixtureString($verify['run'] ?? null))->toContain('dev-plan/foundation-risk-engine-handoff', 'EXPECTED_FOUNDATION_SHA');
+});
+
 /**
  * Parse actual GitHub Actions release triggers and named jobs.
  *
@@ -186,15 +205,3 @@ function foundationReleaseWorkflow(string $path): array
 
     return ['on' => foundationStringMap($document['on']), 'jobs' => $jobs];
 }
-
-
-it('qualifies the active Infbyte application against the Foundation handoff PR head', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
-    $job = $workflow['jobs']['infbyte-candidate'];
-
-    expect($job['if'])->toBe("github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'plan/foundation-risk-engine-handoff'")
-        ->and($job['strategy']['matrix']['php'])->toBe(['8.4', '8.5', '8.6']);
-    $steps = array_column($job['steps'], null, 'name');
-    expect($steps['Check out existing Infbyte 4 application candidate']['with']['ref'])->toBe('feature/infbyte-4')
-        ->and($steps['Require the exact Foundation PR head']['run'])->toContain('dev-plan/foundation-risk-engine-handoff', 'EXPECTED_FOUNDATION_SHA');
-});
