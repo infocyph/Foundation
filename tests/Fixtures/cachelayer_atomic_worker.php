@@ -37,6 +37,10 @@ $cache = Cache::redis(
     ),
 );
 
+if (fgets(STDIN) !== "go\n") {
+    throw new InvalidArgumentException('CacheLayer worker did not receive its start signal.');
+}
+
 $result = match ($mode) {
     'claim' => (new CacheLayerWebhookReplayStore($cache))->claim('concurrency', $arg1, 30),
     'pull' => (new CacheLayerTtlStore($cache))->pull($arg1, '__miss__'),
