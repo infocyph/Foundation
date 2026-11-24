@@ -282,3 +282,8 @@ Foundation integration probes.
 The loopback fixture also explicitly disposes the process-global default
 root state only when its own stub initialized it. This is fixture-owned
 cleanup, not a recommendation to reset shared TLS state in production.
+
+The hosted diagnostic gate reports the loaded PHP extensions and INI
+configuration and captures a native debugger backtrace if either full
+probe exits with SIGSEGV. A diagnostic replay never converts a failing
+original process into a successful gate.

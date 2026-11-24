@@ -309,6 +309,13 @@ jobs:
         run: |
           php -r 'if (!extension_loaded("grpc")) { throw new RuntimeException("Native gRPC PHP extension unavailable."); }'
           php --ri grpc
+          php --ini
+          php -m
+          if ! command -v gdb >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends gdb
+          fi
+          gdb --version
           composer update --no-interaction --no-progress --prefer-dist --prefer-stable
           composer require --dev "grpc/grpc:^1.76" --no-interaction --no-progress --prefer-dist --prefer-stable
       - name: Verify real native unary transport without spawning from the PHP extension process
@@ -404,16 +411,28 @@ jobs:
             unset($result, $stub);
             echo "Standalone native gRPC roundtrip and close verified.\n";
           '
-          if php -r "$standalone_php"; then
-            :
-          else
-            status=$?
-            if [[ "$status" -eq 139 ]] && command -v gdb >/dev/null; then
-              gdb --batch -ex run -ex "thread apply all bt" --args "$(command -v php)" -r "$standalone_php" || :
+          run_native_probe() {
+            local status
+            if php "$@"; then
+              return 0
+            else
+              status=$?
             fi
-            exit "$status"
-          fi
-          GRPC_TEST_PORT="$GRPC_TEST_PORT" php tests/Fixtures/talkingbytes_grpc_probe.php
+            if [[ "$status" -eq 139 ]]; then
+              echo "::group::Native gRPC shutdown backtrace"
+              # A fresh reproduction under gdb may not reproduce an intermittent crash.
+              # Regardless of that diagnostic result, retain the original failed exit.
+              timeout 90s gdb --batch --return-child-result \
+                -ex "set pagination off" \
+                -ex "set disable-randomization off" \
+                -ex run -ex "thread apply all bt" \
+                --args "$(command -v php)" "$@" || :
+              echo "::endgroup::"
+            fi
+            return "$status"
+          }
+          run_native_probe -r "$standalone_php"
+          run_native_probe tests/Fixtures/talkingbytes_grpc_probe.php
 
   historical-dependency-provenance:
     name: Historical Foundation 3 dependency reconstruction (truthful provenance)
