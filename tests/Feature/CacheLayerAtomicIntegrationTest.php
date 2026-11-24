@@ -9,7 +9,9 @@ use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerTtlStore;
 use Infocyph\Foundation\Auth\Support\ArrayTtlStore;
 use Infocyph\Foundation\Communication\CacheLayerWebhookReplayStore;
+use Infocyph\Foundation\Security\Risk\RiskAuthority;
 use Infocyph\Foundation\Security\Risk\RiskContext;
+use Infocyph\Foundation\Security\Risk\RiskProofStore;
 use Infocyph\Foundation\Security\Risk\RiskTelemetry;
 
 it('aligns nullable string pull defaults across memory and atomic TTL stores', function (): void {
@@ -144,6 +146,32 @@ it('preserves replay consume CAS and auth lockout atomicity under process conten
             ->and($telemetry->observe($context, 120, 'same-account'))->toBe([
                 'familiar' => null, 'failedSignatureAttempts' => 8, 'concentrated' => true, 'reliable' => true,
             ]);
+
+        $authority = new RiskAuthority(Cache::redis(
+            namespace: $namespace,
+            dsn: $dsn,
+            options: new CacheOptions(integrityKey: str_repeat('i', 32), failOpen: false),
+        ), str_repeat('k', 32), shared: true);
+        $proofs = new RiskProofStore($authority, 'provider');
+        $claims = foundationCacheLayerAtomicWorkers('risk-proof', $namespace, $dsn, 'shared-proof', 8);
+        expect(array_count_values($claims))->toMatchArray(['1' => 1, '0' => 7])
+            ->and($proofs->claimVerifiedProof('shared-proof'))->toBeFalse();
+
+        $clearance = $proofs->issueClearance($context, 'account', 'verified-proof', 120);
+        \PHPUnit\Framework\Assert::assertIsString($clearance);
+        expect($proofs->issueClearance($context, 'account', 'verified-proof', 120))->toBeNull();
+        $redeemed = foundationCacheLayerAtomicWorkers('risk-clearance', $namespace, $dsn, $clearance, 8);
+        expect(array_count_values($redeemed))->toMatchArray(['1' => 1, '0' => 7])
+            ->and($proofs->redeemClearance($context, 'account', $clearance, 120))->toBeFalse();
+
+        $otherToken = $proofs->issueClearance($context, 'account', 'another-proof', 120);
+        \PHPUnit\Framework\Assert::assertIsString($otherToken);
+        expect($proofs->redeemClearance(RiskContext::fromTransport('other', 'login', '192.0.2.1'), 'account', $otherToken, 120))->toBeFalse()
+            ->and($proofs->redeemClearance($context, 'account', $otherToken, 120))->toBeFalse();
+
+        $expired = $proofs->issueClearance($context, 'account', 'expired-proof', 120);
+        \PHPUnit\Framework\Assert::assertIsString($expired);
+        expect($proofs->redeemClearance($context, 'account', $expired, 210))->toBeFalse();
     } finally {
         $cache->clear();
     }
