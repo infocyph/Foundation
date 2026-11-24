@@ -16,6 +16,7 @@ it('requires tagged releases to pass the complete security, consumer, migration 
         'talkingbytes-mailpit',
         'talkingbytes-grpc',
         'risk-provider-wire',
+        'risk-host-qualification',
         'historical-dependency-provenance',
         'cross-major-auth-rehearsal',
         'redis-cluster',

@@ -188,7 +188,7 @@ jobs:
 
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    needs: [phpforge, production-consumer, release-evidence, runtime-hosts, talkingbytes-mailpit, talkingbytes-grpc, risk-provider-wire, historical-dependency-provenance, cross-major-auth-rehearsal, redis-cluster, documentation]
+    needs: [phpforge, production-consumer, release-evidence, runtime-hosts, talkingbytes-mailpit, talkingbytes-grpc, risk-provider-wire, risk-host-qualification, historical-dependency-provenance, cross-major-auth-rehearsal, redis-cluster, documentation]
     uses: infocyph/phpforge/.github/workflows/release.yml@main
     permissions:
       contents: write
@@ -566,6 +566,29 @@ jobs:
             -keyout "$root/untrusted.key" -out "$root/untrusted.pem"
           # Namespace-local network state only; no host interfaces or production policy changes.
           sudo unshare --net -- bash tests/Fixtures/risk_provider_qualification.sh "$root"
+
+
+  risk-host-qualification:
+    name: Isolated risk login host / PHP 8.6
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.6"
+          tools: composer:v2
+          extensions: "curl, mbstring, intl, sodium, pdo, pdo_sqlite, redis, sockets, pcntl, posix"
+          coverage: none
+      - name: Install real authentication and ordinary hosts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends nginx php8.6-fpm redis-server redis-tools
+          composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+      - name: Qualify isolated authentication worker lifecycle
+        run: bash tests/Fixtures/risk_host_qualification.sh
 
 
   historical-dependency-provenance:

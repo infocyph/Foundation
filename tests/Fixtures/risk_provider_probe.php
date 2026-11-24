@@ -88,7 +88,9 @@ $result = null;
 
 try {
     if ($mode === 'cancel') {
-        $loop->delay(0.5, static fn(): bool => $request->cancel(CancellationReason::HOST_CANCELLED));
+        $loop->delay(0.5, static function () use ($request): void {
+            $request->cancel(CancellationReason::HOST_CANCELLED);
+        });
     }
 
     try {
