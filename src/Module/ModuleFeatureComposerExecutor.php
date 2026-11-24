@@ -149,6 +149,7 @@ final readonly class ModuleFeatureComposerExecutor
         if ($contents === false) {
             throw new \RuntimeException('Unable to read Composer installed metadata.');
         }
+
         try {
             /** @var mixed $metadata */
             $metadata = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);

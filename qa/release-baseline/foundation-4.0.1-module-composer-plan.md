@@ -17,3 +17,5 @@
 No application/request hot-path changes, dependency upgrades, merge, tag or publication. Current initial fix is unverified until hosted tests finish.
 
 Batch 2: historical jobs failed at unavailable branch checkout in run 45439500616. Existing native regression gates retained; new candidate lifecycle job required for release. Psalm MixedAssignment boundary explicitly typed without suppressing diagnostics. Hosted results pending.
+
+Batch 3: inspected failed PHP 8.4 prefer-lowest job 138606471151 at initial head; sole Pint issue was blank_line_before_statement in the executor. Corrected spacing before try. Experiment run 45436509096 passed 20/20 using COMPOSER_NO_DEV=1; candidate automatic mode preservation still requires its own verification. Batch 2 run 45440482153 superseded by this exact-head formatting correction.
