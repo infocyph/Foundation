@@ -101,9 +101,16 @@ existing session creation/rotation and CSRF contract. Configure trusted
 devices through the existing DeviceManager and RiskDeviceTrust, optionally
 passing a server-resolved canonical account and a validated device cookie
 to the risk action. Never use a client-provided account ID to grant relief.
-Issue the trust cookie only from an authenticated, matching live session
-and an independently trusted device. Revocation requires a shared,
-authoritative device store. The signed token is not a session credential.
+Construct RiskDeviceTrust with the existing authoritative SessionStoreInterface
+and DeviceManager. Issue the cookie only with a successful login and the
+host-verified device ID from an independent possession/enrollment check,
+not a device ID supplied in login context. Pass that verified ID to
+RiskDeviceTrust::issueCookie; absent or mismatched possession, revoked or
+expired session, and device-store errors deny issuance. Revocation of
+an issued score-relief token follows the authoritative device store;
+the signed token is not a session credential. Observational feedback runs
+after authoritative lockout and audit; a telemetry exception cannot undo
+an authentication outcome.
 
 The policy returns allow, challenge, deny or unavailable through Webrick's
 native admission middleware. Rejection status codes are 429, 403 and 503;

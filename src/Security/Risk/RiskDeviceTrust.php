@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Security\Risk;
 
 use Infocyph\Foundation\Auth\Authentication\Login\LoginResult;
+use Infocyph\Foundation\Auth\Authentication\Session\AuthSession;
+use Infocyph\Foundation\Auth\Contract\Storage\SessionStoreInterface;
 use Infocyph\Foundation\Auth\Device\DeviceManager;
 use Infocyph\Webrick\Response\Cookies\Cookie;
 use Throwable;
@@ -27,6 +29,7 @@ final readonly class RiskDeviceTrust
      */
     public function __construct(
         private DeviceManager $devices,
+        private SessionStoreInterface $sessions,
         #[\SensitiveParameter]
         private array $keys,
         private string $activeKey,
@@ -50,20 +53,22 @@ final readonly class RiskDeviceTrust
     }
 
     /**
-     * Mint only after actual authentication and an existing trusted device.
-     * A successful challenge alone cannot create a device trust token.
+     * Mint only after actual authentication, live session lookup and independently
+     * verified possession of this trusted device. The host must resolve the
+     * verified device ID from its possession/enrollment mechanism, not a request ID.
+     * A successful challenge or password alone cannot create a device trust token.
      *
      * @throws \InvalidArgumentException
      */
-    public function issueCookie(RiskContext $context, LoginResult $login, int $now): ?Cookie
+    public function issueCookie(RiskContext $context, LoginResult $login, int $now, ?string $verifiedDeviceId = null): ?Cookie
     {
         $account = $login->principal?->accountId();
         $session = $login->session;
         $device = $session?->deviceId;
         if (!$login->authenticated() || $account === null || $session === null || $device === null
-            || $session->accountId !== $account || $session->isExpiredAt($now)
+            || $verifiedDeviceId !== $device || $session->accountId !== $account || $session->isExpiredAt($now)
             || !$this->scopeValid($context, $account, $device, $now)
-            || !$this->trusted($account, $device)
+            || !$this->liveSession($session, $now) || !$this->trusted($account, $device)
         ) {
             return null;
         }
@@ -118,6 +123,20 @@ final readonly class RiskDeviceTrust
     private static function encode(string $value): string
     {
         return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
+    }
+
+    private function liveSession(AuthSession $session, int $now): bool
+    {
+        try {
+            $current = $this->sessions->find($session->id);
+
+            return $current !== null && $current->id === $session->id
+                && $current->accountId === $session->accountId
+                && $current->deviceId === $session->deviceId
+                && !$current->isExpiredAt($now);
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     private function scopeValid(RiskContext $context, string $account, string $device, int $now): bool

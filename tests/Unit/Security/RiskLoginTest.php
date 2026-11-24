@@ -114,3 +114,26 @@ it('rejects exhausted capacity before authentication and releases owned capacity
     \PHPUnit\Framework\Assert::assertNotNull($next);
     expect($bulkhead->release($next))->toBeTrue();
 });
+
+it('preserves independent lockout and completed authentication when feedback throws', function (): void {
+    $app = Foundation::web(['app' => ['base_path' => sys_get_temp_dir()], 'router' => ['files' => []]]);
+    $services = $app->make(AuthServices::class);
+    $authenticator = $app->make(Authenticator::class);
+    $account = $services->accounts()->create('lockout@example.test', $services->passwordHasher()->hash('correct-secret'))->account;
+    \PHPUnit\Framework\Assert::assertNotNull($account);
+    $services->accounts()->create('success@example.test', $services->passwordHasher()->hash('correct-secret'));
+    $outcomes = [];
+    $observer = static function (bool $success) use (&$outcomes): void {
+        $outcomes[] = $success;
+        throw new \RuntimeException('Optional telemetry unavailable.');
+    };
+
+    expect($authenticator->login(new LoginRequest('success@example.test', 'correct-secret'), $observer)->authenticated())->toBeTrue()
+        ->and($authenticator->login(new LoginRequest('absent@example.test', 'wrong'), $observer)->authenticated())->toBeFalse();
+    for ($attempt = 0; $attempt < 5; ++$attempt) {
+        expect($authenticator->login(new LoginRequest('lockout@example.test', 'wrong'), $observer)->authenticated())->toBeFalse();
+    }
+    expect($services->lockouts()->isLocked($account->id()))->toBeTrue()
+        ->and($authenticator->login(new LoginRequest('lockout@example.test', 'correct-secret'), $observer)->authenticated())->toBeFalse()
+        ->and($outcomes)->toBe([true, false, false, false, false, false, false]);
+});
