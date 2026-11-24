@@ -42,6 +42,7 @@ if (!is_resource($process)) {
 }
 fclose($pipes[0]);
 stream_set_blocking($pipes[2], false);
+$stub = null;
 
 try {
     $until = hrtime(true) + 10_000_000_000;
@@ -145,14 +146,19 @@ try {
         throw new RuntimeException('Native gRPC UNIMPLEMENTED status was incorrectly reported as success.');
     }
 
-    fwrite(STDOUT, "Foundation-selected native TalkingBytes gRPC loopback and failure mapping verified.\n");
 } finally {
-    proc_terminate($process);
-    fclose($pipes[1]);
-    fclose($pipes[2]);
-    proc_close($process);
-    if (is_file($ready)) {
-        unlink($ready);
+    try {
+        $stub?->close();
+    } finally {
+        proc_terminate($process);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        proc_close($process);
+        if (is_file($ready)) {
+            unlink($ready);
+        }
+        rmdir($root);
     }
-    rmdir($root);
 }
+
+fwrite(STDOUT, "Foundation-selected native TalkingBytes gRPC loopback, failure mapping and channel cleanup verified.\n");

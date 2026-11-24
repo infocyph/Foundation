@@ -292,6 +292,7 @@ jobs:
       - name: Install native gRPC and selected package dependencies
         run: |
           php -r 'if (!extension_loaded("grpc")) { throw new RuntimeException("Native gRPC PHP extension unavailable."); }'
+          php --ri grpc
           composer update --no-interaction --no-progress --prefer-dist --prefer-stable
           composer require --dev "grpc/grpc:^1.76" --no-interaction --no-progress --prefer-dist --prefer-stable
       - name: Start pinned Python gRPC test peer and verify real native unary transport

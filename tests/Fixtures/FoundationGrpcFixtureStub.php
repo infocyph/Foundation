@@ -61,6 +61,11 @@ final readonly class FoundationGrpcFixtureStub
         );
     }
 
+    public function close(): void
+    {
+        new ReflectionMethod($this->inner, 'close')->invoke($this->inner);
+    }
+
     /**
      * @return class-string
      * @throws \RuntimeException
