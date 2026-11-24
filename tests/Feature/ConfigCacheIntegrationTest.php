@@ -168,7 +168,7 @@ PHP,
         $cacheDirectory = $project . '/bootstrap/cache/config';
         $compiledFile = $cacheDirectory . '/config.php';
         $manifestFile = $cacheDirectory . '/__manifest.php';
-        $manifest = \foundationReadPhpFixtureArray($manifestFile);
+        $manifest = \Infocyph\foundationReadPhpFixtureArray($manifestFile);
         $native = new ArrayKitConfig();
 
         expect($native->loadCache($compiledFile))->toBeTrue()

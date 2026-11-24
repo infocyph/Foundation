@@ -53,7 +53,7 @@ it('boots immutable releases without rediscovering application source files', fu
             generation: 'phase10-source-isolation',
         );
         $generation = $releaseRoot . '/generations/phase10-source-isolation';
-        $manifest = \foundationReadPhpFixtureArray($generation . '/foundation.php');
+        $manifest = \Infocyph\foundationReadPhpFixtureArray($generation . '/foundation.php');
 
         if (!is_string($manifest['config_sha256'] ?? null)) {
             throw new \UnexpectedValueException('Release manifest must contain a configuration digest.');

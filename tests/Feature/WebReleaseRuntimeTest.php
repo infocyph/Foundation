@@ -512,7 +512,7 @@ it('compiles and boots a trusted route-first Webrick release without live router
         expect($metadata['fallback']['required'] ?? null)->toBeFalse()
             ->and($metadata['fallback']['identity_required'] ?? null)->toBeFalse();
 
-        $payload = \foundationReadPhpFixtureArray($router);
+        $payload = \Infocyph\foundationReadPhpFixtureArray($router);
 
         $artifact = CompiledRouterArtifact::fromPayload($payload);
         $plansByPath = [];
@@ -643,7 +643,7 @@ it('compiles maintenance as an opt-in Webrick gate with bounded runtime refresh'
         expect($trustedSha256)->toMatch('/^[a-f0-9]{64}$/D')
             ->and($release['intermix']['skipped'] ?? null)->toBe([]);
 
-        $payload = \foundationReadPhpFixtureArray($router);
+        $payload = \Infocyph\foundationReadPhpFixtureArray($router);
 
         $artifact = CompiledRouterArtifact::fromPayload($payload);
         $plainPlan = null;

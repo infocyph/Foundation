@@ -364,7 +364,7 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         );
 
         $generation = $releaseRoot . '/generations/phase8-e2e';
-        $foundationManifest = \foundationReadPhpFixtureArray($generation . '/foundation.php');
+        $foundationManifest = \Infocyph\foundationReadPhpFixtureArray($generation . '/foundation.php');
         \PHPUnit\Framework\Assert::assertIsArray(($foundationManifest['worker'] ?? null));
         expect($release['generation'])->toBe('phase8-e2e')
             ->and(new ActiveGeneration()->current($releaseRoot)['generation'])->toBe('phase8-e2e')
@@ -708,7 +708,7 @@ it('publishes and boots every production matcher from its native Webrick cache',
             );
 
             $generation = $releaseRoot . '/generations/phase8-' . $name;
-            $manifest = \foundationReadPhpFixtureArray($generation . '/foundation.php');
+            $manifest = \Infocyph\foundationReadPhpFixtureArray($generation . '/foundation.php');
             \PHPUnit\Framework\Assert::assertIsArray(($manifest['web'] ?? null));
             $cachePath = $manifest['web']['matcher_cache_path'] ?? null;
             $absoluteCachePath = $generation . DIRECTORY_SEPARATOR

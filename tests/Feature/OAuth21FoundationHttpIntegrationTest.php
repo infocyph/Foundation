@@ -127,7 +127,7 @@ it('includes Foundation OAuth routes in compiled Webrick releases', function ():
         }
         expect($release['intermix']['skipped'] ?? null)->toBe([]);
 
-        $payload = \foundationReadPhpFixtureArray($router);
+        $payload = \Infocyph\foundationReadPhpFixtureArray($router);
         $artifact = CompiledRouterArtifact::fromPayload($payload);
         $oauthMetadata = null;
         foreach ($artifact->routes() as $route) {

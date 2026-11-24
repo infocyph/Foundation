@@ -66,7 +66,7 @@ it('enables only the selected feature and preserves legacy capability policy', f
         $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
         $activation = new ModuleActivationManager($app);
         $result = $activation->applyFeatures('enable', ['security.passkey'], featureActivationContext());
-        $config = \foundationReadPhpFixtureArray($result);
+        $config = \Infocyph\foundationReadPhpFixtureArray($result);
 
         expect($result)->toBe($path . '/config/modules.php')
             ->and($config['features'])->toBe(['security.passkey' => true])
@@ -88,7 +88,7 @@ it('disables one feature without changing enabled siblings or application policy
         $context = featureActivationContext();
         $context['enabled'] = ['security.mfa', 'security.passkey'];
         $pathToConfig = $activation->applyFeatures('disable', ['security.mfa'], $context);
-        $config = \foundationReadPhpFixtureArray($pathToConfig);
+        $config = \Infocyph\foundationReadPhpFixtureArray($pathToConfig);
         expect($config['features'])->toBe(['security.mfa' => false, 'security.passkey' => true])
             ->and($config['capabilities'])->toBe(['filesystem' => true]);
     } finally {
@@ -201,7 +201,7 @@ it('serializes overlapping feature plans without silently losing changes', funct
         }
         $processes = [];
 
-        $config = \foundationReadPhpFixtureArray($path . '/config/modules.php');
+        $config = \Infocyph\foundationReadPhpFixtureArray($path . '/config/modules.php');
 
         \PHPUnit\Framework\Assert::assertIsArray($config['features'] ?? null);
         expect($successes)->toBe(1)
