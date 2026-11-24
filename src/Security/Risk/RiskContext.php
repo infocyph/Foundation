@@ -55,26 +55,9 @@ final readonly class RiskContext
 
         $peer = self::address($peer);
         $attested = array_any($trustedEdges, static fn(IpCidr $network): bool => $network->matches($peer));
-        $ip = $peer;
-        $ja4 = null;
-        $asn = null;
-        if ($attested) {
-            $client = self::single($clientIps, 45);
-            if ($client === null) {
-                throw new \InvalidArgumentException('Trusted edge must supply one client address.');
-            }
-            $ip = self::address($client);
-            $ja4 = self::single($fingerprints, 36);
-            if ($ja4 !== null && preg_match('/\A[tqd][a-z0-9]{2}[di][0-9]{4}[a-z0-9]{2}_[a-f0-9]{12}_[a-f0-9]{12}\z/D', $ja4) !== 1) {
-                throw new \InvalidArgumentException('Invalid attested fingerprint.');
-            }
-            $asn = self::single($autonomousSystems, 10);
-            if ($asn !== null && (preg_match('/\A[1-9][0-9]{0,9}\z/D', $asn) !== 1
-                || (strlen($asn) === 10 && strcmp($asn, '4294967295') > 0))
-            ) {
-                throw new \InvalidArgumentException('Invalid attested ASN.');
-            }
-        }
+        [$ip, $ja4, $asn] = $attested
+            ? self::attestedSignals($clientIps, $fingerprints, $autonomousSystems)
+            : [$peer, null, null];
 
         $packed = inet_pton($ip);
         if ($packed === false) {
@@ -117,6 +100,34 @@ final readonly class RiskContext
         }
 
         return $address;
+    }
+
+    /**
+     * @param list<string> $clientIps
+     * @param list<string> $fingerprints
+     * @param list<string> $autonomousSystems
+     * @return array{string,?string,?string}
+     * @throws \InvalidArgumentException
+     */
+    private static function attestedSignals(array $clientIps, array $fingerprints, array $autonomousSystems): array
+    {
+        $client = self::single($clientIps, 45);
+        if ($client === null) {
+            throw new \InvalidArgumentException('Trusted edge must supply one client address.');
+        }
+        $ip = self::address($client);
+        $ja4 = self::single($fingerprints, 36);
+        if ($ja4 !== null && preg_match('/\A[tqd][a-z0-9]{2}[di][0-9]{4}[a-z0-9]{2}_[a-f0-9]{12}_[a-f0-9]{12}\z/D', $ja4) !== 1) {
+            throw new \InvalidArgumentException('Invalid attested fingerprint.');
+        }
+        $asn = self::single($autonomousSystems, 10);
+        if ($asn !== null && (preg_match('/\A[1-9][0-9]{0,9}\z/D', $asn) !== 1
+            || (strlen($asn) === 10 && strcmp($asn, '4294967295') > 0))
+        ) {
+            throw new \InvalidArgumentException('Invalid attested ASN.');
+        }
+
+        return [$ip, $ja4, $asn];
     }
 
     /**

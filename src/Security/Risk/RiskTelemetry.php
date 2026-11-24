@@ -67,52 +67,18 @@ final readonly class RiskTelemetry
             $keys['familiar'] = $this->key($context, 'familiar', $context->ja4);
         }
 
+        $values = [];
         $reliable = $this->qualified;
-        $familiar = null;
-        $signature = 0;
-        $concentrated = false;
+
         try {
-            $values = [];
             foreach ($this->cache->getMultiple(array_values($keys)) as $key => $value) {
                 $values[$key] = $value;
-            }
-            foreach ($keys as $dimension => $key) {
-                $value = $values[$key] ?? null;
-                if ($dimension === 'familiar') {
-                    if ($value === 1) {
-                        $familiar = true;
-                    } elseif ($value === null && $reliable) {
-                        $familiar = false;
-                    } else {
-                        $reliable = false;
-                    }
-
-                    continue;
-                }
-                if ($value === null) {
-                    continue;
-                }
-                if (!is_int($value) || $value < 1 || $value > self::MAX_COUNT) {
-                    $reliable = false;
-
-                    continue;
-                }
-                if ($dimension === 'signature' || $dimension === 'account') {
-                    $signature = max($signature, $value);
-                } elseif ($value >= $this->concentrationAt) {
-                    $concentrated = true;
-                }
             }
         } catch (CacheException|PoolException) {
             $reliable = false;
         }
 
-        return [
-            'familiar' => $familiar === false && !$reliable ? null : $familiar,
-            'failedSignatureAttempts' => $signature,
-            'concentrated' => $concentrated,
-            'reliable' => $reliable,
-        ];
+        return $this->summarize($keys, $values, $reliable);
     }
 
     /**
@@ -212,5 +178,51 @@ final readonly class RiskTelemetry
         $digest = hash_hmac('sha256', $material, $this->keySecret, true);
 
         return 'rt.' . rtrim(strtr(base64_encode($digest), '+/', '-_'), '=');
+    }
+
+    /**
+     * @param array<string,string> $keys
+     * @param array<array-key,mixed> $values
+     * @return array{familiar:?bool,failedSignatureAttempts:int,concentrated:bool,reliable:bool}
+     */
+    private function summarize(array $keys, array $values, bool $reliable): array
+    {
+        $familiar = null;
+        $signature = 0;
+        $concentrated = false;
+        if (isset($keys['familiar'])) {
+            $value = $values[$keys['familiar']] ?? null;
+            if ($value === 1) {
+                $familiar = true;
+            } elseif ($value !== null) {
+                $reliable = false;
+            } elseif ($reliable) {
+                $familiar = false;
+            }
+            unset($keys['familiar']);
+        }
+        foreach ($keys as $dimension => $key) {
+            $value = $values[$key] ?? null;
+            if ($value === null) {
+                continue;
+            }
+            if (!is_int($value) || $value < 1 || $value > self::MAX_COUNT) {
+                $reliable = false;
+
+                continue;
+            }
+            if ($dimension === 'signature' || $dimension === 'account') {
+                $signature = max($signature, $value);
+            } elseif ($value >= $this->concentrationAt) {
+                $concentrated = true;
+            }
+        }
+
+        return [
+            'familiar' => $familiar === false && !$reliable ? null : $familiar,
+            'failedSignatureAttempts' => $signature,
+            'concentrated' => $concentrated,
+            'reliable' => $reliable,
+        ];
     }
 }

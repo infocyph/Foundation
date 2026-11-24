@@ -19,7 +19,7 @@ final readonly class RiskPolicy
      * Map an attested JA4 to operator-qualified User-Agent markers.
      * Absence of a mapping is not evidence of inconsistency.
      *
-     * @param array<string,list<string>> $agentMarkers
+     * @param array<array-key,mixed> $agentMarkers
      * @throws \InvalidArgumentException
      */
     public function __construct(
@@ -48,21 +48,7 @@ final readonly class RiskPolicy
                 throw new \InvalidArgumentException('Invalid risk policy weight.');
             }
         }
-        $normalized = [];
-        foreach ($agentMarkers as $fingerprint => $markers) {
-            if (preg_match('/\A[tqd][a-z0-9]{2}[di][0-9]{4}[a-z0-9]{2}_[a-f0-9]{12}_[a-f0-9]{12}\z/D', $fingerprint) !== 1
-                || $markers === [] || !array_is_list($markers) || count($markers) > 8
-            ) {
-                throw new \InvalidArgumentException('Invalid curated fingerprint mapping.');
-            }
-            foreach ($markers as $marker) {
-                if ($marker === '' || strlen($marker) > 64 || preg_match('/[\x00-\x1f\x7f]/', $marker) !== 0) {
-                    throw new \InvalidArgumentException('Invalid curated agent marker.');
-                }
-                $normalized[$fingerprint][] = strtolower($marker);
-            }
-        }
-        $this->agentMarkers = $normalized;
+        $this->agentMarkers = self::normalizeMarkers($agentMarkers);
     }
 
     /**
@@ -85,20 +71,13 @@ final readonly class RiskPolicy
 
         $score = 0;
         $reasons = [];
-        $ja4 = $context->ja4;
-        if ($ja4 !== null) {
-            $markers = $this->agentMarkers[$ja4] ?? null;
-            if ($markers !== null && $context->userAgent !== null) {
-                $agent = strtolower($context->userAgent);
-                if (!array_any($markers, static fn(string $marker): bool => str_contains($agent, $marker))) {
-                    $score += $this->mismatchWeight;
-                    $reasons[] = 'agent_fingerprint_mismatch';
-                }
-            }
-            if ($familiar === false) {
-                $score += $this->unfamiliarWeight;
-                $reasons[] = 'unfamiliar_fingerprint';
-            }
+        if ($this->mismatchedAgent($context)) {
+            $score += $this->mismatchWeight;
+            $reasons[] = 'agent_fingerprint_mismatch';
+        }
+        if ($context->ja4 !== null && $familiar === false) {
+            $score += $this->unfamiliarWeight;
+            $reasons[] = 'unfamiliar_fingerprint';
         }
 
         if ($failedSignatureAttempts >= $this->highFailureAt) {
@@ -119,6 +98,7 @@ final readonly class RiskPolicy
         $score = max(0, $score);
         if ($hardDeny) {
             $reasons[] = 'hard_deny';
+
             return new RiskAssessment('deny', $score, $reasons, $this->shadow);
         }
 
@@ -129,5 +109,44 @@ final readonly class RiskPolicy
         };
 
         return new RiskAssessment($action, $score, $reasons, $this->shadow);
+    }
+
+    /**
+     * @param array<array-key,mixed> $agentMarkers
+     * @return array<string,list<string>>
+     * @throws \InvalidArgumentException
+     */
+    private static function normalizeMarkers(array $agentMarkers): array
+    {
+        $normalized = [];
+        foreach ($agentMarkers as $fingerprint => $markers) {
+            if (!is_string($fingerprint) || preg_match('/\A[tqd][a-z0-9]{2}[di][0-9]{4}[a-z0-9]{2}_[a-f0-9]{12}_[a-f0-9]{12}\z/D', $fingerprint) !== 1
+                || !is_array($markers) || $markers === [] || !array_is_list($markers) || count($markers) > 8
+            ) {
+                throw new \InvalidArgumentException('Invalid curated fingerprint mapping.');
+            }
+            foreach ($markers as $marker) {
+                if (!is_string($marker) || $marker === '' || strlen($marker) > 64 || preg_match('/[\x00-\x1f\x7f]/', $marker) !== 0) {
+                    throw new \InvalidArgumentException('Invalid curated agent marker.');
+                }
+                $normalized[$fingerprint][] = strtolower($marker);
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function mismatchedAgent(RiskContext $context): bool
+    {
+        if ($context->ja4 === null || $context->userAgent === null) {
+            return false;
+        }
+        $markers = $this->agentMarkers[$context->ja4] ?? null;
+        if ($markers === null) {
+            return false;
+        }
+        $agent = strtolower($context->userAgent);
+
+        return !array_any($markers, static fn(string $marker): bool => str_contains($agent, $marker));
     }
 }

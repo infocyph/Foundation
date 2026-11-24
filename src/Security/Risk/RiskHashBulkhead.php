@@ -47,28 +47,6 @@ final readonly class RiskHashBulkhead
     }
 
     /**
-     * Provision missing slots only while the entire pool is verified drained.
-     * Never run this in request handling, after cache loss, or on a timer.
-     * Existing ownership is never overwritten.
-     */
-    public function provisionDrainedPool(): bool
-    {
-        try {
-            foreach ($this->slots as $key) {
-                if (!$this->authority->atomic->setIfAbsent($key, self::FREE)
-                    && $this->authority->cache->get($key) !== self::FREE
-                ) {
-                    return false;
-                }
-            }
-
-            return true;
-        } catch (CacheException|PoolException) {
-            return false;
-        }
-    }
-
-    /**
      * One bounded scan, no spinning or queueing. Null means unavailable/full.
      *
      * @return array{slot:int,owner:string}|null
@@ -91,6 +69,24 @@ final readonly class RiskHashBulkhead
     }
 
     /**
+     * Provision missing slots only while the entire pool is verified drained.
+     * Never run this in request handling, after cache loss, or on a timer.
+     * Existing ownership is never overwritten.
+     */
+    public function provisionDrainedPool(): bool
+    {
+        try {
+            return array_all(
+                $this->slots,
+                fn(string $key): bool => $this->authority->atomic->setIfAbsent($key, self::FREE)
+                    || $this->authority->cache->get($key) === self::FREE,
+            );
+        } catch (CacheException|PoolException) {
+            return false;
+        }
+    }
+
+    /**
      * Release only the matching owner, and only after work has actually ended.
      * A stale token cannot release a newer owner's slot.
      *
@@ -102,6 +98,7 @@ final readonly class RiskHashBulkhead
         if ($key === null || preg_match('/\A[a-f0-9]{64}\z/D', $lease['owner']) !== 1) {
             return false;
         }
+
         try {
             return $this->authority->atomic->compareAndSet($key, $lease['owner'], self::FREE);
         } catch (CacheException|PoolException) {

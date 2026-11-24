@@ -66,51 +66,72 @@ final readonly class RiskLogin
             $hardDeny,
         );
 
+        $decision = $this->decision($assessment, $context, $account, $now, $clearance);
+        $middleware = new RiskAdmissionMiddleware(
+            static fn(): RiskDecision => $decision,
+            $assessment->shadow ? RiskAdmissionMiddleware::SHADOW : RiskAdmissionMiddleware::ENFORCE,
+        );
+
+        return $middleware(
+            $request,
+            fn(): Response => $this->authenticate($login, $context, $now, $render, $assessment->shadow),
+        );
+    }
+
+    /**
+     * @param callable(LoginResult):Response $render
+     * @throws \Random\RandomException
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
+    private function authenticate(LoginRequest $login, RiskContext $context, int $now, callable $render, bool $shadow): Response
+    {
+        $feedback = $shadow ? null : function (bool $success) use ($context, $now, $login): void {
+            if ($success) {
+                $this->telemetry->recordSuccess($context);
+            } else {
+                $this->telemetry->recordFailure($context, $now, $login->identifier);
+            }
+        };
+        if ($shadow || $this->bulkhead === null) {
+            return $render($this->authenticator->login($login, $feedback))->withHeader('Cache-Control', 'no-store');
+        }
+
+        $lease = $this->bulkhead->acquire();
+        if ($lease === null) {
+            return Response::json(['error' => 'temporarily_unavailable'], 503, ['Cache-Control' => 'no-store']);
+        }
+
+        try {
+            $result = $this->authenticator->login($login, $feedback);
+        } finally {
+            $this->bulkhead->release($lease);
+        }
+
+        return $render($result)->withHeader('Cache-Control', 'no-store');
+    }
+
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \UnexpectedValueException
+     */
+    private function decision(RiskAssessment $assessment, RiskContext $context, string $account, int $now, #[\SensitiveParameter] ?string $clearance): RiskDecision
+    {
         $decision = match ($assessment->action) {
             'allow' => RiskDecision::allow($assessment->score, $assessment->reasons),
             'deny' => RiskDecision::deny($assessment->score, $assessment->reasons),
             'challenge' => RiskDecision::challenge($assessment->score, $assessment->reasons),
+            default => throw new \UnexpectedValueException('Invalid risk action.'),
         };
-        if (!$assessment->shadow && $decision->action === RiskDecision::CHALLENGE && $clearance !== null) {
-            $redeemed = $this->proofs?->redeemClearance($context, $account, $clearance, $now);
-            $decision = match ($redeemed) {
-                true => RiskDecision::allow($assessment->score, ['challenge_cleared']),
-                false => $decision,
-                null => RiskDecision::unavailable($assessment->score, ['clearance_unavailable']),
-            };
+        if ($assessment->shadow || $decision->action !== RiskDecision::CHALLENGE || $clearance === null) {
+            return $decision;
         }
+        $redeemed = $this->proofs?->redeemClearance($context, $account, $clearance, $now);
 
-        $middleware = new RiskAdmissionMiddleware(
-            static fn(Request $_request): RiskDecision => $decision,
-            $assessment->shadow ? RiskAdmissionMiddleware::SHADOW : RiskAdmissionMiddleware::ENFORCE,
-        );
-
-        return $middleware($request, function (Request $_request) use ($login, $context, $now, $account, $render, $assessment): Response {
-            $feedback = $assessment->shadow ? null : function (bool $success) use ($context, $now, $account): void {
-                if ($success) {
-                    $this->telemetry->recordSuccess($context);
-                } else {
-                    $this->telemetry->recordFailure($context, $now, $account);
-                }
-            };
-
-            $lease = null;
-            if (!$assessment->shadow && $this->bulkhead !== null) {
-                $lease = $this->bulkhead->acquire();
-                if ($lease === null) {
-                    return Response::json(['error' => 'temporarily_unavailable'], 503, ['Cache-Control' => 'no-store']);
-                }
-            }
-
-            try {
-                $result = $this->authenticator->login($login, $feedback);
-            } finally {
-                if ($lease !== null) {
-                    $this->bulkhead?->release($lease);
-                }
-            }
-
-            return $render($result)->withHeader('Cache-Control', 'no-store');
-        });
+        return match ($redeemed) {
+            true => RiskDecision::allow($assessment->score, ['challenge_cleared']),
+            false => $decision,
+            null => RiskDecision::unavailable($assessment->score, ['clearance_unavailable']),
+        };
     }
 }

@@ -13,13 +13,17 @@ namespace Infocyph\Foundation\Security\Risk;
 final readonly class RiskAssessment
 {
     /**
-     * @param 'allow'|'challenge'|'deny' $action
      * @param list<string> $reasons
+     * @throws \InvalidArgumentException
      */
     public function __construct(
         public string $action,
         public int $score,
         public array $reasons,
         public bool $shadow,
-    ) {}
+    ) {
+        if (!in_array($action, ['allow', 'challenge', 'deny'], true)) {
+            throw new \InvalidArgumentException('Invalid risk assessment action.');
+        }
+    }
 }

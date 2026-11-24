@@ -68,85 +68,28 @@ final readonly class RiskChallengeVerifier
     }
 
     /**
-     * true = accepted, false = rejected, null = unavailable. Use the active
-     * Runwire scope and a dispatcher attached to its owner loop. No retry or
-     * redirect is attempted; cancellation of the parent remains cancellation.
+     * Parse only a bounded provider response; never return raw provider text.
      *
-     * @throws \Infocyph\Runwire\Exception\CancelledException
+     * @internal
      */
-    public function verify(
-        CoroutineScope $scope,
-        HttpOutboundDispatcher $dispatcher,
-        RiskContext $context,
-        #[\SensitiveParameter]
-        string $proof,
-    ): ?bool {
-        $scope->cancellation()->throwIfCancelled();
-        $source = null;
-        $handle = null;
-        try {
-            $start = hrtime(true);
-            if (!is_int($start)) {
-                return null;
-            }
-            $deadline = RequestDeadline::afterSeconds($this->timeoutSeconds, $start);
-            $source = CancellationSource::linked($scope->cancellation(), $deadline);
-            $request = $this->prepare($context, $proof, $source->token(), $deadline);
-            if ($request === null) {
-                return false;
-            }
-
-            $deferred = $scope->deferred();
-            $future = $deferred->future();
-            $status = 0;
-            $payload = '';
-            $invalid = false;
-            $handle = $dispatcher->send(
-                $request,
-                static function (int $code, Headers $headers) use (&$status, &$invalid, $source): void {
-                    $status = $code;
-                    $length = $headers->first('content-length');
-                    if ($code !== 200 || ($length !== null && (strlen($length) > 5
-                        || preg_match('/\A[0-9]+\z/D', $length) !== 1
-                        || (int) $length > self::MAX_RESPONSE_BYTES))
-                    ) {
-                        $invalid = true;
-                        $source->cancel(CancellationReason::HOST_CANCELLED);
-                    }
-                },
-                static function (string $chunk) use (&$payload, &$invalid, $source): void {
-                    if ($invalid || strlen($chunk) > self::MAX_RESPONSE_BYTES - strlen($payload)) {
-                        $invalid = true;
-                        $source->cancel(CancellationReason::HOST_CANCELLED);
-
-                        return;
-                    }
-                    $payload .= $chunk;
-                },
-                function (?Throwable $error) use ($deferred, $future, &$status, &$payload, &$invalid): void {
-                    if (!$future->isComplete()) {
-                        $deferred->resolve($error === null && !$invalid ? $this->interpret($status, $payload) : null);
-                    }
-                },
-                new DialOptions(
-                    connectTimeoutSeconds: $this->timeoutSeconds,
-                    deadline: $deadline,
-                    cancellation: $source->token(),
-                    addressPolicy: new OutboundAddressPolicy(),
-                ),
-            );
-            $result = $future->await();
-            $scope->cancellation()->throwIfCancelled();
-
-            return !$deadline->expired() && is_bool($result) ? $result : null;
-        } catch (Throwable) {
-            $scope->cancellation()->throwIfCancelled();
-
+    public function interpret(int $status, string $payload): ?bool
+    {
+        if ($status !== 200 || strlen($payload) > self::MAX_RESPONSE_BYTES) {
             return null;
-        } finally {
-            $handle?->cancel();
-            $source?->dispose();
         }
+        try {
+            $response = json_decode($payload, true, 8, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return null;
+        }
+        if (!is_array($response) || !is_bool($response['success'] ?? null)) {
+            return null;
+        }
+
+        return $response['success']
+            && ($response['hostname'] ?? null) === $this->hostname
+            && ($response['action'] ?? null) === $this->action
+            && ($response['cdata'] ?? null) === $this->tenant;
     }
 
     /**
@@ -219,28 +162,44 @@ final readonly class RiskChallengeVerifier
     }
 
     /**
-     * Parse only a bounded provider response; never return raw provider text.
+     * true = accepted, false = rejected, null = unavailable. Use the active
+     * Runwire scope and a dispatcher attached to its owner loop. No retry or
+     * redirect is attempted; cancellation of the parent remains cancellation.
      *
-     * @internal
+     * @throws \Infocyph\Runwire\Exception\CancelledException
      */
-    public function interpret(int $status, string $payload): ?bool
-    {
-        if ($status !== 200 || strlen($payload) > self::MAX_RESPONSE_BYTES) {
-            return null;
-        }
+    public function verify(
+        CoroutineScope $scope,
+        HttpOutboundDispatcher $dispatcher,
+        RiskContext $context,
+        #[\SensitiveParameter]
+        string $proof,
+    ): ?bool {
+        $scope->cancellation()->throwIfCancelled();
+        $source = null;
         try {
-            $response = json_decode($payload, true, 8, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return null;
-        }
-        if (!is_array($response) || !is_bool($response['success'] ?? null)) {
-            return null;
-        }
+            $start = hrtime(true);
+            if (!is_int($start)) {
+                return null;
+            }
+            $deadline = RequestDeadline::afterSeconds($this->timeoutSeconds, $start);
+            $source = CancellationSource::linked($scope->cancellation(), $deadline);
+            $request = $this->prepare($context, $proof, $source->token(), $deadline);
+            if ($request === null) {
+                return false;
+            }
 
-        return $response['success'] === true
-            && ($response['hostname'] ?? null) === $this->hostname
-            && ($response['action'] ?? null) === $this->action
-            && ($response['cdata'] ?? null) === $this->tenant;
+            $result = $this->exchange($scope, $dispatcher, $request, $source, $deadline);
+            $scope->cancellation()->throwIfCancelled();
+
+            return $deadline->expired() ? null : $result;
+        } catch (Throwable) {
+            $scope->cancellation()->throwIfCancelled();
+
+            return null;
+        } finally {
+            $source?->dispose();
+        }
     }
 
     private static function dnsName(string $value): bool
@@ -249,5 +208,71 @@ final readonly class RiskChallengeVerifier
             && !str_ends_with($value, '.')
             && filter_var($value, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) !== false
             && filter_var($value, FILTER_VALIDATE_IP) === false;
+    }
+
+    private static function validHead(int $code, Headers $headers): bool
+    {
+        $length = $headers->first('content-length');
+
+        return $code === 200 && ($length === null || (strlen($length) <= 5
+            && preg_match('/\A[0-9]+\z/D', $length) === 1
+            && (int) $length <= self::MAX_RESPONSE_BYTES));
+    }
+
+    /** @throws \Throwable */
+    private function exchange(
+        CoroutineScope $scope,
+        HttpOutboundDispatcher $dispatcher,
+        ClientRequest $request,
+        CancellationSource $source,
+        RequestDeadline $deadline,
+    ): ?bool {
+        $deferred = $scope->deferred();
+        $future = $deferred->future();
+        $response = new class {
+            public bool $invalid = false;
+
+            public string $payload = '';
+
+            public int $status = 0;
+        };
+        $handle = $dispatcher->send(
+            $request,
+            static function (int $code, Headers $headers) use ($response, $source): void {
+                $response->status = $code;
+                if (!self::validHead($code, $headers)) {
+                    $response->invalid = true;
+                    $source->cancel(CancellationReason::HOST_CANCELLED);
+                }
+            },
+            static function (string $chunk) use ($response, $source): void {
+                if ($response->invalid || strlen($chunk) > self::MAX_RESPONSE_BYTES - strlen($response->payload)) {
+                    $response->invalid = true;
+                    $source->cancel(CancellationReason::HOST_CANCELLED);
+
+                    return;
+                }
+                $response->payload .= $chunk;
+            },
+            function (?Throwable $error) use ($deferred, $future, $response): void {
+                if (!$future->isComplete()) {
+                    $deferred->resolve($error === null && !$response->invalid ? $this->interpret($response->status, $response->payload) : null);
+                }
+            },
+            new DialOptions(
+                connectTimeoutSeconds: $this->timeoutSeconds,
+                deadline: $deadline,
+                cancellation: $source->token(),
+                addressPolicy: new OutboundAddressPolicy(),
+            ),
+        );
+
+        try {
+            $result = $future->await();
+
+            return is_bool($result) ? $result : null;
+        } finally {
+            $handle->cancel();
+        }
     }
 }
